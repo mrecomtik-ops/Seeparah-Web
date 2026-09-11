@@ -38,7 +38,7 @@ export function useAuth(): AuthState {
   }, []);
 
   const displayName =
-    (user?.user_metadata?.full_name as string | undefined) ??
+    (user?.user_metadata?.["full_name"] as string | undefined) ??
     user?.email ??
     "Demo Reader";
 

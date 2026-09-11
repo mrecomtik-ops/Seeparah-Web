@@ -62,9 +62,9 @@ function ProfilePage() {
       <main className="mx-auto max-w-3xl px-4 pb-20 pt-8 sm:px-6">
         <section className="flex items-center gap-4 rounded-2xl border border-border bg-card p-6 card-shadow">
           <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-accent">
-            {user?.user_metadata?.avatar_url ? (
+            {user?.user_metadata?.["avatar_url"] ? (
               <img
-                src={user.user_metadata.avatar_url as string}
+                src={user.user_metadata["avatar_url"] as string}
                 alt={`${displayName}'s avatar`}
                 className="h-full w-full object-cover"
               />

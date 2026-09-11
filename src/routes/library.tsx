@@ -182,7 +182,7 @@ function LibraryPage() {
             </h2>
             <div className="mt-4 grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-4">
               {inProgress.map((b) => (
-                <BookCard key={b.id} book={b} progress={progressByBook.get(b.id)} />
+                <BookCard key={b.id} book={b} progress={progressByBook.get(b.id) ?? null} />
               ))}
             </div>
           </section>
@@ -215,7 +215,7 @@ function LibraryPage() {
           ) : (
             <div className="mt-6 grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-4">
               {filtered.map((b) => (
-                <BookCard key={b.id} book={b} progress={progressByBook.get(b.id)} />
+                <BookCard key={b.id} book={b} progress={progressByBook.get(b.id) ?? null} />
               ))}
             </div>
           )}
