@@ -310,6 +310,10 @@ export const demoStore = {
     readStore<{ book: Book; chunks: Chunk[] }[]>("published", []),
   setPublishedBooks: (rows: { book: Book; chunks: Chunk[] }[]) =>
     writeStore("published", rows),
+  getShelves: () => readStore<ShelfRow[]>("shelves", []),
+  setShelves: (rows: ShelfRow[]) => writeStore("shelves", rows),
+  getReadingDays: () => readStore<string[]>("reading-days", []),
+  setReadingDays: (days: string[]) => writeStore("reading-days", days),
   getExtraChunks: () => readStore<Chunk[]>("translated-chunks", []),
   addExtraChunk: (chunk: Chunk) => {
     const all = readStore<Chunk[]>("translated-chunks", []);
