@@ -13,7 +13,7 @@ import { listMyBooks } from "@/lib/library";
 import { useAuth } from "@/lib/use-auth";
 import { BookCard } from "@/components/BookCard";
 
-export const Route = createFileRoute("/author")({
+export const Route = createFileRoute("/author/")({
   head: () => ({
     meta: [
       { title: "Author Studio — Seeparah" },
