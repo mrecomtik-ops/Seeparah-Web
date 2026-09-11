@@ -51,6 +51,16 @@ export interface Subscription {
   created_at: string;
 }
 
+export type ShelfKind = "favorite" | "saved" | "want_to_read";
+
+export interface ShelfRow {
+  id: string;
+  user_id: string;
+  book_id: string;
+  shelf: ShelfKind;
+  created_at: string;
+}
+
 export const LANGUAGES = [
   "English",
   "Urdu",

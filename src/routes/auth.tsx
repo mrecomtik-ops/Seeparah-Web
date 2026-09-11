@@ -39,7 +39,7 @@ function AuthPage() {
   useEffect(() => {
     let active = true;
     supabase.auth.getUser().then(({ data }) => {
-      if (active && data.user) navigate({ to: "/dashboard", replace: true });
+      if (active && data.user) navigate({ to: "/library", replace: true });
     });
     return () => {
       active = false;
@@ -57,7 +57,7 @@ function AuthPage() {
       return;
     }
     if (result.redirected) return;
-    navigate({ to: "/dashboard" });
+    navigate({ to: "/library" });
   }
 
   async function handleEmail(e: React.FormEvent) {
@@ -74,7 +74,7 @@ function AuthPage() {
           password,
           options: {
             emailRedirectTo: window.location.origin,
-            data: name.trim() ? { full_name: name.trim() } : undefined,
+            ...(name.trim() ? { data: { full_name: name.trim() } } : {}),
           },
         });
         if (error) throw error;
@@ -83,7 +83,7 @@ function AuthPage() {
           return;
         }
         toast.success("Welcome to Seeparah");
-        navigate({ to: "/dashboard" });
+        navigate({ to: "/library" });
       } else {
         const { error } = await supabase.auth.signInWithPassword({
           email: email.trim(),
@@ -91,7 +91,7 @@ function AuthPage() {
         });
         if (error) throw error;
         toast.success("Welcome back");
-        navigate({ to: "/dashboard" });
+        navigate({ to: "/library" });
       }
     } catch (error) {
       toast.error(
@@ -221,7 +221,7 @@ function AuthPage() {
         </div>
 
         <Link
-          to="/dashboard"
+          to="/library"
           className="mt-5 block text-center text-sm font-semibold text-primary hover:underline"
         >
           Try demo — read without an account
