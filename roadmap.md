@@ -11,4 +11,12 @@
 - [x] Author Studio (dashboard, publish, analytics)
 - [x] Profile + Plans/subscription (Stripe test-mode messaging)
 - [x] Demo-mode fallback (localStorage)
+- [x] Seeded real book content in the database
+- [x] Reader dashboard (continue reading, goal, streak, for you, recommended, trending)
+- [x] Personal library shelves (saved, favorites, want to read, history) + language/author/topic filters
+- [x] Reader bookmarks + auto-saved progress + streak tracking
+- [x] Author earnings summary + author profile
+- [x] Reader & author plans with 70/30 split
+- [x] Profile language preference, weekly goal, saved titles
+- [x] Mobile bottom navigation
 - [ ] Wire real Stripe checkout (needs Stripe keys)
