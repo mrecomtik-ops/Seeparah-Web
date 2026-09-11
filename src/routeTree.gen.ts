@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthorRouteRouteImport } from './routes/author/route'
 import { Route as LibraryRouteImport } from './routes/library'
 import { Route as ProfileRouteImport } from './routes/profile'
@@ -22,6 +23,11 @@ import { Route as ReadBookIdRouteImport } from './routes/read.$bookId'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthorRouteRoute = AuthorRouteRouteImport.update({
@@ -68,6 +74,7 @@ const ReadBookIdRoute = ReadBookIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/author': typeof AuthorRouteRouteWithChildren
+  '/auth': typeof AuthRoute
   '/library': typeof LibraryRoute
   '/profile': typeof ProfileRoute
   '/subscribe': typeof SubscribeRoute
@@ -78,6 +85,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
   '/library': typeof LibraryRoute
   '/profile': typeof ProfileRoute
   '/subscribe': typeof SubscribeRoute
@@ -90,6 +98,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/author': typeof AuthorRouteRouteWithChildren
+  '/auth': typeof AuthRoute
   '/library': typeof LibraryRoute
   '/profile': typeof ProfileRoute
   '/subscribe': typeof SubscribeRoute
@@ -103,6 +112,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/author'
+    | '/auth'
     | '/library'
     | '/profile'
     | '/subscribe'
@@ -113,6 +123,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/auth'
     | '/library'
     | '/profile'
     | '/subscribe'
@@ -124,6 +135,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/author'
+    | '/auth'
     | '/library'
     | '/profile'
     | '/subscribe'
@@ -136,6 +148,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthorRouteRoute: typeof AuthorRouteRouteWithChildren
+  AuthRoute: typeof AuthRoute
   LibraryRoute: typeof LibraryRoute
   ProfileRoute: typeof ProfileRoute
   SubscribeRoute: typeof SubscribeRoute
@@ -149,6 +162,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/author': {
@@ -229,6 +249,7 @@ const AuthorRouteRouteWithChildren = AuthorRouteRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthorRouteRoute: AuthorRouteRouteWithChildren,
+  AuthRoute: AuthRoute,
   LibraryRoute: LibraryRoute,
   ProfileRoute: ProfileRoute,
   SubscribeRoute: SubscribeRoute,
