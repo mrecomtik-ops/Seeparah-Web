@@ -81,6 +81,41 @@ export type Database = {
           },
         ]
       }
+      book_shelves: {
+        Row: {
+          book_id: string
+          created_at: string
+          id: string
+          shelf: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          book_id: string
+          created_at?: string
+          id?: string
+          shelf: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          book_id?: string
+          created_at?: string
+          id?: string
+          shelf?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "book_shelves_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       books: {
         Row: {
           access_type: string
@@ -90,6 +125,7 @@ export type Database = {
           cover_url: string | null
           created_at: string
           description: string
+          genre: string
           id: string
           source_language: string
           status: string
@@ -105,6 +141,7 @@ export type Database = {
           cover_url?: string | null
           created_at?: string
           description?: string
+          genre?: string
           id?: string
           source_language?: string
           status?: string
@@ -120,6 +157,7 @@ export type Database = {
           cover_url?: string | null
           created_at?: string
           description?: string
+          genre?: string
           id?: string
           source_language?: string
           status?: string
