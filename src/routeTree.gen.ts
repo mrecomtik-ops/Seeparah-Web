@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthorRouteRouteImport } from './routes/author/route'
+import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as LibraryRouteImport } from './routes/library'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as SubscribeRouteImport } from './routes/subscribe'
@@ -33,6 +34,11 @@ const AuthRoute = AuthRouteImport.update({
 const AuthorRouteRoute = AuthorRouteRouteImport.update({
   id: '/author',
   path: '/author',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LibraryRoute = LibraryRouteImport.update({
@@ -75,6 +81,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/author': typeof AuthorRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/dashboard': typeof DashboardRoute
   '/library': typeof LibraryRoute
   '/profile': typeof ProfileRoute
   '/subscribe': typeof SubscribeRoute
@@ -86,6 +93,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/dashboard': typeof DashboardRoute
   '/library': typeof LibraryRoute
   '/profile': typeof ProfileRoute
   '/subscribe': typeof SubscribeRoute
@@ -99,6 +107,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/author': typeof AuthorRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/dashboard': typeof DashboardRoute
   '/library': typeof LibraryRoute
   '/profile': typeof ProfileRoute
   '/subscribe': typeof SubscribeRoute
@@ -113,6 +122,7 @@ export interface FileRouteTypes {
     | '/'
     | '/author'
     | '/auth'
+    | '/dashboard'
     | '/library'
     | '/profile'
     | '/subscribe'
@@ -124,6 +134,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/dashboard'
     | '/library'
     | '/profile'
     | '/subscribe'
@@ -136,6 +147,7 @@ export interface FileRouteTypes {
     | '/'
     | '/author'
     | '/auth'
+    | '/dashboard'
     | '/library'
     | '/profile'
     | '/subscribe'
@@ -149,6 +161,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthorRouteRoute: typeof AuthorRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  DashboardRoute: typeof DashboardRoute
   LibraryRoute: typeof LibraryRoute
   ProfileRoute: typeof ProfileRoute
   SubscribeRoute: typeof SubscribeRoute
@@ -176,6 +189,13 @@ declare module '@tanstack/react-router' {
       path: '/author'
       fullPath: '/author'
       preLoaderRoute: typeof AuthorRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/library': {
@@ -250,6 +270,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthorRouteRoute: AuthorRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  DashboardRoute: DashboardRoute,
   LibraryRoute: LibraryRoute,
   ProfileRoute: ProfileRoute,
   SubscribeRoute: SubscribeRoute,

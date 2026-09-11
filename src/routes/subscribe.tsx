@@ -3,7 +3,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
-import { BookOpen, Check, Crown, Loader2, ShieldCheck } from "lucide-react";
+import { BookOpen, Check, Crown, Feather, Loader2, ShieldCheck } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 import { AUTHOR_PAYOUT, PLATFORM_COMMISSION } from "@/lib/data";
 import { getBook, listSubscriptions, subscribeToBook } from "@/lib/library";
 import { useAuth } from "@/lib/use-auth";
@@ -185,6 +186,67 @@ function SubscribePage() {
             </p>
           </div>
         </div>
+        <section className="mt-6 rounded-2xl border border-border bg-card p-7 card-shadow">
+          <div className="flex items-center gap-2">
+            <Feather className="h-5 w-5 text-primary" />
+            <h2 className="font-display text-xl font-semibold text-foreground">
+              Author plan
+            </h2>
+          </div>
+          <p className="mt-1 font-display text-3xl font-semibold text-foreground">
+            Free to publish
+            <span className="text-base font-normal text-muted-foreground">
+              {" "}· 70% of every subscription
+            </span>
+          </p>
+          <ul className="mt-5 grid gap-2.5 text-sm text-foreground sm:grid-cols-2">
+            {[
+              "Publish a manuscript in minutes",
+              "Automatic translation into ten languages",
+              "Reader, translation and earnings analytics",
+              "Monthly payouts, cancel or unpublish anytime",
+            ].map((f) => (
+              <li key={f} className="flex items-start gap-2">
+                <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                {f}
+              </li>
+            ))}
+          </ul>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Link
+              to="/author/publish"
+              className="rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground"
+            >
+              Publish a manuscript
+            </Link>
+            <Link
+              to="/author"
+              className="rounded-xl border border-border bg-card px-5 py-3 text-sm font-semibold text-foreground hover:bg-secondary"
+            >
+              Continue as Author
+            </Link>
+          </div>
+        </section>
+
+        <section className="mt-6 rounded-2xl border border-border bg-secondary p-7">
+          <h2 className="font-display text-xl font-semibold text-foreground">
+            How the 70/30 split works
+          </h2>
+          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+            Every subscription is split the same way, every month, with no hidden
+            fees: {Math.round(AUTHOR_PAYOUT * 100)}% goes to the author who wrote
+            the book, and {Math.round(PLATFORM_COMMISSION * 100)}% stays with
+            Seeparah to pay for translation, hosting and payments.
+          </p>
+          <div className="mt-5 flex h-4 w-full overflow-hidden rounded-full">
+            <div className="flex h-full w-[70%] items-center justify-center bg-primary text-[10px] font-bold text-primary-foreground">
+              70% AUTHOR
+            </div>
+            <div className="flex h-full w-[30%] items-center justify-center bg-gold text-[10px] font-bold text-gold-foreground">
+              30% PLATFORM
+            </div>
+          </div>
+        </section>
       </main>
     </div>
   );

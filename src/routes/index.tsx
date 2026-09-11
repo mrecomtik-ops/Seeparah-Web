@@ -101,7 +101,7 @@ function LandingPage() {
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Link
-                to="/library"
+                to="/dashboard"
                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3.5 text-base font-semibold text-primary-foreground card-shadow transition-transform hover:-translate-y-0.5"
               >
                 <BookOpen className="h-5 w-5" />

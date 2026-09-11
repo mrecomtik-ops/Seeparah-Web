@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import {
   BookOpen,
   Crown,
@@ -11,6 +12,10 @@ import {
 import { toast } from "sonner";
 import { listBooks, listHighlights, listProgress, listSubscriptions } from "@/lib/library";
 import { signOut, useAuth } from "@/lib/use-auth";
+import { LANGUAGES } from "@/lib/data";
+import { getPrefs, setPrefs } from "@/lib/prefs";
+import { useShelves } from "@/components/ShelfButtons";
+import { SHELF_LABELS, type ShelfKind } from "@/lib/shelves";
 
 export const Route = createFileRoute("/profile")({
   head: () => ({
@@ -31,6 +36,15 @@ export const Route = createFileRoute("/profile")({
 function ProfilePage() {
   const { user, userId, displayName, isDemo } = useAuth();
   const navigate = useNavigate();
+  const [language, setLanguage] = useState("English");
+  const [goal, setGoal] = useState(40);
+  const shelvesQuery = useShelves();
+
+  useEffect(() => {
+    const p = getPrefs();
+    setLanguage(p.language);
+    setGoal(p.weeklyGoalPages);
+  }, []);
 
   const booksQuery = useQuery({ queryKey: ["books"], queryFn: listBooks });
   const progressQuery = useQuery({
@@ -143,6 +157,83 @@ function ProfilePage() {
                   </div>
                   <span className="rounded-full bg-accent px-2.5 py-1 text-[11px] font-semibold text-accent-foreground">
                     {s.status}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section className="mt-8 rounded-2xl border border-border bg-card p-6 card-shadow">
+          <h2 className="font-display text-lg font-semibold text-foreground">
+            Language & reading preferences
+          </h2>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <label className="flex flex-col gap-1">
+              <span className="text-xs font-medium text-muted-foreground">
+                Preferred reading language
+              </span>
+              <select
+                value={language}
+                onChange={(e) => {
+                  setLanguage(e.target.value);
+                  setPrefs({ language: e.target.value });
+                  toast.success(`Reading language set to ${e.target.value}`);
+                }}
+                className="rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+              >
+                {LANGUAGES.map((l) => (
+                  <option key={l} value={l}>
+                    {l}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-xs font-medium text-muted-foreground">
+                Weekly reading goal (pages)
+              </span>
+              <input
+                type="number"
+                min={5}
+                max={500}
+                value={goal}
+                onChange={(e) => {
+                  const v = Number(e.target.value) || 0;
+                  setGoal(v);
+                  setPrefs({ weeklyGoalPages: v });
+                }}
+                className="rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+              />
+            </label>
+          </div>
+        </section>
+
+        <section className="mt-8 rounded-2xl border border-border bg-card p-6 card-shadow">
+          <h2 className="font-display text-lg font-semibold text-foreground">
+            Saved titles
+          </h2>
+          {(shelvesQuery.data ?? []).length === 0 ? (
+            <p className="mt-3 text-sm text-muted-foreground">
+              Tap the heart, bookmark or plus on any book to keep it here.
+            </p>
+          ) : (
+            <ul className="mt-4 space-y-2.5">
+              {(shelvesQuery.data ?? []).map((row) => (
+                <li
+                  key={row.id}
+                  className="flex items-center justify-between gap-3 rounded-xl border border-border bg-background px-4 py-3"
+                >
+                  <Link
+                    to="/read/$bookId"
+                    params={{ bookId: row.book_id }}
+                    search={{ lang: language }}
+                    className="truncate font-display text-sm font-semibold text-foreground hover:underline"
+                  >
+                    {bookTitle(row.book_id)}
+                  </Link>
+                  <span className="shrink-0 rounded-full bg-accent px-2.5 py-1 text-[11px] font-semibold text-accent-foreground">
+                    {SHELF_LABELS[row.shelf as ShelfKind]}
                   </span>
                 </li>
               ))}

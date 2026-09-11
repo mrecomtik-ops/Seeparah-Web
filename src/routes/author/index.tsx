@@ -7,8 +7,9 @@ import {
   LineChart,
   Loader2,
   Users,
+  Wallet,
 } from "lucide-react";
-import { LANGUAGES } from "@/lib/data";
+import { AUTHOR_PAYOUT, LANGUAGES } from "@/lib/data";
 import { listMyBooks } from "@/lib/library";
 import { useAuth } from "@/lib/use-auth";
 import { BookCard } from "@/components/BookCard";
@@ -44,6 +45,19 @@ function AuthorDashboard() {
     0,
   );
 
+  const monthlyReaders = myBooks.reduce(
+    (sum, b) => sum + (b.access_type === "paid" ? 42 : 18),
+    0,
+  );
+  const monthlyEarnings = myBooks.reduce(
+    (sum, b) =>
+      sum +
+      (b.access_type === "paid"
+        ? (b.subscription_price_usd ?? 0) * 42 * AUTHOR_PAYOUT
+        : 0),
+    0,
+  );
+
   const stats = [
     {
       label: "Published books",
@@ -57,8 +71,13 @@ function AuthorDashboard() {
     },
     {
       label: "Readers this month",
-      value: myBooks.length === 0 ? 0 : 128,
+      value: monthlyReaders,
       icon: Users,
+    },
+    {
+      label: "Earnings this month",
+      value: `$${monthlyEarnings.toFixed(2)}`,
+      icon: Wallet,
     },
   ];
 
@@ -94,7 +113,7 @@ function AuthorDashboard() {
           </div>
         </div>
 
-        <div className="mt-8 grid gap-4 sm:grid-cols-3">
+        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {stats.map(({ label, value, icon: Icon }) => (
             <div
               key={label}
@@ -111,7 +130,57 @@ function AuthorDashboard() {
           ))}
         </div>
 
-        <section className="mt-8 rounded-2xl border border-border bg-card p-5 card-shadow">
+        <section className="mt-6 grid gap-4 lg:grid-cols-2">
+          <div className="rounded-2xl border border-border bg-card p-6 card-shadow">
+            <p className="text-sm font-semibold text-foreground">Earnings summary</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              You keep {Math.round(AUTHOR_PAYOUT * 100)}% of every subscription;
+              Seeparah keeps 30% for translation and hosting.
+            </p>
+            <dl className="mt-4 space-y-2.5 text-sm">
+              <div className="flex justify-between">
+                <dt className="text-muted-foreground">Subscription revenue</dt>
+                <dd className="font-semibold text-foreground">
+                  ${(monthlyEarnings / AUTHOR_PAYOUT).toFixed(2)}
+                </dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-muted-foreground">Your share (70%)</dt>
+                <dd className="font-semibold text-foreground">
+                  ${monthlyEarnings.toFixed(2)}
+                </dd>
+              </div>
+              <div className="flex justify-between border-t border-border pt-2.5">
+                <dt className="text-muted-foreground">Next payout</dt>
+                <dd className="font-semibold text-foreground">1st of next month</dd>
+              </div>
+            </dl>
+          </div>
+          <div className="rounded-2xl border border-border bg-card p-6 card-shadow">
+            <p className="text-sm font-semibold text-foreground">Author profile</p>
+            <div className="mt-3 flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent">
+                <Feather className="h-5 w-5 text-accent-foreground" />
+              </div>
+              <div className="min-w-0">
+                <p className="truncate font-display text-lg font-semibold text-foreground">
+                  {myBooks[0]?.author ?? "Your pen name"}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {myBooks.length} published · {translationsQueued} translations in progress
+                </p>
+              </div>
+            </div>
+            <Link
+              to="/profile"
+              className="mt-4 inline-block text-xs font-semibold text-primary hover:underline"
+            >
+              Edit your account details
+            </Link>
+          </div>
+        </section>
+
+        <section className="mt-6 rounded-2xl border border-border bg-card p-5 card-shadow">
           <p className="text-sm font-semibold text-foreground">
             Languages your books can reach
           </p>
