@@ -25,6 +25,8 @@ import {
 } from "@/lib/library";
 import { translateChunk } from "@/lib/translate.functions";
 import { useAuth } from "@/lib/use-auth";
+import { ShelfButtons } from "@/components/ShelfButtons";
+import { recordReadingDay } from "@/lib/shelves";
 
 const searchSchema = z.object({ lang: z.string().optional() });
 
@@ -109,6 +111,7 @@ function ReaderPage() {
   const pct = Math.round(((index + 1) / total) * 100);
 
   async function persist(next: number, quiet = true) {
+    recordReadingDay();
     await saveProgress(userId, bookId, language, next);
     queryClient.invalidateQueries({ queryKey: ["progress", userId] });
     if (!quiet) toast.success("Progress saved");
@@ -199,13 +202,16 @@ function ReaderPage() {
                 {book.author} · page {index + 1} of {total}
               </p>
             </div>
-            <button
-              onClick={() => void persist(index, false)}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary"
-            >
-              <Save className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Save</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <ShelfButtons bookId={bookId} />
+              <button
+                onClick={() => void persist(index, false)}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary"
+              >
+                <Save className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Save</span>
+              </button>
+            </div>
           </div>
           <div className="mt-3 h-1 w-full overflow-hidden rounded-full bg-secondary">
             <div

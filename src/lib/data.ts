@@ -8,6 +8,7 @@ export interface Book {
   total_chunks: number;
   source_language: string;
   description: string;
+  genre?: string | null;
   status: string;
   access_type: "free" | "paid";
   subscription_price_usd: number | null;
@@ -75,6 +76,15 @@ export const LANGUAGES = [
 ] as const;
 
 export const RTL_LANGUAGES = new Set(["Urdu", "Arabic", "Pashto"]);
+
+export const GENRES = [
+  "Classic Romance",
+  "Literary Fiction",
+  "Adventure",
+  "Poetry & Wisdom",
+  "History",
+  "Philosophy",
+] as const;
 
 export const PLATFORM_COMMISSION = 0.3;
 export const AUTHOR_PAYOUT = 0.7;

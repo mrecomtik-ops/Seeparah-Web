@@ -35,7 +35,8 @@ export async function listBooks(): Promise<Book[]> {
       .eq("status", "published")
       .order("created_at", { ascending: true });
     if (error) throw error;
-    return (data as Book[]) ?? [];
+    const rows = (data as Book[]) ?? [];
+    return rows.length ? rows : demoBooksMerged();
   } catch {
     return demoBooksMerged();
   }
