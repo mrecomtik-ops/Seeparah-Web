@@ -10,33 +10,136 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthorRouteRouteImport } from './routes/author/route'
+import { Route as LibraryRouteImport } from './routes/library'
+import { Route as ProfileRouteImport } from './routes/profile'
+import { Route as SubscribeRouteImport } from './routes/subscribe'
+import { Route as AuthorIndexRouteImport } from './routes/author/index'
+import { Route as AuthorAnalyticsRouteImport } from './routes/author.analytics'
+import { Route as AuthorPublishRouteImport } from './routes/author.publish'
+import { Route as ReadBookIdRouteImport } from './routes/read.$bookId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthorRouteRoute = AuthorRouteRouteImport.update({
+  id: '/author',
+  path: '/author',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LibraryRoute = LibraryRouteImport.update({
+  id: '/library',
+  path: '/library',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProfileRoute = ProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SubscribeRoute = SubscribeRouteImport.update({
+  id: '/subscribe',
+  path: '/subscribe',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthorIndexRoute = AuthorIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AuthorRouteRoute,
+} as any)
+const AuthorAnalyticsRoute = AuthorAnalyticsRouteImport.update({
+  id: '/analytics',
+  path: '/analytics',
+  getParentRoute: () => AuthorRouteRoute,
+} as any)
+const AuthorPublishRoute = AuthorPublishRouteImport.update({
+  id: '/publish',
+  path: '/publish',
+  getParentRoute: () => AuthorRouteRoute,
+} as any)
+const ReadBookIdRoute = ReadBookIdRouteImport.update({
+  id: '/read/$bookId',
+  path: '/read/$bookId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/author': typeof AuthorRouteRouteWithChildren
+  '/library': typeof LibraryRoute
+  '/profile': typeof ProfileRoute
+  '/subscribe': typeof SubscribeRoute
+  '/author/analytics': typeof AuthorAnalyticsRoute
+  '/author/publish': typeof AuthorPublishRoute
+  '/read/$bookId': typeof ReadBookIdRoute
+  '/author/': typeof AuthorIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/library': typeof LibraryRoute
+  '/profile': typeof ProfileRoute
+  '/subscribe': typeof SubscribeRoute
+  '/author/analytics': typeof AuthorAnalyticsRoute
+  '/author/publish': typeof AuthorPublishRoute
+  '/read/$bookId': typeof ReadBookIdRoute
+  '/author': typeof AuthorIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/author': typeof AuthorRouteRouteWithChildren
+  '/library': typeof LibraryRoute
+  '/profile': typeof ProfileRoute
+  '/subscribe': typeof SubscribeRoute
+  '/author/analytics': typeof AuthorAnalyticsRoute
+  '/author/publish': typeof AuthorPublishRoute
+  '/read/$bookId': typeof ReadBookIdRoute
+  '/author/': typeof AuthorIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/author'
+    | '/library'
+    | '/profile'
+    | '/subscribe'
+    | '/author/analytics'
+    | '/author/publish'
+    | '/read/$bookId'
+    | '/author/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/library'
+    | '/profile'
+    | '/subscribe'
+    | '/author/analytics'
+    | '/author/publish'
+    | '/read/$bookId'
+    | '/author'
+  id:
+    | '__root__'
+    | '/'
+    | '/author'
+    | '/library'
+    | '/profile'
+    | '/subscribe'
+    | '/author/analytics'
+    | '/author/publish'
+    | '/read/$bookId'
+    | '/author/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthorRouteRoute: typeof AuthorRouteRouteWithChildren
+  LibraryRoute: typeof LibraryRoute
+  ProfileRoute: typeof ProfileRoute
+  SubscribeRoute: typeof SubscribeRoute
+  ReadBookIdRoute: typeof ReadBookIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +151,88 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/author': {
+      id: '/author'
+      path: '/author'
+      fullPath: '/author'
+      preLoaderRoute: typeof AuthorRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/library': {
+      id: '/library'
+      path: '/library'
+      fullPath: '/library'
+      preLoaderRoute: typeof LibraryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/profile': {
+      id: '/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/subscribe': {
+      id: '/subscribe'
+      path: '/subscribe'
+      fullPath: '/subscribe'
+      preLoaderRoute: typeof SubscribeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/author/': {
+      id: '/author/'
+      path: '/'
+      fullPath: '/author/'
+      preLoaderRoute: typeof AuthorIndexRouteImport
+      parentRoute: typeof AuthorRouteRoute
+    }
+    '/author/analytics': {
+      id: '/author/analytics'
+      path: '/analytics'
+      fullPath: '/author/analytics'
+      preLoaderRoute: typeof AuthorAnalyticsRouteImport
+      parentRoute: typeof AuthorRouteRoute
+    }
+    '/author/publish': {
+      id: '/author/publish'
+      path: '/publish'
+      fullPath: '/author/publish'
+      preLoaderRoute: typeof AuthorPublishRouteImport
+      parentRoute: typeof AuthorRouteRoute
+    }
+    '/read/$bookId': {
+      id: '/read/$bookId'
+      path: '/read/$bookId'
+      fullPath: '/read/$bookId'
+      preLoaderRoute: typeof ReadBookIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
+interface AuthorRouteRouteChildren {
+  AuthorAnalyticsRoute: typeof AuthorAnalyticsRoute
+  AuthorPublishRoute: typeof AuthorPublishRoute
+  AuthorIndexRoute: typeof AuthorIndexRoute
+}
+
+const AuthorRouteRouteChildren: AuthorRouteRouteChildren = {
+  AuthorAnalyticsRoute: AuthorAnalyticsRoute,
+  AuthorPublishRoute: AuthorPublishRoute,
+  AuthorIndexRoute: AuthorIndexRoute,
+}
+
+const AuthorRouteRouteWithChildren = AuthorRouteRoute._addFileChildren(
+  AuthorRouteRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthorRouteRoute: AuthorRouteRouteWithChildren,
+  LibraryRoute: LibraryRoute,
+  ProfileRoute: ProfileRoute,
+  SubscribeRoute: SubscribeRoute,
+  ReadBookIdRoute: ReadBookIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
