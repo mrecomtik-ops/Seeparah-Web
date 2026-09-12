@@ -1,6 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { BookOpen, Feather, LayoutDashboard, LineChart, User } from "lucide-react";
-import logoAsset from "@/assets/logo.png.asset.json";
+import { BookOpen, Feather, LayoutDashboard, LineChart, LogIn, User } from "lucide-react";
+import logoUrl from "@/assets/seeparah-logo.png";
+import { useAuth } from "@/lib/use-auth";
 
 const NAV = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -12,6 +13,7 @@ const NAV = [
 
 export function AppHeader() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const { isDemo } = useAuth();
 
   return (
     <>
@@ -19,7 +21,7 @@ export function AppHeader() {
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
           <Link to="/" className="flex items-center gap-2.5">
             <img
-              src={logoAsset.url}
+              src={logoUrl}
               alt="Seeparah logo"
               className="h-9 w-9 rounded-xl"
               width={36}
@@ -48,12 +50,22 @@ export function AppHeader() {
               );
             })}
           </nav>
-          <Link
-            to="/library"
-            className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground sm:hidden"
-          >
-            Start reading
-          </Link>
+          <div className="flex items-center gap-2">
+            {isDemo && (
+              <Link
+                to="/auth"
+                className="hidden items-center gap-1.5 rounded-xl border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground hover:bg-secondary sm:inline-flex"
+              >
+                <LogIn className="h-3.5 w-3.5" /> Sign in
+              </Link>
+            )}
+            <Link
+              to="/library"
+              className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground sm:hidden"
+            >
+              Start reading
+            </Link>
+          </div>
         </div>
       </header>
 

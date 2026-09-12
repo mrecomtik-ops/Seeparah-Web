@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { ArrowRight, BookOpen, Feather, Globe2, Languages } from "lucide-react";
 import { lovable } from "@/integrations/lovable/index";
-import logoAsset from "@/assets/logo.png.asset.json";
+import logoUrl from "@/assets/seeparah-logo.png";
 import { coverFor, BOOK_OF_THE_DAY_ID, DEMO_BOOK_ID } from "@/lib/covers";
 
 export const Route = createFileRoute("/")({
@@ -52,7 +52,7 @@ function LandingPage() {
         <header className="flex items-center justify-between py-6">
           <div className="flex items-center gap-3">
             <img
-              src={logoAsset.url}
+              src={logoUrl}
               alt="Seeparah logo"
               className="h-11 w-11 rounded-2xl card-shadow"
               width={44}
@@ -171,8 +171,24 @@ function LandingPage() {
         </main>
 
         <footer className="border-t border-border py-6 text-center text-xs text-muted-foreground">
-          Seeparah — a multilingual reading room. No full-book downloads; pages
-          arrive as you read.
+          <p>
+            Seeparah — a multilingual reading room. No full-book downloads; pages
+            arrive as you read.
+          </p>
+          <p className="mt-2 flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
+            <Link to="/legal" hash="privacy" className="hover:text-foreground hover:underline">
+              Privacy
+            </Link>
+            <Link to="/legal" hash="terms" className="hover:text-foreground hover:underline">
+              Terms
+            </Link>
+            <Link to="/legal" hash="copyright" className="hover:text-foreground hover:underline">
+              Copyright
+            </Link>
+            <Link to="/legal" hash="support" className="hover:text-foreground hover:underline">
+              Support & billing help
+            </Link>
+          </p>
         </footer>
       </div>
     </div>

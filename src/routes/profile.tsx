@@ -1,16 +1,25 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import {
   BookOpen,
   Crown,
+  Feather,
   Highlighter,
+  LogIn,
   LogOut,
   Mail,
   User as UserIcon,
 } from "lucide-react";
 import { toast } from "sonner";
-import { listBooks, listHighlights, listProgress, listSubscriptions } from "@/lib/library";
+import {
+  getAuthorProfile,
+  listBooks,
+  listHighlights,
+  listProgress,
+  listSubscriptions,
+  saveAuthorProfile,
+} from "@/lib/library";
 import { signOut, useAuth } from "@/lib/use-auth";
 import { LANGUAGES } from "@/lib/data";
 import { getPrefs, setPrefs } from "@/lib/prefs";
@@ -36,8 +45,13 @@ export const Route = createFileRoute("/profile")({
 function ProfilePage() {
   const { user, userId, displayName, isDemo } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [language, setLanguage] = useState("English");
   const [goal, setGoal] = useState(40);
+  const [penName, setPenName] = useState("");
+  const [bio, setBio] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState("");
+  const [savingAuthorProfile, setSavingAuthorProfile] = useState(false);
   const shelvesQuery = useShelves();
 
   useEffect(() => {
@@ -59,11 +73,42 @@ function ProfilePage() {
     queryKey: ["subscriptions", userId],
     queryFn: () => listSubscriptions(userId),
   });
+  const authorProfileQuery = useQuery({
+    queryKey: ["author-profile", userId],
+    queryFn: () => getAuthorProfile(userId),
+    enabled: !isDemo,
+  });
+
+  useEffect(() => {
+    if (!authorProfileQuery.data) return;
+    setPenName(authorProfileQuery.data.pen_name ?? "");
+    setBio(authorProfileQuery.data.bio ?? "");
+    setAvatarUrl(authorProfileQuery.data.avatar_url ?? "");
+  }, [authorProfileQuery.data]);
 
   const books = booksQuery.data ?? [];
   const bookTitle = (id: string) => books.find((b) => b.id === id)?.title ?? "a book";
   const pagesRead = (progressQuery.data ?? []).reduce((s, p) => s + p.last_chunk_index + 1, 0);
   const subs = subsQuery.data ?? [];
+
+  async function handleSaveAuthorProfile() {
+    setSavingAuthorProfile(true);
+    try {
+      const result = await saveAuthorProfile(userId, {
+        pen_name: penName.trim() || null,
+        bio: bio.trim() || null,
+        avatar_url: avatarUrl.trim() || null,
+      });
+      if (result.ok) {
+        toast.success("Author profile saved");
+        queryClient.invalidateQueries({ queryKey: ["author-profile", userId] });
+      } else {
+        toast.error(result.message ?? "Couldn't save your author profile");
+      }
+    } finally {
+      setSavingAuthorProfile(false);
+    }
+  }
 
   async function handleSignOut() {
     await signOut();
@@ -95,13 +140,23 @@ function ProfilePage() {
               {user?.email ?? "demo reader — progress stays on this device"}
             </p>
           </div>
-          <button
-            onClick={handleSignOut}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground hover:bg-secondary"
-          >
-            <LogOut className="h-4 w-4" />
-            {isDemo ? "Clear session" : "Sign out"}
-          </button>
+          <div className="flex flex-col items-end gap-2">
+            {isDemo && (
+              <Link
+                to="/auth"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90"
+              >
+                <LogIn className="h-4 w-4" /> Sign in
+              </Link>
+            )}
+            <button
+              onClick={handleSignOut}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground hover:bg-secondary"
+            >
+              <LogOut className="h-4 w-4" />
+              {isDemo ? "Clear session" : "Sign out"}
+            </button>
+          </div>
         </section>
 
         <div className="mt-6 grid gap-4 sm:grid-cols-3">
@@ -163,6 +218,70 @@ function ProfilePage() {
             </ul>
           )}
         </section>
+
+        {isDemo ? (
+          <section className="mt-8 rounded-2xl border border-dashed border-border bg-card p-6 text-center card-shadow">
+            <Feather className="mx-auto h-8 w-8 text-muted-foreground/60" />
+            <h2 className="mt-2 font-display text-lg font-semibold text-foreground">
+              Author profile
+            </h2>
+            <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
+              Sign in to set a pen name, bio and photo for your public author page.
+            </p>
+            <Link
+              to="/auth"
+              className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
+            >
+              <LogIn className="h-4 w-4" /> Sign in
+            </Link>
+          </section>
+        ) : (
+          <section className="mt-8 rounded-2xl border border-border bg-card p-6 card-shadow">
+            <h2 className="font-display text-lg font-semibold text-foreground">
+              Author profile
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Shown on your public author page and next to your published books.
+            </p>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <label className="flex flex-col gap-1">
+                <span className="text-xs font-medium text-muted-foreground">Pen name</span>
+                <input
+                  value={penName}
+                  onChange={(e) => setPenName(e.target.value)}
+                  placeholder="How readers will see your name"
+                  className="rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-xs font-medium text-muted-foreground">Avatar URL</span>
+                <input
+                  value={avatarUrl}
+                  onChange={(e) => setAvatarUrl(e.target.value)}
+                  placeholder="https://…"
+                  className="rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+                />
+              </label>
+            </div>
+            <label className="mt-4 flex flex-col gap-1">
+              <span className="text-xs font-medium text-muted-foreground">Biography</span>
+              <textarea
+                value={bio}
+                onChange={(e) => setBio(e.target.value)}
+                rows={3}
+                placeholder="A few sentences about you and what you write…"
+                className="rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+              />
+            </label>
+            <button
+              onClick={handleSaveAuthorProfile}
+              disabled={savingAuthorProfile}
+              className="mt-4 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+            >
+              {savingAuthorProfile ? "Saving…" : "Save author profile"}
+            </button>
+          </section>
+        )}
 
         <section className="mt-8 rounded-2xl border border-border bg-card p-6 card-shadow">
           <h2 className="font-display text-lg font-semibold text-foreground">

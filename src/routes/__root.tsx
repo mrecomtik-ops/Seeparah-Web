@@ -109,8 +109,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           crossOrigin: "anonymous",
         },
         {
+          // One combined request (same Google Fonts origin already
+          // preconnected above) — Noto Nastaliq Urdu only downloads on
+          // pages that actually render it, since font-display:swap defers
+          // the fetch until matching text is painted.
           rel: "stylesheet",
-          href: "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Outfit:wght@400;500;600;700&display=swap",
+          href: "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Outfit:wght@400;500;600;700&family=Noto+Nastaliq+Urdu:wght@400..700&display=swap",
         },
       ],
     }),
@@ -144,6 +148,25 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       {!bare && <AppHeader />}
       <Outlet />
+      {!bare && (
+        <footer className="border-t border-border py-4 pb-20 text-center text-xs text-muted-foreground sm:pb-4">
+          <Link to="/legal" hash="privacy" className="hover:text-foreground hover:underline">
+            Privacy
+          </Link>
+          <span className="px-2">·</span>
+          <Link to="/legal" hash="terms" className="hover:text-foreground hover:underline">
+            Terms
+          </Link>
+          <span className="px-2">·</span>
+          <Link to="/legal" hash="copyright" className="hover:text-foreground hover:underline">
+            Copyright
+          </Link>
+          <span className="px-2">·</span>
+          <Link to="/legal" hash="support" className="hover:text-foreground hover:underline">
+            Support
+          </Link>
+        </footer>
+      )}
       <Toaster richColors position="bottom-center" />
     </QueryClientProvider>
   );

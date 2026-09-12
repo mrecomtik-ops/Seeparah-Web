@@ -4,7 +4,7 @@ import { ArrowLeft, Loader2, Mail } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
-import logoAsset from "@/assets/logo.png.asset.json";
+import logoUrl from "@/assets/seeparah-logo.png";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -117,7 +117,7 @@ function AuthPage() {
         <div className="rounded-3xl border border-border bg-card p-7 card-shadow-lg sm:p-9">
           <div className="flex items-center gap-3">
             <img
-              src={logoAsset.url}
+              src={logoUrl}
               alt="Seeparah logo"
               className="h-11 w-11 rounded-2xl"
               width={44}

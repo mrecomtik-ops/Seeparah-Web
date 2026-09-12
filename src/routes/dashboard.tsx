@@ -91,9 +91,16 @@ function DashboardPage() {
     <div className="min-h-screen bg-background">
       <main className="mx-auto max-w-6xl px-4 pb-24 pt-8 sm:px-6">
         <p className="text-sm font-medium text-muted-foreground">
-          {isDemo
-            ? "Reading in demo mode — sign in to sync across devices"
-            : `Welcome back, ${displayName}`}
+          {isDemo ? (
+            <>
+              Reading in demo mode —{" "}
+              <Link to="/auth" className="font-semibold text-primary hover:underline">
+                sign in to sync across devices
+              </Link>
+            </>
+          ) : (
+            `Welcome back, ${displayName}`
+          )}
         </p>
         <h1 className="mt-1 font-display text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
           Your reading room

@@ -1,0 +1,169 @@
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { ArrowLeft, BookOpen, Crown, Globe2, Loader2 } from "lucide-react";
+import { getBook } from "@/lib/library";
+import { coverFor } from "@/lib/covers";
+import { getPrefs } from "@/lib/prefs";
+import { ShelfButtons } from "@/components/ShelfButtons";
+
+export const Route = createFileRoute("/book/$bookId")({
+  head: () => ({
+    meta: [
+      { title: "Book details — Seeparah" },
+      { name: "description", content: "Everything about this book on Seeparah: languages, length, and access." },
+    ],
+  }),
+  component: BookDetailPage,
+});
+
+function BookDetailPage() {
+  const { bookId } = Route.useParams();
+  const bookQuery = useQuery({ queryKey: ["book", bookId], queryFn: () => getBook(bookId) });
+  const book = bookQuery.data;
+  const prefs = getPrefs();
+
+  if (bookQuery.isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!book) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-background px-4 text-center">
+        <p className="font-display text-2xl font-semibold text-foreground">We couldn't find that book</p>
+        <Link to="/library" className="text-sm font-semibold text-primary hover:underline">
+          Back to the library
+        </Link>
+      </div>
+    );
+  }
+
+  const readLanguage = book.available_languages.includes(prefs.language)
+    ? prefs.language
+    : book.source_language;
+  const cover = coverFor(book.id, book.cover_url);
+
+  return (
+    <div className="min-h-screen bg-background">
+      <main className="mx-auto max-w-4xl px-4 pb-20 pt-8 sm:px-6">
+        <Link
+          to="/library"
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="h-4 w-4" /> Library
+        </Link>
+
+        <div className="mt-6 grid gap-8 sm:grid-cols-[220px_1fr]">
+          <div className="mx-auto w-full max-w-[220px] overflow-hidden rounded-2xl border border-border bg-secondary card-shadow sm:mx-0">
+            {cover ? (
+              <img src={cover} alt={`Cover of ${book.title}`} className="aspect-[2/3] w-full object-cover" />
+            ) : (
+              <div className="flex aspect-[2/3] flex-col items-center justify-center gap-2 p-4 text-center">
+                <BookOpen className="h-8 w-8 text-primary/50" />
+                <span className="font-display text-lg font-semibold text-foreground">{book.title}</span>
+              </div>
+            )}
+          </div>
+
+          <div>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h1 className="font-display text-3xl font-semibold tracking-tight text-foreground">
+                  {book.title}
+                </h1>
+                {book.author_id ? (
+                  <Link
+                    to="/author/$authorId"
+                    params={{ authorId: book.author_id }}
+                    className="mt-1 inline-block text-sm text-muted-foreground hover:text-foreground hover:underline"
+                  >
+                    {book.author}
+                  </Link>
+                ) : (
+                  <p className="mt-1 text-sm text-muted-foreground">{book.author}</p>
+                )}
+              </div>
+              <ShelfButtons bookId={book.id} />
+            </div>
+
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              {book.access_type === "paid" ? (
+                <span className="inline-flex items-center gap-1 rounded-full bg-gold px-2.5 py-1 text-[11px] font-semibold text-gold-foreground">
+                  <Crown className="h-3 w-3" /> Premium · ${book.subscription_price_usd}/month
+                </span>
+              ) : (
+                <span className="rounded-full bg-secondary px-2.5 py-1 text-[11px] font-semibold text-secondary-foreground">
+                  Free to read
+                </span>
+              )}
+              {book.genre && (
+                <span className="rounded-full bg-accent px-2.5 py-1 text-[11px] font-semibold text-accent-foreground">
+                  {book.genre}
+                </span>
+              )}
+              <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-1 text-[11px] font-semibold text-secondary-foreground">
+                <Globe2 className="h-3 w-3" /> Original: {book.source_language}
+              </span>
+              <span className="rounded-full bg-secondary px-2.5 py-1 text-[11px] font-semibold text-secondary-foreground">
+                {book.total_chunks} {book.total_chunks === 1 ? "page" : "pages"}
+              </span>
+            </div>
+
+            <p className="mt-5 max-w-2xl leading-relaxed text-foreground">{book.description}</p>
+
+            <div className="mt-6">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Published editions
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {book.available_languages.map((l) => (
+                  <span
+                    key={l}
+                    className="rounded-full bg-accent px-3 py-1 text-xs font-medium text-accent-foreground"
+                  >
+                    {l}
+                  </span>
+                ))}
+              </div>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Every edition listed here has been translated and reviewed in full before publishing —
+                readers never see a partially-translated book.
+              </p>
+            </div>
+
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Link
+                to="/read/$bookId"
+                params={{ bookId: book.id }}
+                search={{ lang: book.source_language }}
+                className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-5 py-3 text-sm font-semibold text-foreground card-shadow hover:bg-secondary"
+              >
+                Read a free sample
+              </Link>
+              <Link
+                to="/read/$bookId"
+                params={{ bookId: book.id }}
+                search={{ lang: readLanguage }}
+                className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground card-shadow transition-transform hover:-translate-y-0.5"
+              >
+                Start reading in {readLanguage}
+              </Link>
+              {book.access_type === "paid" && (
+                <Link
+                  to="/subscribe"
+                  search={{ book: book.id }}
+                  className="inline-flex items-center gap-2 rounded-xl bg-gold px-5 py-3 text-sm font-semibold text-gold-foreground card-shadow"
+                >
+                  See subscription plan
+                </Link>
+              )}
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}

@@ -3,21 +3,33 @@ import { BookOpen, Crown } from "lucide-react";
 import type { Book } from "@/lib/data";
 import { coverFor } from "@/lib/covers";
 import { ShelfButtons } from "@/components/ShelfButtons";
+import { getPrefs } from "@/lib/prefs";
 
 export function BookCard({
   book,
   progress,
   withShelves = true,
+  preferredLanguage,
 }: {
   book: Book;
   progress?: number | null;
   withShelves?: boolean;
+  /** Language to open this book in — e.g. the library's active language
+   * filter. Falls back to the reader's saved preference, then the book's
+   * source language, so a book always opens in a language the reader
+   * actually chose rather than always defaulting to the original. */
+  preferredLanguage?: string | null;
 }) {
   const cover = coverFor(book.id, book.cover_url);
   const pct =
     progress != null && book.total_chunks > 0
       ? Math.min(100, Math.round(((progress + 1) / book.total_chunks) * 100))
       : null;
+  const savedLanguage = getPrefs().language;
+  const openLanguage =
+    (preferredLanguage && book.available_languages.includes(preferredLanguage) && preferredLanguage) ||
+    (book.available_languages.includes(savedLanguage) && savedLanguage) ||
+    book.source_language;
 
   return (
     <div className="group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-card card-shadow transition-transform duration-200 hover:-translate-y-1 hover:card-shadow-lg">
@@ -29,7 +41,7 @@ export function BookCard({
       <Link
         to="/read/$bookId"
         params={{ bookId: book.id }}
-        search={{ lang: book.source_language }}
+        search={{ lang: openLanguage }}
         className="flex flex-1 flex-col"
       >
         <div className="relative aspect-[2/3] w-full overflow-hidden bg-secondary">

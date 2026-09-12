@@ -13,13 +13,17 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthorRouteRouteImport } from './routes/author/route'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as LegalRouteImport } from './routes/legal'
 import { Route as LibraryRouteImport } from './routes/library'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as SubscribeRouteImport } from './routes/subscribe'
 import { Route as AuthorIndexRouteImport } from './routes/author/index'
+import { Route as AuthorAuthorIdRouteImport } from './routes/author/$authorId'
 import { Route as AuthorAnalyticsRouteImport } from './routes/author.analytics'
 import { Route as AuthorPublishRouteImport } from './routes/author.publish'
+import { Route as BookBookIdRouteImport } from './routes/book.$bookId'
 import { Route as ReadBookIdRouteImport } from './routes/read.$bookId'
+import { Route as AuthorBookBookIdRouteImport } from './routes/author.book.$bookId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -39,6 +43,11 @@ const AuthorRouteRoute = AuthorRouteRouteImport.update({
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LegalRoute = LegalRouteImport.update({
+  id: '/legal',
+  path: '/legal',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LibraryRoute = LibraryRouteImport.update({
@@ -61,6 +70,11 @@ const AuthorIndexRoute = AuthorIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthorRouteRoute,
 } as any)
+const AuthorAuthorIdRoute = AuthorAuthorIdRouteImport.update({
+  id: '/$authorId',
+  path: '/$authorId',
+  getParentRoute: () => AuthorRouteRoute,
+} as any)
 const AuthorAnalyticsRoute = AuthorAnalyticsRouteImport.update({
   id: '/analytics',
   path: '/analytics',
@@ -71,10 +85,20 @@ const AuthorPublishRoute = AuthorPublishRouteImport.update({
   path: '/publish',
   getParentRoute: () => AuthorRouteRoute,
 } as any)
+const BookBookIdRoute = BookBookIdRouteImport.update({
+  id: '/book/$bookId',
+  path: '/book/$bookId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ReadBookIdRoute = ReadBookIdRouteImport.update({
   id: '/read/$bookId',
   path: '/read/$bookId',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthorBookBookIdRoute = AuthorBookBookIdRouteImport.update({
+  id: '/book/$bookId',
+  path: '/book/$bookId',
+  getParentRoute: () => AuthorRouteRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -82,25 +106,33 @@ export interface FileRoutesByFullPath {
   '/author': typeof AuthorRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/dashboard': typeof DashboardRoute
+  '/legal': typeof LegalRoute
   '/library': typeof LibraryRoute
   '/profile': typeof ProfileRoute
   '/subscribe': typeof SubscribeRoute
+  '/author/$authorId': typeof AuthorAuthorIdRoute
   '/author/analytics': typeof AuthorAnalyticsRoute
   '/author/publish': typeof AuthorPublishRoute
+  '/book/$bookId': typeof BookBookIdRoute
   '/read/$bookId': typeof ReadBookIdRoute
   '/author/': typeof AuthorIndexRoute
+  '/author/book/$bookId': typeof AuthorBookBookIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof DashboardRoute
+  '/legal': typeof LegalRoute
   '/library': typeof LibraryRoute
   '/profile': typeof ProfileRoute
   '/subscribe': typeof SubscribeRoute
+  '/author/$authorId': typeof AuthorAuthorIdRoute
   '/author/analytics': typeof AuthorAnalyticsRoute
   '/author/publish': typeof AuthorPublishRoute
+  '/book/$bookId': typeof BookBookIdRoute
   '/read/$bookId': typeof ReadBookIdRoute
   '/author': typeof AuthorIndexRoute
+  '/author/book/$bookId': typeof AuthorBookBookIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -108,13 +140,17 @@ export interface FileRoutesById {
   '/author': typeof AuthorRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/dashboard': typeof DashboardRoute
+  '/legal': typeof LegalRoute
   '/library': typeof LibraryRoute
   '/profile': typeof ProfileRoute
   '/subscribe': typeof SubscribeRoute
+  '/author/$authorId': typeof AuthorAuthorIdRoute
   '/author/analytics': typeof AuthorAnalyticsRoute
   '/author/publish': typeof AuthorPublishRoute
+  '/book/$bookId': typeof BookBookIdRoute
   '/read/$bookId': typeof ReadBookIdRoute
   '/author/': typeof AuthorIndexRoute
+  '/author/book/$bookId': typeof AuthorBookBookIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -123,38 +159,50 @@ export interface FileRouteTypes {
     | '/author'
     | '/auth'
     | '/dashboard'
+    | '/legal'
     | '/library'
     | '/profile'
     | '/subscribe'
+    | '/author/$authorId'
     | '/author/analytics'
     | '/author/publish'
+    | '/book/$bookId'
     | '/read/$bookId'
     | '/author/'
+    | '/author/book/$bookId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/auth'
     | '/dashboard'
+    | '/legal'
     | '/library'
     | '/profile'
     | '/subscribe'
+    | '/author/$authorId'
     | '/author/analytics'
     | '/author/publish'
+    | '/book/$bookId'
     | '/read/$bookId'
     | '/author'
+    | '/author/book/$bookId'
   id:
     | '__root__'
     | '/'
     | '/author'
     | '/auth'
     | '/dashboard'
+    | '/legal'
     | '/library'
     | '/profile'
     | '/subscribe'
+    | '/author/$authorId'
     | '/author/analytics'
     | '/author/publish'
+    | '/book/$bookId'
     | '/read/$bookId'
     | '/author/'
+    | '/author/book/$bookId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -162,9 +210,11 @@ export interface RootRouteChildren {
   AuthorRouteRoute: typeof AuthorRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   DashboardRoute: typeof DashboardRoute
+  LegalRoute: typeof LegalRoute
   LibraryRoute: typeof LibraryRoute
   ProfileRoute: typeof ProfileRoute
   SubscribeRoute: typeof SubscribeRoute
+  BookBookIdRoute: typeof BookBookIdRoute
   ReadBookIdRoute: typeof ReadBookIdRoute
 }
 
@@ -198,6 +248,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/legal': {
+      id: '/legal'
+      path: '/legal'
+      fullPath: '/legal'
+      preLoaderRoute: typeof LegalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/library': {
       id: '/library'
       path: '/library'
@@ -226,6 +283,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthorIndexRouteImport
       parentRoute: typeof AuthorRouteRoute
     }
+    '/author/$authorId': {
+      id: '/author/$authorId'
+      path: '/$authorId'
+      fullPath: '/author/$authorId'
+      preLoaderRoute: typeof AuthorAuthorIdRouteImport
+      parentRoute: typeof AuthorRouteRoute
+    }
     '/author/analytics': {
       id: '/author/analytics'
       path: '/analytics'
@@ -240,6 +304,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthorPublishRouteImport
       parentRoute: typeof AuthorRouteRoute
     }
+    '/book/$bookId': {
+      id: '/book/$bookId'
+      path: '/book/$bookId'
+      fullPath: '/book/$bookId'
+      preLoaderRoute: typeof BookBookIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/read/$bookId': {
       id: '/read/$bookId'
       path: '/read/$bookId'
@@ -247,19 +318,30 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ReadBookIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/author/book/$bookId': {
+      id: '/author/book/$bookId'
+      path: '/book/$bookId'
+      fullPath: '/author/book/$bookId'
+      preLoaderRoute: typeof AuthorBookBookIdRouteImport
+      parentRoute: typeof AuthorRouteRoute
+    }
   }
 }
 
 interface AuthorRouteRouteChildren {
+  AuthorAuthorIdRoute: typeof AuthorAuthorIdRoute
   AuthorAnalyticsRoute: typeof AuthorAnalyticsRoute
   AuthorPublishRoute: typeof AuthorPublishRoute
   AuthorIndexRoute: typeof AuthorIndexRoute
+  AuthorBookBookIdRoute: typeof AuthorBookBookIdRoute
 }
 
 const AuthorRouteRouteChildren: AuthorRouteRouteChildren = {
+  AuthorAuthorIdRoute: AuthorAuthorIdRoute,
   AuthorAnalyticsRoute: AuthorAnalyticsRoute,
   AuthorPublishRoute: AuthorPublishRoute,
   AuthorIndexRoute: AuthorIndexRoute,
+  AuthorBookBookIdRoute: AuthorBookBookIdRoute,
 }
 
 const AuthorRouteRouteWithChildren = AuthorRouteRoute._addFileChildren(
@@ -271,9 +353,11 @@ const rootRouteChildren: RootRouteChildren = {
   AuthorRouteRoute: AuthorRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   DashboardRoute: DashboardRoute,
+  LegalRoute: LegalRoute,
   LibraryRoute: LibraryRoute,
   ProfileRoute: ProfileRoute,
   SubscribeRoute: SubscribeRoute,
+  BookBookIdRoute: BookBookIdRoute,
   ReadBookIdRoute: ReadBookIdRoute,
 }
 export const routeTree = rootRouteImport

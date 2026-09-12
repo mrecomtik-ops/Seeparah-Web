@@ -35,6 +35,7 @@
   --color-paper: var(--paper);
   --font-display: "Fraunces", Georgia, "Times New Roman", serif;
   --font-sans: "Outfit", ui-sans-serif, system-ui, sans-serif;
+  --font-urdu: "Noto Nastaliq Urdu", "Noto Naskh Arabic", "Jameel Noori Nastaleeq", serif;
 }
 
 :root {
@@ -88,6 +89,29 @@
   --paper: oklch(0.235 0.028 168);
 }
 
+/* Reading-pane theme: sepia. Scoped like .dark — applied to a wrapper, not
+   the whole app — so the shared brand identity elsewhere is untouched. */
+.sepia {
+  --background: oklch(0.93 0.03 80);
+  --foreground: oklch(0.32 0.04 60);
+  --card: oklch(0.95 0.025 78);
+  --card-foreground: oklch(0.32 0.04 60);
+  --popover: oklch(0.95 0.025 78);
+  --popover-foreground: oklch(0.32 0.04 60);
+  --primary: oklch(0.42 0.08 55);
+  --primary-foreground: oklch(0.96 0.02 80);
+  --secondary: oklch(0.88 0.035 75);
+  --secondary-foreground: oklch(0.35 0.05 60);
+  --muted: oklch(0.88 0.03 75);
+  --muted-foreground: oklch(0.48 0.04 60);
+  --accent: oklch(0.85 0.05 70);
+  --accent-foreground: oklch(0.32 0.05 60);
+  --border: oklch(0.8 0.03 70);
+  --input: oklch(0.8 0.03 70);
+  --ring: oklch(0.5 0.06 60);
+  --paper: oklch(0.92 0.03 80);
+}
+
 @layer base {
   * {
     border-color: var(--color-border);
@@ -115,6 +139,31 @@
   line-height: 1.85;
   letter-spacing: 0.002em;
   white-space: pre-wrap;
+}
+
+/* Urdu typography — Nastaliq's diagonal, stacked letterforms need
+   noticeably more vertical room than Latin or Naskh-style Arabic text, or
+   dots/marks and descenders get clipped by tight line boxes. Scoped to
+   `:lang(ur)` (set via the `lang="ur"` attribute wherever Urdu text is
+   rendered) so English and every other language are completely
+   unaffected — this never touches `.font-display`/`.font-sans` directly. */
+:lang(ur) {
+  font-family: var(--font-urdu);
+  line-height: 2.4;
+  letter-spacing: 0;
+  /* Nastaliq's own diagonal flow already implies direction; let embedded
+     Latin words/numbers follow the standard Unicode bidi algorithm instead
+     of forcing shaping across the run. */
+  unicode-bidi: plain-text;
+  font-feature-settings: "liga" 1, "calt" 1;
+  text-wrap: pretty;
+}
+
+/* Extra block padding wherever Urdu is the primary reading content (not
+   just inline mentions), so ascenders/marks on the first line and
+   descenders on the last aren't clipped by the container edge. */
+@utility urdu-reading-block {
+  padding-block: 0.75em;
 }
 
 @utility card-shadow {

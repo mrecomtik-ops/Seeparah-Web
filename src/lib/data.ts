@@ -20,6 +20,12 @@ export interface Chunk {
   language: string;
   chunk_index: number;
   content: string;
+  status?: string;
+  source_version?: number;
+  job_id?: string | null;
+  model?: string | null;
+  prompt_version?: string | null;
+  updated_at?: string;
 }
 
 export interface Progress {
@@ -38,6 +44,7 @@ export interface Highlight {
   chunk_index: number;
   highlight_text: string;
   created_at: string;
+  note: string | null;
 }
 
 export interface Subscription {

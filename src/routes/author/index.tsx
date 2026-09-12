@@ -12,7 +12,21 @@ import {
 import { AUTHOR_PAYOUT, LANGUAGES } from "@/lib/data";
 import { listMyBooks } from "@/lib/library";
 import { useAuth } from "@/lib/use-auth";
-import { BookCard } from "@/components/BookCard";
+import { coverFor } from "@/lib/covers";
+
+const STATUS_LABEL: Record<string, string> = {
+  draft: "Draft",
+  in_review: "In review",
+  published: "Published",
+  unpublished: "Unpublished",
+};
+
+const STATUS_CLASS: Record<string, string> = {
+  draft: "bg-secondary text-secondary-foreground",
+  in_review: "bg-gold/20 text-gold",
+  published: "bg-accent text-accent-foreground",
+  unpublished: "bg-destructive/10 text-destructive",
+};
 
 export const Route = createFileRoute("/author/")({
   head: () => ({
@@ -224,7 +238,36 @@ function AuthorDashboard() {
           ) : (
             <div className="mt-6 grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-4">
               {myBooks.map((b) => (
-                <BookCard key={b.id} book={b} />
+                <Link
+                  key={b.id}
+                  to="/author/book/$bookId"
+                  params={{ bookId: b.id }}
+                  className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-card card-shadow transition-transform hover:-translate-y-1 hover:card-shadow-lg"
+                >
+                  <div className="relative aspect-[2/3] w-full overflow-hidden bg-secondary">
+                    {coverFor(b.id, b.cover_url) ? (
+                      <img
+                        src={coverFor(b.id, b.cover_url)!}
+                        alt={`Cover of ${b.title}`}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-full flex-col items-center justify-center gap-2 p-4 text-center">
+                        <Feather className="h-8 w-8 text-primary/50" />
+                        <span className="font-display text-base font-semibold text-foreground">{b.title}</span>
+                      </div>
+                    )}
+                    <span
+                      className={`absolute left-3 top-3 rounded-full px-2 py-0.5 text-[10px] font-semibold ${STATUS_CLASS[b.status] ?? "bg-secondary text-secondary-foreground"}`}
+                    >
+                      {STATUS_LABEL[b.status] ?? b.status}
+                    </span>
+                  </div>
+                  <div className="p-3">
+                    <p className="truncate font-display text-sm font-semibold text-foreground">{b.title}</p>
+                    <p className="mt-0.5 text-xs font-semibold text-primary group-hover:underline">Manage →</p>
+                  </div>
+                </Link>
               ))}
             </div>
           )}
