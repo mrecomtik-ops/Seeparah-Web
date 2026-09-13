@@ -32,9 +32,13 @@ export const Route = createFileRoute("/author/book/$bookId")({
 
 const STATUS_LABEL: Record<string, string> = {
   draft: "Draft (private)",
-  in_review: "Submitted for review",
+  in_review: "Submitted — awaiting admin review",
+  changes_requested: "Changes requested by admin",
+  approved: "Approved — awaiting publish",
   published: "Published",
+  rejected: "Rejected",
   unpublished: "Unpublished",
+  archived: "Archived",
 };
 
 const JOB_STATUS_LABEL: Record<string, string> = {
@@ -114,7 +118,9 @@ function ManageBookPage() {
       const accessToken = await token();
       const result = await processTranslationBatch({ data: { jobId, accessToken } });
       queryClient.invalidateQueries({ queryKey: ["translation-jobs", bookId] });
-      toast.success(`Processed ${result.processed} section(s) — ${result.done} done, ${result.failed} failed`);
+      toast.success(
+        `Processed ${result.processed} section(s) — ${result.done} done, ${result.failed} failed`,
+      );
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Couldn't process the batch");
     } finally {
@@ -137,7 +143,12 @@ function ManageBookPage() {
   }
 
   async function cancel(jobId: string, language: string) {
-    if (!window.confirm(`Cancel the ${language} translation job? Sections already translated are kept but won't be published.`)) return;
+    if (
+      !window.confirm(
+        `Cancel the ${language} translation job? Sections already translated are kept but won't be published.`,
+      )
+    )
+      return;
     setBusyLang(language);
     try {
       const accessToken = await token();
@@ -197,7 +208,9 @@ function ManageBookPage() {
   if (!book) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-background px-4 text-center">
-        <p className="font-display text-2xl font-semibold text-foreground">We couldn't find that book</p>
+        <p className="font-display text-2xl font-semibold text-foreground">
+          We couldn't find that book
+        </p>
         <Link to="/author" className="text-sm font-semibold text-primary hover:underline">
           Back to Author Studio
         </Link>
@@ -222,24 +235,21 @@ function ManageBookPage() {
   return (
     <div className="min-h-screen bg-background">
       <main className="mx-auto max-w-3xl px-4 pb-20 pt-8 sm:px-6">
-        <Link to="/author" className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground">
+        <Link
+          to="/author"
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
+        >
           <ArrowLeft className="h-4 w-4" /> Author Studio
         </Link>
 
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="font-display text-3xl font-semibold text-foreground">{book.title}</h1>
-            <p className="text-sm text-muted-foreground">{STATUS_LABEL[book.status] ?? book.status}</p>
+            <p className="text-sm text-muted-foreground">
+              {STATUS_LABEL[book.status] ?? book.status}
+            </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            {book.status === "in_review" && (
-              <button
-                onClick={() => changeStatus("published")}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
-              >
-                <BookCheck className="h-4 w-4" /> Publish
-              </button>
-            )}
             {book.status === "published" && (
               <button
                 onClick={() => changeStatus("unpublished")}
@@ -248,12 +258,14 @@ function ManageBookPage() {
                 Unpublish
               </button>
             )}
-            {book.status === "unpublished" && (
+            {(book.status === "unpublished" ||
+              book.status === "changes_requested" ||
+              book.status === "rejected") && (
               <button
-                onClick={() => changeStatus("published")}
+                onClick={() => changeStatus("in_review")}
                 className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
               >
-                Republish
+                {book.status === "unpublished" ? "Request republish" : "Resubmit for review"}
               </button>
             )}
             {book.status === "draft" && (
@@ -266,10 +278,20 @@ function ManageBookPage() {
             )}
           </div>
         </div>
-        {book.status === "in_review" && (
+        {(book.status === "in_review" || book.status === "approved") && (
+          <p className="mt-2 rounded-xl bg-secondary px-3 py-2 text-xs text-secondary-foreground flex items-center gap-1.5">
+            <BookCheck className="h-3.5 w-3.5" /> An admin reviews rights and edition quality before
+            this goes live — publishing is no longer a self-review action.
+          </p>
+        )}
+        {book.status === "changes_requested" && book.review_notes && (
           <p className="mt-2 rounded-xl bg-secondary px-3 py-2 text-xs text-secondary-foreground">
-            There's no independent editor role on Seeparah yet — publishing here is a
-            self-review action by you as the author, not a separate editorial approval.
+            Admin feedback: {book.review_notes}
+          </p>
+        )}
+        {book.status === "rejected" && book.rejection_reason && (
+          <p className="mt-2 rounded-xl bg-destructive/10 px-3 py-2 text-xs text-destructive">
+            Rejected: {book.rejection_reason}
           </p>
         )}
 
@@ -286,9 +308,9 @@ function ManageBookPage() {
             </button>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
-            Original language: {book.source_language}. Translation happens in the
-            background — readers never trigger it, and an edition only appears once
-            it's fully translated and you've reviewed it.
+            Original language: {book.source_language}. Translation happens in the background —
+            readers never trigger it, and an edition only appears once it's fully translated and
+            you've reviewed it.
           </p>
 
           {guideOpen && (
@@ -334,8 +356,8 @@ function ManageBookPage() {
 
           {isDemo ? (
             <p className="mt-4 rounded-xl bg-secondary px-3 py-2 text-xs text-secondary-foreground">
-              Sign in to queue background translations — demo mode has no backend to run
-              the worker against.
+              Sign in to queue background translations — demo mode has no backend to run the worker
+              against.
             </p>
           ) : (
             <ul className="mt-4 space-y-2">
@@ -352,7 +374,8 @@ function ManageBookPage() {
                       {job ? (
                         <>
                           <p className="text-xs text-muted-foreground">
-                            {JOB_STATUS_LABEL[job.status] ?? job.status} · {job.completed_sections}/{job.total_sections} sections
+                            {JOB_STATUS_LABEL[job.status] ?? job.status} · {job.completed_sections}/
+                            {job.total_sections} sections
                             {job.failed_sections > 0 ? ` · ${job.failed_sections} failed` : ""}
                             {job.human_reviewed ? " · human reviewed" : ""}
                           </p>
@@ -395,15 +418,18 @@ function ManageBookPage() {
                           Retry failed sections
                         </button>
                       )}
-                      {job && ["pending", "processing", "failed", "awaiting_review"].includes(job.status) && (
-                        <button
-                          disabled={busy}
-                          onClick={() => cancel(job.id, language)}
-                          className="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-secondary disabled:opacity-60"
-                        >
-                          <XCircle className="h-3 w-3" /> Cancel
-                        </button>
-                      )}
+                      {job &&
+                        ["pending", "processing", "failed", "awaiting_review"].includes(
+                          job.status,
+                        ) && (
+                          <button
+                            disabled={busy}
+                            onClick={() => cancel(job.id, language)}
+                            className="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-secondary disabled:opacity-60"
+                          >
+                            <XCircle className="h-3 w-3" /> Cancel
+                          </button>
+                        )}
                       {job && job.status === "awaiting_review" && (
                         <button
                           disabled={busy}
@@ -420,9 +446,9 @@ function ManageBookPage() {
             </ul>
           )}
           <p className="mt-4 text-[11px] text-muted-foreground">
-            "Process next batch" runs a few pages at a time — for a full book without
-            watching the page, an operator needs to schedule this on a timer (see the
-            launch report for the exact setup this requires).
+            "Process next batch" runs a few pages at a time — for a full book without watching the
+            page, an operator needs to schedule this on a timer (see the launch report for the exact
+            setup this requires).
           </p>
         </section>
       </main>

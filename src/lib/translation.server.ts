@@ -12,7 +12,11 @@ import {
   validateTranslationOutput,
   type TranslationGuide,
 } from "@/lib/translation";
-import { getTranslationModel, isGeminiConfigured, translateSectionWithGemini } from "@/lib/gemini.server";
+import {
+  getTranslationModel,
+  isGeminiConfigured,
+  translateSectionWithGemini,
+} from "@/lib/gemini.server";
 
 const CONTEXT_CHARS = 600;
 const PROVIDER = "gemini";
@@ -30,13 +34,35 @@ export async function requestTranslationJob(params: {
   const db = await admin();
   const { data: book, error: bookError } = await db
     .from("books")
-    .select("id, author_id, source_language, total_chunks, source_version")
+    .select("id, author_id")
     .eq("id", params.bookId)
     .single();
   if (bookError || !book) throw new Error("Book not found");
   if (book.author_id !== params.requestedBy) {
     throw new Error("Only the book's author can request a translation");
   }
+  return ensureTranslationJob(params);
+}
+
+/**
+ * Idempotent job creation shared by the author-facing action above (gated on
+ * authorship) and admin code producing a reviewed edition on behalf of a
+ * reader access request (gated on the admin permission matrix instead —
+ * see src/lib/admin/translation-access.server.ts). Never call this directly
+ * from a route/handler without an authorization check in front of it.
+ */
+export async function ensureTranslationJob(params: {
+  bookId: string;
+  language: string;
+  requestedBy: string;
+}) {
+  const db = await admin();
+  const { data: book, error: bookError } = await db
+    .from("books")
+    .select("id, source_language, total_chunks, source_version")
+    .eq("id", params.bookId)
+    .single();
+  if (bookError || !book) throw new Error("Book not found");
   if (params.language === book.source_language) {
     throw new Error("Target language matches the source language");
   }
@@ -162,7 +188,9 @@ export async function processTranslationJobBatch(
     // Configuration problem, not a translation problem — leave sections
     // untouched (don't burn a retry attempt) and report it plainly rather
     // than failing sections or pretending nothing is wrong.
-    throw new Error("Gemini is not configured (GEMINI_API_KEY missing) — no sections were attempted");
+    throw new Error(
+      "Gemini is not configured (GEMINI_API_KEY missing) — no sections were attempted",
+    );
   }
 
   const { data: book } = await db
@@ -342,7 +370,13 @@ export async function processTranslationJobBatch(
     })
     .eq("id", jobId);
 
-  return { jobId, processed: sections.length, done: doneCount, failed: failedCount, jobStatus: nextJobStatus };
+  return {
+    jobId,
+    processed: sections.length,
+    done: doneCount,
+    failed: failedCount,
+    jobStatus: nextJobStatus,
+  };
 }
 
 /** Scans across all books for jobs with work to do and processes a small
@@ -394,7 +428,8 @@ export async function cancelTranslationJob(jobId: string, requesterId: string) {
   if (!job) throw new Error("Translation job not found");
   const authorId = (job as unknown as { books: { author_id: string | null } }).books.author_id;
   if (authorId !== requesterId) throw new Error("Only the book's author can cancel this job");
-  if (job.status === "published") throw new Error("A published edition can't be canceled — unpublish the book instead");
+  if (job.status === "published")
+    throw new Error("A published edition can't be canceled — unpublish the book instead");
 
   const { error } = await db
     .from("book_translation_jobs")
@@ -414,6 +449,24 @@ export async function reviewAndPublishJob(jobId: string, reviewerId: string) {
   if (jobError || !job) throw new Error("Translation job not found");
   const authorId = (job as unknown as { books: { author_id: string | null } }).books.author_id;
   if (authorId !== reviewerId) throw new Error("Only the book's author can review this edition");
+  return publishReviewedEdition(jobId, reviewerId);
+}
+
+/**
+ * Core "mark this translation edition published" logic, shared by the
+ * author-facing review action above (which gates on authorship) and the
+ * admin/editor review action in src/lib/admin/translation-access.server.ts
+ * (which gates on the admin permission matrix instead). Never call this
+ * without an authorization check in front of it.
+ */
+export async function publishReviewedEdition(jobId: string, reviewerId: string) {
+  const db = await admin();
+  const { data: job, error: jobError } = await db
+    .from("book_translation_jobs")
+    .select("*")
+    .eq("id", jobId)
+    .single();
+  if (jobError || !job) throw new Error("Translation job not found");
   if (job.status !== "awaiting_review") {
     throw new Error(`Job is not awaiting review (status: ${job.status})`);
   }
@@ -449,6 +502,12 @@ export async function reviewAndPublishJob(jobId: string, reviewerId: string) {
       .eq("id", job.book_id);
   }
 
+  // Flip any reader translation_requests that were separately approved
+  // "awaiting this exact edition" to granted. Never grants a request that
+  // was only ever "requested" — see grantAccessForPublishedJob's own doc.
+  const { grantAccessForPublishedJob } = await import("@/lib/admin/translation-access.server");
+  await grantAccessForPublishedJob(jobId);
+
   return { ok: true };
 }
 
@@ -462,7 +521,14 @@ export async function retryFailedSections(jobId: string, requesterId: string) {
   if (!job) throw new Error("Translation job not found");
   const authorId = (job as unknown as { books: { author_id: string | null } }).books.author_id;
   if (authorId !== requesterId) throw new Error("Only the book's author can retry this job");
+  return retrySectionsCore(jobId);
+}
 
+/** Core retry logic shared by the author-facing action above and the
+ * admin/health "retry stalled job" recovery action, which authorizes via
+ * the admin permission matrix instead of authorship. */
+export async function retrySectionsCore(jobId: string) {
+  const db = await admin();
   await db
     .from("book_translation_sections")
     .update({ status: "pending", next_attempt_at: null, updated_at: new Date().toISOString() })
@@ -503,7 +569,11 @@ export async function saveTranslationGuide(params: {
   guide: TranslationGuide;
 }) {
   const db = await admin();
-  const { data: book } = await db.from("books").select("author_id").eq("id", params.bookId).single();
+  const { data: book } = await db
+    .from("books")
+    .select("author_id")
+    .eq("id", params.bookId)
+    .single();
   if (!book || book.author_id !== params.requesterId) {
     throw new Error("Only the book's author can edit its translation guide");
   }
@@ -524,11 +594,7 @@ export async function saveTranslationGuide(params: {
 
 export async function getBookTranslationStatus(bookId: string, requesterId: string) {
   const db = await admin();
-  const { data: book } = await db
-    .from("books")
-    .select("author_id")
-    .eq("id", bookId)
-    .single();
+  const { data: book } = await db.from("books").select("author_id").eq("id", bookId).single();
   if (!book || book.author_id !== requesterId) {
     throw new Error("Only the book's author can view translation status");
   }

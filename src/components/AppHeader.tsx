@@ -1,7 +1,8 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { BookOpen, Feather, LayoutDashboard, LineChart, LogIn, User } from "lucide-react";
+import { BookOpen, Feather, LayoutDashboard, LineChart, LogIn, ShieldCheck, User } from "lucide-react";
 import logoUrl from "@/assets/seeparah-logo.png";
 import { useAuth } from "@/lib/use-auth";
+import { useAdminSession } from "@/lib/admin/use-admin-session";
 
 const NAV = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -14,6 +15,8 @@ const NAV = [
 export function AppHeader() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { isDemo } = useAuth();
+  const adminSession = useAdminSession();
+  const isAdmin = !isDemo && !!adminSession.data?.role;
 
   return (
     <>
@@ -49,6 +52,19 @@ export function AppHeader() {
                 </Link>
               );
             })}
+            {isAdmin && (
+              <Link
+                to="/admin"
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                  pathname.startsWith("/admin")
+                    ? "bg-accent text-accent-foreground"
+                    : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                }`}
+              >
+                <ShieldCheck className="h-4 w-4" />
+                Admin
+              </Link>
+            )}
           </nav>
           <div className="flex items-center gap-2">
             {isDemo && (

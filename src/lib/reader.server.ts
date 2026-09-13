@@ -10,7 +10,115 @@ async function admin() {
 export interface ReaderChunkResult {
   content: string | null;
   locked: boolean;
-  reason?: "sign_in_required" | "subscription_required" | "not_available";
+  reason?:
+    "sign_in_required" | "subscription_required" | "translation_access_required" | "not_available";
+}
+
+/**
+ * Seeparah is free during launch: no checkout, no premium locks. This flag
+ * lets that be reversed later purely via admin content settings (see
+ * src/lib/admin/settings.server.ts) rather than a code change — but it
+ * defaults to false (free) even if the content_settings table/row doesn't
+ * exist yet, so a missing settings row can never accidentally turn paywalls
+ * back on.
+ */
+async function isMonetizationEnabled(): Promise<boolean> {
+  try {
+    const db = await admin();
+    const { data } = await db
+      .from("content_settings")
+      .select("value")
+      .eq("key", "monetization_enabled")
+      .maybeSingle();
+    return data?.value === true;
+  } catch {
+    return false;
+  }
+}
+
+/** Hindi and Arabic TRANSLATED editions (not the original) are only readable
+ * by a reader whose translation_requests row for this book+language is
+ * 'granted' — approval to produce a translation is separate from permission
+ * to read one. English/Urdu/the book's own original language are never
+ * gated this way. */
+const REQUEST_GATED_LANGUAGES = new Set(["Hindi", "Arabic"]);
+
+async function hasGrantedTranslationAccess(
+  bookId: string,
+  language: string,
+  userId: string | null,
+): Promise<boolean> {
+  if (!userId) return false;
+  const db = await admin();
+  const { data } = await db
+    .from("translation_requests")
+    .select("status")
+    .eq("book_id", bookId)
+    .eq("language", language)
+    .eq("requester_id", userId)
+    .eq("status", "granted")
+    .maybeSingle();
+  return !!data;
+}
+
+interface ReaderAccessBookState {
+  status: string;
+  accessType: string;
+  sourceLanguage: string;
+}
+
+interface ReaderAccessInput {
+  book: ReaderAccessBookState;
+  language: string;
+  chunkIndex: number;
+  userId: string | null;
+  isOwner: boolean;
+  monetizationEnabled: boolean;
+  hasActiveSubscription: boolean;
+  hasGrantedTranslationAccess: boolean;
+}
+
+/**
+ * Pure decision function for the reader's access gate, so every branch is
+ * directly unit-testable without a database. `getReaderChunk` below is the
+ * only caller and is responsible for supplying honest inputs. The catalog
+ * gate (book.status === 'published') is checked FIRST and has no bypass for
+ * ordinary readers — this is what stops a draft/in_review/rejected/
+ * unpublished/archived book's text from being readable by anyone who has
+ * (or guesses, or enumerates) its id, independent of whatever the
+ * `books`/`book_chunks` RLS policies happen to allow at the REST layer.
+ */
+export function resolveReaderAccess(
+  input: ReaderAccessInput,
+): { locked: true; reason: NonNullable<ReaderChunkResult["reason"]> } | { locked: false } {
+  const { book } = input;
+
+  // The owning author may always open their own book (any status) — this is
+  // the only bypass of the catalog gate, and it never bypasses the
+  // subscription/translation-access gates below.
+  if (book.status !== "published" && !input.isOwner) {
+    return { locked: true, reason: "not_available" };
+  }
+
+  const isFreePreview = input.chunkIndex === 0;
+  const requiresSubscription =
+    input.monetizationEnabled && book.accessType === "paid" && !isFreePreview && !input.isOwner;
+  if (requiresSubscription) {
+    if (!input.userId) return { locked: true, reason: "sign_in_required" };
+    if (!input.hasActiveSubscription) return { locked: true, reason: "subscription_required" };
+  }
+
+  const isTranslatedEdition = input.language !== book.sourceLanguage;
+  if (REQUEST_GATED_LANGUAGES.has(input.language) && isTranslatedEdition && !input.isOwner) {
+    if (!input.hasGrantedTranslationAccess) {
+      return {
+        locked: true,
+        reason: input.userId ? "translation_access_required" : "sign_in_required",
+      };
+    }
+  }
+
+  return { locked: false };
 }
 
 export async function getReaderChunk(params: {
@@ -22,19 +130,16 @@ export async function getReaderChunk(params: {
   const db = await admin();
   const { data: book, error: bookError } = await db
     .from("books")
-    .select("id, access_type, author_id")
+    .select("id, status, access_type, author_id, source_language")
     .eq("id", params.bookId)
     .single();
   if (bookError || !book) return { content: null, locked: false, reason: "not_available" };
 
-  const isFreePreview = params.chunkIndex === 0;
   const isOwner = params.userId != null && book.author_id === params.userId;
-  const requiresSubscription = book.access_type === "paid" && !isFreePreview && !isOwner;
+  const monetizationEnabled = await isMonetizationEnabled();
 
-  if (requiresSubscription) {
-    if (!params.userId) {
-      return { content: null, locked: true, reason: "sign_in_required" };
-    }
+  let hasActiveSubscription = false;
+  if (params.userId && monetizationEnabled && book.access_type === "paid") {
     const { data: sub } = await db
       .from("user_subscriptions")
       .select("id, status, expires_at")
@@ -42,9 +147,30 @@ export async function getReaderChunk(params: {
       .eq("user_id", params.userId)
       .eq("status", "active")
       .maybeSingle();
-    const active = sub && (!sub.expires_at || new Date(sub.expires_at) > new Date());
-    if (!active) return { content: null, locked: true, reason: "subscription_required" };
+    hasActiveSubscription = !!sub && (!sub.expires_at || new Date(sub.expires_at) > new Date());
   }
+
+  const isTranslatedEdition = params.language !== book.source_language;
+  let grantedTranslationAccess = false;
+  if (REQUEST_GATED_LANGUAGES.has(params.language) && isTranslatedEdition && !isOwner) {
+    grantedTranslationAccess = await hasGrantedTranslationAccess(
+      params.bookId,
+      params.language,
+      params.userId,
+    );
+  }
+
+  const access = resolveReaderAccess({
+    book: { status: book.status, accessType: book.access_type, sourceLanguage: book.source_language },
+    language: params.language,
+    chunkIndex: params.chunkIndex,
+    userId: params.userId,
+    isOwner,
+    monetizationEnabled,
+    hasActiveSubscription,
+    hasGrantedTranslationAccess: grantedTranslationAccess,
+  });
+  if (access.locked) return { content: null, locked: true, reason: access.reason };
 
   const { data: chunk } = await db
     .from("book_chunks")

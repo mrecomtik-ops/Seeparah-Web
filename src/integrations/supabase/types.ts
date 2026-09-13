@@ -413,6 +413,24 @@ export type Database = {
           title: string
           total_chunks: number
           source_version: number
+          // manually added (migration 0005)
+          rights_basis: string | null
+          rights_evidence_url: string | null
+          attribution: string | null
+          permitted_territories: string[]
+          translation_permission: boolean
+          source_url: string | null
+          source_edition_id: string | null
+          translator: string | null
+          categories: string[]
+          import_key: string | null
+          checksum: string | null
+          rights_status: string
+          edition_review_status: string
+          rejection_reason: string | null
+          review_notes: string | null
+          reviewed_by: string | null
+          reviewed_at: string | null
         }
         Insert: {
           access_type?: string
@@ -430,6 +448,23 @@ export type Database = {
           title: string
           total_chunks?: number
           source_version?: number
+          rights_basis?: string | null
+          rights_evidence_url?: string | null
+          attribution?: string | null
+          permitted_territories?: string[]
+          translation_permission?: boolean
+          source_url?: string | null
+          source_edition_id?: string | null
+          translator?: string | null
+          categories?: string[]
+          import_key?: string | null
+          checksum?: string | null
+          rights_status?: string
+          edition_review_status?: string
+          rejection_reason?: string | null
+          review_notes?: string | null
+          reviewed_by?: string | null
+          reviewed_at?: string | null
         }
         Update: {
           access_type?: string
@@ -447,6 +482,378 @@ export type Database = {
           title?: string
           total_chunks?: number
           source_version?: number
+          rights_basis?: string | null
+          rights_evidence_url?: string | null
+          attribution?: string | null
+          permitted_territories?: string[]
+          translation_permission?: boolean
+          source_url?: string | null
+          source_edition_id?: string | null
+          translator?: string | null
+          categories?: string[]
+          import_key?: string | null
+          checksum?: string | null
+          rights_status?: string
+          edition_review_status?: string
+          rejection_reason?: string | null
+          review_notes?: string | null
+          reviewed_by?: string | null
+          reviewed_at?: string | null
+        }
+        Relationships: []
+      }
+      // manually added (migration 0004)
+      admin_users: {
+        Row: {
+          user_id: string
+          role: string
+          granted_by: string | null
+          granted_at: string
+          revoked_at: string | null
+          revoked_by: string | null
+        }
+        Insert: {
+          user_id: string
+          role: string
+          granted_by?: string | null
+          granted_at?: string
+          revoked_at?: string | null
+          revoked_by?: string | null
+        }
+        Update: {
+          user_id?: string
+          role?: string
+          granted_by?: string | null
+          granted_at?: string
+          revoked_at?: string | null
+          revoked_by?: string | null
+        }
+        Relationships: []
+      }
+      // manually added (migration 0004)
+      audit_log: {
+        Row: {
+          id: string
+          actor_id: string | null
+          actor_role: string | null
+          action: string
+          entity_type: string
+          entity_id: string | null
+          reason: string | null
+          before: Json | null
+          after: Json | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          actor_id?: string | null
+          actor_role?: string | null
+          action: string
+          entity_type: string
+          entity_id?: string | null
+          reason?: string | null
+          before?: Json | null
+          after?: Json | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          actor_id?: string | null
+          actor_role?: string | null
+          action?: string
+          entity_type?: string
+          entity_id?: string | null
+          reason?: string | null
+          before?: Json | null
+          after?: Json | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      // manually added (migration 0004)
+      admin_action_events: {
+        Row: {
+          id: string
+          actor_id: string | null
+          action: string
+          target_id: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          actor_id?: string | null
+          action: string
+          target_id?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          actor_id?: string | null
+          action?: string
+          target_id?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      // manually added (migration 0006)
+      support_tickets: {
+        Row: {
+          id: string
+          user_id: string | null
+          contact_email: string | null
+          is_anonymous: boolean
+          subject: string
+          description: string
+          category: string
+          severity: string
+          status: string
+          related_book_id: string | null
+          related_job_id: string | null
+          assigned_to: string | null
+          resolution: string | null
+          resolved_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id?: string | null
+          contact_email?: string | null
+          is_anonymous?: boolean
+          subject: string
+          description: string
+          category?: string
+          severity?: string
+          status?: string
+          related_book_id?: string | null
+          related_job_id?: string | null
+          assigned_to?: string | null
+          resolution?: string | null
+          resolved_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string | null
+          contact_email?: string | null
+          is_anonymous?: boolean
+          subject?: string
+          description?: string
+          category?: string
+          severity?: string
+          status?: string
+          related_book_id?: string | null
+          related_job_id?: string | null
+          assigned_to?: string | null
+          resolution?: string | null
+          resolved_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      // manually added (migration 0006)
+      support_ticket_notes: {
+        Row: {
+          id: string
+          ticket_id: string
+          author_id: string | null
+          body: string
+          visibility: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          ticket_id: string
+          author_id?: string | null
+          body: string
+          visibility?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          ticket_id?: string
+          author_id?: string | null
+          body?: string
+          visibility?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      // manually added (migration 0006)
+      support_report_rate_limit: {
+        Row: {
+          ip_hash: string
+          day: string
+          count: number
+        }
+        Insert: {
+          ip_hash: string
+          day: string
+          count?: number
+        }
+        Update: {
+          ip_hash?: string
+          day?: string
+          count?: number
+        }
+        Relationships: []
+      }
+      // manually added (migration 0006)
+      translation_requests: {
+        Row: {
+          id: string
+          book_id: string
+          language: string
+          requester_id: string
+          status: string
+          job_id: string | null
+          decision_reason: string | null
+          reviewed_by: string | null
+          reviewed_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          book_id: string
+          language: string
+          requester_id: string
+          status?: string
+          job_id?: string | null
+          decision_reason?: string | null
+          reviewed_by?: string | null
+          reviewed_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          book_id?: string
+          language?: string
+          requester_id?: string
+          status?: string
+          job_id?: string | null
+          decision_reason?: string | null
+          reviewed_by?: string | null
+          reviewed_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      // manually added (migration 0006)
+      content_settings: {
+        Row: {
+          key: string
+          value: Json
+          is_public: boolean
+          version: number
+          updated_by: string | null
+          updated_at: string
+        }
+        Insert: {
+          key: string
+          value: Json
+          is_public?: boolean
+          version?: number
+          updated_by?: string | null
+          updated_at?: string
+        }
+        Update: {
+          key?: string
+          value?: Json
+          is_public?: boolean
+          version?: number
+          updated_by?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      // manually added (migration 0006)
+      content_settings_history: {
+        Row: {
+          id: string
+          key: string
+          value: Json
+          version: number
+          action: string
+          updated_by: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          key: string
+          value: Json
+          version: number
+          action: string
+          updated_by?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          key?: string
+          value?: Json
+          version?: number
+          action?: string
+          updated_by?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      // manually added (migration 0006)
+      error_events: {
+        Row: {
+          id: string
+          occurred_at: string
+          severity: string
+          code: string
+          message: string
+          request_id: string | null
+          user_id: string | null
+          job_id: string | null
+          book_id: string | null
+          client_version: string | null
+          retryable: boolean
+          resolved: boolean
+          resolved_by: string | null
+          resolved_at: string | null
+          context: Json
+        }
+        Insert: {
+          id?: string
+          occurred_at?: string
+          severity?: string
+          code: string
+          message: string
+          request_id?: string | null
+          user_id?: string | null
+          job_id?: string | null
+          book_id?: string | null
+          client_version?: string | null
+          retryable?: boolean
+          resolved?: boolean
+          resolved_by?: string | null
+          resolved_at?: string | null
+          context?: Json
+        }
+        Update: {
+          id?: string
+          occurred_at?: string
+          severity?: string
+          code?: string
+          message?: string
+          request_id?: string | null
+          user_id?: string | null
+          job_id?: string | null
+          book_id?: string | null
+          client_version?: string | null
+          retryable?: boolean
+          resolved?: boolean
+          resolved_by?: string | null
+          resolved_at?: string | null
+          context?: Json
         }
         Relationships: []
       }

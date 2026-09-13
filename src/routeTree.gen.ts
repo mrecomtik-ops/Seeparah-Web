@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminRouteRouteImport } from './routes/admin/route'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthorRouteRouteImport } from './routes/author/route'
 import { Route as DashboardRouteImport } from './routes/dashboard'
@@ -17,17 +18,35 @@ import { Route as LegalRouteImport } from './routes/legal'
 import { Route as LibraryRouteImport } from './routes/library'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as SubscribeRouteImport } from './routes/subscribe'
+import { Route as AdminIndexRouteImport } from './routes/admin/index'
+import { Route as AdminAuditRouteImport } from './routes/admin/audit'
+import { Route as AdminHealthRouteImport } from './routes/admin/health'
+import { Route as AdminRolesRouteImport } from './routes/admin/roles'
+import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
+import { Route as AdminTranslationRequestsRouteImport } from './routes/admin/translation-requests'
+import { Route as AdminUsersRouteImport } from './routes/admin/users'
+import { Route as AuthResetPasswordRouteImport } from './routes/auth/reset-password'
 import { Route as AuthorIndexRouteImport } from './routes/author/index'
 import { Route as AuthorAuthorIdRouteImport } from './routes/author/$authorId'
 import { Route as AuthorAnalyticsRouteImport } from './routes/author.analytics'
 import { Route as AuthorPublishRouteImport } from './routes/author.publish'
 import { Route as BookBookIdRouteImport } from './routes/book.$bookId'
 import { Route as ReadBookIdRouteImport } from './routes/read.$bookId'
+import { Route as AdminBooksIndexRouteImport } from './routes/admin/books/index'
+import { Route as AdminBooksBookIdRouteImport } from './routes/admin/books/$bookId'
+import { Route as AdminBooksNewRouteImport } from './routes/admin/books/new'
+import { Route as AdminSupportIndexRouteImport } from './routes/admin/support/index'
+import { Route as AdminSupportTicketIdRouteImport } from './routes/admin/support/$ticketId'
 import { Route as AuthorBookBookIdRouteImport } from './routes/author.book.$bookId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRouteRoute = AdminRouteRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -65,6 +84,47 @@ const SubscribeRoute = SubscribeRouteImport.update({
   path: '/subscribe',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminAuditRoute = AdminAuditRouteImport.update({
+  id: '/audit',
+  path: '/audit',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminHealthRoute = AdminHealthRouteImport.update({
+  id: '/health',
+  path: '/health',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminRolesRoute = AdminRolesRouteImport.update({
+  id: '/roles',
+  path: '/roles',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminSettingsRoute = AdminSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminTranslationRequestsRoute =
+  AdminTranslationRequestsRouteImport.update({
+    id: '/translation-requests',
+    path: '/translation-requests',
+    getParentRoute: () => AdminRouteRoute,
+  } as any)
+const AdminUsersRoute = AdminUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AuthResetPasswordRoute = AuthResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => AuthRoute,
+} as any)
 const AuthorIndexRoute = AuthorIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -95,6 +155,31 @@ const ReadBookIdRoute = ReadBookIdRouteImport.update({
   path: '/read/$bookId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminBooksIndexRoute = AdminBooksIndexRouteImport.update({
+  id: '/books/',
+  path: '/books/',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminBooksBookIdRoute = AdminBooksBookIdRouteImport.update({
+  id: '/books/$bookId',
+  path: '/books/$bookId',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminBooksNewRoute = AdminBooksNewRouteImport.update({
+  id: '/books/new',
+  path: '/books/new',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminSupportIndexRoute = AdminSupportIndexRouteImport.update({
+  id: '/support/',
+  path: '/support/',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminSupportTicketIdRoute = AdminSupportTicketIdRouteImport.update({
+  id: '/support/$ticketId',
+  path: '/support/$ticketId',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
 const AuthorBookBookIdRoute = AuthorBookBookIdRouteImport.update({
   id: '/book/$bookId',
   path: '/book/$bookId',
@@ -103,59 +188,101 @@ const AuthorBookBookIdRoute = AuthorBookBookIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteRouteWithChildren
   '/author': typeof AuthorRouteRouteWithChildren
-  '/auth': typeof AuthRoute
+  '/auth': typeof AuthRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/legal': typeof LegalRoute
   '/library': typeof LibraryRoute
   '/profile': typeof ProfileRoute
   '/subscribe': typeof SubscribeRoute
+  '/admin/audit': typeof AdminAuditRoute
+  '/admin/health': typeof AdminHealthRoute
+  '/admin/roles': typeof AdminRolesRoute
+  '/admin/settings': typeof AdminSettingsRoute
+  '/admin/translation-requests': typeof AdminTranslationRequestsRoute
+  '/admin/users': typeof AdminUsersRoute
+  '/auth/reset-password': typeof AuthResetPasswordRoute
   '/author/$authorId': typeof AuthorAuthorIdRoute
   '/author/analytics': typeof AuthorAnalyticsRoute
   '/author/publish': typeof AuthorPublishRoute
   '/book/$bookId': typeof BookBookIdRoute
   '/read/$bookId': typeof ReadBookIdRoute
+  '/admin/': typeof AdminIndexRoute
   '/author/': typeof AuthorIndexRoute
+  '/admin/books/$bookId': typeof AdminBooksBookIdRoute
+  '/admin/books/new': typeof AdminBooksNewRoute
+  '/admin/support/$ticketId': typeof AdminSupportTicketIdRoute
   '/author/book/$bookId': typeof AuthorBookBookIdRoute
+  '/admin/books/': typeof AdminBooksIndexRoute
+  '/admin/support/': typeof AdminSupportIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/auth': typeof AuthRoute
+  '/auth': typeof AuthRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/legal': typeof LegalRoute
   '/library': typeof LibraryRoute
   '/profile': typeof ProfileRoute
   '/subscribe': typeof SubscribeRoute
+  '/admin/audit': typeof AdminAuditRoute
+  '/admin/health': typeof AdminHealthRoute
+  '/admin/roles': typeof AdminRolesRoute
+  '/admin/settings': typeof AdminSettingsRoute
+  '/admin/translation-requests': typeof AdminTranslationRequestsRoute
+  '/admin/users': typeof AdminUsersRoute
+  '/auth/reset-password': typeof AuthResetPasswordRoute
   '/author/$authorId': typeof AuthorAuthorIdRoute
   '/author/analytics': typeof AuthorAnalyticsRoute
   '/author/publish': typeof AuthorPublishRoute
   '/book/$bookId': typeof BookBookIdRoute
   '/read/$bookId': typeof ReadBookIdRoute
+  '/admin': typeof AdminIndexRoute
   '/author': typeof AuthorIndexRoute
+  '/admin/books/$bookId': typeof AdminBooksBookIdRoute
+  '/admin/books/new': typeof AdminBooksNewRoute
+  '/admin/support/$ticketId': typeof AdminSupportTicketIdRoute
   '/author/book/$bookId': typeof AuthorBookBookIdRoute
+  '/admin/books': typeof AdminBooksIndexRoute
+  '/admin/support': typeof AdminSupportIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteRouteWithChildren
   '/author': typeof AuthorRouteRouteWithChildren
-  '/auth': typeof AuthRoute
+  '/auth': typeof AuthRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/legal': typeof LegalRoute
   '/library': typeof LibraryRoute
   '/profile': typeof ProfileRoute
   '/subscribe': typeof SubscribeRoute
+  '/admin/audit': typeof AdminAuditRoute
+  '/admin/health': typeof AdminHealthRoute
+  '/admin/roles': typeof AdminRolesRoute
+  '/admin/settings': typeof AdminSettingsRoute
+  '/admin/translation-requests': typeof AdminTranslationRequestsRoute
+  '/admin/users': typeof AdminUsersRoute
+  '/auth/reset-password': typeof AuthResetPasswordRoute
   '/author/$authorId': typeof AuthorAuthorIdRoute
   '/author/analytics': typeof AuthorAnalyticsRoute
   '/author/publish': typeof AuthorPublishRoute
   '/book/$bookId': typeof BookBookIdRoute
   '/read/$bookId': typeof ReadBookIdRoute
+  '/admin/': typeof AdminIndexRoute
   '/author/': typeof AuthorIndexRoute
+  '/admin/books/$bookId': typeof AdminBooksBookIdRoute
+  '/admin/books/new': typeof AdminBooksNewRoute
+  '/admin/support/$ticketId': typeof AdminSupportTicketIdRoute
   '/author/book/$bookId': typeof AuthorBookBookIdRoute
+  '/admin/books/': typeof AdminBooksIndexRoute
+  '/admin/support/': typeof AdminSupportIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/admin'
     | '/author'
     | '/auth'
     | '/dashboard'
@@ -163,13 +290,26 @@ export interface FileRouteTypes {
     | '/library'
     | '/profile'
     | '/subscribe'
+    | '/admin/audit'
+    | '/admin/health'
+    | '/admin/roles'
+    | '/admin/settings'
+    | '/admin/translation-requests'
+    | '/admin/users'
+    | '/auth/reset-password'
     | '/author/$authorId'
     | '/author/analytics'
     | '/author/publish'
     | '/book/$bookId'
     | '/read/$bookId'
+    | '/admin/'
     | '/author/'
+    | '/admin/books/$bookId'
+    | '/admin/books/new'
+    | '/admin/support/$ticketId'
     | '/author/book/$bookId'
+    | '/admin/books/'
+    | '/admin/support/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -179,16 +319,30 @@ export interface FileRouteTypes {
     | '/library'
     | '/profile'
     | '/subscribe'
+    | '/admin/audit'
+    | '/admin/health'
+    | '/admin/roles'
+    | '/admin/settings'
+    | '/admin/translation-requests'
+    | '/admin/users'
+    | '/auth/reset-password'
     | '/author/$authorId'
     | '/author/analytics'
     | '/author/publish'
     | '/book/$bookId'
     | '/read/$bookId'
+    | '/admin'
     | '/author'
+    | '/admin/books/$bookId'
+    | '/admin/books/new'
+    | '/admin/support/$ticketId'
     | '/author/book/$bookId'
+    | '/admin/books'
+    | '/admin/support'
   id:
     | '__root__'
     | '/'
+    | '/admin'
     | '/author'
     | '/auth'
     | '/dashboard'
@@ -196,19 +350,33 @@ export interface FileRouteTypes {
     | '/library'
     | '/profile'
     | '/subscribe'
+    | '/admin/audit'
+    | '/admin/health'
+    | '/admin/roles'
+    | '/admin/settings'
+    | '/admin/translation-requests'
+    | '/admin/users'
+    | '/auth/reset-password'
     | '/author/$authorId'
     | '/author/analytics'
     | '/author/publish'
     | '/book/$bookId'
     | '/read/$bookId'
+    | '/admin/'
     | '/author/'
+    | '/admin/books/$bookId'
+    | '/admin/books/new'
+    | '/admin/support/$ticketId'
     | '/author/book/$bookId'
+    | '/admin/books/'
+    | '/admin/support/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRouteRoute: typeof AdminRouteRouteWithChildren
   AuthorRouteRoute: typeof AuthorRouteRouteWithChildren
-  AuthRoute: typeof AuthRoute
+  AuthRoute: typeof AuthRouteWithChildren
   DashboardRoute: typeof DashboardRoute
   LegalRoute: typeof LegalRoute
   LibraryRoute: typeof LibraryRoute
@@ -225,6 +393,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -276,6 +451,62 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SubscribeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/': {
+      id: '/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/audit': {
+      id: '/admin/audit'
+      path: '/audit'
+      fullPath: '/admin/audit'
+      preLoaderRoute: typeof AdminAuditRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/health': {
+      id: '/admin/health'
+      path: '/health'
+      fullPath: '/admin/health'
+      preLoaderRoute: typeof AdminHealthRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/roles': {
+      id: '/admin/roles'
+      path: '/roles'
+      fullPath: '/admin/roles'
+      preLoaderRoute: typeof AdminRolesRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/settings': {
+      id: '/admin/settings'
+      path: '/settings'
+      fullPath: '/admin/settings'
+      preLoaderRoute: typeof AdminSettingsRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/translation-requests': {
+      id: '/admin/translation-requests'
+      path: '/translation-requests'
+      fullPath: '/admin/translation-requests'
+      preLoaderRoute: typeof AdminTranslationRequestsRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/users': {
+      id: '/admin/users'
+      path: '/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof AdminUsersRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/auth/reset-password': {
+      id: '/auth/reset-password'
+      path: '/reset-password'
+      fullPath: '/auth/reset-password'
+      preLoaderRoute: typeof AuthResetPasswordRouteImport
+      parentRoute: typeof AuthRoute
+    }
     '/author/': {
       id: '/author/'
       path: '/'
@@ -318,6 +549,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ReadBookIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/books/': {
+      id: '/admin/books/'
+      path: '/books'
+      fullPath: '/admin/books/'
+      preLoaderRoute: typeof AdminBooksIndexRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/books/$bookId': {
+      id: '/admin/books/$bookId'
+      path: '/books/$bookId'
+      fullPath: '/admin/books/$bookId'
+      preLoaderRoute: typeof AdminBooksBookIdRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/books/new': {
+      id: '/admin/books/new'
+      path: '/books/new'
+      fullPath: '/admin/books/new'
+      preLoaderRoute: typeof AdminBooksNewRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/support/': {
+      id: '/admin/support/'
+      path: '/support'
+      fullPath: '/admin/support/'
+      preLoaderRoute: typeof AdminSupportIndexRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/support/$ticketId': {
+      id: '/admin/support/$ticketId'
+      path: '/support/$ticketId'
+      fullPath: '/admin/support/$ticketId'
+      preLoaderRoute: typeof AdminSupportTicketIdRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
     '/author/book/$bookId': {
       id: '/author/book/$bookId'
       path: '/book/$bookId'
@@ -327,6 +593,40 @@ declare module '@tanstack/react-router' {
     }
   }
 }
+
+interface AdminRouteRouteChildren {
+  AdminAuditRoute: typeof AdminAuditRoute
+  AdminHealthRoute: typeof AdminHealthRoute
+  AdminRolesRoute: typeof AdminRolesRoute
+  AdminSettingsRoute: typeof AdminSettingsRoute
+  AdminTranslationRequestsRoute: typeof AdminTranslationRequestsRoute
+  AdminUsersRoute: typeof AdminUsersRoute
+  AdminIndexRoute: typeof AdminIndexRoute
+  AdminBooksBookIdRoute: typeof AdminBooksBookIdRoute
+  AdminBooksNewRoute: typeof AdminBooksNewRoute
+  AdminSupportTicketIdRoute: typeof AdminSupportTicketIdRoute
+  AdminBooksIndexRoute: typeof AdminBooksIndexRoute
+  AdminSupportIndexRoute: typeof AdminSupportIndexRoute
+}
+
+const AdminRouteRouteChildren: AdminRouteRouteChildren = {
+  AdminAuditRoute: AdminAuditRoute,
+  AdminHealthRoute: AdminHealthRoute,
+  AdminRolesRoute: AdminRolesRoute,
+  AdminSettingsRoute: AdminSettingsRoute,
+  AdminTranslationRequestsRoute: AdminTranslationRequestsRoute,
+  AdminUsersRoute: AdminUsersRoute,
+  AdminIndexRoute: AdminIndexRoute,
+  AdminBooksBookIdRoute: AdminBooksBookIdRoute,
+  AdminBooksNewRoute: AdminBooksNewRoute,
+  AdminSupportTicketIdRoute: AdminSupportTicketIdRoute,
+  AdminBooksIndexRoute: AdminBooksIndexRoute,
+  AdminSupportIndexRoute: AdminSupportIndexRoute,
+}
+
+const AdminRouteRouteWithChildren = AdminRouteRoute._addFileChildren(
+  AdminRouteRouteChildren,
+)
 
 interface AuthorRouteRouteChildren {
   AuthorAuthorIdRoute: typeof AuthorAuthorIdRoute
@@ -348,10 +648,21 @@ const AuthorRouteRouteWithChildren = AuthorRouteRoute._addFileChildren(
   AuthorRouteRouteChildren,
 )
 
+interface AuthRouteChildren {
+  AuthResetPasswordRoute: typeof AuthResetPasswordRoute
+}
+
+const AuthRouteChildren: AuthRouteChildren = {
+  AuthResetPasswordRoute: AuthResetPasswordRoute,
+}
+
+const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRouteRoute: AdminRouteRouteWithChildren,
   AuthorRouteRoute: AuthorRouteRouteWithChildren,
-  AuthRoute: AuthRoute,
+  AuthRoute: AuthRouteWithChildren,
   DashboardRoute: DashboardRoute,
   LegalRoute: LegalRoute,
   LibraryRoute: LibraryRoute,

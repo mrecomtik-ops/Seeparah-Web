@@ -80,7 +80,7 @@ export async function getBook(id: string): Promise<Book | null> {
 export interface ReaderChunkResult {
   content: string | null;
   locked: boolean;
-  reason?: "sign_in_required" | "subscription_required" | "not_available";
+  reason?: "sign_in_required" | "subscription_required" | "translation_access_required" | "not_available";
 }
 
 function findDemoChunk(bookId: string, language: string, chunkIndex: number): Chunk | undefined {
@@ -134,10 +134,12 @@ export async function getReaderChunk(
       data: { bookId, language, chunkIndex, accessToken: token },
     });
     // A book unknown to the backend (locally-published demo book, or no
-    // backend configured at all) falls back to on-device demo content;
-    // anything else — including "found, but no content in this language" —
-    // is the real, authoritative answer.
-    if (result.reason === "not_available") {
+    // backend configured at all) falls back to on-device demo content. This
+    // is distinct from a REAL book the backend found but refused (e.g. it
+    // isn't published yet) — that case comes back as `locked: true` and
+    // must never fall through to demo content, or a draft/rejected book's
+    // gate could be bypassed by a client that only checks the reason string.
+    if (result.reason === "not_available" && !result.locked) {
       return await demoFallback(bookId, language, chunkIndex);
     }
     return result;

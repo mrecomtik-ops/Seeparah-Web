@@ -33,6 +33,7 @@ import {
   updateHighlightNote,
 } from "@/lib/library";
 import { reportTranslationIssue } from "@/lib/translation.functions";
+import { requestBookTranslationAccess } from "@/lib/admin/translation-access.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/use-auth";
 import { ShelfButtons } from "@/components/ShelfButtons";
@@ -126,9 +127,7 @@ function ReaderPage() {
   useEffect(() => {
     if (!book || !progressQuery.data) return;
     if (seededBookRef.current === bookId) return;
-    const saved = progressQuery.data.find(
-      (p) => p.book_id === bookId && p.language === language,
-    );
+    const saved = progressQuery.data.find((p) => p.book_id === bookId && p.language === language);
     setIndex(saved ? Math.min(saved.last_chunk_index, book.total_chunks - 1) : 0);
     seededBookRef.current = bookId;
   }, [book, progressQuery.data, bookId, language]);
@@ -176,7 +175,9 @@ function ReaderPage() {
     navigate({ to: "/read/$bookId", params: { bookId }, search: { lang: l } });
   }
 
-  function applyReaderPrefs(next: Partial<{ fontSize: number; lineHeight: number; theme: ReaderTheme }>) {
+  function applyReaderPrefs(
+    next: Partial<{ fontSize: number; lineHeight: number; theme: ReaderTheme }>,
+  ) {
     if (next.fontSize !== undefined) setFontSize(next.fontSize);
     if (next.lineHeight !== undefined) setLineHeight(next.lineHeight);
     if (next.theme !== undefined) setTheme(next.theme);
@@ -212,8 +213,32 @@ function ReaderPage() {
       toast.success("Thanks — reported to the author.");
     } catch (error) {
       toast.error(
-        error instanceof Error ? `Couldn't send the report: ${error.message}` : "Couldn't send the report.",
+        error instanceof Error
+          ? `Couldn't send the report: ${error.message}`
+          : "Couldn't send the report.",
       );
+    }
+  }
+
+  async function handleRequestTranslationAccess() {
+    try {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      if (!token) {
+        toast.error("Sign in to request this translation.");
+        return;
+      }
+      const result = await requestBookTranslationAccess({
+        data: { bookId, language, accessToken: token },
+      });
+      toast.success(
+        result.status === "granted"
+          ? "You already have access — reloading."
+          : "Request sent — you'll be notified once it's reviewed.",
+      );
+      queryClient.invalidateQueries({ queryKey: ["reader-chunk", bookId, language, index] });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Couldn't send the request");
     }
   }
 
@@ -345,12 +370,22 @@ function ReaderPage() {
           <div className="mt-8 rounded-2xl border border-gold/50 bg-card p-8 text-center card-shadow">
             <Lock className="mx-auto h-9 w-9 text-gold" />
             <h2 className="mt-4 font-display text-2xl font-semibold text-foreground">
-              {lockReason === "sign_in_required" ? "Sign in to keep reading" : "This is a premium book"}
+              {lockReason === "sign_in_required"
+                ? "Sign in to keep reading"
+                : lockReason === "translation_access_required"
+                  ? `Request the ${language} edition`
+                  : lockReason === "not_available"
+                    ? "This book isn't available right now"
+                    : "This is a premium book"}
             </h2>
             <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
               {lockReason === "sign_in_required"
-                ? "You've read the free opening page. Sign in and subscribe to continue."
-                : `You've read the free opening page of ${book.title}. Subscribe for $${book.subscription_price_usd}/month to keep reading — 70% goes straight to ${book.author}.`}
+                ? "You've read the free opening page. Sign in to continue."
+                : lockReason === "translation_access_required"
+                  ? `${language} is available on request — an admin reviews each request. You'll be notified once it's ready.`
+                  : lockReason === "not_available"
+                    ? "This title isn't published yet — check back later."
+                    : `You've read the free opening page of ${book.title}. Subscribe for $${book.subscription_price_usd}/month to keep reading — 70% goes straight to ${book.author}.`}
             </p>
             <div className="mt-6 flex flex-wrap justify-center gap-3">
               {lockReason === "sign_in_required" ? (
@@ -359,6 +394,20 @@ function ReaderPage() {
                   className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5"
                 >
                   <LogIn className="h-4 w-4" /> Sign in
+                </Link>
+              ) : lockReason === "translation_access_required" ? (
+                <button
+                  onClick={handleRequestTranslationAccess}
+                  className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5"
+                >
+                  Request this translation
+                </button>
+              ) : lockReason === "not_available" ? (
+                <Link
+                  to="/library"
+                  className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5"
+                >
+                  Back to the library
                 </Link>
               ) : (
                 <Link
@@ -369,12 +418,14 @@ function ReaderPage() {
                   Unlock for ${book.subscription_price_usd}/mo
                 </Link>
               )}
-              <button
-                onClick={() => go(-1)}
-                className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-5 py-3 text-sm font-semibold text-foreground hover:bg-secondary"
-              >
-                Back to the free page
-              </button>
+              {lockReason !== "not_available" && (
+                <button
+                  onClick={() => go(-1)}
+                  className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-5 py-3 text-sm font-semibold text-foreground hover:bg-secondary"
+                >
+                  Back to the free page
+                </button>
+              )}
             </div>
           </div>
         ) : chunkQuery.isLoading ? (
@@ -427,8 +478,7 @@ function ReaderPage() {
 
         {isDemo && (
           <p className="mt-6 rounded-xl bg-secondary px-4 py-3 text-center text-xs text-secondary-foreground">
-            You're reading in demo mode — progress and highlights are kept on
-            this device.{" "}
+            You're reading in demo mode — progress and highlights are kept on this device.{" "}
             <Link to="/auth" className="font-semibold text-primary hover:underline">
               Sign in to sync them everywhere
             </Link>
@@ -573,7 +623,9 @@ function ReaderSettingsSheet({
     <SheetShell title="Reading settings" onClose={onClose}>
       <div className="space-y-5">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Theme</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Theme
+          </p>
           <div className="mt-2 grid grid-cols-3 gap-2">
             {(["light", "sepia", "dark"] as const).map((t) => (
               <button
@@ -593,7 +645,9 @@ function ReaderSettingsSheet({
         </div>
         <div>
           <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Font size</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Font size
+            </p>
             <span className="text-xs text-muted-foreground">{fontSize}px</span>
           </div>
           <input
@@ -609,7 +663,9 @@ function ReaderSettingsSheet({
         </div>
         <div>
           <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Line spacing</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Line spacing
+            </p>
             <span className="text-xs text-muted-foreground">{lineHeight.toFixed(1)}×</span>
           </div>
           <input

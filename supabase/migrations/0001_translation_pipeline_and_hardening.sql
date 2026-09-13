@@ -266,41 +266,22 @@ begin
 end $$;
 
 -- ---------------------------------------------------------------------------
--- RECOMMENDED POLICY CHANGE (review before applying — see header note)
+-- books/book_chunks access policy: see 0000 and 0007, not a comment here
 -- ---------------------------------------------------------------------------
--- The app's own server functions now enforce the paywall server-side
--- (src/lib/reader.server.ts) and only ever request status = 'published'
--- rows. That closes the gap where this app fetched full premium chunk
--- content to the browser before checking access. It does NOT stop someone
--- from querying the public Supabase REST endpoint directly with the
--- publishable key, because RLS is the only real boundary there.
---
--- Run this once you've confirmed it doesn't conflict with an existing
--- policy of the same purpose (`select * from pg_policies where
--- tablename = 'book_chunks'` first):
---
---   drop policy if exists "<existing permissive select policy name>" on public.book_chunks;
---
---   create policy book_chunks_read_access on public.book_chunks
---   for select
---   using (
---     status = 'published'
---     and (
---       chunk_index = 0
---       or exists (
---         select 1 from public.books b
---         where b.id = book_chunks.book_id and b.access_type <> 'paid'
---       )
---       or exists (
---         select 1 from public.user_subscriptions s
---         where s.book_id = book_chunks.book_id
---           and s.user_id = auth.uid()
---           and s.status = 'active'
---           and (s.expires_at is null or s.expires_at > now())
---       )
---       or exists (
---         select 1 from public.books b
---         where b.id = book_chunks.book_id and b.author_id = auth.uid()
---       )
---     )
---   );
+-- This used to be a commented-out, "confirm the live policy name first"
+-- suggestion. It no longer is: live REST testing against the actual project
+-- (see docs/security-verification-2026-09.md) confirmed a draft book's full
+-- row AND its book_chunks.content were both readable by a fully anonymous
+-- client, and that an author could self-publish their own book directly —
+-- real, current, exploitable gaps, not a hypothetical. The fix is now a
+-- real, mandatory migration:
+--   - `0000_hotfix_current_books_rls.sql` — apply immediately, standalone,
+--     independent of the rest of this change; uses only columns that exist
+--     in production today.
+--   - `0007_finalize_access_policies.sql` — the full, admin-role-aware,
+--     final version, applied after 0001-0006 in the same maintenance
+--     window (it depends on is_admin(), the rights/edition columns, and
+--     translation_requests, so it cannot run before them).
+-- Both use a dynamic pg_policies lookup to drop whatever SELECT/UPDATE
+-- policy currently exists on these tables before creating the correct one
+-- — no need to manually find and paste in an existing policy name first.

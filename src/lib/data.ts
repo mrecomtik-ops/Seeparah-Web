@@ -13,6 +13,12 @@ export interface Book {
   access_type: "free" | "paid";
   subscription_price_usd: number | null;
   created_at: string;
+  // Rights/review workflow fields (migration 0005) — optional because demo
+  // books and older rows may not carry them.
+  rights_status?: string;
+  edition_review_status?: string;
+  rejection_reason?: string | null;
+  review_notes?: string | null;
 }
 
 export interface Chunk {
