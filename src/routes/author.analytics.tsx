@@ -13,6 +13,7 @@ import {
 import { AUTHOR_PAYOUT, LANGUAGES } from "@/lib/data";
 import { listMyBooks } from "@/lib/library";
 import { useAuth } from "@/lib/use-auth";
+import { getPublicContentSettings } from "@/lib/admin/settings.functions";
 
 export const Route = createFileRoute("/author/analytics")({
   head: () => ({
@@ -20,10 +21,10 @@ export const Route = createFileRoute("/author/analytics")({
       { title: "Analytics — Seeparah Author Studio" },
       {
         name: "description",
-        content: "Reading stats, translation coverage and revenue for your books on Seeparah.",
+        content: "Reading stats and language coverage for your books on Seeparah.",
       },
       { property: "og:title", content: "Analytics — Seeparah Author Studio" },
-      { property: "og:description", content: "Reading stats and revenue for your books." },
+      { property: "og:description", content: "Reading stats for your books." },
     ],
   }),
   component: AnalyticsPage,
@@ -46,15 +47,22 @@ function AnalyticsPage() {
     queryFn: () => listMyBooks(userId),
   });
   const myBooks = myBooksQuery.data ?? [];
+  const settingsQuery = useQuery({
+    queryKey: ["public-content-settings"],
+    queryFn: () => getPublicContentSettings(),
+  });
+  const monetizationEnabled = settingsQuery.data?.["monetization_enabled"] === true;
 
   const totalPages = myBooks.reduce((s, b) => s + b.total_chunks, 0);
   const languageCoverage = myBooks.reduce(
     (s, b) => s + b.available_languages.length,
     0,
   );
-  const monthlyRevenue = myBooks
-    .filter((b) => b.access_type === "paid")
-    .reduce((s, b) => s + (b.subscription_price_usd ?? 0) * 12, 0);
+  const monthlyRevenue = monetizationEnabled
+    ? myBooks
+        .filter((b) => b.access_type === "paid")
+        .reduce((s, b) => s + (b.subscription_price_usd ?? 0) * 12, 0)
+    : 0;
 
   return (
     <div className="min-h-screen bg-background">
@@ -69,11 +77,13 @@ function AnalyticsPage() {
             { label: "Pages published", value: totalPages, icon: BookOpen },
             { label: "Language coverage", value: languageCoverage, icon: Languages },
             { label: "Pages read this week", value: WEEK.reduce((s, d) => s + d.pages, 0), icon: TrendingUp },
-            {
-              label: "Your payout (est./mo)",
-              value: `$${(monthlyRevenue * AUTHOR_PAYOUT).toFixed(2)}`,
-              icon: Wallet,
-            },
+            monetizationEnabled
+              ? {
+                  label: "Your payout (est./mo)",
+                  value: `$${(monthlyRevenue * AUTHOR_PAYOUT).toFixed(2)}`,
+                  icon: Wallet,
+                }
+              : { label: "Payouts", value: "Not active yet", icon: Wallet },
           ].map(({ label, value, icon: Icon }) => (
             <div key={label} className="rounded-2xl border border-border bg-card p-5 card-shadow">
               <div className="flex items-center justify-between">
@@ -136,12 +146,12 @@ function AnalyticsPage() {
                     </div>
                     <span
                       className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-                        b.access_type === "paid"
+                        monetizationEnabled && b.access_type === "paid"
                           ? "bg-gold/20 text-gold-foreground"
                           : "bg-accent text-accent-foreground"
                       }`}
                     >
-                      {b.access_type === "paid"
+                      {monetizationEnabled && b.access_type === "paid"
                         ? `$${b.subscription_price_usd}/mo`
                         : "Free"}
                     </span>
@@ -154,28 +164,38 @@ function AnalyticsPage() {
             <h2 className="font-display text-lg font-semibold text-foreground">
               Revenue summary
             </h2>
-            <dl className="mt-4 space-y-3 text-sm">
-              <div className="flex justify-between">
-                <dt className="text-muted-foreground">Gross subscriptions (est./mo)</dt>
-                <dd className="font-semibold text-foreground">${monthlyRevenue.toFixed(2)}</dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-muted-foreground">Your payout (70%)</dt>
-                <dd className="font-semibold text-primary">
-                  ${(monthlyRevenue * AUTHOR_PAYOUT).toFixed(2)}
-                </dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-muted-foreground">Seeparah commission (30%)</dt>
-                <dd className="font-semibold text-foreground">
-                  ${(monthlyRevenue * (1 - AUTHOR_PAYOUT)).toFixed(2)}
-                </dd>
-              </div>
-            </dl>
-            <p className="mt-4 rounded-lg bg-secondary px-3 py-2 text-xs text-secondary-foreground">
-              Estimates assume twelve active subscribers per premium book.
-              Payments run in Stripe test mode until launch.
-            </p>
+            {monetizationEnabled ? (
+              <>
+                <dl className="mt-4 space-y-3 text-sm">
+                  <div className="flex justify-between">
+                    <dt className="text-muted-foreground">Gross subscriptions (est./mo)</dt>
+                    <dd className="font-semibold text-foreground">${monthlyRevenue.toFixed(2)}</dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt className="text-muted-foreground">Your payout (70%)</dt>
+                    <dd className="font-semibold text-primary">
+                      ${(monthlyRevenue * AUTHOR_PAYOUT).toFixed(2)}
+                    </dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt className="text-muted-foreground">Seeparah commission (30%)</dt>
+                    <dd className="font-semibold text-foreground">
+                      ${(monthlyRevenue * (1 - AUTHOR_PAYOUT)).toFixed(2)}
+                    </dd>
+                  </div>
+                </dl>
+                <p className="mt-4 rounded-lg bg-secondary px-3 py-2 text-xs text-secondary-foreground">
+                  Estimates assume twelve active subscribers per premium book.
+                  Payments run in Stripe test mode until launch.
+                </p>
+              </>
+            ) : (
+              <p className="mt-4 rounded-lg bg-secondary px-3 py-2 text-sm text-secondary-foreground">
+                Seeparah is free for readers and free to publish during launch — there is no
+                subscription revenue to report yet. This section will show real figures once
+                paid plans are turned on, with terms published in advance.
+              </p>
+            )}
           </div>
         </section>
       </main>

@@ -11,13 +11,14 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { listBooks, listProgress } from "@/lib/library";
-import type { Book } from "@/lib/data";
+import { FREE_LAUNCH_AUTHOR_TERMS, type Book } from "@/lib/data";
 import { useAuth } from "@/lib/use-auth";
 import { BookCard } from "@/components/BookCard";
 import { useShelves } from "@/components/ShelfButtons";
 import { coverFor } from "@/lib/covers";
 import { currentStreak, readingDays } from "@/lib/shelves";
 import { getPrefs } from "@/lib/prefs";
+import { getPublicContentSettings } from "@/lib/admin/settings.functions";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
@@ -60,6 +61,11 @@ function DashboardPage() {
     queryFn: () => listProgress(userId),
   });
   const shelvesQuery = useShelves();
+  const settingsQuery = useQuery({
+    queryKey: ["public-content-settings"],
+    queryFn: () => getPublicContentSettings(),
+  });
+  const monetizationEnabled = settingsQuery.data?.["monetization_enabled"] === true;
 
   const books = booksQuery.data ?? [];
   const progress = progressQuery.data ?? [];
@@ -211,10 +217,25 @@ function DashboardPage() {
         </section>
 
         {forYou.length > 0 && (
-          <Shelf title="For you" icon={Sparkles} books={forYou.slice(0, 4)} />
+          <Shelf
+            title="For you"
+            icon={Sparkles}
+            books={forYou.slice(0, 4)}
+            monetizationEnabled={monetizationEnabled}
+          />
         )}
-        <Shelf title="Recommended for you" icon={BookOpen} books={recommended} />
-        <Shelf title="Trending translations" icon={TrendingUp} books={trending} />
+        <Shelf
+          title="Recommended for you"
+          icon={BookOpen}
+          books={recommended}
+          monetizationEnabled={monetizationEnabled}
+        />
+        <Shelf
+          title="More languages available"
+          icon={TrendingUp}
+          books={trending}
+          monetizationEnabled={monetizationEnabled}
+        />
 
         <section className="mt-12 flex flex-col items-start gap-4 rounded-3xl border border-border bg-card p-7 card-shadow sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -222,8 +243,7 @@ function DashboardPage() {
               Writing something of your own?
             </h2>
             <p className="mt-1 max-w-lg text-sm text-muted-foreground">
-              Publish a manuscript, let Seeparah translate it into ten languages,
-              and keep 70% of every subscription.
+              {FREE_LAUNCH_AUTHOR_TERMS}
             </p>
           </div>
           <Link
@@ -242,10 +262,12 @@ function Shelf({
   title,
   icon: Icon,
   books,
+  monetizationEnabled,
 }: {
   title: string;
   icon: typeof BookOpen;
   books: Book[];
+  monetizationEnabled: boolean;
 }) {
   if (books.length === 0) return null;
   return (
@@ -255,7 +277,7 @@ function Shelf({
       </h2>
       <div className="mt-4 grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-4">
         {books.map((b) => (
-          <BookCard key={b.id} book={b} />
+          <BookCard key={b.id} book={b} monetizationEnabled={monetizationEnabled} />
         ))}
       </div>
     </section>

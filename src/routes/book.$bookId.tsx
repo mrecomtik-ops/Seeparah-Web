@@ -1,10 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, BookOpen, Crown, Globe2, Loader2 } from "lucide-react";
+import { ArrowLeft, BookOpen, Crown, FlaskConical, Globe2, Loader2 } from "lucide-react";
 import { getBook } from "@/lib/library";
 import { coverFor } from "@/lib/covers";
 import { getPrefs } from "@/lib/prefs";
 import { ShelfButtons } from "@/components/ShelfButtons";
+import { SAMPLE_EXCERPT_BOOK_IDS, DEMO_MANUSCRIPT_BOOK_IDS, TRANSLATION_EXPLAINER_SHORT } from "@/lib/data";
+import { getPublicContentSettings } from "@/lib/admin/settings.functions";
 
 export const Route = createFileRoute("/book/$bookId")({
   head: () => ({
@@ -19,6 +21,11 @@ export const Route = createFileRoute("/book/$bookId")({
 function BookDetailPage() {
   const { bookId } = Route.useParams();
   const bookQuery = useQuery({ queryKey: ["book", bookId], queryFn: () => getBook(bookId) });
+  const settingsQuery = useQuery({
+    queryKey: ["public-content-settings"],
+    queryFn: () => getPublicContentSettings(),
+  });
+  const monetizationEnabled = settingsQuery.data?.["monetization_enabled"] === true;
   const book = bookQuery.data;
   const prefs = getPrefs();
 
@@ -45,6 +52,9 @@ function BookDetailPage() {
     ? prefs.language
     : book.source_language;
   const cover = coverFor(book.id, book.cover_url);
+  const isSample = SAMPLE_EXCERPT_BOOK_IDS.has(book.id);
+  const isDemoManuscript = DEMO_MANUSCRIPT_BOOK_IDS.has(book.id);
+  const offersDistinctSample = monetizationEnabled && book.access_type === "paid";
 
   return (
     <div className="min-h-screen bg-background">
@@ -90,13 +100,18 @@ function BookDetailPage() {
             </div>
 
             <div className="mt-3 flex flex-wrap items-center gap-2">
-              {book.access_type === "paid" ? (
+              {monetizationEnabled && book.access_type === "paid" ? (
                 <span className="inline-flex items-center gap-1 rounded-full bg-gold px-2.5 py-1 text-[11px] font-semibold text-gold-foreground">
                   <Crown className="h-3 w-3" /> Premium · ${book.subscription_price_usd}/month
                 </span>
               ) : (
                 <span className="rounded-full bg-secondary px-2.5 py-1 text-[11px] font-semibold text-secondary-foreground">
                   Free to read
+                </span>
+              )}
+              {(isSample || isDemoManuscript) && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-1 text-[11px] font-semibold text-secondary-foreground">
+                  <FlaskConical className="h-3 w-3" /> {isDemoManuscript ? "Demo manuscript" : "Sample chapters"}
                 </span>
               )}
               {book.genre && (
@@ -113,10 +128,16 @@ function BookDetailPage() {
             </div>
 
             <p className="mt-5 max-w-2xl leading-relaxed text-foreground">{book.description}</p>
+            {isSample && (
+              <p className="mt-2 max-w-2xl text-sm font-medium text-gold">
+                This is an excerpt — {book.total_chunks}{" "}
+                {book.total_chunks === 1 ? "page" : "pages"}, not the complete work.
+              </p>
+            )}
 
             <div className="mt-6">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Published editions
+                Available editions
               </p>
               <div className="mt-2 flex flex-wrap gap-2">
                 {book.available_languages.map((l) => (
@@ -128,30 +149,29 @@ function BookDetailPage() {
                   </span>
                 ))}
               </div>
-              <p className="mt-2 text-xs text-muted-foreground">
-                Every edition listed here has been translated and reviewed in full before publishing —
-                readers never see a partially-translated book.
-              </p>
+              <p className="mt-2 text-xs text-muted-foreground">{TRANSLATION_EXPLAINER_SHORT}</p>
             </div>
 
             <div className="mt-8 flex flex-wrap gap-3">
-              <Link
-                to="/read/$bookId"
-                params={{ bookId: book.id }}
-                search={{ lang: book.source_language }}
-                className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-5 py-3 text-sm font-semibold text-foreground card-shadow hover:bg-secondary"
-              >
-                Read a free sample
-              </Link>
+              {offersDistinctSample && (
+                <Link
+                  to="/read/$bookId"
+                  params={{ bookId: book.id }}
+                  search={{ lang: book.source_language }}
+                  className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-5 py-3 text-sm font-semibold text-foreground card-shadow hover:bg-secondary"
+                >
+                  Read the free opening page
+                </Link>
+              )}
               <Link
                 to="/read/$bookId"
                 params={{ bookId: book.id }}
                 search={{ lang: readLanguage }}
                 className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground card-shadow transition-transform hover:-translate-y-0.5"
               >
-                Start reading in {readLanguage}
+                {isSample ? `Read the sample in ${readLanguage}` : `Start reading in ${readLanguage}`}
               </Link>
-              {book.access_type === "paid" && (
+              {offersDistinctSample && (
                 <Link
                   to="/subscribe"
                   search={{ book: book.id }}

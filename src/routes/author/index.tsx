@@ -1,7 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { BookUp2, Feather, Languages, LineChart, Loader2, Users } from "lucide-react";
-import { LANGUAGES } from "@/lib/data";
+import {
+  LANGUAGES,
+  TRANSLATION_EXPLAINER,
+  TRANSLATION_EXPLAINER_SHORT,
+  STANDARD_TRANSLATION_LANGUAGES,
+  REQUESTABLE_TRANSLATION_LANGUAGES,
+} from "@/lib/data";
 import { listMyBooks } from "@/lib/library";
 import { useAuth } from "@/lib/use-auth";
 import { coverFor } from "@/lib/covers";
@@ -35,7 +41,7 @@ export const Route = createFileRoute("/author/")({
       {
         name: "description",
         content:
-          "Publish your manuscript, queue translations into ten languages, and follow your readers.",
+          "Publish your manuscript, free during launch, and follow your readers once it's reviewed and published.",
       },
       { property: "og:title", content: "Author Studio — Seeparah" },
       {
@@ -54,10 +60,12 @@ function AuthorDashboard() {
     queryFn: () => listMyBooks(userId),
   });
   const myBooks = myBooksQuery.data ?? [];
-  const translationsQueued = myBooks.reduce(
-    (sum, b) => sum + (LANGUAGES.length - b.available_languages.length),
-    0,
-  );
+  // Real editions that actually exist, not "languages this book doesn't
+  // have yet" — that would imply every missing language is in progress,
+  // which is only true for English/Urdu on an approved book, and never
+  // true for Hindi/Arabic unless a reader has requested and it's been
+  // approved. Don't compute a number we can't stand behind.
+  const editionsAvailable = myBooks.reduce((sum, b) => sum + b.available_languages.length, 0);
 
   const submittedCount = myBooks.filter(
     (b) => b.status === "in_review" || b.status === "approved",
@@ -76,8 +84,8 @@ function AuthorDashboard() {
       icon: Users,
     },
     {
-      label: "Translations queued",
-      value: translationsQueued,
+      label: "Editions available to readers",
+      value: editionsAvailable,
       icon: Languages,
     },
   ];
@@ -94,8 +102,8 @@ function AuthorDashboard() {
               Where your book finds its readers
             </h1>
             <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
-              Publish a manuscript once. Seeparah translates it page by page into ten languages —
-              free to publish and free to read during launch.
+              Publish a manuscript once — free to publish and free to read during launch. An
+              administrator reviews rights and quality before it goes live. {TRANSLATION_EXPLAINER}
             </p>
           </div>
           <div className="flex gap-3">
@@ -146,7 +154,7 @@ function AuthorDashboard() {
                   {myBooks[0]?.author ?? "Your pen name"}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {publishedCount} published · {translationsQueued} translations in progress
+                  {publishedCount} published · {editionsAvailable} edition{editionsAvailable === 1 ? "" : "s"} available to readers
                 </p>
               </div>
             </div>
@@ -160,17 +168,31 @@ function AuthorDashboard() {
         </section>
 
         <section className="mt-6 rounded-2xl border border-border bg-card p-5 card-shadow">
-          <p className="text-sm font-semibold text-foreground">Languages your books can reach</p>
+          <p className="text-sm font-semibold text-foreground">Language editions</p>
+          <p className="mt-1 text-xs text-muted-foreground">{TRANSLATION_EXPLAINER_SHORT}</p>
           <div className="mt-3 flex flex-wrap gap-2">
-            {LANGUAGES.map((l) => (
+            {STANDARD_TRANSLATION_LANGUAGES.map((l) => (
               <span
                 key={l}
                 className="rounded-full bg-accent px-3 py-1 text-xs font-medium text-accent-foreground"
               >
-                {l}
+                {l} · standard
+              </span>
+            ))}
+            {REQUESTABLE_TRANSLATION_LANGUAGES.map((l) => (
+              <span
+                key={l}
+                className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground"
+              >
+                {l} · on reader request
               </span>
             ))}
           </div>
+          <p className="mt-3 text-xs text-muted-foreground">
+            Your manuscript's own language can be any of {LANGUAGES.length} choices when you
+            publish — the badges above are the languages Seeparah currently produces additional
+            editions in.
+          </p>
         </section>
 
         <section className="mt-10">

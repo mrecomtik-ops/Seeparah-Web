@@ -13,12 +13,13 @@ import {
   X,
   Library as LibraryIcon,
 } from "lucide-react";
-import { GENRES, LANGUAGES, type Book } from "@/lib/data";
+import { GENRES, LANGUAGES, SAMPLE_EXCERPT_BOOK_IDS, DEMO_MANUSCRIPT_BOOK_IDS, type Book } from "@/lib/data";
 import { listBooks, listProgress } from "@/lib/library";
 import { useAuth } from "@/lib/use-auth";
 import { BookCard } from "@/components/BookCard";
 import { useShelves } from "@/components/ShelfButtons";
-import { coverFor, BOOK_OF_THE_DAY_ID } from "@/lib/covers";
+import { coverFor, FEATURED_BOOK_ID } from "@/lib/covers";
+import { getPublicContentSettings } from "@/lib/admin/settings.functions";
 
 const TABS = [
   { key: "all", label: "All books", icon: LibraryIcon },
@@ -48,12 +49,12 @@ export const Route = createFileRoute("/library")({
       {
         name: "description",
         content:
-          "Browse classics and new voices in ten languages. Search, filter by language, author and topic, and pick up your saved, favorite and want-to-read books.",
+          "Browse classics and new voices, free during launch. Search, filter by language, author and topic, and pick up your saved, favorite and want-to-read books.",
       },
       { property: "og:title", content: "Library — Seeparah" },
       {
         property: "og:description",
-        content: "Browse classics and new voices in ten languages.",
+        content: "Browse classics and new voices, free during launch.",
       },
     ],
   }),
@@ -80,6 +81,11 @@ function LibraryPage() {
     queryFn: () => listProgress(userId),
   });
   const shelvesQuery = useShelves();
+  const settingsQuery = useQuery({
+    queryKey: ["public-content-settings"],
+    queryFn: () => getPublicContentSettings(),
+  });
+  const monetizationEnabled = settingsQuery.data?.["monetization_enabled"] === true;
 
   const books = booksQuery.data ?? [];
   const shelves = shelvesQuery.data ?? [];
@@ -146,7 +152,9 @@ function LibraryPage() {
   const isNoSearchMatch = filtered.length === 0 && !isEmptyShelf;
 
   const featured: Book | undefined =
-    books.find((b) => b.id === BOOK_OF_THE_DAY_ID) ?? books[0];
+    books.find((b) => b.id === FEATURED_BOOK_ID) ?? books[0];
+  const featuredIsSample = featured ? SAMPLE_EXCERPT_BOOK_IDS.has(featured.id) : false;
+  const featuredIsDemo = featured ? DEMO_MANUSCRIPT_BOOK_IDS.has(featured.id) : false;
   const pagesRead = [...progressByBook.values()].reduce((a, b) => a + b + 1, 0);
   const counts: Record<TabKey, number> = {
     all: books.length,
@@ -207,7 +215,7 @@ function LibraryPage() {
               </div>
               <div className="p-6 sm:p-8">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">
-                  Book of the day
+                  Featured{featuredIsSample ? " · Sample chapters" : featuredIsDemo ? " · Demo" : ""}
                 </p>
                 <h2 className="mt-2 font-display text-2xl font-semibold sm:text-3xl">
                   {featured.title}
@@ -216,6 +224,12 @@ function LibraryPage() {
                 <p className="mt-4 max-w-xl leading-relaxed opacity-90">
                   {featured.description}
                 </p>
+                {featuredIsSample && (
+                  <p className="mt-2 max-w-xl text-xs opacity-75">
+                    This edition includes the opening {featured.total_chunks}{" "}
+                    {featured.total_chunks === 1 ? "page" : "pages"} only — not the complete work.
+                  </p>
+                )}
                 <Link
                   to="/read/$bookId"
                   params={{ bookId: featured.id }}
@@ -358,6 +372,7 @@ function LibraryPage() {
                   book={b}
                   progress={progressByBook.get(b.id) ?? null}
                   preferredLanguage={lang}
+                  monetizationEnabled={monetizationEnabled}
                 />
               ))}
             </div>

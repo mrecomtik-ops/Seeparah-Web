@@ -3,7 +3,7 @@ import { useState } from "react";
 import { ArrowRight, BookOpen, Feather, Globe2, Languages } from "lucide-react";
 import { lovable } from "@/integrations/lovable/index";
 import logoUrl from "@/assets/seeparah-logo.png";
-import { coverFor, BOOK_OF_THE_DAY_ID, DEMO_BOOK_ID } from "@/lib/covers";
+import { coverFor, FEATURED_BOOK_ID, DEMO_BOOK_ID } from "@/lib/covers";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -12,13 +12,12 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Read world classics and new authors in your own language. AI-translated page by page, with your progress and highlights always saved.",
+          "Read world classics and new authors. Free during launch, with your progress and highlights always saved. Editions are prepared and reviewed before publishing.",
       },
       { property: "og:title", content: "Seeparah — Read world classics in your language" },
       {
         property: "og:description",
-        content:
-          "A warm, editorial multilingual reading platform. English, Urdu, Hindi, Arabic, French and more.",
+        content: "A warm, editorial reading platform. Free during launch.",
       },
     ],
   }),
@@ -29,7 +28,7 @@ function LandingPage() {
   const navigate = useNavigate();
   const [googleBusy, setGoogleBusy] = useState(false);
   const [googleError, setGoogleError] = useState<string | null>(null);
-  const lanternCover = coverFor(BOOK_OF_THE_DAY_ID);
+  const featuredCover = coverFor(FEATURED_BOOK_ID);
 
   async function signInWithGoogle() {
     setGoogleBusy(true);
@@ -86,7 +85,7 @@ function LandingPage() {
           <div>
             <p className="inline-flex items-center gap-2 rounded-full bg-accent px-3 py-1 text-xs font-semibold text-accent-foreground">
               <Languages className="h-3.5 w-3.5" />
-              10 languages · AI-translated page by page
+              Free during launch · reviewed editions, not live translation
             </p>
             <h1 className="mt-5 font-display text-5xl font-semibold leading-[1.05] tracking-tight text-foreground sm:text-6xl">
               Every great book,
@@ -94,9 +93,9 @@ function LandingPage() {
               <span className="italic text-primary">in your own words.</span>
             </h1>
             <p className="mt-5 max-w-xl text-lg leading-relaxed text-muted-foreground">
-              Seeparah is a warm home for readers and authors. Read classics and
-              new voices in English, Urdu, Hindi, Pashto, Arabic, French and
-              more — your progress and highlights travel with you.
+              Seeparah is a warm home for readers and authors. English and Urdu are our
+              standard languages for every book; you can request Hindi or Arabic and an
+              administrator will review it. Your progress and highlights travel with you.
             </p>
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -127,9 +126,9 @@ function LandingPage() {
 
             <div className="mt-10 grid max-w-lg grid-cols-3 gap-4 border-t border-border pt-6">
               {[
-                ["10", "languages at launch"],
+                ["Free", "every book, during launch"],
                 ["0", "downloads — read in flow"],
-                ["70%", "of revenue to authors"],
+                ["2+2", "standard, plus requestable languages"],
               ].map(([stat, label]) => (
                 <div key={label}>
                   <p className="font-display text-3xl font-semibold text-primary">
@@ -146,10 +145,10 @@ function LandingPage() {
           <div className="relative mx-auto w-full max-w-sm">
             <div className="absolute -inset-6 -rotate-2 rounded-3xl bg-accent/60" />
             <div className="relative rotate-1 overflow-hidden rounded-2xl border border-border bg-card card-shadow-lg">
-              {lanternCover && (
+              {featuredCover && (
                 <img
-                  src={lanternCover}
-                  alt="Cover of The Lantern in the Rain by Amina Rahman"
+                  src={featuredCover}
+                  alt="Cover of Pride and Prejudice by Jane Austen"
                   className="aspect-[2/3] w-full object-cover"
                   width={832}
                   height={1248}
@@ -157,13 +156,13 @@ function LandingPage() {
               )}
               <div className="border-t border-border bg-card p-4">
                 <p className="text-[11px] font-semibold uppercase tracking-widest text-gold">
-                  Book of the day
+                  Featured · Sample chapters
                 </p>
                 <p className="mt-1 font-display text-lg font-semibold text-foreground">
-                  The Lantern in the Rain
+                  Pride and Prejudice
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  Amina Rahman · published on Seeparah
+                  Jane Austen · opening chapters, free to read
                 </p>
               </div>
             </div>

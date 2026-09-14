@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { BookOpen, Check, Crown, Feather, Loader2, ShieldCheck } from "lucide-react";
 import { Link } from "@tanstack/react-router";
-import { AUTHOR_PAYOUT, PLATFORM_COMMISSION } from "@/lib/data";
+import { AUTHOR_PAYOUT, PLATFORM_COMMISSION, TRANSLATION_EXPLAINER_SHORT } from "@/lib/data";
 import { getBook, listSubscriptions, subscribeToBook } from "@/lib/library";
 import { useAuth } from "@/lib/use-auth";
 import { getPublicContentSettings } from "@/lib/admin/settings.functions";
@@ -19,11 +19,10 @@ export const Route = createFileRoute("/subscribe")({
       { title: "Plans & subscriptions — Seeparah" },
       {
         name: "description",
-        content:
-          "Free reading for everyone, and premium subscriptions that pay authors 70% of every month.",
+        content: "Seeparah is completely free during launch — every book, no checkout, no premium locks.",
       },
       { property: "og:title", content: "Plans & subscriptions — Seeparah" },
-      { property: "og:description", content: "Free reading, premium books, 70% to authors." },
+      { property: "og:description", content: "Free during launch — every book, no checkout." },
     ],
   }),
   component: SubscribePage,
@@ -125,7 +124,7 @@ function SubscribePage() {
               <ul className="mt-5 space-y-2.5 text-sm text-foreground">
                 {[
                   "Every free book in the library",
-                  "All ten languages with AI translation",
+                  "English/Urdu standard; Hindi/Arabic on request",
                   "Highlights and reading progress saved",
                   "Opening page of every premium book",
                 ].map((f) => (
@@ -162,7 +161,7 @@ function SubscribePage() {
                   book
                     ? `The whole of “${book.title}”, page by page`
                     : "A full premium book of your choice",
-                  "Translations in every available language",
+                  "Every reviewed edition of this book",
                   `${Math.round(AUTHOR_PAYOUT * 100)}% paid directly to ${book?.author ?? "the author"}`,
                   "Cancel anytime — access runs to the end of the month",
                 ].map((f) => (
@@ -231,8 +230,8 @@ function SubscribePage() {
           <ul className="mt-5 grid gap-2.5 text-sm text-foreground sm:grid-cols-2">
             {[
               "Publish a manuscript in minutes",
-              "Automatic translation into ten languages",
-              "Reader and translation analytics",
+              "An administrator reviews rights and quality before publishing",
+              "Reader analytics",
               monetizationEnabled
                 ? "Monthly payouts, cancel or unpublish anytime"
                 : "Unpublish anytime",
@@ -243,6 +242,9 @@ function SubscribePage() {
               </li>
             ))}
           </ul>
+          <p className="mt-4 max-w-2xl text-xs leading-relaxed text-muted-foreground">
+            {TRANSLATION_EXPLAINER_SHORT}
+          </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link
               to="/author/publish"

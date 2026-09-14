@@ -3,24 +3,27 @@ import { useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   BookOpenCheck,
-  Crown,
   Eye,
   Feather,
   FileUp,
   Loader2,
+  LogIn,
   Sparkles,
 } from "lucide-react";
 import {
+  FREE_LAUNCH_AUTHOR_TERMS,
   GENRES,
   LANGUAGES,
   SAMPLE_MANUSCRIPT_AUTHOR,
   SAMPLE_MANUSCRIPT_CHAPTERS,
   SAMPLE_MANUSCRIPT_SUMMARY,
   SAMPLE_MANUSCRIPT_TITLE,
+  TRANSLATION_EXPLAINER_SHORT,
 } from "@/lib/data";
 import { publishBook, splitManuscript } from "@/lib/library";
 import { useAuth } from "@/lib/use-auth";
 import { useQueryClient } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/author/publish")({
   head: () => ({
@@ -28,13 +31,12 @@ export const Route = createFileRoute("/author/publish")({
       { title: "Publish a manuscript — Seeparah" },
       {
         name: "description",
-        content:
-          "Publish your book on Seeparah: free or premium, translated page by page into ten languages.",
+        content: "Publish your book on Seeparah: free during launch, reviewed by an administrator before it goes live.",
       },
       { property: "og:title", content: "Publish a manuscript — Seeparah" },
       {
         property: "og:description",
-        content: "Publish your book, free or premium, in ten languages.",
+        content: "Publish your book, free during launch.",
       },
     ],
   }),
@@ -57,8 +59,6 @@ function PublishPage() {
   const [manuscript, setManuscript] = useState("");
   const [genre, setGenre] = useState<string>(GENRES[0]);
   const [coverUrl, setCoverUrl] = useState("");
-  const [isPaid, setIsPaid] = useState(false);
-  const [price, setPrice] = useState("4.99");
   const [rightsConfirmed, setRightsConfirmed] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [busy, setBusy] = useState<"draft" | "submit" | null>(null);
@@ -106,6 +106,9 @@ function PublishPage() {
     if (forSubmit && !rightsConfirmed) {
       return "Confirm you hold the rights to this manuscript before submitting for review.";
     }
+    if (forSubmit && isDemo) {
+      return "Sign in before submitting for review — this reaches Seeparah's review queue and needs a real account. A local draft doesn't.";
+    }
     return null;
   }
 
@@ -123,8 +126,8 @@ function PublishPage() {
         sourceLanguage,
         summary: summary.trim(),
         manuscript,
-        isPaid,
-        priceUsd: isPaid ? Number.parseFloat(price) || 4.99 : null,
+        isPaid: false,
+        priceUsd: null,
         genre,
         coverUrl: coverUrl.trim() || null,
         status,
@@ -133,10 +136,14 @@ function PublishPage() {
       queryClient.invalidateQueries({ queryKey: ["books"] });
       queryClient.invalidateQueries({ queryKey: ["my-books", userId] });
       if (status === "draft") {
-        toast.success(`"${book.title}" saved as a draft — only you can see it.`);
+        toast.success(
+          isDemo
+            ? `"${book.title}" saved on this device only — it has not reached Seeparah. Sign in to actually submit it.`
+            : `"${book.title}" saved as a draft — only you can see it.`,
+        );
       } else {
         toast.success(
-          `"${book.title}" submitted for review${isDemo ? " (saved on this device in demo mode)" : ""}. You can publish it from Author Studio once you're ready.`,
+          `"${book.title}" submitted — reference ${book.id.slice(0, 8)}. An administrator will review rights and quality; track its status in Author Studio.`,
         );
       }
       navigate({ to: "/author" });
@@ -163,9 +170,10 @@ function PublishPage() {
           Publish your manuscript
         </h1>
         <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
-          Save a private draft any time, or submit for review when it's ready. Nothing
-          reaches the public library until you publish it — readers translate nothing
-          on the fly; approved editions are prepared and reviewed ahead of time.
+          Save a private draft any time. Submitting for review sends your manuscript to
+          Seeparah — an administrator reviews rights and edition quality and decides when
+          it publishes; you can't publish it yourself. Readers never see partially-reviewed
+          text: editions are prepared and reviewed ahead of time, never translated live.
         </p>
 
         <div className="mt-8 space-y-5 rounded-2xl border border-border bg-card p-6 card-shadow sm:p-8">
@@ -308,41 +316,8 @@ function PublishPage() {
           </div>
 
           <div className="rounded-xl border border-border bg-secondary/50 p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Crown className="h-4 w-4 text-gold" />
-                <p className="text-sm font-semibold text-foreground">Premium book</p>
-              </div>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={isPaid}
-                onClick={() => setIsPaid(!isPaid)}
-                className={`relative h-6 w-11 rounded-full transition-colors ${isPaid ? "bg-primary" : "bg-muted"}`}
-              >
-                <span
-                  className={`absolute top-0.5 h-5 w-5 rounded-full bg-card transition-all ${isPaid ? "left-[22px]" : "left-0.5"}`}
-                />
-              </button>
-            </div>
-            <p className="mt-1.5 text-xs text-muted-foreground">
-              Free books are open to everyone. Premium books give readers the first page
-              free, then a monthly subscription for this book — 70% goes to you, 30%
-              keeps Seeparah running.
-            </p>
-            {isPaid && (
-              <div className="mt-3 flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">$</span>
-                <input
-                  className="w-28 rounded-lg border border-border bg-card px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-                  value={price}
-                  onChange={(e) => setPrice(e.target.value)}
-                  inputMode="decimal"
-                  aria-label="Price per month in US dollars"
-                />
-                <span className="text-sm text-muted-foreground">per month</span>
-              </div>
-            )}
+            <p className="text-sm font-semibold text-foreground">Publishing terms right now</p>
+            <p className="mt-1.5 text-xs text-muted-foreground">{FREE_LAUNCH_AUTHOR_TERMS}</p>
           </div>
 
           <label className="flex items-start gap-3 rounded-xl border border-border bg-secondary/30 p-4 text-sm text-foreground">
@@ -359,6 +334,15 @@ function PublishPage() {
             </span>
           </label>
 
+          {isDemo && (
+            <p className="flex items-start gap-2 rounded-xl border border-gold/40 bg-gold/10 px-4 py-3 text-xs leading-relaxed text-foreground">
+              <LogIn className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gold" />
+              You're not signed in. "Save draft" here only stores your text on this device —
+              it never reaches Seeparah. To actually submit a manuscript for review, sign in
+              first.
+            </p>
+          )}
+
           <div className="flex flex-wrap gap-3">
             <button
               onClick={() => void submit("draft")}
@@ -366,25 +350,35 @@ function PublishPage() {
               className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-border bg-card px-6 py-4 text-base font-semibold text-foreground transition-colors hover:bg-secondary disabled:opacity-60"
             >
               {busy === "draft" ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
-              Save draft
+              {isDemo ? "Save local draft" : "Save draft"}
             </button>
-            <button
-              onClick={() => void submit("in_review")}
-              disabled={busy !== null}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-6 py-4 text-base font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5 disabled:opacity-60"
-            >
-              {busy === "submit" ? (
-                <Loader2 className="h-5 w-5 animate-spin" />
-              ) : (
-                <Feather className="h-5 w-5" />
-              )}
-              Submit for review
-            </button>
+            {isDemo ? (
+              <Link
+                to="/auth"
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-6 py-4 text-base font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5"
+              >
+                <LogIn className="h-5 w-5" /> Sign in to submit for review
+              </Link>
+            ) : (
+              <button
+                onClick={() => void submit("in_review")}
+                disabled={busy !== null}
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-6 py-4 text-base font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5 disabled:opacity-60"
+              >
+                {busy === "submit" ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <Feather className="h-5 w-5" />
+                )}
+                Submit for review
+              </button>
+            )}
           </div>
           <p className="flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">
             <BookOpenCheck className="h-3.5 w-3.5" />
-            Works in demo mode too — your book is saved on this device if you're not
-            signed in.
+            {isDemo
+              ? "Local drafts stay on this device only, until you sign in."
+              : "Signed in — drafts and submissions are saved to your account."}
           </p>
         </div>
       </main>

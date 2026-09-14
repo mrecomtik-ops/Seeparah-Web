@@ -90,6 +90,18 @@ export const LANGUAGES = [
 
 export const RTL_LANGUAGES = new Set(["Urdu", "Arabic", "Pashto"]);
 
+/** English/Urdu: every book gets these as its standard translation
+ * targets (see computePublishGate's pendingTranslations in
+ * src/lib/admin/catalog.server.ts). Hindi/Arabic: only produced after a
+ * signed-in reader requests them and an admin approves
+ * (REQUEST_GATED_LANGUAGES in src/lib/reader.server.ts,
+ * REQUESTABLE_LANGUAGES in src/lib/admin/translation-access.server.ts).
+ * The other six entries in LANGUAGES are valid as a manuscript's own
+ * source language, but have no defined path to an additional translated
+ * edition today — don't imply otherwise in author- or reader-facing copy. */
+export const STANDARD_TRANSLATION_LANGUAGES = ["English", "Urdu"] as const;
+export const REQUESTABLE_TRANSLATION_LANGUAGES = ["Hindi", "Arabic"] as const;
+
 export const GENRES = [
   "Classic Romance",
   "Literary Fiction",
@@ -103,6 +115,27 @@ export const PLATFORM_COMMISSION = 0.3;
 export const AUTHOR_PAYOUT = 0.7;
 
 // ---------------------------------------------------------------------------
+// Shared launch-accurate copy — reused everywhere this claim appears so a
+// correction only has to be made once. Do not restate these claims with
+// different wording on individual pages; import and use these instead.
+// ---------------------------------------------------------------------------
+
+/** What actually happens to a manuscript's language editions, in one
+ * sentence, everywhere this needs saying. No "automatic," no "ten
+ * languages," no per-page live translation — reviewed editions only. */
+export const TRANSLATION_EXPLAINER =
+  "Read available editions free during launch. Translations are prepared once, reviewed, and saved. English and Urdu are the standard targets for every book; readers can request Hindi or Arabic for administrator review.";
+
+/** Short form for tight spaces (badges, stat labels). */
+export const TRANSLATION_EXPLAINER_SHORT =
+  "Editions are reviewed before publishing. English/Urdu are standard; Hindi/Arabic are available on request.";
+
+/** The one sentence describing what publishing costs/pays right now — no
+ * revenue split, no payout promise, while monetization is off. */
+export const FREE_LAUNCH_AUTHOR_TERMS =
+  "Free to publish and free for readers during launch — no subscriptions, no premium switch, no revenue split yet. Payout terms will be published here before any paid plan starts.";
+
+// ---------------------------------------------------------------------------
 // Demo / offline fallback content (mirrors the seeded cloud library)
 // ---------------------------------------------------------------------------
 
@@ -113,22 +146,14 @@ export const DEMO_BOOKS: Book[] = [
     author: "Jane Austen",
     author_id: null,
     cover_url: null,
-    available_languages: [
-      "English",
-      "Urdu",
-      "Hindi",
-      "Arabic",
-      "French",
-      "German",
-      "Spanish",
-      "Russian",
-      "Chinese",
-      "Pashto",
-    ],
+    // Only languages this demo fallback actually has chunk content for
+    // (see DEMO_CHUNKS below) — a language name here must mean a reader
+    // can actually open a page in it, not a marketing aspiration.
+    available_languages: ["English", "Urdu", "French"],
     total_chunks: 10,
     source_language: "English",
     description:
-      "The beloved comedy of manners following Elizabeth Bennet as she navigates society, family, and the proud Mr Darcy. A public-domain classic, translated page by page.",
+      "The opening chapters of Elizabeth Bennet's story, in the public domain. Sample chapters — not the complete novel.",
     status: "published",
     access_type: "free",
     subscription_price_usd: null,
@@ -140,14 +165,14 @@ export const DEMO_BOOKS: Book[] = [
     author: "Amina Rahman",
     author_id: null,
     cover_url: null,
-    available_languages: ["English", "Urdu", "French", "Arabic"],
+    available_languages: ["English"],
     total_chunks: 10,
     source_language: "English",
     description:
-      "A luminous debut novel about a lighthouse keeper's daughter who finds a mysterious lantern that only glows when it rains. Sample manuscript published through Seeparah.",
+      "A demo manuscript used to show the publishing flow — not a real reader-facing title. A lighthouse keeper's daughter finds a lantern that only glows when it rains.",
     status: "published",
-    access_type: "paid",
-    subscription_price_usd: 4.99,
+    access_type: "free",
+    subscription_price_usd: null,
     created_at: "2026-02-01T00:00:00Z",
   },
   {
@@ -156,11 +181,11 @@ export const DEMO_BOOKS: Book[] = [
     author: "Herman Melville",
     author_id: null,
     cover_url: null,
-    available_languages: ["English", "French", "Spanish"],
+    available_languages: ["English"],
     total_chunks: 4,
     source_language: "English",
     description:
-      "Captain Ahab's obsessive hunt for the white whale — one of the great American novels, in the public domain.",
+      "Captain Ahab's obsessive hunt for the white whale — one of the great American novels, in the public domain. Sample chapters — not the complete novel.",
     status: "published",
     access_type: "free",
     subscription_price_usd: null,
@@ -172,17 +197,33 @@ export const DEMO_BOOKS: Book[] = [
     author: "Kahlil Gibran",
     author_id: null,
     cover_url: null,
-    available_languages: ["English", "Arabic", "Urdu", "French"],
+    available_languages: ["English"],
     total_chunks: 4,
     source_language: "English",
     description:
-      "Twenty-six poetic essays on love, work, freedom and sorrow, spoken by the prophet Almustafa. A public-domain treasure.",
+      "Twenty-six poetic essays on love, work, freedom and sorrow, spoken by the prophet Almustafa. A public-domain treasure. Sample chapters — not the complete text.",
     status: "published",
     access_type: "free",
     subscription_price_usd: null,
     created_at: "2026-01-20T00:00:00Z",
   },
 ];
+
+/** Books in the (demo-fallback and, currently, live-seeded) catalog that
+ * are excerpts/samples rather than complete works, or are demo content
+ * rather than a real reader-facing title. Used to render an honest
+ * "Sample chapters" / "Demo" badge instead of presenting these as
+ * ordinary, complete catalog entries. Keep in sync with
+ * supabase/remediation/2026-09-14_free_launch_catalog_accuracy.sql, which
+ * corrects the same rows in the live database. */
+export const SAMPLE_EXCERPT_BOOK_IDS = new Set([
+  "11111111-1111-1111-1111-111111111111", // Pride and Prejudice — opening chapters only
+  "33333333-3333-3333-3333-333333333333", // Moby-Dick — opening chapters only
+  "44444444-4444-4444-4444-444444444444", // The Prophet — opening chapters only
+]);
+export const DEMO_MANUSCRIPT_BOOK_IDS = new Set([
+  "22222222-2222-2222-2222-222222222222", // The Lantern in the Rain — publishing-flow demo, not a real title
+]);
 
 export const SAMPLE_MANUSCRIPT_TITLE = "The Lantern in the Rain";
 export const SAMPLE_MANUSCRIPT_AUTHOR = "Amina Rahman";

@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
-import { BookOpen, Crown } from "lucide-react";
+import { BookOpen, Crown, FlaskConical } from "lucide-react";
 import type { Book } from "@/lib/data";
+import { SAMPLE_EXCERPT_BOOK_IDS, DEMO_MANUSCRIPT_BOOK_IDS } from "@/lib/data";
 import { coverFor } from "@/lib/covers";
 import { ShelfButtons } from "@/components/ShelfButtons";
 import { getPrefs } from "@/lib/prefs";
@@ -10,6 +11,7 @@ export function BookCard({
   progress,
   withShelves = true,
   preferredLanguage,
+  monetizationEnabled = false,
 }: {
   book: Book;
   progress?: number | null;
@@ -19,7 +21,14 @@ export function BookCard({
    * source language, so a book always opens in a language the reader
    * actually chose rather than always defaulting to the original. */
   preferredLanguage?: string | null;
+  /** Defaults to false — during free launch there is no paid tier, so a
+   * "Premium" badge must never render unless the caller has confirmed
+   * monetization is actually on (see content_settings.monetization_enabled).
+   * Never infer this from `book.access_type` alone. */
+  monetizationEnabled?: boolean;
 }) {
+  const isSample = SAMPLE_EXCERPT_BOOK_IDS.has(book.id);
+  const isDemoManuscript = DEMO_MANUSCRIPT_BOOK_IDS.has(book.id);
   const cover = coverFor(book.id, book.cover_url);
   const pct =
     progress != null && book.total_chunks > 0
@@ -61,9 +70,14 @@ export function BookCard({
               <span className="text-xs text-muted-foreground">{book.author}</span>
             </div>
           )}
-          {book.access_type === "paid" && (
+          {monetizationEnabled && book.access_type === "paid" && (
             <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-gold px-2.5 py-1 text-[11px] font-semibold text-gold-foreground">
               <Crown className="h-3 w-3" /> Premium · ${book.subscription_price_usd}/mo
+            </span>
+          )}
+          {(isSample || isDemoManuscript) && (
+            <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-1 text-[11px] font-semibold text-secondary-foreground">
+              <FlaskConical className="h-3 w-3" /> {isDemoManuscript ? "Demo" : "Sample chapters"}
             </span>
           )}
         </div>
