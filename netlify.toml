@@ -1,0 +1,33 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+# Everything below this line is deliberately absent:
+#
+# - No [[redirects]] catch-all to /index.html. This is a server-rendered
+#   TanStack Start app (Nitro's `netlify` preset), not a client-only SPA —
+#   a blanket rewrite would serve the static shell for every route and
+#   break SSR, server functions, and any route that depends on
+#   request-time data (auth state, reader access gates, admin MFA gate).
+#   Routing to the SSR function is handled automatically by Nitro's
+#   Netlify output (`.netlify/functions-internal/`), which Netlify's
+#   build system wires up as part of "zero configuration" support for
+#   Nitro — see node_modules/nitro/dist/docs/1.deploy/2.providers/17.netlify.md
+#   in this repo for the vendored upstream docs, and
+#   docs/netlify-deployment.md for how this was verified.
+#
+# - No [functions] block. Nitro emits the server bundle directly to
+#   `.netlify/functions-internal/`, which Netlify auto-discovers; there is
+#   no separate `netlify/functions` source directory in this repo to
+#   point at.
+#
+# publish = "dist" and command = "npm run build" match Nitro's own
+# documented zero-config expectation for Netlify exactly (see the same
+# vendored doc). If this site was connected to Netlify before this app
+# used TanStack Start/Nitro, its dashboard build settings may still hold
+# older values — this file takes precedence over the dashboard UI once
+# present, so it corrects that regardless of what's currently configured
+# there.
