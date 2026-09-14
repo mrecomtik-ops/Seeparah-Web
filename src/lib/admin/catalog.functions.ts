@@ -6,7 +6,17 @@ import { recordAudit } from "@/lib/admin/audit.server";
 const withToken = <T extends z.ZodRawShape>(shape: T) =>
   z.object({ accessToken: z.string(), ...shape });
 
-const MAX_UPLOAD_BASE64_CHARS = 90 * 1024 * 1024; // ~65MB decoded, generous ceiling for a single-book EPUB
+// This request body travels over Netlify's synchronous Functions transport
+// (AWS Lambda underneath), which has a hard, non-negotiable 6MB request
+// payload limit — Netlify cannot raise it, it's an AWS Lambda constraint.
+// The previous 90MB ceiling here was unreachable in production: any EPUB
+// over roughly 3MB would be rejected by Netlify's edge before this
+// server function (or its Zod validator) ever ran, surfacing as an opaque
+// network failure instead of this file's own error messages. 3MB raw is
+// the largest file whose base64 encoding plus JSON overhead reliably
+// stays under that 6MB cap.
+export const MAX_UPLOAD_RAW_BYTES = 3 * 1024 * 1024;
+const MAX_UPLOAD_BASE64_CHARS = Math.ceil(MAX_UPLOAD_RAW_BYTES / 3) * 4;
 
 export const adminListCatalog = createServerFn({ method: "POST" })
   .inputValidator((data) =>

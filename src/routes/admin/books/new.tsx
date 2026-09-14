@@ -9,6 +9,7 @@ import {
   adminUploadEpubBook,
   adminParseCsvManifest,
   adminRunBatchImport,
+  MAX_UPLOAD_RAW_BYTES,
 } from "@/lib/admin/catalog.functions";
 
 export const Route = createFileRoute("/admin/books/new")({
@@ -60,6 +61,12 @@ function AdminUploadBook() {
       toast.error("Paste manuscript text or choose an EPUB file");
       return;
     }
+    if (epubFile && epubFile.size > MAX_UPLOAD_RAW_BYTES) {
+      toast.error(
+        `That EPUB is ${(epubFile.size / (1024 * 1024)).toFixed(1)}MB — the upload transport caps at ${Math.floor(MAX_UPLOAD_RAW_BYTES / (1024 * 1024))}MB per file (a Netlify Functions platform limit, not this app's own choice).`,
+      );
+      return;
+    }
     setBusy(true);
     try {
       const accessToken = await getAccessToken();
@@ -86,7 +93,12 @@ function AdminUploadBook() {
           `Not created — ${result.reason ?? "already imported"}. Opening the existing book.`,
         );
       } else {
-        toast.success(`Created as draft with ${result.chapterCount} chapter(s)`);
+        toast.success(
+          `Created as draft with ${result.chapterCount} chapter(s)` +
+            (result.warnings.length
+              ? ` — ${result.warnings.length} warning(s): ${result.warnings.join("; ")}`
+              : ""),
+        );
       }
       navigate({ to: "/admin/books/$bookId", params: { bookId: result.bookId } });
     } catch (error) {

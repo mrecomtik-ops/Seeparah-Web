@@ -139,6 +139,25 @@ export async function parseEpub(fileBytes: Uint8Array): Promise<ParsedEpub> {
       warnings.push(`Spine item "${id}" points to a missing file (${resolvedPath}) — skipped`);
       continue;
     }
+    // Bound the WORST CASE using the zip's own compressed-size metadata —
+    // available from the central directory without inflating anything —
+    // before ever calling .async() on this entry. Checking the ratio only
+    // after inflation (as this used to) is too late: JSZip has already
+    // materialized the full decompressed string in memory by then, so a
+    // single spine entry with an extreme ratio (a classic zip-bomb
+    // technique — a few KB compressing to hundreds of MB) could exhaust
+    // the function's memory before any check runs at all.
+    const compressedSize = (chapterFile as unknown as { _data?: { compressedSize?: number } })._data
+      ?.compressedSize;
+    if (compressedSize) {
+      const worstCaseBytes = compressedSize * MAX_COMPRESSION_RATIO;
+      const remainingBudget = MAX_UNCOMPRESSED_BYTES - totalUncompressed;
+      if (worstCaseBytes > remainingBudget) {
+        throw new EpubValidationError(
+          `EPUB entry ${resolvedPath}'s declared size makes a decompression bomb possible — refusing before decompressing`,
+        );
+      }
+    }
     const xhtml = await chapterFile.async("string");
     totalUncompressed += xhtml.length;
     if (totalUncompressed > MAX_UNCOMPRESSED_BYTES) {
@@ -146,8 +165,8 @@ export async function parseEpub(fileBytes: Uint8Array): Promise<ParsedEpub> {
         `EPUB expands past ${Math.floor(MAX_UNCOMPRESSED_BYTES / 1024 / 1024)}MB of text — refusing (possible zip bomb)`,
       );
     }
-    const compressedSize = (chapterFile as unknown as { _data?: { compressedSize?: number } })._data
-      ?.compressedSize;
+    // Retained as defense-in-depth for the rare case compressedSize metadata
+    // was unavailable above (so the pre-check above couldn't run).
     if (compressedSize && xhtml.length / Math.max(compressedSize, 1) > MAX_COMPRESSION_RATIO) {
       throw new EpubValidationError(
         `EPUB entry ${resolvedPath} has a suspicious compression ratio — refusing`,

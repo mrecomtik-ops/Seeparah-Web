@@ -20,7 +20,7 @@ import {
   X,
 } from "lucide-react";
 import { z } from "zod";
-import { RTL_LANGUAGES } from "@/lib/data";
+import { RTL_LANGUAGES, REQUESTABLE_TRANSLATION_LANGUAGES } from "@/lib/data";
 import {
   addHighlight,
   getBook,
@@ -33,7 +33,10 @@ import {
   updateHighlightNote,
 } from "@/lib/library";
 import { reportTranslationIssue } from "@/lib/translation.functions";
-import { requestBookTranslationAccess } from "@/lib/admin/translation-access.functions";
+import {
+  requestBookTranslationAccess,
+  listMyTranslationRequests,
+} from "@/lib/admin/translation-access.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/use-auth";
 import { ShelfButtons } from "@/components/ShelfButtons";
@@ -119,6 +122,26 @@ function ReaderPage() {
     queryFn: () => listHighlights(userId),
   });
 
+  // Reader's own Hindi/Arabic translation-request status for this book, so
+  // the UI can show "requested" / "declined" / "revoked" accurately instead
+  // of a generic "Request this translation" button that ignores whether one
+  // already exists. Demo (signed-out) readers have no requests to show —
+  // skip the call rather than send a request with no access token.
+  const myTranslationRequestsQuery = useQuery({
+    queryKey: ["my-translation-requests", userId, bookId],
+    queryFn: async () => {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      if (!token) return [];
+      const rows = await listMyTranslationRequests({ data: { accessToken: token } });
+      return rows.filter((r) => r.book_id === bookId);
+    },
+    enabled: !isDemo,
+  });
+  const myRequestStatusByLanguage = new Map(
+    (myTranslationRequestsQuery.data ?? []).map((r) => [r.language as string, r]),
+  );
+
   // Seed the starting page exactly once per book, from whichever language
   // is active at that moment (URL param, else preferred language, else the
   // book's source language). After that, index is only ever changed by
@@ -151,7 +174,30 @@ function ReaderPage() {
   const isUrdu = language === "Urdu";
   const total = book?.total_chunks ?? 1;
   const pct = Math.round(((index + 1) / total) * 100);
-  const languageAvailable = book?.available_languages.includes(language) ?? true;
+  // A language counts as "available" for the purpose of NOT showing the
+  // generic "pick another language" dead-end if either a reviewed edition
+  // already exists, OR it's one of the languages a reader can actually
+  // request (Hindi/Arabic) — in that second case there is real content to
+  // navigate to (the request prompt, driven by the server's own locked/
+  // lockReason), just not a finished edition yet. Without this, a reader
+  // could never discover or trigger a translation request for a language
+  // that doesn't have so much as a first page yet, since the request UI
+  // below only ever renders once this check lets the page get there.
+  const isRequestableLanguage = REQUESTABLE_TRANSLATION_LANGUAGES.includes(
+    language as (typeof REQUESTABLE_TRANSLATION_LANGUAGES)[number],
+  );
+  const languageAvailable =
+    (book?.available_languages.includes(language) ?? true) || isRequestableLanguage;
+
+  // Languages shown as "request a translation" pills: Hindi/Arabic that
+  // don't already have a reviewed edition, and aren't the book's own
+  // source language (requesting the source language is meaningless — it's
+  // already free to read, and the server rejects that request outright).
+  const requestableLanguagesForBook = book
+    ? REQUESTABLE_TRANSLATION_LANGUAGES.filter(
+        (l) => !book.available_languages.includes(l) && l !== book.source_language,
+      )
+    : [];
 
   async function persist(next: number, quiet = true) {
     recordReadingDay();
@@ -237,6 +283,7 @@ function ReaderPage() {
           : "Request sent — you'll be notified once it's reviewed.",
       );
       queryClient.invalidateQueries({ queryKey: ["reader-chunk", bookId, language, index] });
+      queryClient.invalidateQueries({ queryKey: ["my-translation-requests", userId, bookId] });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Couldn't send the request");
     }
@@ -245,6 +292,8 @@ function ReaderPage() {
   const content = chunkQuery.data?.content ?? null;
   const locked = chunkQuery.data?.locked ?? false;
   const lockReason = chunkQuery.data?.reason;
+  const myRequestForLanguage = myRequestStatusByLanguage.get(language);
+  const myRequestStatus = myRequestForLanguage?.status as string | undefined;
 
   if (bookQuery.isLoading) {
     return (
@@ -345,6 +394,37 @@ function ReaderPage() {
           ))}
         </div>
 
+        {requestableLanguagesForBook.length > 0 && (
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <span className="text-xs text-muted-foreground">Also on request:</span>
+            {requestableLanguagesForBook.map((l) => {
+              const myRequest = myRequestStatusByLanguage.get(l);
+              const status = myRequest?.status as string | undefined;
+              const label =
+                status === "requested" || status === "approved_awaiting_edition"
+                  ? `${l} · requested`
+                  : status === "declined"
+                    ? `${l} · declined`
+                    : status === "revoked"
+                      ? `${l} · revoked`
+                      : `${l} · request`;
+              return (
+                <button
+                  key={l}
+                  onClick={() => switchLanguage(l)}
+                  className={`rounded-full border border-dashed px-3 py-1.5 text-xs font-semibold transition-colors ${
+                    l === language
+                      ? "border-primary text-primary"
+                      : "border-border text-muted-foreground hover:border-foreground hover:text-foreground"
+                  }`}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         {!languageAvailable ? (
           <div className="mt-8 rounded-2xl border border-dashed border-border bg-card p-10 text-center card-shadow">
             <BookOpen className="mx-auto h-9 w-9 text-muted-foreground/60" />
@@ -373,7 +453,14 @@ function ReaderPage() {
               {lockReason === "sign_in_required"
                 ? "Sign in to keep reading"
                 : lockReason === "translation_access_required"
-                  ? `Request the ${language} edition`
+                  ? myRequestStatus === "requested" ||
+                    myRequestStatus === "approved_awaiting_edition"
+                    ? `Your ${language} request is pending`
+                    : myRequestStatus === "declined"
+                      ? `${language} request declined`
+                      : myRequestStatus === "revoked"
+                        ? `${language} access was revoked`
+                        : `Request the ${language} edition`
                   : lockReason === "not_available"
                     ? "This book isn't available right now"
                     : "This is a premium book"}
@@ -382,7 +469,17 @@ function ReaderPage() {
               {lockReason === "sign_in_required"
                 ? "You've read the free opening page. Sign in to continue."
                 : lockReason === "translation_access_required"
-                  ? `${language} is available on request — an admin reviews each request. You'll be notified once it's ready.`
+                  ? myRequestStatus === "requested"
+                    ? "Your request is waiting for admin review. You'll be notified once it's decided."
+                    : myRequestStatus === "approved_awaiting_edition"
+                      ? "Approved — a human-reviewed edition is being prepared. You'll get access automatically once it's published."
+                      : myRequestStatus === "declined"
+                        ? ((myRequestForLanguage?.decision_reason as string | undefined) ??
+                          "An admin declined this request.")
+                        : myRequestStatus === "revoked"
+                          ? ((myRequestForLanguage?.decision_reason as string | undefined) ??
+                            "Access to this edition was revoked.")
+                          : `${language} is available on request — an admin reviews each request. You'll be notified once it's ready.`
                   : lockReason === "not_available"
                     ? "This title isn't published yet — check back later."
                     : `You've read the free opening page of ${book.title}. Subscribe for $${book.subscription_price_usd}/month to keep reading — 70% goes straight to ${book.author}.`}
@@ -396,12 +493,26 @@ function ReaderPage() {
                   <LogIn className="h-4 w-4" /> Sign in
                 </Link>
               ) : lockReason === "translation_access_required" ? (
-                <button
-                  onClick={handleRequestTranslationAccess}
-                  className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5"
-                >
-                  Request this translation
-                </button>
+                myRequestStatus === "requested" ||
+                myRequestStatus === "approved_awaiting_edition" ? (
+                  <span className="inline-flex items-center gap-2 rounded-xl border border-border bg-secondary px-5 py-3 text-sm font-semibold text-secondary-foreground">
+                    Waiting for review
+                  </span>
+                ) : myRequestStatus === "declined" || myRequestStatus === "revoked" ? (
+                  <Link
+                    to="/library"
+                    className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-5 py-3 text-sm font-semibold text-foreground hover:bg-secondary"
+                  >
+                    Back to the library
+                  </Link>
+                ) : (
+                  <button
+                    onClick={handleRequestTranslationAccess}
+                    className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5"
+                  >
+                    Request this translation
+                  </button>
+                )
               ) : lockReason === "not_available" ? (
                 <Link
                   to="/library"

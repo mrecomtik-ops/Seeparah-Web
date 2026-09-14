@@ -1,15 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
-import {
-  BookOpenCheck,
-  Eye,
-  Feather,
-  FileUp,
-  Loader2,
-  LogIn,
-  Sparkles,
-} from "lucide-react";
+import { BookOpenCheck, Eye, Feather, FileUp, Loader2, LogIn, Sparkles } from "lucide-react";
 import {
   FREE_LAUNCH_AUTHOR_TERMS,
   GENRES,
@@ -24,6 +16,8 @@ import { publishBook, splitManuscript } from "@/lib/library";
 import { useAuth } from "@/lib/use-auth";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
+import { importEpubManuscript, MAX_EPUB_RAW_BYTES } from "@/lib/manuscript-import.functions";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/author/publish")({
   head: () => ({
@@ -31,7 +25,8 @@ export const Route = createFileRoute("/author/publish")({
       { title: "Publish a manuscript — Seeparah" },
       {
         name: "description",
-        content: "Publish your book on Seeparah: free during launch, reviewed by an administrator before it goes live.",
+        content:
+          "Publish your book on Seeparah: free during launch, reviewed by an administrator before it goes live.",
       },
       { property: "og:title", content: "Publish a manuscript — Seeparah" },
       {
@@ -43,8 +38,12 @@ export const Route = createFileRoute("/author/publish")({
   component: PublishPage,
 });
 
-const ACCEPTED_UPLOAD_TYPES = ".txt,.md,text/plain";
+const ACCEPTED_UPLOAD_TYPES = ".txt,.md,text/plain,.epub";
 const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
+// Matches MAX_EPUB_RAW_BYTES in manuscript-import.functions.ts — the real
+// ceiling is Netlify's 6MB Functions request-payload limit (a platform
+// constraint, not this app's choice), not an arbitrary "20MB" figure.
+const MAX_EPUB_BYTES = MAX_EPUB_RAW_BYTES;
 
 function PublishPage() {
   const { userId, isDemo } = useAuth();
@@ -62,6 +61,8 @@ function PublishPage() {
   const [rightsConfirmed, setRightsConfirmed] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [busy, setBusy] = useState<"draft" | "submit" | null>(null);
+  const [importingEpub, setImportingEpub] = useState(false);
+  const [importWarnings, setImportWarnings] = useState<string[]>([]);
 
   const chapters = manuscript.trim() ? splitManuscript(manuscript) : [];
 
@@ -75,10 +76,62 @@ function PublishPage() {
   }
 
   async function handleUpload(file: File) {
+    setImportWarnings([]);
     const isTxtLike = /\.(txt|md)$/i.test(file.name) || file.type === "text/plain";
+    const isEpub = /\.epub$/i.test(file.name);
+
+    if (isEpub) {
+      if (isDemo) {
+        toast.error(
+          "Sign in to import an EPUB file — it needs a server-side check. Plain text and Markdown work without signing in.",
+        );
+        return;
+      }
+      if (file.size > MAX_EPUB_BYTES) {
+        toast.error(
+          `That EPUB is ${(file.size / (1024 * 1024)).toFixed(1)}MB — uploads are capped at ${Math.floor(MAX_EPUB_BYTES / (1024 * 1024))}MB per file (a platform limit on this upload path). Split it into smaller files, or export a .txt/.md manuscript instead.`,
+        );
+        return;
+      }
+      setImportingEpub(true);
+      try {
+        const { data } = await supabase.auth.getSession();
+        const accessToken = data.session?.access_token;
+        if (!accessToken) {
+          toast.error("Sign in to import an EPUB file.");
+          return;
+        }
+        const fileBase64 = await fileToBase64(file);
+        const { text, warnings } = await importEpubManuscript({
+          data: { accessToken, fileBase64 },
+        });
+        if (!text.trim()) {
+          toast.error(
+            "Couldn't find readable text in that EPUB — it may be image-only/scanned content, which isn't supported.",
+          );
+          return;
+        }
+        setManuscript(text);
+        if (!title) setTitle(file.name.replace(/\.[^.]+$/, ""));
+        setImportWarnings(warnings);
+        toast.success(
+          `Imported ${file.name} — ${splitManuscript(text).length} section(s) detected` +
+            (warnings.length
+              ? `. ${warnings.length} warning(s) below — review before publishing.`
+              : ""),
+        );
+        if (warnings.length) console.warn("EPUB import warnings:", warnings);
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Couldn't read that EPUB file.");
+      } finally {
+        setImportingEpub(false);
+      }
+      return;
+    }
+
     if (!isTxtLike) {
       toast.error(
-        "Only plain text (.txt) or Markdown (.md) manuscripts are supported right now. DOCX/EPUB import isn't available yet — export to .txt first.",
+        "Only plain text (.txt), Markdown (.md), or EPUB (.epub, signed in) manuscripts are supported right now. DOCX import isn't available yet — export to .txt first.",
       );
       return;
     }
@@ -94,6 +147,18 @@ function PublishPage() {
     setManuscript(text);
     if (!title) setTitle(file.name.replace(/\.[^.]+$/, ""));
     toast.success(`Loaded ${file.name} — ${splitManuscript(text).length} section(s) detected`);
+  }
+
+  function fileToBase64(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        resolve(result.slice(result.indexOf(",") + 1));
+      };
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    });
   }
 
   function validate(forSubmit: boolean): string | null {
@@ -170,16 +235,18 @@ function PublishPage() {
           Publish your manuscript
         </h1>
         <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
-          Save a private draft any time. Submitting for review sends your manuscript to
-          Seeparah — an administrator reviews rights and edition quality and decides when
-          it publishes; you can't publish it yourself. Readers never see partially-reviewed
-          text: editions are prepared and reviewed ahead of time, never translated live.
+          Save a private draft any time. Submitting for review sends your manuscript to Seeparah —
+          an administrator reviews rights and edition quality and decides when it publishes; you
+          can't publish it yourself. Readers never see partially-reviewed text: editions are
+          prepared and reviewed ahead of time, never translated live.
         </p>
 
         <div className="mt-8 space-y-5 rounded-2xl border border-border bg-card p-6 card-shadow sm:p-8">
           <div className="grid gap-5 sm:grid-cols-2">
             <div>
-              <label className={labelCls} htmlFor="pub-title">Title</label>
+              <label className={labelCls} htmlFor="pub-title">
+                Title
+              </label>
               <input
                 id="pub-title"
                 className={inputCls}
@@ -189,7 +256,9 @@ function PublishPage() {
               />
             </div>
             <div>
-              <label className={labelCls} htmlFor="pub-author">Author name</label>
+              <label className={labelCls} htmlFor="pub-author">
+                Author name
+              </label>
               <input
                 id="pub-author"
                 className={inputCls}
@@ -202,7 +271,9 @@ function PublishPage() {
 
           <div className="grid gap-5 sm:grid-cols-2">
             <div>
-              <label className={labelCls} htmlFor="pub-lang">Source language (original)</label>
+              <label className={labelCls} htmlFor="pub-lang">
+                Source language (original)
+              </label>
               <select
                 id="pub-lang"
                 className={inputCls}
@@ -210,12 +281,16 @@ function PublishPage() {
                 onChange={(e) => setSourceLanguage(e.target.value)}
               >
                 {LANGUAGES.map((l) => (
-                  <option key={l} value={l}>{l}</option>
+                  <option key={l} value={l}>
+                    {l}
+                  </option>
                 ))}
               </select>
             </div>
             <div>
-              <label className={labelCls} htmlFor="pub-genre">Category / topic</label>
+              <label className={labelCls} htmlFor="pub-genre">
+                Category / topic
+              </label>
               <select
                 id="pub-genre"
                 className={inputCls}
@@ -223,14 +298,18 @@ function PublishPage() {
                 onChange={(e) => setGenre(e.target.value)}
               >
                 {GENRES.map((g) => (
-                  <option key={g} value={g}>{g}</option>
+                  <option key={g} value={g}>
+                    {g}
+                  </option>
                 ))}
               </select>
             </div>
           </div>
 
           <div>
-            <label className={labelCls} htmlFor="pub-cover">Cover image URL (optional)</label>
+            <label className={labelCls} htmlFor="pub-cover">
+              Cover image URL (optional)
+            </label>
             <input
               id="pub-cover"
               className={inputCls}
@@ -239,13 +318,15 @@ function PublishPage() {
               placeholder="https://…"
             />
             <p className="mt-1 text-xs text-muted-foreground">
-              Direct file upload isn't wired up yet — paste a link to an image you host
-              elsewhere. Leave blank to use a plain title card instead.
+              Direct file upload isn't wired up yet — paste a link to an image you host elsewhere.
+              Leave blank to use a plain title card instead.
             </p>
           </div>
 
           <div>
-            <label className={labelCls} htmlFor="pub-summary">Summary</label>
+            <label className={labelCls} htmlFor="pub-summary">
+              Summary
+            </label>
             <textarea
               id="pub-summary"
               className={`${inputCls} min-h-20 resize-y`}
@@ -257,14 +338,22 @@ function PublishPage() {
 
           <div>
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <label className={labelCls} htmlFor="pub-manuscript">Manuscript</label>
+              <label className={labelCls} htmlFor="pub-manuscript">
+                Manuscript
+              </label>
               <div className="flex gap-2">
                 <button
                   type="button"
                   onClick={() => fileRef.current?.click()}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary"
+                  disabled={importingEpub}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary disabled:opacity-60"
                 >
-                  <FileUp className="h-3.5 w-3.5" /> Upload .txt / .md
+                  {importingEpub ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <FileUp className="h-3.5 w-3.5" />
+                  )}
+                  {importingEpub ? "Importing…" : "Upload .txt / .md / .epub"}
                 </button>
                 <button
                   type="button"
@@ -292,6 +381,19 @@ function PublishPage() {
               onChange={(e) => setManuscript(e.target.value)}
               placeholder="Paste your manuscript here. Start chapters with “Chapter 1 …” and Seeparah will paginate them for you."
             />
+            {importWarnings.length > 0 && (
+              <div className="mt-2 rounded-lg border border-gold/40 bg-gold/10 px-3 py-2 text-xs text-foreground">
+                <p className="font-semibold">
+                  {importWarnings.length} warning{importWarnings.length === 1 ? "" : "s"} while
+                  importing this EPUB — review before publishing:
+                </p>
+                <ul className="mt-1 list-disc space-y-0.5 pl-4">
+                  {importWarnings.map((w, i) => (
+                    <li key={i}>{w}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
               <span>
                 {chapters.length > 0
@@ -309,9 +411,12 @@ function PublishPage() {
               )}
             </div>
             <p className="mt-2 text-xs text-muted-foreground">
-              DOCX and EPUB import aren't supported yet — export your manuscript to plain
-              text (.txt) or Markdown (.md) first. Uploaded text is never rendered as
-              HTML, so it can't run scripts.
+              Supported formats: plain text (.txt) and Markdown (.md) always; EPUB (.epub) if you're
+              signed in — it's parsed for readable text server-side, so it needs a session.
+              Image-only/scanned EPUB content isn't supported and is refused with an explanation.{" "}
+              <span className="font-semibold text-foreground">DOCX import is not supported</span> —
+              export to .txt or .epub first. Uploaded text is never rendered as HTML, so it can't
+              run scripts.
             </p>
           </div>
 
@@ -328,18 +433,17 @@ function PublishPage() {
               className="mt-0.5 h-4 w-4 rounded border-border"
             />
             <span>
-              I confirm I hold the rights to this manuscript, and I grant Seeparah
-              permission to translate and publish it under the terms above. Required to
-              submit for review — not required to save a private draft.
+              I confirm I hold the rights to this manuscript, and I grant Seeparah permission to
+              translate and publish it under the terms above. Required to submit for review — not
+              required to save a private draft.
             </span>
           </label>
 
           {isDemo && (
             <p className="flex items-start gap-2 rounded-xl border border-gold/40 bg-gold/10 px-4 py-3 text-xs leading-relaxed text-foreground">
               <LogIn className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gold" />
-              You're not signed in. "Save draft" here only stores your text on this device —
-              it never reaches Seeparah. To actually submit a manuscript for review, sign in
-              first.
+              You're not signed in. "Save draft" here only stores your text on this device — it
+              never reaches Seeparah. To actually submit a manuscript for review, sign in first.
             </p>
           )}
 

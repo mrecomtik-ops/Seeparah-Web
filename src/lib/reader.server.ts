@@ -161,7 +161,11 @@ export async function getReaderChunk(params: {
   }
 
   const access = resolveReaderAccess({
-    book: { status: book.status, accessType: book.access_type, sourceLanguage: book.source_language },
+    book: {
+      status: book.status,
+      accessType: book.access_type,
+      sourceLanguage: book.source_language,
+    },
     language: params.language,
     chunkIndex: params.chunkIndex,
     userId: params.userId,
@@ -172,7 +176,7 @@ export async function getReaderChunk(params: {
   });
   if (access.locked) return { content: null, locked: true, reason: access.reason };
 
-  const { data: chunk } = await db
+  let { data: chunk, error: chunkError } = await db
     .from("book_chunks")
     .select("content")
     .eq("book_id", params.bookId)
@@ -180,6 +184,29 @@ export async function getReaderChunk(params: {
     .eq("chunk_index", params.chunkIndex)
     .eq("status", "published")
     .maybeSingle();
+
+  if (chunkError) {
+    // `book_chunks.status` doesn't exist until migration 0001 is applied —
+    // as of this writing it isn't, on production. Without this fallback,
+    // the query above errors on every single call, the error is
+    // impossible to see from here (only `data` was ever read), and every
+    // reader silently gets "this page couldn't be loaded" for every book,
+    // every language, every page. Retry without the status filter: every
+    // row that exists pre-migration was already being served as live
+    // content (see migration 0001's own comment: existing rows default to
+    // status='published' precisely because they were already visible), so
+    // this fallback doesn't change what a reader can see today — it just
+    // stops a schema-compatibility query from masquerading as "no content
+    // here." Once the migration lands, the first query succeeds and this
+    // branch stops running.
+    ({ data: chunk } = await db
+      .from("book_chunks")
+      .select("content")
+      .eq("book_id", params.bookId)
+      .eq("language", params.language)
+      .eq("chunk_index", params.chunkIndex)
+      .maybeSingle());
+  }
 
   return { content: chunk?.content ?? null, locked: false };
 }
@@ -195,6 +222,34 @@ export async function getReaderChunk(params: {
  * billing, per the launch report.
  */
 export async function activateTestModeSubscription(params: { bookId: string; userId: string }) {
+  // Server-side enforcement, not just a hidden UI control: while
+  // monetization is off, this must refuse rather than quietly create a
+  // real 'active' user_subscriptions row that would suddenly grant paid
+  // access the moment monetization is turned on, without the reader ever
+  // having gone through a real payment flow. The public /subscribe page
+  // already hides the button that calls this when monetization is off —
+  // this check is what makes that the actual boundary, not just the UI's.
+  if (!(await isMonetizationEnabled())) {
+    throw new Error(
+      "Subscriptions are not active during free launch — every book is free to read.",
+    );
+  }
+  // The check above only protects the free-launch period. The moment an
+  // operator flips monetization on for real, this function — unguarded —
+  // would become a public, zero-payment "buy" button: any signed-in reader
+  // could call it for any paid book and receive a real 30-day 'active'
+  // user_subscriptions row with no money ever changing hands, because
+  // there is still no Stripe (or other payment) integration in this
+  // codebase. Requiring this separate, explicit env flag means the escape
+  // hatch stays off by default in production even after monetization is
+  // enabled there — it only works in a deployment where an operator has
+  // deliberately opted in (a staging/test project), never by default on
+  // whatever project ALLOW_TEST_SUBSCRIPTIONS happens to be unset on.
+  if (process.env["ALLOW_TEST_SUBSCRIPTIONS"] !== "true") {
+    throw new Error(
+      "Test-mode subscription activation is disabled in this environment. Real subscriptions require the payment integration described in the launch report — this endpoint is not it.",
+    );
+  }
   const db = await admin();
   const { data: book, error: bookError } = await db
     .from("books")
