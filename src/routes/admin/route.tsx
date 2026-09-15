@@ -50,6 +50,7 @@ function AdminLayout() {
         </p>
         <Link
           to="/auth"
+          search={{ redirect: pathname }}
           className="mt-5 inline-block rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
         >
           Sign in

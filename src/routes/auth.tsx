@@ -2,11 +2,15 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { ArrowLeft, Loader2, Mail } from "lucide-react";
 import { toast } from "sonner";
+import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable/index";
+import { resolveAuthRedirect } from "@/lib/auth-redirect";
 import logoUrl from "@/assets/seeparah-logo.png";
 
+const authSearchSchema = z.object({ redirect: z.string().optional() });
+
 export const Route = createFileRoute("/auth")({
+  validateSearch: authSearchSchema,
   head: () => ({
     meta: [
       { title: "Sign in — Seeparah" },
@@ -28,6 +32,8 @@ export const Route = createFileRoute("/auth")({
 
 function AuthPage() {
   const navigate = useNavigate();
+  const { redirect } = Route.useSearch();
+  const target = resolveAuthRedirect(redirect);
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -39,25 +45,37 @@ function AuthPage() {
   useEffect(() => {
     let active = true;
     supabase.auth.getUser().then(({ data }) => {
-      if (active && data.user) navigate({ to: "/library", replace: true });
+      if (active && data.user) navigate({ href: target, replace: true });
     });
     return () => {
       active = false;
     };
-  }, [navigate]);
+  }, [navigate, target]);
 
   async function handleGoogle() {
     setGoogleBusy(true);
-    const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
+    // Native Supabase OAuth — redirects the browser to Google directly via
+    // this project's own Supabase instance. The previous implementation
+    // called Lovable's own hosted OAuth broker (`@lovable.dev/cloud-auth-js`,
+    // see src/integrations/lovable/index.ts), which sends the browser to a
+    // same-origin path (`/~oauth/initiate`) that only Lovable's own hosting
+    // platform intercepts. On this standalone Netlify deployment nothing
+    // handles that path, so the app's own router 404'd on it. `redirectTo`
+    // must be present in this Supabase project's Authentication > URL
+    // Configuration > Redirect URLs allow-list (see launch report) or
+    // Supabase will refuse the callback.
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: `${window.location.origin}${target}` },
     });
-    if (result.error) {
+    if (error) {
       toast.error("Google sign-in didn't complete. Try email instead.");
       setGoogleBusy(false);
       return;
     }
-    if (result.redirected) return;
-    navigate({ to: "/library" });
+    // Supabase already navigated the browser to Google at this point
+    // (signInWithOAuth calls window.location.assign internally) — nothing
+    // left to do here; this component is about to unload.
   }
 
   async function handleEmail(e: React.FormEvent) {
@@ -73,7 +91,7 @@ function AuthPage() {
           email: email.trim(),
           password,
           options: {
-            emailRedirectTo: window.location.origin,
+            emailRedirectTo: `${window.location.origin}${target}`,
             ...(name.trim() ? { data: { full_name: name.trim() } } : {}),
           },
         });
@@ -83,7 +101,7 @@ function AuthPage() {
           return;
         }
         toast.success("Welcome to Seeparah");
-        navigate({ to: "/library" });
+        navigate({ href: target });
       } else {
         const { error } = await supabase.auth.signInWithPassword({
           email: email.trim(),
@@ -91,12 +109,10 @@ function AuthPage() {
         });
         if (error) throw error;
         toast.success("Welcome back");
-        navigate({ to: "/library" });
+        navigate({ href: target });
       }
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "That didn't work — try again.",
-      );
+      toast.error(error instanceof Error ? error.message : "That didn't work — try again.");
     } finally {
       setBusy(false);
     }
@@ -140,8 +156,7 @@ function AuthPage() {
                 Check your email
               </p>
               <p className="mt-1 text-sm text-muted-foreground">
-                We sent a confirmation link to {email}. Open it and you'll be
-                signed in.
+                We sent a confirmation link to {email}. Open it and you'll be signed in.
               </p>
             </div>
           ) : (
@@ -151,19 +166,13 @@ function AuthPage() {
                 disabled={googleBusy}
                 className="mt-7 flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-background py-3 text-sm font-semibold text-foreground transition-colors hover:bg-secondary disabled:opacity-60"
               >
-                {googleBusy ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <GoogleMark />
-                )}
+                {googleBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <GoogleMark />}
                 {googleBusy ? "Opening Google…" : "Sign in with Google"}
               </button>
 
               <div className="my-5 flex items-center gap-3">
                 <span className="h-px flex-1 bg-border" />
-                <span className="text-xs uppercase tracking-widest text-muted-foreground">
-                  or
-                </span>
+                <span className="text-xs uppercase tracking-widest text-muted-foreground">or</span>
                 <span className="h-px flex-1 bg-border" />
               </div>
 
@@ -192,9 +201,7 @@ function AuthPage() {
                   placeholder="Password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  autoComplete={
-                    mode === "signin" ? "current-password" : "new-password"
-                  }
+                  autoComplete={mode === "signin" ? "current-password" : "new-password"}
                   required
                 />
                 <button
@@ -242,10 +249,7 @@ function GoogleMark() {
         fill="#34A853"
         d="M12 24c3.2 0 5.9-1.1 7.9-2.9l-3.9-3a7.2 7.2 0 0 1-10.7-3.8H1.3v3.1A12 12 0 0 0 12 24Z"
       />
-      <path
-        fill="#FBBC05"
-        d="M5.3 14.3a7.1 7.1 0 0 1 0-4.6V6.6H1.3a12 12 0 0 0 0 10.8l4-3.1Z"
-      />
+      <path fill="#FBBC05" d="M5.3 14.3a7.1 7.1 0 0 1 0-4.6V6.6H1.3a12 12 0 0 0 0 10.8l4-3.1Z" />
       <path
         fill="#EA4335"
         d="M12 4.8c1.8 0 3.4.6 4.6 1.8l3.4-3.4A12 12 0 0 0 1.3 6.6l4 3.1A7.2 7.2 0 0 1 12 4.8Z"

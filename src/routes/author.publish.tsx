@@ -459,6 +459,7 @@ function PublishPage() {
             {isDemo ? (
               <Link
                 to="/auth"
+                search={{ redirect: "/author/publish" }}
                 className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-6 py-4 text-base font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5"
               >
                 <LogIn className="h-5 w-5" /> Sign in to submit for review

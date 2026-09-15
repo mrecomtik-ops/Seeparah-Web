@@ -1,15 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import {
-  ArrowRight,
-  BookOpen,
-  Feather,
-  Flame,
-  Sparkles,
-  Target,
-  TrendingUp,
-} from "lucide-react";
+import { ArrowRight, BookOpen, Feather, Flame, Sparkles, Target, TrendingUp } from "lucide-react";
 import { listBooks, listProgress } from "@/lib/library";
 import { FREE_LAUNCH_AUTHOR_TERMS, type Book } from "@/lib/data";
 import { useAuth } from "@/lib/use-auth";
@@ -71,10 +63,7 @@ function DashboardPage() {
   const progress = progressQuery.data ?? [];
 
   const latest = useMemo(
-    () =>
-      [...progress].sort((a, b) =>
-        (b.updated_at ?? "").localeCompare(a.updated_at ?? ""),
-      )[0],
+    () => [...progress].sort((a, b) => (b.updated_at ?? "").localeCompare(a.updated_at ?? ""))[0],
     [progress],
   );
   const currentBook = books.find((b) => b.id === latest?.book_id);
@@ -100,7 +89,11 @@ function DashboardPage() {
           {isDemo ? (
             <>
               Reading in demo mode —{" "}
-              <Link to="/auth" className="font-semibold text-primary hover:underline">
+              <Link
+                to="/auth"
+                search={{ redirect: "/dashboard" }}
+                className="font-semibold text-primary hover:underline"
+              >
                 sign in to sync across devices
               </Link>
             </>
@@ -130,9 +123,7 @@ function DashboardPage() {
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">
                     Continue reading
                   </p>
-                  <h2 className="mt-2 font-display text-2xl font-semibold">
-                    {currentBook.title}
-                  </h2>
+                  <h2 className="mt-2 font-display text-2xl font-semibold">{currentBook.title}</h2>
                   <p className="mt-1 text-sm opacity-80">
                     {currentBook.author} · {latest?.language} · page{" "}
                     {(latest?.last_chunk_index ?? 0) + 1} of {currentBook.total_chunks}
@@ -143,7 +134,10 @@ function DashboardPage() {
                       style={{
                         width: `${Math.min(
                           100,
-                          Math.round((((latest?.last_chunk_index ?? 0) + 1) / currentBook.total_chunks) * 100),
+                          Math.round(
+                            (((latest?.last_chunk_index ?? 0) + 1) / currentBook.total_chunks) *
+                              100,
+                          ),
                         )}%`,
                       }}
                     />
@@ -163,12 +157,10 @@ function DashboardPage() {
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">
                   Start here
                 </p>
-                <h2 className="mt-2 font-display text-2xl font-semibold">
-                  Open your first book
-                </h2>
+                <h2 className="mt-2 font-display text-2xl font-semibold">Open your first book</h2>
                 <p className="mt-2 max-w-md text-sm opacity-90">
-                  Pick any title from the library — pages arrive one at a time in
-                  your language, and your place is saved automatically.
+                  Pick any title from the library — pages arrive one at a time in your language, and
+                  your place is saved automatically.
                 </p>
                 <Link
                   to="/library"
@@ -209,8 +201,7 @@ function DashboardPage() {
                 {streak} {streak === 1 ? "day" : "days"}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
-                {daysThisWeek} of the last 7 days · read a page today to keep it
-                alive.
+                {daysThisWeek} of the last 7 days · read a page today to keep it alive.
               </p>
             </div>
           </div>

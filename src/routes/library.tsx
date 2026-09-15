@@ -13,7 +13,13 @@ import {
   X,
   Library as LibraryIcon,
 } from "lucide-react";
-import { GENRES, LANGUAGES, SAMPLE_EXCERPT_BOOK_IDS, DEMO_MANUSCRIPT_BOOK_IDS, type Book } from "@/lib/data";
+import {
+  GENRES,
+  LANGUAGES,
+  SAMPLE_EXCERPT_BOOK_IDS,
+  DEMO_MANUSCRIPT_BOOK_IDS,
+  type Book,
+} from "@/lib/data";
 import { listBooks, listProgress } from "@/lib/library";
 import { useAuth } from "@/lib/use-auth";
 import { BookCard } from "@/components/BookCard";
@@ -99,10 +105,7 @@ function LibraryPage() {
     return map;
   }, [progressQuery.data]);
 
-  const authors = useMemo(
-    () => [...new Set(books.map((b) => b.author))].sort(),
-    [books],
-  );
+  const authors = useMemo(() => [...new Set(books.map((b) => b.author))].sort(), [books]);
   const genresInUse = useMemo(
     () => [...new Set(books.map((b) => b.genre).filter(Boolean) as string[])],
     [books],
@@ -115,9 +118,7 @@ function LibraryPage() {
     switch (tab) {
       case "continue":
         return books.filter(
-          (b) =>
-            progressByBook.has(b.id) &&
-            (progressByBook.get(b.id) ?? 0) + 1 < b.total_chunks,
+          (b) => progressByBook.has(b.id) && (progressByBook.get(b.id) ?? 0) + 1 < b.total_chunks,
         );
       case "history":
         return books.filter((b) => progressByBook.has(b.id));
@@ -151,8 +152,7 @@ function LibraryPage() {
   const isEmptyShelf = tabBooks.length === 0 && !hasActiveFilters;
   const isNoSearchMatch = filtered.length === 0 && !isEmptyShelf;
 
-  const featured: Book | undefined =
-    books.find((b) => b.id === FEATURED_BOOK_ID) ?? books[0];
+  const featured: Book | undefined = books.find((b) => b.id === FEATURED_BOOK_ID) ?? books[0];
   const featuredIsSample = featured ? SAMPLE_EXCERPT_BOOK_IDS.has(featured.id) : false;
   const featuredIsDemo = featured ? DEMO_MANUSCRIPT_BOOK_IDS.has(featured.id) : false;
   const pagesRead = [...progressByBook.values()].reduce((a, b) => a + b + 1, 0);
@@ -176,7 +176,11 @@ function LibraryPage() {
               {isDemo ? (
                 <>
                   Demo reader —{" "}
-                  <Link to="/auth" className="font-semibold text-primary hover:underline">
+                  <Link
+                    to="/auth"
+                    search={{ redirect: "/library" }}
+                    className="font-semibold text-primary hover:underline"
+                  >
                     sign in to sync across devices
                   </Link>
                 </>
@@ -190,9 +194,7 @@ function LibraryPage() {
           </div>
           <div className="rounded-xl border border-border bg-card px-4 py-2.5 card-shadow">
             <p className="text-xs text-muted-foreground">Pages read</p>
-            <p className="font-display text-lg font-semibold text-foreground">
-              {pagesRead}
-            </p>
+            <p className="font-display text-lg font-semibold text-foreground">{pagesRead}</p>
           </div>
         </div>
 
@@ -215,15 +217,14 @@ function LibraryPage() {
               </div>
               <div className="p-6 sm:p-8">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">
-                  Featured{featuredIsSample ? " · Sample chapters" : featuredIsDemo ? " · Demo" : ""}
+                  Featured
+                  {featuredIsSample ? " · Sample chapters" : featuredIsDemo ? " · Demo" : ""}
                 </p>
                 <h2 className="mt-2 font-display text-2xl font-semibold sm:text-3xl">
                   {featured.title}
                 </h2>
                 <p className="mt-1 text-sm opacity-80">{featured.author}</p>
-                <p className="mt-4 max-w-xl leading-relaxed opacity-90">
-                  {featured.description}
-                </p>
+                <p className="mt-4 max-w-xl leading-relaxed opacity-90">{featured.description}</p>
                 {featuredIsSample && (
                   <p className="mt-2 max-w-xl text-xs opacity-75">
                     This edition includes the opening {featured.total_chunks}{" "}
@@ -306,7 +307,9 @@ function LibraryPage() {
           </div>
           {hasActiveFilters && (
             <button
-              onClick={() => updateSearch({ q: undefined, lang: undefined, genre: undefined, author: undefined })}
+              onClick={() =>
+                updateSearch({ q: undefined, lang: undefined, genre: undefined, author: undefined })
+              }
               className="self-start text-xs font-semibold text-primary hover:underline"
             >
               Reset all filters
@@ -338,8 +341,8 @@ function LibraryPage() {
                 Nothing on this shelf yet
               </p>
               <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
-                Tap the heart, bookmark or plus on any book cover to build your
-                own shelves — or start reading to fill your history.
+                Tap the heart, bookmark or plus on any book cover to build your own shelves — or
+                start reading to fill your history.
               </p>
               <button
                 onClick={() => updateSearch({ tab: undefined })}
@@ -358,7 +361,14 @@ function LibraryPage() {
                 Try a different search term, or clear your filters to see everything on this shelf.
               </p>
               <button
-                onClick={() => updateSearch({ q: undefined, lang: undefined, genre: undefined, author: undefined })}
+                onClick={() =>
+                  updateSearch({
+                    q: undefined,
+                    lang: undefined,
+                    genre: undefined,
+                    author: undefined,
+                  })
+                }
                 className="mt-5 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground"
               >
                 Clear search & filters

@@ -144,6 +144,7 @@ function ProfilePage() {
             {isDemo && (
               <Link
                 to="/auth"
+                search={{ redirect: "/profile" }}
                 className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90"
               >
                 <LogIn className="h-4 w-4" /> Sign in
@@ -162,7 +163,11 @@ function ProfilePage() {
         <div className="mt-6 grid gap-4 sm:grid-cols-3">
           {[
             { label: "Pages read", value: pagesRead, icon: BookOpen },
-            { label: "Highlights saved", value: highlightsQuery.data?.length ?? 0, icon: Highlighter },
+            {
+              label: "Highlights saved",
+              value: highlightsQuery.data?.length ?? 0,
+              icon: Highlighter,
+            },
             { label: "Active subscriptions", value: subs.length, icon: Crown },
           ].map(({ label, value, icon: Icon }) => (
             <div key={label} className="rounded-2xl border border-border bg-card p-5 card-shadow">
@@ -176,9 +181,7 @@ function ProfilePage() {
         </div>
 
         <section className="mt-8 rounded-2xl border border-border bg-card p-6 card-shadow">
-          <h2 className="font-display text-lg font-semibold text-foreground">
-            Subscription
-          </h2>
+          <h2 className="font-display text-lg font-semibold text-foreground">Subscription</h2>
           {subs.length === 0 ? (
             <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
               <p className="text-sm text-muted-foreground">
@@ -205,9 +208,7 @@ function ProfilePage() {
                     </p>
                     <p className="text-xs text-muted-foreground">
                       ${s.monthly_price_usd}/month · renews{" "}
-                      {s.expires_at
-                        ? new Date(s.expires_at).toLocaleDateString()
-                        : "monthly"}
+                      {s.expires_at ? new Date(s.expires_at).toLocaleDateString() : "monthly"}
                     </p>
                   </div>
                   <span className="rounded-full bg-accent px-2.5 py-1 text-[11px] font-semibold text-accent-foreground">
@@ -230,6 +231,7 @@ function ProfilePage() {
             </p>
             <Link
               to="/auth"
+              search={{ redirect: "/profile" }}
               className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
             >
               <LogIn className="h-4 w-4" /> Sign in
@@ -237,9 +239,7 @@ function ProfilePage() {
           </section>
         ) : (
           <section className="mt-8 rounded-2xl border border-border bg-card p-6 card-shadow">
-            <h2 className="font-display text-lg font-semibold text-foreground">
-              Author profile
-            </h2>
+            <h2 className="font-display text-lg font-semibold text-foreground">Author profile</h2>
             <p className="mt-1 text-sm text-muted-foreground">
               Shown on your public author page and next to your published books.
             </p>
@@ -329,9 +329,7 @@ function ProfilePage() {
         </section>
 
         <section className="mt-8 rounded-2xl border border-border bg-card p-6 card-shadow">
-          <h2 className="font-display text-lg font-semibold text-foreground">
-            Saved titles
-          </h2>
+          <h2 className="font-display text-lg font-semibold text-foreground">Saved titles</h2>
           {(shelvesQuery.data ?? []).length === 0 ? (
             <p className="mt-3 text-sm text-muted-foreground">
               Tap the heart, bookmark or plus on any book to keep it here.
@@ -361,13 +359,11 @@ function ProfilePage() {
         </section>
 
         <section className="mt-8 rounded-2xl border border-border bg-card p-6 card-shadow">
-          <h2 className="font-display text-lg font-semibold text-foreground">
-            Saved highlights
-          </h2>
+          <h2 className="font-display text-lg font-semibold text-foreground">Saved highlights</h2>
           {(highlightsQuery.data ?? []).length === 0 ? (
             <p className="mt-3 text-sm text-muted-foreground">
-              Select any passage while reading and tap Highlight — your
-              favourite lines will live here.
+              Select any passage while reading and tap Highlight — your favourite lines will live
+              here.
             </p>
           ) : (
             <ul className="mt-4 space-y-3">

@@ -1,7 +1,7 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { ArrowRight, BookOpen, Feather, Globe2, Languages } from "lucide-react";
-import { lovable } from "@/integrations/lovable/index";
+import { supabase } from "@/integrations/supabase/client";
 import logoUrl from "@/assets/seeparah-logo.png";
 import { coverFor, FEATURED_BOOK_ID, DEMO_BOOK_ID } from "@/lib/covers";
 
@@ -25,7 +25,6 @@ export const Route = createFileRoute("/")({
 });
 
 function LandingPage() {
-  const navigate = useNavigate();
   const [googleBusy, setGoogleBusy] = useState(false);
   const [googleError, setGoogleError] = useState<string | null>(null);
   const featuredCover = coverFor(FEATURED_BOOK_ID);
@@ -33,16 +32,18 @@ function LandingPage() {
   async function signInWithGoogle() {
     setGoogleBusy(true);
     setGoogleError(null);
-    const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
+    // Native Supabase OAuth (see src/routes/auth.tsx for the full
+    // explanation of why the previous Lovable-broker call 404'd on this
+    // standalone Netlify deployment). This redirects the browser itself;
+    // there is no further navigation to do here on success.
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: window.location.origin },
     });
-    if (result.error) {
+    if (error) {
       setGoogleError("Google sign-in didn't complete. You can still use demo mode below.");
       setGoogleBusy(false);
-      return;
     }
-    if (result.redirected) return;
-    navigate({ to: "/library" });
   }
 
   return (
@@ -61,9 +62,7 @@ function LandingPage() {
               <p className="font-display text-2xl font-semibold leading-none tracking-tight text-foreground">
                 Seeparah
               </p>
-              <p className="text-xs text-muted-foreground">
-                Read world classics in your language
-              </p>
+              <p className="text-xs text-muted-foreground">Read world classics in your language</p>
             </div>
           </div>
           <button
@@ -93,9 +92,9 @@ function LandingPage() {
               <span className="italic text-primary">in your own words.</span>
             </h1>
             <p className="mt-5 max-w-xl text-lg leading-relaxed text-muted-foreground">
-              Seeparah is a warm home for readers and authors. English and Urdu are our
-              standard languages for every book; you can request Hindi or Arabic and an
-              administrator will review it. Your progress and highlights travel with you.
+              Seeparah is a warm home for readers and authors. English and Urdu are our standard
+              languages for every book; you can request Hindi or Arabic and an administrator will
+              review it. Your progress and highlights travel with you.
             </p>
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -131,12 +130,8 @@ function LandingPage() {
                 ["2+2", "standard, plus requestable languages"],
               ].map(([stat, label]) => (
                 <div key={label}>
-                  <p className="font-display text-3xl font-semibold text-primary">
-                    {stat}
-                  </p>
-                  <p className="mt-1 text-xs leading-snug text-muted-foreground">
-                    {label}
-                  </p>
+                  <p className="font-display text-3xl font-semibold text-primary">{stat}</p>
+                  <p className="mt-1 text-xs leading-snug text-muted-foreground">{label}</p>
                 </div>
               ))}
             </div>
@@ -171,8 +166,8 @@ function LandingPage() {
 
         <footer className="border-t border-border py-6 text-center text-xs text-muted-foreground">
           <p>
-            Seeparah — a multilingual reading room. No full-book downloads; pages
-            arrive as you read.
+            Seeparah — a multilingual reading room. No full-book downloads; pages arrive as you
+            read.
           </p>
           <p className="mt-2 flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
             <Link to="/legal" hash="privacy" className="hover:text-foreground hover:underline">

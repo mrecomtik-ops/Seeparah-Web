@@ -1,5 +1,13 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { BookOpen, Feather, LayoutDashboard, LineChart, LogIn, ShieldCheck, User } from "lucide-react";
+import {
+  BookOpen,
+  Feather,
+  LayoutDashboard,
+  LineChart,
+  LogIn,
+  ShieldCheck,
+  User,
+} from "lucide-react";
 import logoUrl from "@/assets/seeparah-logo.png";
 import { useAuth } from "@/lib/use-auth";
 import { useAdminSession } from "@/lib/admin/use-admin-session";
@@ -14,6 +22,7 @@ const NAV = [
 
 export function AppHeader() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const href = useRouterState({ select: (s) => s.location.href });
   const { isDemo } = useAuth();
   const adminSession = useAdminSession();
   const isAdmin = !isDemo && !!adminSession.data?.role;
@@ -70,6 +79,7 @@ export function AppHeader() {
             {isDemo && (
               <Link
                 to="/auth"
+                search={{ redirect: href }}
                 className="hidden items-center gap-1.5 rounded-xl border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground hover:bg-secondary sm:inline-flex"
               >
                 <LogIn className="h-3.5 w-3.5" /> Sign in

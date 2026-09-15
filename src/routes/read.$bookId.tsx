@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -84,6 +84,7 @@ function ReaderPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { userId, isDemo } = useAuth();
+  const currentHref = useRouterState({ select: (s) => s.location.href });
 
   const bookQuery = useQuery({
     queryKey: ["book", bookId],
@@ -488,6 +489,7 @@ function ReaderPage() {
               {lockReason === "sign_in_required" ? (
                 <Link
                   to="/auth"
+                  search={{ redirect: currentHref }}
                   className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5"
                 >
                   <LogIn className="h-4 w-4" /> Sign in
@@ -590,7 +592,11 @@ function ReaderPage() {
         {isDemo && (
           <p className="mt-6 rounded-xl bg-secondary px-4 py-3 text-center text-xs text-secondary-foreground">
             You're reading in demo mode — progress and highlights are kept on this device.{" "}
-            <Link to="/auth" className="font-semibold text-primary hover:underline">
+            <Link
+              to="/auth"
+              search={{ redirect: currentHref }}
+              className="font-semibold text-primary hover:underline"
+            >
               Sign in to sync them everywhere
             </Link>
             .
