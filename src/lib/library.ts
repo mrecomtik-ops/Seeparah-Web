@@ -364,6 +364,46 @@ export async function subscribeToBook(
 
 export type BookStatus = "draft" | "in_review" | "published" | "unpublished";
 
+/**
+ * Thrown when a book's row saved successfully but its manuscript text did
+ * not. Carries `bookId` so the caller can point the author at the specific
+ * (now-private) draft to retry, instead of resubmitting the whole form and
+ * creating a second, unrelated book. Deliberately a distinct class — a
+ * plain `Error` with this message would be indistinguishable from any
+ * other publishBook failure to a caller that wanted to branch on it later.
+ */
+export class ManuscriptSaveError extends Error {
+  readonly bookId: string;
+  constructor(bookId: string, cause: string) {
+    super(
+      `Your book record was saved as a private draft, but the manuscript text failed to save (${cause}). ` +
+        `Open it from My Books to add the text again — submitting this form again would create a second, separate book.`,
+    );
+    this.name = "ManuscriptSaveError";
+    this.bookId = bookId;
+  }
+}
+
+/**
+ * True only for the one specific, already-diagnosed failure this file
+ * knows how to work around: a PostgREST "column not found" rejection
+ * (`PGRST204`) naming the exact column we expect might be missing, on the
+ * exact table we expect it from. Deliberately narrow — this must never
+ * match an authorization failure (`42501`/RLS `403`), a validation/check-
+ * constraint failure (`23514`), a missing-table failure (`PGRST205`), or
+ * any other error shape, all of which need to reach the caller unchanged,
+ * not be silently retried with a smaller payload.
+ */
+export function isMissingColumnError(
+  err: { code?: string | null; message?: string | null } | null | undefined,
+  column: string,
+  table: string,
+): boolean {
+  if (!err || err.code !== "PGRST204") return false;
+  const msg = (err.message ?? "").toLowerCase();
+  return msg.includes(`'${column.toLowerCase()}'`) && msg.includes(table.toLowerCase());
+}
+
 export interface PublishInput {
   title: string;
   authorName: string;
@@ -382,90 +422,257 @@ export { splitManuscript } from "@/lib/manuscript";
 
 
 /**
- * Creates or replaces a book's draft/submission. Draft and in-review saves
- * never touch a book that's already published — publishing an edit is a
- * separate, explicit action (see setBookStatus), so a work-in-progress
- * revision can never leak into what readers currently see.
+ * Creates (or resumes) a book's draft, then optionally submits it for
+ * review — always as two separate, explicit steps, never bundled into one
+ * write. Every NEW book is inserted with `status: 'draft'` regardless of
+ * what the author ultimately asked for; moving to `'in_review'` only ever
+ * happens afterward, in its own statement, and only once the manuscript's
+ * chunks are confirmed present by an actual re-count (never assumed from
+ * "the insert didn't error"). Consequence: a failure at any point before
+ * that final step leaves an ordinary, recoverable private draft — because
+ * the row was never anything else. There is no separate "demote back to
+ * draft" step for this to depend on.
  *
- * For a signed-in (non-demo) author, a real database failure is surfaced as
- * an error rather than silently falling back to on-device demo storage —
- * silently saving "published" work only in the author's own browser would
- * misrepresent what actually happened.
+ * Draft and in-review saves never touch a book that's already published —
+ * publishing an edit is a separate, explicit action (see setBookStatus),
+ * so a work-in-progress revision can never leak into what readers
+ * currently see.
+ *
+ * `existingBookId`: pass this (from a caught `ManuscriptSaveError.bookId`)
+ * to resume a draft whose manuscript text failed to save last time,
+ * instead of creating a second, unrelated book. Ownership and status are
+ * re-checked here against the database, never assumed from what the
+ * caller passes in: the lookup is itself RLS-scoped to the caller's own
+ * rows (`books_read_access`), and is additionally filtered by
+ * `author_id`/`status` explicitly as a second, redundant check — a forged
+ * or stale id can touch neither someone else's book nor one that isn't
+ * (still) a draft.
+ *
+ * For a signed-in (non-demo) author, a real database failure is surfaced
+ * as an error rather than silently falling back to on-device demo
+ * storage — silently saving "published" work only in the author's own
+ * browser would misrepresent what actually happened.
  */
-export async function publishBook(userId: string, input: PublishInput): Promise<Book> {
+export async function publishBook(
+  userId: string,
+  input: PublishInput,
+  existingBookId?: string,
+): Promise<Book> {
   if (input.status !== "draft" && !input.rightsConfirmed) {
     throw new Error("Rights confirmation is required before submitting for review");
   }
   const chunks = splitManuscript(input.manuscript);
-  const book: Book = {
-    id: crypto.randomUUID(),
-    title: input.title,
-    author: input.authorName,
-    author_id: userId === DEMO_USER_ID ? null : userId,
-    cover_url: input.coverUrl,
-    available_languages: [input.sourceLanguage],
-    total_chunks: chunks.length,
-    source_language: input.sourceLanguage,
-    description: input.summary,
-    genre: input.genre,
-    status: input.status,
-    access_type: input.isPaid ? "paid" : "free",
-    subscription_price_usd: input.isPaid ? input.priceUsd : null,
-    created_at: new Date().toISOString(),
-  };
 
-  if (userId !== DEMO_USER_ID) {
-    const { data, error } = await supabase
-      .from("books")
-      .insert({
-        title: book.title,
-        author: book.author,
-        author_id: userId,
-        available_languages: book.available_languages,
-        total_chunks: book.total_chunks,
-        source_language: book.source_language,
-        description: book.description,
-        ...(book.genre ? { genre: book.genre } : {}),
-        ...(book.cover_url ? { cover_url: book.cover_url } : {}),
-        status: book.status,
-        access_type: book.access_type,
-        subscription_price_usd: book.subscription_price_usd,
-      })
-      .select()
-      .single();
-    if (error) throw new Error(`Couldn't save the book: ${error.message}`);
-    const saved = data as Book;
-    const { error: chunkError } = await supabase.from("book_chunks").insert(
-      chunks.map((content, i) => ({
-        book_id: saved.id,
+  if (userId === DEMO_USER_ID) {
+    const book: Book = {
+      id: crypto.randomUUID(),
+      title: input.title,
+      author: input.authorName,
+      author_id: null,
+      cover_url: input.coverUrl,
+      available_languages: [input.sourceLanguage],
+      total_chunks: chunks.length,
+      source_language: input.sourceLanguage,
+      description: input.summary,
+      genre: input.genre,
+      status: input.status,
+      access_type: input.isPaid ? "paid" : "free",
+      subscription_price_usd: input.isPaid ? input.priceUsd : null,
+      created_at: new Date().toISOString(),
+    };
+    const published = demoStore.getPublishedBooks();
+    published.push({
+      book,
+      chunks: chunks.map((content, i) => ({
+        book_id: book.id,
         language: input.sourceLanguage,
         chunk_index: i,
         content,
         status: "published",
+        source_version: 1,
+        job_id: null,
+        model: null,
+        prompt_version: null,
+        updated_at: new Date().toISOString(),
       })),
-    );
-    if (chunkError) throw new Error(`Book saved, but the manuscript text failed to save: ${chunkError.message}`);
-    return saved;
+    });
+    demoStore.setPublishedBooks(published);
+    return book;
   }
 
-  const published = demoStore.getPublishedBooks();
-  published.push({
-    book,
-    chunks: chunks.map((content, i) => ({
-      book_id: book.id,
+  let bookId: string;
+  let hasExistingChunks = false;
+
+  if (existingBookId) {
+    const { data: existing, error: fetchError } = await supabase
+      .from("books")
+      .select("id, author_id, status")
+      .eq("id", existingBookId)
+      .eq("author_id", userId) // redundant with RLS below — explicit, not trusted
+      .maybeSingle();
+    if (fetchError) throw new Error(`Couldn't load the draft to retry: ${fetchError.message}`);
+    if (!existing) throw new Error("That draft couldn't be found, or isn't yours to edit.");
+    if (existing.status !== "draft") {
+      throw new Error(
+        "That book is no longer a draft, so it can't be resumed this way — start a new submission instead.",
+      );
+    }
+    bookId = existing.id;
+
+    const { count } = await supabase
+      .from("book_chunks")
+      .select("chunk_index", { count: "exact", head: true })
+      .eq("book_id", bookId);
+    // Chunk inserts are per-statement-atomic (see below) and this function
+    // is the only author-facing writer of book_chunks, so a non-zero count
+    // here means an earlier call already finished the chunk write for this
+    // exact draft — skip re-inserting rather than attempt a second insert
+    // that would violate the (book_id, language, chunk_index) shape a
+    // second time. This is what makes a resumed retry idempotent even if
+    // called more than once. Known limitation, not silently papered over:
+    // if the author edited the manuscript text between attempts, this
+    // resume path does not detect or re-save the new text — it only knows
+    // "does this draft already have chunk rows," not "do they match the
+    // current input." Editing an existing draft's content is a different,
+    // unbuilt feature; resuming here is specifically for retrying the same
+    // failed submission unchanged.
+    hasExistingChunks = (count ?? 0) > 0;
+  } else {
+    // Every NEW book starts as a private draft — full stop, regardless of
+    // what input.status ultimately asks for. `books_author_insert` (RLS)
+    // would refuse anything outside draft/in_review/unpublished here
+    // anyway, but this function no longer even offers 'in_review' at
+    // insert time: review is always the later, separate, validated step
+    // below, never a value baked into the very first write.
+    const { data, error } = await supabase
+      .from("books")
+      .insert({
+        title: input.title,
+        author: input.authorName,
+        author_id: userId,
+        available_languages: [input.sourceLanguage],
+        total_chunks: chunks.length,
+        source_language: input.sourceLanguage,
+        description: input.summary,
+        ...(input.genre ? { genre: input.genre } : {}),
+        ...(input.coverUrl ? { cover_url: input.coverUrl } : {}),
+        status: "draft",
+        access_type: input.isPaid ? "paid" : "free",
+        subscription_price_usd: input.isPaid ? input.priceUsd : null,
+      })
+      .select("id")
+      .single();
+    if (error) throw new Error(`Couldn't save the book: ${error.message}`);
+    bookId = (data as { id: string }).id;
+  }
+
+  if (!hasExistingChunks) {
+    // Single statement, one array body → one SQL multi-row INSERT, which
+    // Postgres executes atomically: either every chunk row is written or
+    // none are. There is no partial-insert case to account for below, and
+    // this can never produce duplicate rows as long as it only ever runs
+    // against a book confirmed (just above) to have zero chunks yet.
+    const chunkRows = chunks.map((content, i) => ({
+      book_id: bookId,
       language: input.sourceLanguage,
       chunk_index: i,
       content,
       status: "published",
-      source_version: 1,
-      job_id: null,
-      model: null,
-      prompt_version: null,
-      updated_at: new Date().toISOString(),
-    })),
-  });
-  demoStore.setPublishedBooks(published);
-  return book;
+    }));
+    let { error: chunkError } = await supabase.from("book_chunks").insert(chunkRows);
+
+    if (chunkError && isMissingColumnError(chunkError, "status", "book_chunks")) {
+      // `book_chunks.status` doesn't exist until migration 0001 is applied.
+      // Narrowly scoped to exactly this signature (PGRST204 naming this
+      // column on this table) — an authorization rejection, a check-
+      // constraint violation, or any other failure shape falls through
+      // unchanged to the handling below instead of being retried, and this
+      // fallback never omits anything except the one column already known
+      // to not exist yet; it does not touch `status`'s security-relevant
+      // counterpart (there isn't one here — book_chunks has no RLS clause
+      // that reads its own `status` until migration 0007, only the parent
+      // book's `status`/`author_id`, both still enforced identically by
+      // this insert's own RLS policy either way). Mirrors the same
+      // schema-tolerant retry already used on the read side
+      // (src/lib/reader.server.ts's getReaderChunk). Once migration 0001
+      // lands, the first attempt above succeeds and this branch stops
+      // running.
+      ({ error: chunkError } = await supabase.from("book_chunks").insert(
+        chunkRows.map(({ status: _status, ...rest }) => rest),
+      ));
+    }
+
+    if (chunkError) {
+      // The manuscript text genuinely did not save. The book row above —
+      // whether freshly created or resumed via existingBookId — is left
+      // exactly as it already was: 'draft'. It was never anything else,
+      // so there is nothing to demote and nothing that depends on a
+      // second operation succeeding. Never deleted, never silently
+      // retried with different content — the author retries deliberately,
+      // by passing this same bookId back in, once whatever caused this
+      // (a genuinely different failure than the known schema gap above,
+      // or that fallback itself failing) has been addressed.
+      throw new ManuscriptSaveError(bookId, chunkError.message);
+    }
+  }
+
+  // Validate before transitioning — re-count from the database rather
+  // than trusting "the insert above didn't error". Catches a resumed
+  // draft whose previously-saved chunk count is short of what this
+  // manuscript now requires (see the "known limitation" note above), not
+  // just a same-call insert failure.
+  const { count: savedChunkCount, error: countError } = await supabase
+    .from("book_chunks")
+    .select("chunk_index", { count: "exact", head: true })
+    .eq("book_id", bookId);
+  if (countError) {
+    throw new Error(`Couldn't verify the manuscript saved correctly: ${countError.message}`);
+  }
+  if ((savedChunkCount ?? 0) < chunks.length) {
+    throw new ManuscriptSaveError(bookId, `only ${savedChunkCount ?? 0} of ${chunks.length} pages saved`);
+  }
+
+  if (input.status === "in_review") {
+    // The only place `status` ever moves to 'in_review' for an author's
+    // own write — a separate, explicit, already-validated step, never
+    // bundled into the original insert or run before the check above.
+    // `.eq("status", "draft")` makes this a compare-and-swap: it can only
+    // ever move a book OUT of 'draft', never re-trigger from any other
+    // state, and matching zero rows (already transitioned, or no longer
+    // owned) is treated as a real failure, not silently ignored. Self-
+    // publication remains structurally impossible here regardless: RLS
+    // (`books_author_update`'s WITH CHECK) only ever allows an author to
+    // set `status` to draft/in_review/unpublished — 'published' is never
+    // a value this function, or any author-facing code path, can write.
+    const { data: transitioned, error: transitionError } = await supabase
+      .from("books")
+      .update({ status: "in_review" })
+      .eq("id", bookId)
+      .eq("author_id", userId)
+      .eq("status", "draft")
+      .select("id")
+      .maybeSingle();
+    if (transitionError) {
+      throw new Error(
+        `Your manuscript is saved as a draft, but couldn't be submitted for review: ${transitionError.message}. Nothing was lost — try submitting again from My Books.`,
+      );
+    }
+    if (!transitioned) {
+      throw new Error(
+        "Couldn't submit for review — this draft may already have been submitted, or is no longer yours.",
+      );
+    }
+  }
+
+  const { data: finalRow, error: finalError } = await supabase
+    .from("books")
+    .select("*")
+    .eq("id", bookId)
+    .single();
+  if (finalError || !finalRow) {
+    throw new Error(`Saved, but couldn't confirm the final state: ${finalError?.message ?? "not found"}`);
+  }
+  return finalRow as Book;
 }
 
 export async function listMyBooks(userId: string): Promise<Book[]> {
