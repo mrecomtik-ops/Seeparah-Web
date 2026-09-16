@@ -404,6 +404,50 @@ export function isMissingColumnError(
   return msg.includes(`'${column.toLowerCase()}'`) && msg.includes(table.toLowerCase());
 }
 
+interface SavedChunkRow {
+  chunk_index: number;
+  language: string;
+  content: string;
+}
+
+/**
+ * True only if `rows` is EXACTLY the expected saved state for `chunks` in
+ * `language` — the right count, no missing/duplicate indexes (every index
+ * 0..chunks.length-1 present exactly once), every row in the requested
+ * language, non-empty content, and content matching byte-for-byte.
+ * Deliberately an exact-match check, not a count or length check: a
+ * matching row count alone does not prove the saved text is this
+ * submission's text — this is what actually distinguishes "this draft's
+ * saved content genuinely is this manuscript" from "something with the
+ * right number of rows happens to be there," which both the resume path
+ * (deciding whether it's safe to skip a re-insert) and the pre-transition
+ * validation (deciding whether it's safe to let a book reach the review
+ * queue) need — not just a total row count.
+ */
+function savedChunksMatch(rows: SavedChunkRow[], chunks: string[], language: string): boolean {
+  if (rows.length !== chunks.length) return false;
+  const byIndex = new Map(rows.map((r) => [r.chunk_index, r]));
+  for (let i = 0; i < chunks.length; i++) {
+    const row = byIndex.get(i);
+    if (!row) return false; // missing index, or a duplicate collapsed onto another — either way, wrong
+    if (row.language !== language) return false;
+    if (!row.content || row.content.length === 0) return false;
+    if (row.content !== chunks[i]) return false;
+  }
+  return true;
+}
+
+/** `chunk_index`/`language`/`content` all predate migration 0001 — this
+ * read never needs the schema-tolerant fallback the write side does. */
+async function fetchSavedChunks(bookId: string): Promise<SavedChunkRow[]> {
+  const { data, error } = await supabase
+    .from("book_chunks")
+    .select("chunk_index, language, content")
+    .eq("book_id", bookId);
+  if (error) throw new Error(`Couldn't verify the manuscript saved correctly: ${error.message}`);
+  return (data ?? []) as SavedChunkRow[];
+}
+
 export interface PublishInput {
   title: string;
   authorName: string;
@@ -446,7 +490,17 @@ export { splitManuscript } from "@/lib/manuscript";
  * rows (`books_read_access`), and is additionally filtered by
  * `author_id`/`status` explicitly as a second, redundant check — a forged
  * or stale id can touch neither someone else's book nor one that isn't
- * (still) a draft.
+ * (still) a draft. If the draft already has SOME saved chunk content, it
+ * is compared byte-for-byte (`savedChunksMatch`) against the manuscript in
+ * `input` before deciding what to do: identical content is treated as
+ * already-saved (skip re-inserting — true idempotency); content that
+ * doesn't match — e.g. the author edited the manuscript since the failed
+ * attempt that produced this id — is refused outright rather than
+ * silently kept (the author would wrongly believe their edit saved) or
+ * silently overwritten (book_chunks has no UPDATE/DELETE grant for
+ * `authenticated` at all today, so an in-place fix isn't even possible
+ * through this path, and a second raw INSERT over the same rows risks a
+ * constraint violation or real duplicates depending on the live schema).
  *
  * For a signed-in (non-demo) author, a real database failure is surfaced
  * as an error rather than silently falling back to on-device demo
@@ -501,7 +555,8 @@ export async function publishBook(
   }
 
   let bookId: string;
-  let hasExistingChunks = false;
+  let skipChunkInsert = false;
+  let verifiedRows: SavedChunkRow[] | undefined;
 
   if (existingBookId) {
     const { data: existing, error: fetchError } = await supabase
@@ -519,24 +574,26 @@ export async function publishBook(
     }
     bookId = existing.id;
 
-    const { count } = await supabase
-      .from("book_chunks")
-      .select("chunk_index", { count: "exact", head: true })
-      .eq("book_id", bookId);
-    // Chunk inserts are per-statement-atomic (see below) and this function
-    // is the only author-facing writer of book_chunks, so a non-zero count
-    // here means an earlier call already finished the chunk write for this
-    // exact draft — skip re-inserting rather than attempt a second insert
-    // that would violate the (book_id, language, chunk_index) shape a
-    // second time. This is what makes a resumed retry idempotent even if
-    // called more than once. Known limitation, not silently papered over:
-    // if the author edited the manuscript text between attempts, this
-    // resume path does not detect or re-save the new text — it only knows
-    // "does this draft already have chunk rows," not "do they match the
-    // current input." Editing an existing draft's content is a different,
-    // unbuilt feature; resuming here is specifically for retrying the same
-    // failed submission unchanged.
-    hasExistingChunks = (count ?? 0) > 0;
+    const existingRows = await fetchSavedChunks(bookId);
+    if (existingRows.length > 0) {
+      if (savedChunksMatch(existingRows, chunks, input.sourceLanguage)) {
+        // Genuinely the same submission already fully saved — skip
+        // re-inserting (true idempotency), and reuse this read as the
+        // final validation below rather than fetching it twice.
+        skipChunkInsert = true;
+        verifiedRows = existingRows;
+      } else {
+        // Something is already saved on this draft, but it does not match
+        // this submission byte-for-byte — most likely the manuscript was
+        // edited since the attempt that produced this id. Refused, not
+        // silently resolved either direction: see the function doc above
+        // for why neither "keep the old text" nor "overwrite it" is safe
+        // to do automatically here.
+        throw new Error(
+          "This draft already has saved manuscript text that doesn't match what's in the form now — it looks like it was edited since the last attempt. To avoid silently keeping the old text, this retry was refused. Start a new submission instead, or check My Books to see exactly what's saved on this draft.",
+        );
+      }
+    }
   } else {
     // Every NEW book starts as a private draft — full stop, regardless of
     // what input.status ultimately asks for. `books_author_insert` (RLS)
@@ -566,7 +623,7 @@ export async function publishBook(
     bookId = (data as { id: string }).id;
   }
 
-  if (!hasExistingChunks) {
+  if (!skipChunkInsert) {
     // Single statement, one array body → one SQL multi-row INSERT, which
     // Postgres executes atomically: either every chunk row is written or
     // none are. There is no partial-insert case to account for below, and
@@ -616,20 +673,20 @@ export async function publishBook(
     }
   }
 
-  // Validate before transitioning — re-count from the database rather
-  // than trusting "the insert above didn't error". Catches a resumed
-  // draft whose previously-saved chunk count is short of what this
-  // manuscript now requires (see the "known limitation" note above), not
-  // just a same-call insert failure.
-  const { count: savedChunkCount, error: countError } = await supabase
-    .from("book_chunks")
-    .select("chunk_index", { count: "exact", head: true })
-    .eq("book_id", bookId);
-  if (countError) {
-    throw new Error(`Couldn't verify the manuscript saved correctly: ${countError.message}`);
-  }
-  if ((savedChunkCount ?? 0) < chunks.length) {
-    throw new ManuscriptSaveError(bookId, `only ${savedChunkCount ?? 0} of ${chunks.length} pages saved`);
+  // Validate before transitioning — re-fetch and exactly compare against
+  // the database rather than trusting "the insert above didn't error".
+  // Checks every expected index is present exactly once, the language
+  // matches, content is non-empty, and content matches byte-for-byte —
+  // not just a total row count, which a same-count-but-wrong-content
+  // state (extremely unlikely from this function's own atomic insert, but
+  // not something to simply assume) would otherwise pass silently.
+  if (!verifiedRows) verifiedRows = await fetchSavedChunks(bookId);
+  if (!savedChunksMatch(verifiedRows, chunks, input.sourceLanguage)) {
+    const detail =
+      verifiedRows.length !== chunks.length
+        ? `only ${verifiedRows.length} of ${chunks.length} pages saved`
+        : "saved content doesn't match what was submitted";
+    throw new ManuscriptSaveError(bookId, detail);
   }
 
   if (input.status === "in_review") {
