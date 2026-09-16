@@ -12,7 +12,7 @@ import {
   SAMPLE_MANUSCRIPT_TITLE,
   TRANSLATION_EXPLAINER_SHORT,
 } from "@/lib/data";
-import { publishBook, splitManuscript } from "@/lib/library";
+import { ManuscriptSaveError, publishBook, splitManuscript } from "@/lib/library";
 import { useAuth } from "@/lib/use-auth";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -63,6 +63,14 @@ function PublishPage() {
   const [busy, setBusy] = useState<"draft" | "submit" | null>(null);
   const [importingEpub, setImportingEpub] = useState(false);
   const [importWarnings, setImportWarnings] = useState<string[]>([]);
+  // Set only when a previous attempt saved the book row but the
+  // manuscript text failed (ManuscriptSaveError). Reusing this id on the
+  // next attempt resumes that same draft instead of creating a second,
+  // unrelated book — cleared on success, and on any failure that isn't
+  // specifically "the text didn't save" (e.g. the draft turned out to no
+  // longer be resumable), so a dead id can never get stuck being retried
+  // forever.
+  const [pendingDraftId, setPendingDraftId] = useState<string | null>(null);
 
   const chapters = manuscript.trim() ? splitManuscript(manuscript) : [];
 
@@ -185,19 +193,24 @@ function PublishPage() {
     }
     setBusy(status === "draft" ? "draft" : "submit");
     try {
-      const book = await publishBook(userId, {
-        title: title.trim(),
-        authorName: authorName.trim(),
-        sourceLanguage,
-        summary: summary.trim(),
-        manuscript,
-        isPaid: false,
-        priceUsd: null,
-        genre,
-        coverUrl: coverUrl.trim() || null,
-        status,
-        rightsConfirmed,
-      });
+      const book = await publishBook(
+        userId,
+        {
+          title: title.trim(),
+          authorName: authorName.trim(),
+          sourceLanguage,
+          summary: summary.trim(),
+          manuscript,
+          isPaid: false,
+          priceUsd: null,
+          genre,
+          coverUrl: coverUrl.trim() || null,
+          status,
+          rightsConfirmed,
+        },
+        pendingDraftId ?? undefined,
+      );
+      setPendingDraftId(null);
       queryClient.invalidateQueries({ queryKey: ["books"] });
       queryClient.invalidateQueries({ queryKey: ["my-books", userId] });
       if (status === "draft") {
@@ -213,6 +226,12 @@ function PublishPage() {
       }
       navigate({ to: "/author" });
     } catch (error) {
+      // Keep pendingDraftId set only when this specific draft is still
+      // genuinely resumable (ManuscriptSaveError) — any other failure
+      // (ownership no longer valid, draft already transitioned, etc.)
+      // clears it, so the next attempt starts a fresh submission instead
+      // of retrying an id that will only ever fail the same way.
+      setPendingDraftId(error instanceof ManuscriptSaveError ? error.bookId : null);
       toast.error(
         error instanceof Error
           ? error.message
