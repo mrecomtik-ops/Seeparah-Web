@@ -14,6 +14,96 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_action_events: {
+        Row: {
+          action: string
+          actor_id: string | null
+          created_at: string
+          id: string
+          target_id: string | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          created_at?: string
+          id?: string
+          target_id?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          created_at?: string
+          id?: string
+          target_id?: string | null
+        }
+        Relationships: []
+      }
+      admin_users: {
+        Row: {
+          granted_at: string
+          granted_by: string | null
+          revoked_at: string | null
+          revoked_by: string | null
+          role: string
+          user_id: string
+        }
+        Insert: {
+          granted_at?: string
+          granted_by?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          role: string
+          user_id: string
+        }
+        Update: {
+          granted_at?: string
+          granted_by?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          role?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      audit_log: {
+        Row: {
+          action: string
+          actor_id: string | null
+          actor_role: string | null
+          after: Json | null
+          before: Json | null
+          created_at: string
+          entity_id: string | null
+          entity_type: string
+          id: string
+          reason: string | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          actor_role?: string | null
+          after?: Json | null
+          before?: Json | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+          reason?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          actor_role?: string | null
+          after?: Json | null
+          before?: Json | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+          reason?: string | null
+        }
+        Relationships: []
+      }
       author_profiles: {
         Row: {
           avatar_url: string | null
@@ -50,6 +140,7 @@ export type Database = {
           language: string
           model: string | null
           prompt_version: string | null
+          provider: string | null
           source_version: number
           status: string
           updated_at: string
@@ -62,6 +153,7 @@ export type Database = {
           language: string
           model?: string | null
           prompt_version?: string | null
+          provider?: string | null
           source_version?: number
           status?: string
           updated_at?: string
@@ -74,6 +166,7 @@ export type Database = {
           language?: string
           model?: string | null
           prompt_version?: string | null
+          provider?: string | null
           source_version?: number
           status?: string
           updated_at?: string
@@ -229,11 +322,14 @@ export type Database = {
           model: string | null
           next_attempt_at: string | null
           prompt_version: string
+          provider: string
           requested_by: string | null
           reviewed_at: string | null
           reviewed_by: string | null
           source_version: number
           status: string
+          total_output_tokens: number
+          total_prompt_tokens: number
           total_sections: number
           updated_at: string
         }
@@ -250,11 +346,14 @@ export type Database = {
           model?: string | null
           next_attempt_at?: string | null
           prompt_version?: string
+          provider?: string
           requested_by?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           source_version?: number
           status?: string
+          total_output_tokens?: number
+          total_prompt_tokens?: number
           total_sections?: number
           updated_at?: string
         }
@@ -271,11 +370,14 @@ export type Database = {
           model?: string | null
           next_attempt_at?: string | null
           prompt_version?: string
+          provider?: string
           requested_by?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           source_version?: number
           status?: string
+          total_output_tokens?: number
+          total_prompt_tokens?: number
           total_sections?: number
           updated_at?: string
         }
@@ -297,6 +399,8 @@ export type Database = {
           job_id: string
           last_error: string | null
           next_attempt_at: string | null
+          output_tokens: number | null
+          prompt_tokens: number | null
           status: string
           updated_at: string
         }
@@ -307,6 +411,8 @@ export type Database = {
           job_id: string
           last_error?: string | null
           next_attempt_at?: string | null
+          output_tokens?: number | null
+          prompt_tokens?: number | null
           status?: string
           updated_at?: string
         }
@@ -317,6 +423,8 @@ export type Database = {
           job_id?: string
           last_error?: string | null
           next_attempt_at?: string | null
+          output_tokens?: number | null
+          prompt_tokens?: number | null
           status?: string
           updated_at?: string
         }
@@ -506,7 +614,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      current_admin_role: { Args: never; Returns: string }
+      is_admin: { Args: { min_roles: string[] }; Returns: boolean }
     }
     Enums: {
       [_ in never]: never
