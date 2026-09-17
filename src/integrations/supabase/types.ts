@@ -441,54 +441,105 @@ export type Database = {
       books: {
         Row: {
           access_type: string
+          attribution: string | null
           author: string
           author_id: string | null
           available_languages: string[]
+          categories: string[]
+          checksum: string | null
           cover_url: string | null
           created_at: string
           description: string
+          edition_review_status: string
           genre: string
           id: string
+          import_key: string | null
+          permitted_territories: string[]
+          rejection_reason: string | null
+          review_notes: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          rights_basis: string | null
+          rights_evidence_url: string | null
+          rights_status: string
+          source_edition_id: string | null
           source_language: string
+          source_url: string | null
           source_version: number
           status: string
           subscription_price_usd: number | null
           title: string
           total_chunks: number
+          translation_permission: boolean
+          translator: string | null
         }
         Insert: {
           access_type?: string
+          attribution?: string | null
           author: string
           author_id?: string | null
           available_languages?: string[]
+          categories?: string[]
+          checksum?: string | null
           cover_url?: string | null
           created_at?: string
           description?: string
+          edition_review_status?: string
           genre?: string
           id?: string
+          import_key?: string | null
+          permitted_territories?: string[]
+          rejection_reason?: string | null
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          rights_basis?: string | null
+          rights_evidence_url?: string | null
+          rights_status?: string
+          source_edition_id?: string | null
           source_language?: string
+          source_url?: string | null
           source_version?: number
           status?: string
           subscription_price_usd?: number | null
           title: string
           total_chunks?: number
+          translation_permission?: boolean
+          translator?: string | null
         }
         Update: {
           access_type?: string
+          attribution?: string | null
           author?: string
           author_id?: string | null
           available_languages?: string[]
+          categories?: string[]
+          checksum?: string | null
           cover_url?: string | null
           created_at?: string
           description?: string
+          edition_review_status?: string
           genre?: string
           id?: string
+          import_key?: string | null
+          permitted_territories?: string[]
+          rejection_reason?: string | null
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          rights_basis?: string | null
+          rights_evidence_url?: string | null
+          rights_status?: string
+          source_edition_id?: string | null
           source_language?: string
+          source_url?: string | null
           source_version?: number
           status?: string
           subscription_price_usd?: number | null
           title?: string
           total_chunks?: number
+          translation_permission?: boolean
+          translator?: string | null
         }
         Relationships: []
       }
