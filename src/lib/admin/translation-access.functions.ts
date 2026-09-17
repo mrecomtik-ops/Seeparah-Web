@@ -32,7 +32,17 @@ export const listMyTranslationRequests = createServerFn({ method: "POST" })
       .select("*, books!inner(title, author, cover_url)")
       .eq("requester_id", userId)
       .order("created_at", { ascending: false });
-    if (error) throw new Error(error.message);
+    if (error) {
+      // The translation-request pipeline (migration 0001) isn't applied in
+      // every environment yet. Treat "table doesn't exist" as "no requests"
+      // so the reader page still renders instead of blanking out.
+      const missingTable =
+        error.code === "PGRST205" ||
+        error.code === "42P01" ||
+        /translation_requests/.test(error.message ?? "");
+      if (missingTable) return [];
+      throw new Error(error.message);
+    }
     return rows ?? [];
   });
 
