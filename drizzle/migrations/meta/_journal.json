@@ -8,6 +8,13 @@
       "when": 1789558775567,
       "tag": "0000_hotfix_current_books_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1789626135114,
+      "tag": "0001_translation_pipeline_and_hardening",
+      "breakpoints": true
     }
   ]
 }

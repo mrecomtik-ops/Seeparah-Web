@@ -14,24 +14,69 @@ export type Database = {
   }
   public: {
     Tables: {
+      author_profiles: {
+        Row: {
+          avatar_url: string | null
+          bio: string | null
+          created_at: string
+          pen_name: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string
+          pen_name?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string
+          pen_name?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       book_chunks: {
         Row: {
           book_id: string
           chunk_index: number
           content: string
+          job_id: string | null
           language: string
+          model: string | null
+          prompt_version: string | null
+          source_version: number
+          status: string
+          updated_at: string
         }
         Insert: {
           book_id: string
           chunk_index: number
           content: string
+          job_id?: string | null
           language: string
+          model?: string | null
+          prompt_version?: string | null
+          source_version?: number
+          status?: string
+          updated_at?: string
         }
         Update: {
           book_id?: string
           chunk_index?: number
           content?: string
+          job_id?: string | null
           language?: string
+          model?: string | null
+          prompt_version?: string | null
+          source_version?: number
+          status?: string
+          updated_at?: string
         }
         Relationships: [
           {
@@ -39,6 +84,13 @@ export type Database = {
             columns: ["book_id"]
             isOneToOne: false
             referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "book_chunks_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "book_translation_jobs"
             referencedColumns: ["id"]
           },
         ]
@@ -116,6 +168,165 @@ export type Database = {
           },
         ]
       }
+      book_translation_guides: {
+        Row: {
+          book_id: string
+          character_notes: string | null
+          setting_context: string | null
+          target_conventions: string | null
+          terminology: Json
+          tone_instructions: string | null
+          updated_at: string
+          updated_by: string | null
+          voice_and_register: string | null
+        }
+        Insert: {
+          book_id: string
+          character_notes?: string | null
+          setting_context?: string | null
+          target_conventions?: string | null
+          terminology?: Json
+          tone_instructions?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          voice_and_register?: string | null
+        }
+        Update: {
+          book_id?: string
+          character_notes?: string | null
+          setting_context?: string | null
+          target_conventions?: string | null
+          terminology?: Json
+          tone_instructions?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          voice_and_register?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "book_translation_guides_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: true
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      book_translation_jobs: {
+        Row: {
+          attempts: number
+          book_id: string
+          completed_sections: number
+          created_at: string
+          failed_sections: number
+          human_reviewed: boolean
+          id: string
+          language: string
+          last_error: string | null
+          model: string | null
+          next_attempt_at: string | null
+          prompt_version: string
+          requested_by: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          source_version: number
+          status: string
+          total_sections: number
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          book_id: string
+          completed_sections?: number
+          created_at?: string
+          failed_sections?: number
+          human_reviewed?: boolean
+          id?: string
+          language: string
+          last_error?: string | null
+          model?: string | null
+          next_attempt_at?: string | null
+          prompt_version?: string
+          requested_by?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          source_version?: number
+          status?: string
+          total_sections?: number
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          book_id?: string
+          completed_sections?: number
+          created_at?: string
+          failed_sections?: number
+          human_reviewed?: boolean
+          id?: string
+          language?: string
+          last_error?: string | null
+          model?: string | null
+          next_attempt_at?: string | null
+          prompt_version?: string
+          requested_by?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          source_version?: number
+          status?: string
+          total_sections?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "book_translation_jobs_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      book_translation_sections: {
+        Row: {
+          attempts: number
+          chunk_index: number
+          id: string
+          job_id: string
+          last_error: string | null
+          next_attempt_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          chunk_index: number
+          id?: string
+          job_id: string
+          last_error?: string | null
+          next_attempt_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          chunk_index?: number
+          id?: string
+          job_id?: string
+          last_error?: string | null
+          next_attempt_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "book_translation_sections_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "book_translation_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       books: {
         Row: {
           access_type: string
@@ -128,6 +339,7 @@ export type Database = {
           genre: string
           id: string
           source_language: string
+          source_version: number
           status: string
           subscription_price_usd: number | null
           title: string
@@ -144,6 +356,7 @@ export type Database = {
           genre?: string
           id?: string
           source_language?: string
+          source_version?: number
           status?: string
           subscription_price_usd?: number | null
           title: string
@@ -160,6 +373,7 @@ export type Database = {
           genre?: string
           id?: string
           source_language?: string
+          source_version?: number
           status?: string
           subscription_price_usd?: number | null
           title?: string
@@ -192,6 +406,47 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "reading_progress_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      translation_reports: {
+        Row: {
+          book_id: string
+          chunk_index: number
+          created_at: string
+          id: string
+          language: string
+          reason: string
+          reporter_id: string
+          status: string
+        }
+        Insert: {
+          book_id: string
+          chunk_index: number
+          created_at?: string
+          id?: string
+          language: string
+          reason: string
+          reporter_id: string
+          status?: string
+        }
+        Update: {
+          book_id?: string
+          chunk_index?: number
+          created_at?: string
+          id?: string
+          language?: string
+          reason?: string
+          reporter_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "translation_reports_book_id_fkey"
             columns: ["book_id"]
             isOneToOne: false
             referencedRelation: "books"
