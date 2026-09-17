@@ -36,6 +36,13 @@
       "when": 1789626201002,
       "tag": "0004_catalog_rights_and_review_workflow",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1789626237626,
+      "tag": "0005_support_translations_settings",
+      "breakpoints": true
     }
   ]
 }

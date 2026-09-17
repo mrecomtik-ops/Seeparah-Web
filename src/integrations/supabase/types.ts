@@ -543,6 +543,132 @@ export type Database = {
         }
         Relationships: []
       }
+      content_settings: {
+        Row: {
+          is_public: boolean
+          key: string
+          updated_at: string
+          updated_by: string | null
+          value: Json
+          version: number
+        }
+        Insert: {
+          is_public?: boolean
+          key: string
+          updated_at?: string
+          updated_by?: string | null
+          value: Json
+          version?: number
+        }
+        Update: {
+          is_public?: boolean
+          key?: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: Json
+          version?: number
+        }
+        Relationships: []
+      }
+      content_settings_history: {
+        Row: {
+          action: string
+          created_at: string
+          id: string
+          key: string
+          updated_by: string | null
+          value: Json
+          version: number
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          id?: string
+          key: string
+          updated_by?: string | null
+          value: Json
+          version: number
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          id?: string
+          key?: string
+          updated_by?: string | null
+          value?: Json
+          version?: number
+        }
+        Relationships: []
+      }
+      error_events: {
+        Row: {
+          book_id: string | null
+          client_version: string | null
+          code: string
+          context: Json
+          id: string
+          job_id: string | null
+          message: string
+          occurred_at: string
+          request_id: string | null
+          resolved: boolean
+          resolved_at: string | null
+          resolved_by: string | null
+          retryable: boolean
+          severity: string
+          user_id: string | null
+        }
+        Insert: {
+          book_id?: string | null
+          client_version?: string | null
+          code: string
+          context?: Json
+          id?: string
+          job_id?: string | null
+          message: string
+          occurred_at?: string
+          request_id?: string | null
+          resolved?: boolean
+          resolved_at?: string | null
+          resolved_by?: string | null
+          retryable?: boolean
+          severity?: string
+          user_id?: string | null
+        }
+        Update: {
+          book_id?: string | null
+          client_version?: string | null
+          code?: string
+          context?: Json
+          id?: string
+          job_id?: string | null
+          message?: string
+          occurred_at?: string
+          request_id?: string | null
+          resolved?: boolean
+          resolved_at?: string | null
+          resolved_by?: string | null
+          retryable?: boolean
+          severity?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "error_events_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "error_events_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "book_translation_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reading_progress: {
         Row: {
           book_id: string
@@ -571,6 +697,131 @@ export type Database = {
             columns: ["book_id"]
             isOneToOne: false
             referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_report_rate_limit: {
+        Row: {
+          count: number
+          day: string
+          ip_hash: string
+        }
+        Insert: {
+          count?: number
+          day: string
+          ip_hash: string
+        }
+        Update: {
+          count?: number
+          day?: string
+          ip_hash?: string
+        }
+        Relationships: []
+      }
+      support_ticket_notes: {
+        Row: {
+          author_id: string | null
+          body: string
+          created_at: string
+          id: string
+          ticket_id: string
+          visibility: string
+        }
+        Insert: {
+          author_id?: string | null
+          body: string
+          created_at?: string
+          id?: string
+          ticket_id: string
+          visibility?: string
+        }
+        Update: {
+          author_id?: string | null
+          body?: string
+          created_at?: string
+          id?: string
+          ticket_id?: string
+          visibility?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_ticket_notes_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "support_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_tickets: {
+        Row: {
+          assigned_to: string | null
+          category: string
+          contact_email: string | null
+          created_at: string
+          description: string
+          id: string
+          is_anonymous: boolean
+          related_book_id: string | null
+          related_job_id: string | null
+          resolution: string | null
+          resolved_at: string | null
+          severity: string
+          status: string
+          subject: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          assigned_to?: string | null
+          category?: string
+          contact_email?: string | null
+          created_at?: string
+          description: string
+          id?: string
+          is_anonymous?: boolean
+          related_book_id?: string | null
+          related_job_id?: string | null
+          resolution?: string | null
+          resolved_at?: string | null
+          severity?: string
+          status?: string
+          subject: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          assigned_to?: string | null
+          category?: string
+          contact_email?: string | null
+          created_at?: string
+          description?: string
+          id?: string
+          is_anonymous?: boolean
+          related_book_id?: string | null
+          related_job_id?: string | null
+          resolution?: string | null
+          resolved_at?: string | null
+          severity?: string
+          status?: string
+          subject?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_tickets_related_book_id_fkey"
+            columns: ["related_book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_tickets_related_job_id_fkey"
+            columns: ["related_job_id"]
+            isOneToOne: false
+            referencedRelation: "book_translation_jobs"
             referencedColumns: ["id"]
           },
         ]
@@ -612,6 +863,63 @@ export type Database = {
             columns: ["book_id"]
             isOneToOne: false
             referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      translation_requests: {
+        Row: {
+          book_id: string
+          created_at: string
+          decision_reason: string | null
+          id: string
+          job_id: string | null
+          language: string
+          requester_id: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          book_id: string
+          created_at?: string
+          decision_reason?: string | null
+          id?: string
+          job_id?: string | null
+          language: string
+          requester_id: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          book_id?: string
+          created_at?: string
+          decision_reason?: string | null
+          id?: string
+          job_id?: string | null
+          language?: string
+          requester_id?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "translation_requests_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "translation_requests_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "book_translation_jobs"
             referencedColumns: ["id"]
           },
         ]
