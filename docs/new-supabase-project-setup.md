@@ -13,64 +13,95 @@ no longer the intended path.
 
 ---
 
-## 0. What this session cannot do, stated once
+## 0. Status (2026-09-20)
 
-This session has no reference to, and no credentials for, the new
-Supabase project — the owner has not yet identified/created it. Every
-step below is written to be run by whoever has that project's SQL
-editor or a linked `supabase` CLI session — not executed here. See
-§4 for the exact, minimal thing the owner needs to do to unblock the
-next session.
+The new project (`wxldqxuxpjurttspbxok`) is created, CLI-linked, and was
+confirmed genuinely empty before any write. Migrations `0000`-`0008` are
+now all applied and verified (via the SQL Editor, one at a time, each with
+a read-only verification query — see each file's own header). `types.ts`
+has been regenerated against this real schema (§5 — done, not just
+planned) and `npx tsc --noEmit` is clean. 18 real-database authorization
+tests (real REST calls, disposable accounts, independently confirmed
+cleaned up afterward) all pass. Migration-history reconciliation is
+**complete** — `supabase migration repair 0000..0008 --status applied`
+was run by the owner via the session pooler; `supabase migration list`
+confirms Local and Remote match for every version. A local dev server was
+also smoke-tested against this project (SSR, no browser) — homepage,
+library (honest empty catalog), admin (correctly gated, no data leak), all
+clean. Remaining: Netlify preview (§6 below — still an owner action, no
+Netlify access from this session) and, once the preview exists, actual
+browser-based workflow testing (login, manuscript save, admin MFA/review,
+reader access) — none of that has been exercised yet, only the
+server-rendering layer has.
 
 ---
 
-## 1. Exact migration order (new — do not skip step 1)
+## 1. Exact migration order (revised — baseline is folded into 0000, not a separate file)
 
 ```
-1. supabase/migrations/baseline_pre_0000_schema.sql   (NEW this pass — see below)
-2. supabase/migrations/0000_hotfix_current_books_rls.sql
-3. supabase/migrations/0001_translation_pipeline_and_hardening.sql
-4. supabase/migrations/0002_highlight_notes.sql
-5. supabase/migrations/0003_gemini_provider_and_usage.sql
-6. supabase/migrations/0004_admin_roles_and_audit.sql
-7. supabase/migrations/0005_catalog_rights_and_review_workflow.sql
-8. supabase/migrations/0006_support_translations_settings.sql
-9. supabase/migrations/0007_finalize_access_policies.sql
+1. supabase/migrations/0000_hotfix_current_books_rls.sql   (now includes the former baseline)
+2. supabase/migrations/0001_translation_pipeline_and_hardening.sql
+3. supabase/migrations/0002_highlight_notes.sql
+4. supabase/migrations/0003_gemini_provider_and_usage.sql
+5. supabase/migrations/0004_admin_roles_and_audit.sql
+6. supabase/migrations/0005_catalog_rights_and_review_workflow.sql
+7. supabase/migrations/0006_support_translations_settings.sql
+8. supabase/migrations/0007_finalize_access_policies.sql
+9. supabase/migrations/0008_revoke_stray_delete_truncate_grants.sql   (required — see below)
 ```
 
-**Why step 1 is new and required**: every migration from `0000` onward
-was written against Seeparah's *original* database, where `books`,
-`book_chunks`, `book_shelves`, `reading_progress`, `book_highlights`, and
-`user_subscriptions` already existed — created directly by Lovable's
-initial scaffolding, never captured as a migration in this repo. Applying
-`0000` to a genuinely empty project fails immediately and correctly (its
-own precondition block checks for `public.books`/`public.books.status`/
-etc. and aborts if they're missing) — this is `0000` refusing to guess at
-a schema it can't see, not a bug. `baseline_pre_0000_schema.sql` (new
-this pass, in `supabase/migrations/`) supplies exactly those six tables,
-reconstructed from the application's own TypeScript types and exact
-query/upsert patterns (see that file's own header for the full
-reasoning and the source for every column). It deliberately does **not**
-add RLS to `books`/`book_chunks` (that's `0000`'s job, immediately next)
-but **does** add real, minimal, owner-only RLS to the other four tables,
-since no migration from `0000` onward ever touches their policies.
+**Why `0008` is required, not optional**: applying `0000`-`0007` to a fresh
+Supabase project and then checking `information_schema.role_table_grants`
+(live, against `wxldqxuxpjurttspbxok`, 2026-09-20) showed `anon` and
+`authenticated` still held table-level `DELETE`/`TRUNCATE` on `books` and
+`book_chunks` after `0007` — a gap in `0007` itself, not in how it was
+applied: Supabase grants new tables a broad default privilege set
+(including DELETE/TRUNCATE) to `anon`/`authenticated` at the platform
+level, outside any file in this repo, and neither `0000` nor `0007` ever
+revoked TRUNCATE at all, or DELETE from `authenticated` on `books`
+specifically (0007 only revokes `insert, update` from `authenticated` on
+`books` — see that file's own §2). `0008` closes exactly this gap and
+re-verifies 0007's column-level grants are untouched by doing so. Apply it
+every time, immediately after `0007`, on every future fresh project — this
+is now a permanent part of the sequence, not a one-off patch for this
+project alone.
 
-**Not renumbered as `0000`/shifted the existing sequence up**: confirmed
-this session that this project's tooling (`supabase migration new`) only
-recognizes a purely numeric, typically 14-digit timestamp prefix as a
-migration version — a leading-zero name that sorts before "0000" isn't
-reliably parseable by it either. Every migration in this project has
-always been applied manually, one file at a time (no session working on
-this repo has ever had a working automated-sequential-apply path) — so
-this file is named descriptively and applied by explicit instruction
-(this document), not by lexical sort order. Renaming the already-
-reviewed `0000`-`0007` files to make room was considered and rejected:
-it would invalidate every cross-reference in their own headers and in
-the docs that already cite them by exact name.
+**Why a baseline is needed at all**: every migration from `0000` onward was
+written against Seeparah's *original* database, where `books`, `book_chunks`,
+`book_shelves`, `reading_progress`, `book_highlights`, and
+`user_subscriptions` already existed — created directly by Lovable's initial
+scaffolding, never captured as a migration in this repo. Applying `0000` to a
+genuinely empty project fails immediately and correctly (its own
+precondition block checks for `public.books`/`public.books.status`/etc. and
+aborts if they're missing) — this is `0000` refusing to guess at a schema it
+can't see, not a bug.
 
-**Apply each file individually**, reading its own header first (several —
-`0000`, `0005`, `0007` — have real preconditions and behavioral notes).
-Run the VERIFY block at the end of `baseline_pre_0000_schema.sql` and
+**Why it's no longer a separate file**: a first attempt added it as
+`baseline_pre_0000_schema.sql`, applied manually before `0000`. That's wrong
+for real `supabase db push` use: the CLI applies pending migrations in
+filename lexical order, and a purely-descriptive filename with no numeric
+prefix sorts *after* `"0000_..."`, not before it — so `db push` would have
+tried `0000` first and failed on its own precondition check. Confirmed this
+session (`supabase migration new` and the filename-ordering behavior both
+only reliably recognize purely numeric/timestamp prefixes). This project
+solved the identical shape of problem once before — folding a policy
+addition into `0001` directly rather than inventing a separately-named
+`0001b` file — so the same fix was applied here: the former baseline content
+now lives at the **top of `0000_hotfix_current_books_rls.sql`** itself,
+concatenated verbatim (not retyped) ahead of the original file's own
+content, each half keeping its own `begin;`/`commit;` block. `0000` is now
+exactly one file, self-contained, and correctly first in lexical order.
+
+It deliberately does **not** add RLS to `books`/`book_chunks` in the baseline
+section (that's the original `0000` content's job, immediately after, in the
+same file) but **does** add real, minimal, owner-only RLS to the other four
+tables in the baseline section, since no migration from `0000` onward ever
+touches their policies.
+
+**Apply via `supabase db push --include-all`** (or file-by-file in the SQL
+editor in the order above) — reading each file's own header first (several —
+`0000`, `0005`, `0007` — have real preconditions and behavioral notes). Run
+the VERIFY block inside `0000`'s baseline section and
 `supabase/inspect_current_access.sql` after the whole sequence, before
 trusting it.
 

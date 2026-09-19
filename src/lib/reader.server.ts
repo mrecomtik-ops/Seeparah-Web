@@ -142,7 +142,7 @@ export async function getReaderChunk(params: {
   if (params.userId && monetizationEnabled && book.access_type === "paid") {
     const { data: sub } = await db
       .from("user_subscriptions")
-      .select("id, status, expires_at")
+      .select("status, expires_at")
       .eq("book_id", params.bookId)
       .eq("user_id", params.userId)
       .eq("status", "active")

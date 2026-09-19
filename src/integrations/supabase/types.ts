@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       admin_action_events: {
@@ -235,7 +260,6 @@ export type Database = {
           created_at: string
           id: string
           shelf: string
-          updated_at: string
           user_id: string
         }
         Insert: {
@@ -243,7 +267,6 @@ export type Database = {
           created_at?: string
           id?: string
           shelf: string
-          updated_at?: string
           user_id: string
         }
         Update: {
@@ -251,7 +274,6 @@ export type Database = {
           created_at?: string
           id?: string
           shelf?: string
-          updated_at?: string
           user_id?: string
         }
         Relationships: [
@@ -451,7 +473,7 @@ export type Database = {
           created_at: string
           description: string
           edition_review_status: string
-          genre: string
+          genre: string | null
           id: string
           import_key: string | null
           permitted_territories: string[]
@@ -485,7 +507,7 @@ export type Database = {
           created_at?: string
           description?: string
           edition_review_status?: string
-          genre?: string
+          genre?: string | null
           id?: string
           import_key?: string | null
           permitted_territories?: string[]
@@ -497,7 +519,7 @@ export type Database = {
           rights_evidence_url?: string | null
           rights_status?: string
           source_edition_id?: string | null
-          source_language?: string
+          source_language: string
           source_url?: string | null
           source_version?: number
           status?: string
@@ -519,7 +541,7 @@ export type Database = {
           created_at?: string
           description?: string
           edition_review_status?: string
-          genre?: string
+          genre?: string | null
           id?: string
           import_key?: string | null
           permitted_territories?: string[]
@@ -929,7 +951,6 @@ export type Database = {
           book_id: string
           created_at: string
           expires_at: string | null
-          id: string
           monthly_price_usd: number
           renewed_at: string | null
           starts_at: string
@@ -940,7 +961,6 @@ export type Database = {
           book_id: string
           created_at?: string
           expires_at?: string | null
-          id?: string
           monthly_price_usd?: number
           renewed_at?: string | null
           starts_at?: string
@@ -951,7 +971,6 @@ export type Database = {
           book_id?: string
           created_at?: string
           expires_at?: string | null
-          id?: string
           monthly_price_usd?: number
           renewed_at?: string | null
           starts_at?: string
@@ -1103,6 +1122,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {},
   },
