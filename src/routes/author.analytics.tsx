@@ -1,15 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { BookOpen, Languages, TrendingUp, Wallet } from "lucide-react";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { BarChart3, BookOpen, Languages, Wallet } from "lucide-react";
 import { AUTHOR_PAYOUT, LANGUAGES } from "@/lib/data";
 import { listMyBooks } from "@/lib/library";
 import { useAuth } from "@/lib/use-auth";
@@ -29,16 +20,6 @@ export const Route = createFileRoute("/author/analytics")({
   }),
   component: AnalyticsPage,
 });
-
-const WEEK = [
-  { day: "Mon", pages: 42 },
-  { day: "Tue", pages: 58 },
-  { day: "Wed", pages: 51 },
-  { day: "Thu", pages: 74 },
-  { day: "Fri", pages: 96 },
-  { day: "Sat", pages: 121 },
-  { day: "Sun", pages: 88 },
-];
 
 function AnalyticsPage() {
   const { userId } = useAuth();
@@ -76,7 +57,6 @@ function AnalyticsPage() {
           {[
             { label: "Pages published", value: totalPages, icon: BookOpen },
             { label: "Language coverage", value: languageCoverage, icon: Languages },
-            { label: "Pages read this week", value: WEEK.reduce((s, d) => s + d.pages, 0), icon: TrendingUp },
             monetizationEnabled
               ? {
                   label: "Your payout (est./mo)",
@@ -99,23 +79,16 @@ function AnalyticsPage() {
           <h2 className="font-display text-lg font-semibold text-foreground">
             Pages read this week
           </h2>
-          <div className="mt-4 h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={WEEK}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-                <XAxis dataKey="day" stroke="var(--color-muted-foreground)" fontSize={12} />
-                <YAxis stroke="var(--color-muted-foreground)" fontSize={12} />
-                <Tooltip
-                  contentStyle={{
-                    background: "var(--color-card)",
-                    border: "1px solid var(--color-border)",
-                    borderRadius: 12,
-                    fontSize: 13,
-                  }}
-                />
-                <Bar dataKey="pages" fill="var(--color-primary)" radius={[6, 6, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+          {/* No per-day reading-activity table exists yet to back a real
+              chart here — this used to show a hardcoded, fabricated week
+              of numbers regardless of whether anyone had actually read
+              anything. Showing that on a fresh, honest backend would be
+              actively misleading, so this is an explicit "not tracked
+              yet" state instead, matching the same pattern already used
+              below for "Book performance" on an author with no books. */}
+          <div className="mt-4 flex h-40 flex-col items-center justify-center gap-2 text-center text-sm text-muted-foreground">
+            <BarChart3 className="h-8 w-8 text-muted-foreground/50" />
+            <p>Day-by-day reading activity isn't tracked yet — nothing to show here.</p>
           </div>
         </section>
 

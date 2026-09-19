@@ -1,9 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { getReaderChunk as fetchReaderChunk, activateSubscription } from "@/lib/reader.functions";
 import { splitManuscript } from "@/lib/manuscript";
-import { dedupeAgainstSeed } from "@/lib/catalog";
 import {
-  DEMO_BOOKS,
   DEMO_CHUNKS,
   demoStore,
   type Book,
@@ -35,46 +33,40 @@ export async function currentUser() {
 }
 
 /**
- * Merges locally-published demo books with the fixed seed catalog. A
- * locally-published book that matches a seed title+author exactly (e.g. the
- * "Load sample book" button was used) is treated as a duplicate of the seed
- * entry, not a second catalog listing — the richer seed entry (real cover,
- * consistent access terms) wins. This does not touch any real user data;
- * it only dedupes the on-device demo store against the fixed demo catalog.
+ * The real, public catalog — always reflects the actual `books` table,
+ * never silently substituted with the fixed demo/seed catalog
+ * (`DEMO_BOOKS`). A genuinely empty result (a fresh backend with no
+ * approved books yet) is returned as an empty array, not papered over —
+ * showing fictional titles as if they were real, live content would
+ * misrepresent what's actually published. A real connection/query error
+ * is also surfaced as empty rather than silently substituted; the caller
+ * (the library page) is responsible for its own loading/error UI, not
+ * this function pretending a failure is "just an empty catalog with demo
+ * placeholders."
  */
-function demoBooksMerged(): Book[] {
-  const published = dedupeAgainstSeed(DEMO_BOOKS, demoStore.getPublishedBooks().map((p) => p.book));
-  return [...published, ...DEMO_BOOKS];
-}
-
 export async function listBooks(): Promise<Book[]> {
-  try {
-    const { data, error } = await supabase
-      .from("books")
-      .select("*")
-      .eq("status", "published")
-      .order("created_at", { ascending: true });
-    if (error) throw error;
-    const rows = (data as Book[]) ?? [];
-    return rows.length ? rows : demoBooksMerged().filter((b) => b.status === "published");
-  } catch {
-    return demoBooksMerged().filter((b) => b.status === "published");
+  const { data, error } = await supabase
+    .from("books")
+    .select("*")
+    .eq("status", "published")
+    .order("created_at", { ascending: true });
+  if (error) {
+    console.error("[listBooks] real catalog query failed:", error.message);
+    return [];
   }
+  return (data as Book[]) ?? [];
 }
 
+/** Same honesty guarantee as listBooks(): a real book id that doesn't
+ * exist (or a real query error) returns null, never a demo placeholder
+ * substituted in by coincidentally matching a seed book's fixed id. */
 export async function getBook(id: string): Promise<Book | null> {
-  try {
-    const { data, error } = await supabase
-      .from("books")
-      .select("*")
-      .eq("id", id)
-      .maybeSingle();
-    if (error) throw error;
-    if (data) return data as Book;
-  } catch {
-    // fall through to demo
+  const { data, error } = await supabase.from("books").select("*").eq("id", id).maybeSingle();
+  if (error) {
+    console.error("[getBook] real query failed:", error.message);
+    return null;
   }
-  return demoBooksMerged().find((b) => b.id === id) ?? null;
+  return (data as Book | null) ?? null;
 }
 
 export interface ReaderChunkResult {
