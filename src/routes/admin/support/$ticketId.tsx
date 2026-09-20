@@ -14,6 +14,39 @@ export const Route = createFileRoute("/admin/support/$ticketId")({
   component: AdminTicketDetail,
 });
 
+const REQUEST_KIND_LABEL: Record<string, string> = {
+  ticket: "General request",
+  copyright_notice: "Copyright infringement notice",
+  copyright_counter_notice: "Copyright counter-notice",
+};
+
+/** Structured fields are stored as plain JSON (see migration 0009) with no
+ * fixed shape enforced beyond "the object the submitting form produced" —
+ * rendered generically rather than assuming specific keys, so this stays
+ * correct if the form's field set changes later. */
+function StructuredDataView({ data }: { data: Record<string, unknown> }) {
+  return (
+    <dl className="grid grid-cols-1 gap-x-4 gap-y-2 text-sm sm:grid-cols-2">
+      {Object.entries(data).map(([key, value]) => (
+        <div key={key}>
+          <dt className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            {key.replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase())}
+          </dt>
+          <dd className="text-foreground">
+            {value === null || value === undefined || value === "" ? (
+              <span className="text-muted-foreground">—</span>
+            ) : typeof value === "boolean" ? (
+              value ? "Yes" : "No"
+            ) : (
+              String(value)
+            )}
+          </dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
 function AdminTicketDetail() {
   const { ticketId } = Route.useParams();
   const sessionQuery = useAdminSession();
@@ -86,16 +119,41 @@ function AdminTicketDetail() {
       >
         <ArrowLeft className="h-4 w-4" /> Support
       </Link>
-      <h1 className="mt-3 font-display text-2xl font-semibold text-foreground">{ticket.subject}</h1>
+      <div className="mt-3 flex flex-wrap items-center gap-1.5">
+        {ticket.request_kind !== "ticket" && (
+          <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
+            {REQUEST_KIND_LABEL[ticket.request_kind] ?? ticket.request_kind}
+          </span>
+        )}
+        {ticket.reference_code && (
+          <span className="rounded-full bg-secondary px-2.5 py-0.5 font-mono text-xs font-semibold text-secondary-foreground">
+            {ticket.reference_code}
+          </span>
+        )}
+        {ticket.notification_status === "failed" && (
+          <span className="rounded-full bg-destructive/10 px-2.5 py-0.5 text-xs font-semibold text-destructive">
+            Notification failed — follow up manually
+          </span>
+        )}
+      </div>
+      <h1 className="mt-2 font-display text-2xl font-semibold text-foreground">{ticket.subject}</h1>
       <p className="mt-1 text-sm text-muted-foreground">
         {ticket.category} · {ticket.severity} ·{" "}
         {ticket.is_anonymous
-          ? `anonymous (${ticket.contact_email ?? "no email given"})`
-          : "signed-in user"}
+          ? `anonymous (${ticket.contact_email ?? "no reply email given"})`
+          : `signed-in user${ticket.contact_email ? ` (${ticket.contact_email})` : ""}`}
       </p>
       <div className="mt-3 rounded-xl border border-border bg-card p-4 text-sm">
         {ticket.description}
       </div>
+      {ticket.structured_data && typeof ticket.structured_data === "object" && (
+        <div className="mt-3 rounded-xl border border-border bg-card p-4">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Structured request details
+          </p>
+          <StructuredDataView data={ticket.structured_data as Record<string, unknown>} />
+        </div>
+      )}
 
       <div className="mt-4 flex flex-wrap gap-2">
         {(["open", "pending", "resolved", "closed"] as const).map((s) => (

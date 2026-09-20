@@ -2,9 +2,17 @@ import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import { createHash } from "node:crypto";
 import { z } from "zod";
-import { requireUserId } from "@/lib/require-user.server";
+import { requireUserId, tryResolveUserId } from "@/lib/require-user.server";
 import { requireAdmin } from "@/lib/admin/require-admin.server";
 import { recordAudit } from "@/lib/admin/audit.server";
+import {
+  hashClientIpForSupportForms,
+  isHoneypotTripped,
+  isSameOriginRequest,
+} from "@/lib/support-request-guard.server";
+import { generateReferenceCode } from "@/lib/reference-code.server";
+import { sendSupportNotificationEmail } from "@/lib/support-notification.server";
+import { SUPPORT_REQUEST_SCHEMA, COPYRIGHT_REQUEST_SCHEMA } from "@/lib/support-request-schemas";
 
 const withToken = <T extends z.ZodRawShape>(shape: T) =>
   z.object({ accessToken: z.string(), ...shape });
@@ -83,6 +91,101 @@ export const createPublicReport = createServerFn({ method: "POST" })
       category: "sign_in",
     });
     return { ok: true as const };
+  });
+
+/**
+ * The public "General support and complaint" form (/legal#support). Guest
+ * submissions are allowed; when an access token IS provided and verifies,
+ * the real signed-in user id is attached — never a client-supplied one.
+ */
+export const submitSupportRequest = createServerFn({ method: "POST" })
+  .inputValidator((data) => SUPPORT_REQUEST_SCHEMA.parse(data))
+  .handler(async ({ data }) => {
+    if (isHoneypotTripped(data.honeypot) || !isSameOriginRequest()) {
+      // Same accept-and-drop pattern as createPublicReport — see its
+      // comment. No ticket is created; the response is indistinguishable
+      // from a real success.
+      return { ok: true as const, referenceCode: generateReferenceCode() };
+    }
+    const { checkAnonymousReportRateLimit, submitTicketAndNotify } =
+      await import("@/lib/admin/support.server");
+    await checkAnonymousReportRateLimit(hashClientIpForSupportForms());
+
+    const userId = await tryResolveUserId(data.accessToken);
+
+    const { referenceCode } = await submitTicketAndNotify({
+      userId,
+      contactEmail: data.replyEmail,
+      subject: data.subject,
+      description: data.message,
+      category: data.requestType,
+      requestKind: "ticket",
+      structuredData: { fullName: data.fullName, pageUrl: data.pageUrl ?? null },
+      notify: (ref) =>
+        sendSupportNotificationEmail({
+          referenceCode: ref,
+          requestKind: "ticket",
+          category: data.requestType,
+          subject: data.subject,
+          replyEmail: data.replyEmail,
+        }),
+    });
+
+    return { ok: true as const, referenceCode };
+  });
+
+/**
+ * The public copyright infringement-notice / counter-notice form
+ * (/legal#copyright). Same guest-allowed, never-trust-client-id pattern as
+ * submitSupportRequest. All fields beyond subject/description/contact_email
+ * are structured data (structuredData), never appended into free text.
+ */
+export const submitCopyrightRequest = createServerFn({ method: "POST" })
+  .inputValidator((data) => COPYRIGHT_REQUEST_SCHEMA.parse(data))
+  .handler(async ({ data }) => {
+    if (isHoneypotTripped(data.honeypot) || !isSameOriginRequest()) {
+      return { ok: true as const, referenceCode: generateReferenceCode() };
+    }
+    const { checkAnonymousReportRateLimit, submitTicketAndNotify } =
+      await import("@/lib/admin/support.server");
+    await checkAnonymousReportRateLimit(hashClientIpForSupportForms());
+
+    const userId = await tryResolveUserId(data.accessToken);
+    const requestKind =
+      data.submissionType === "infringement" ? "copyright_notice" : "copyright_counter_notice";
+    const subject =
+      data.submissionType === "infringement"
+        ? `Copyright infringement notice: ${data.workDescription}`.slice(0, 200)
+        : `Copyright counter-notice: ${data.workDescription}`.slice(0, 200);
+
+    const { referenceCode } = await submitTicketAndNotify({
+      userId,
+      contactEmail: data.replyEmail,
+      subject,
+      description: data.detailedRequest,
+      category: "other",
+      requestKind,
+      structuredData: {
+        claimantName: data.claimantName,
+        organization: data.organization ?? null,
+        workDescription: data.workDescription,
+        contentUrl: data.contentUrl,
+        ownershipExplanation: data.ownershipExplanation,
+        goodFaithStatement: data.goodFaithStatement,
+        accuracyDeclaration: data.accuracyDeclaration,
+        signature: data.signature,
+      },
+      notify: (ref) =>
+        sendSupportNotificationEmail({
+          referenceCode: ref,
+          requestKind,
+          category: "other",
+          subject,
+          replyEmail: data.replyEmail,
+        }),
+    });
+
+    return { ok: true as const, referenceCode };
   });
 
 export const listMyTickets = createServerFn({ method: "POST" })

@@ -785,12 +785,16 @@ export type Database = {
           description: string
           id: string
           is_anonymous: boolean
+          notification_status: string
+          reference_code: string | null
           related_book_id: string | null
           related_job_id: string | null
+          request_kind: string
           resolution: string | null
           resolved_at: string | null
           severity: string
           status: string
+          structured_data: Json | null
           subject: string
           updated_at: string
           user_id: string | null
@@ -803,12 +807,16 @@ export type Database = {
           description: string
           id?: string
           is_anonymous?: boolean
+          notification_status?: string
+          reference_code?: string | null
           related_book_id?: string | null
           related_job_id?: string | null
+          request_kind?: string
           resolution?: string | null
           resolved_at?: string | null
           severity?: string
           status?: string
+          structured_data?: Json | null
           subject: string
           updated_at?: string
           user_id?: string | null
@@ -821,12 +829,16 @@ export type Database = {
           description?: string
           id?: string
           is_anonymous?: boolean
+          notification_status?: string
+          reference_code?: string | null
           related_book_id?: string | null
           related_job_id?: string | null
+          request_kind?: string
           resolution?: string | null
           resolved_at?: string | null
           severity?: string
           status?: string
+          structured_data?: Json | null
           subject?: string
           updated_at?: string
           user_id?: string | null

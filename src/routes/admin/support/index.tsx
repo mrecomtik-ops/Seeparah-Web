@@ -11,6 +11,12 @@ export const Route = createFileRoute("/admin/support/")({
 
 const STATUSES = ["", "open", "pending", "resolved", "closed"];
 
+const REQUEST_KIND_LABEL: Record<string, string> = {
+  ticket: "General request",
+  copyright_notice: "Copyright notice",
+  copyright_counter_notice: "Copyright counter-notice",
+};
+
 function AdminSupportList() {
   const [status, setStatus] = useState("open");
   const ticketsQuery = useQuery({
@@ -54,15 +60,29 @@ function AdminSupportList() {
               params={{ ticketId: t.id }}
               className="block rounded-2xl border border-border bg-card p-4 card-shadow hover:bg-secondary/40"
             >
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2">
                 <p className="font-semibold text-foreground">{t.subject}</p>
-                <span className="rounded-full bg-secondary px-2 py-0.5 text-xs font-semibold text-secondary-foreground">
-                  {t.severity}
-                </span>
+                <div className="flex shrink-0 items-center gap-1.5">
+                  {t.request_kind !== "ticket" && (
+                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
+                      {REQUEST_KIND_LABEL[t.request_kind] ?? t.request_kind}
+                    </span>
+                  )}
+                  <span className="rounded-full bg-secondary px-2 py-0.5 text-xs font-semibold text-secondary-foreground">
+                    {t.severity}
+                  </span>
+                </div>
               </div>
               <p className="mt-1 truncate text-sm text-muted-foreground">{t.description}</p>
               <p className="mt-1 text-xs text-muted-foreground">
+                {t.reference_code && <span className="font-mono">{t.reference_code}</span>}
+                {t.reference_code && " · "}
                 {t.category} · {t.is_anonymous ? "anonymous report" : "signed-in user"} · {t.status}
+                {t.notification_status === "failed" && (
+                  <span className="ml-1 font-semibold text-destructive">
+                    · notification failed
+                  </span>
+                )}
               </p>
             </Link>
           ))}

@@ -28,11 +28,20 @@ was run by the owner via the session pooler; `supabase migration list`
 confirms Local and Remote match for every version. A local dev server was
 also smoke-tested against this project (SSR, no browser) — homepage,
 library (honest empty catalog), admin (correctly gated, no data leak), all
-clean. Remaining: Netlify preview (§6 below — still an owner action, no
-Netlify access from this session) and, once the preview exists, actual
-browser-based workflow testing (login, manuscript save, admin MFA/review,
-reader access) — none of that has been exercised yet, only the
-server-rendering layer has.
+clean. Netlify preview (branch deploy `worktree-new-backend-setup`) is
+live; live browser testing found and fixed two real bugs (a hardcoded fake
+catalog entry on the homepage, and the homepage header not reflecting
+signed-in auth state) — both fixed, tested, and shipped.
+
+**New, not yet applied**: `supabase/migrations/0009_legal_request_support.sql`
+extends `support_tickets` for the reworked Privacy/Terms/Copyright/Support
+forms (see its own header). Apply it the same way as every prior
+migration — SQL Editor, one file, read its own precondition/postcondition
+output — then run `supabase migration repair 0009 --status applied` the
+same way `0000`-`0008` were reconciled, and regenerate `types.ts`. Until
+that happens, `npx tsc --noEmit` will show real errors in
+`src/lib/admin/support.server.ts` and the admin support routes — expected,
+not suppressed; they reference columns `0009` adds.
 
 ---
 
