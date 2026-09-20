@@ -25,6 +25,7 @@ import { LANGUAGES } from "@/lib/data";
 import { getPrefs, setPrefs } from "@/lib/prefs";
 import { useShelves } from "@/components/ShelfButtons";
 import { SHELF_LABELS, type ShelfKind } from "@/lib/shelves";
+import { getPublicContentSettings } from "@/lib/admin/settings.functions";
 
 export const Route = createFileRoute("/profile")({
   head: () => ({
@@ -78,6 +79,11 @@ function ProfilePage() {
     queryFn: () => getAuthorProfile(userId),
     enabled: !isDemo,
   });
+  const settingsQuery = useQuery({
+    queryKey: ["public-content-settings"],
+    queryFn: () => getPublicContentSettings(),
+  });
+  const monetizationEnabled = settingsQuery.data?.["monetization_enabled"] === true;
 
   useEffect(() => {
     if (!authorProfileQuery.data) return;
@@ -185,15 +191,19 @@ function ProfilePage() {
           {subs.length === 0 ? (
             <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
               <p className="text-sm text-muted-foreground">
-                You're on the free plan — every free book, in every language.
+                {monetizationEnabled
+                  ? "You're on the free plan — every free book, in every language."
+                  : "Every book is free to read during launch — no plan needed."}
               </p>
-              <Link
-                to="/subscribe"
-                search={{ book: undefined }}
-                className="rounded-xl bg-gold px-4 py-2 text-sm font-semibold text-gold-foreground"
-              >
-                See plans
-              </Link>
+              {monetizationEnabled && (
+                <Link
+                  to="/subscribe"
+                  search={{ book: undefined }}
+                  className="rounded-xl bg-gold px-4 py-2 text-sm font-semibold text-gold-foreground"
+                >
+                  See plans
+                </Link>
+              )}
             </div>
           ) : (
             <ul className="mt-4 space-y-3">

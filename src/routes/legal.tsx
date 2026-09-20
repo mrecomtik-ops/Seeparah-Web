@@ -100,10 +100,10 @@ export function LegalPage() {
               </li>
               <li>
                 <span className="font-semibold text-foreground">Google</span> — only if you choose
-                Google authentication, for that sign-in itself; and separately, Google's Gemini
-                service is used to process translation requests (manuscript text is sent for
-                translation processing — this doesn't include your personal reading activity,
-                highlights, or account information).
+                Google authentication, for that sign-in itself; and separately, manuscript text may
+                be sent to the configured translation provider (currently Google's Gemini) only
+                when translation processing is enabled and actually run for that manuscript — this
+                never includes your personal reading activity, highlights, or account information.
               </li>
               <li>
                 <span className="font-semibold text-foreground">
@@ -119,8 +119,11 @@ export function LegalPage() {
             <p>
               A small number of authorized staff can access account and content data to operate
               the service — reviewing submissions, responding to support and legal requests, and
-              moderating content. Every administrative action that changes data is logged with who
-              did it, when, and why; staff cannot grant themselves elevated access, and the admin
+              moderating content. Administrative actions that change data are designed to record
+              who did it, when, and why, as part of the same operation — we don't claim that
+              logging can never fail (for example, if the log write itself hits an infrastructure
+              problem), but a failure there is treated as an error to investigate, not something
+              silently accepted. Staff cannot grant themselves elevated access, and the admin
               system requires a second sign-in factor (MFA) in addition to a password or Google
               sign-in.
             </p>

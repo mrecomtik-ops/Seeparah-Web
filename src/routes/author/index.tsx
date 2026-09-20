@@ -96,7 +96,7 @@ function AuthorDashboard() {
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="text-sm font-medium text-muted-foreground">
-              {isDemo ? "Demo author studio" : "Author studio"}
+              {isDemo ? "Signed out — drafts stay on this device" : "Author studio"}
             </p>
             <h1 className="mt-1 font-display text-4xl font-semibold tracking-tight text-foreground">
               Where your book finds its readers
@@ -138,9 +138,8 @@ function AuthorDashboard() {
           <div className="rounded-2xl border border-border bg-card p-6 card-shadow">
             <p className="text-sm font-semibold text-foreground">Publishing is free right now</p>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              Seeparah is free for readers during launch — there's no checkout, no premium locks,
-              and nothing to pay out yet. Publishing, translation and hosting are free for authors
-              too. Earnings and payouts will show here once subscriptions are turned back on.
+              Seeparah is free for readers during launch — there's no checkout and no premium
+              locks. Publishing, translation and hosting are free for authors too.
             </p>
           </div>
           <div className="rounded-2xl border border-border bg-card p-6 card-shadow">

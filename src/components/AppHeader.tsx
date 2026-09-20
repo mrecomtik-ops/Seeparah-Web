@@ -1,22 +1,18 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import {
-  BookOpen,
-  Feather,
-  LayoutDashboard,
-  LineChart,
-  LogIn,
-  ShieldCheck,
-  User,
-} from "lucide-react";
+import { BookOpen, Feather, LayoutDashboard, LogIn, ShieldCheck, User } from "lucide-react";
 import logoUrl from "@/assets/seeparah-logo.png";
 import { useAuth } from "@/lib/use-auth";
 import { useAdminSession } from "@/lib/admin/use-admin-session";
 
+// No "Plans" nav entry — there's no active paid plan during the free
+// launch, so featuring it as primary navigation would overstate that
+// pricing is a live concern. /subscribe itself still exists and degrades
+// to an honest "nothing to subscribe to yet" state; it's reached only from
+// context (e.g. a paid book's own page), never top-level nav, while off.
 const NAV = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/library", label: "Library", icon: BookOpen },
   { to: "/author", label: "Author", icon: Feather },
-  { to: "/subscribe", label: "Plans", icon: LineChart },
   { to: "/profile", label: "Profile", icon: User },
 ] as const;
 

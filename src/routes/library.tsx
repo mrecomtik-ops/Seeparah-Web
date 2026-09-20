@@ -175,7 +175,7 @@ function LibraryPage() {
             <p className="text-sm font-medium text-muted-foreground">
               {isDemo ? (
                 <>
-                  Demo reader —{" "}
+                  Reading as a guest —{" "}
                   <Link
                     to="/auth"
                     search={{ redirect: "/library" }}

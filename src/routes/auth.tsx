@@ -231,7 +231,7 @@ function AuthPage() {
           to="/library"
           className="mt-5 block text-center text-sm font-semibold text-primary hover:underline"
         >
-          Try demo — read without an account
+          Continue without an account
         </Link>
       </div>
     </div>

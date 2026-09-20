@@ -94,6 +94,31 @@ describe("legal page", () => {
     cleanup();
   });
 
+  it("states the translation provider is used conditionally, not unconditionally — never claims Gemini 'is used' outright", () => {
+    render(<LegalPage />);
+    const text = document.body.textContent ?? "";
+    // The old wording said Gemini "is used to process translation
+    // requests" unconditionally — wrong while GEMINI_API_KEY may be unset
+    // and no translation processing is actually running. The corrected
+    // wording must condition it on translation processing actually being
+    // enabled and run, not assert it as a standing fact.
+    expect(text.toLowerCase()).not.toMatch(/gemini service is used to process/);
+    expect(text).toMatch(/only when translation processing is enabled/i);
+    cleanup();
+  });
+
+  it("does not claim audit logging is an unconditional guarantee — narrower, accurate language only", () => {
+    render(<LegalPage />);
+    const text = document.body.textContent ?? "";
+    // The old wording flatly asserted "every administrative action... is
+    // logged" as a guarantee. recordAudit() writes can fail (a real,
+    // uncaught-by-retry code path — see src/lib/admin/audit.server.ts),
+    // so the claim must be narrowed rather than absolute.
+    expect(text).not.toMatch(/every administrative action[^.]*\bis logged\b/i);
+    expect(text.toLowerCase()).toMatch(/we don't claim that logging can never fail/);
+    cleanup();
+  });
+
   it("submission forms and their success states never render an email-shaped address at all", () => {
     render(<LegalPage />);
     // Generic pattern, matches any email address — not the real recipient,
