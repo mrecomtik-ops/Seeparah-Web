@@ -1,10 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowRight, BookOpen, Feather, Globe2, Languages } from "lucide-react";
+import { ArrowRight, BookOpen, Feather, Globe2, Languages, User } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { listBooks } from "@/lib/library";
 import { pickFeaturedBook } from "@/lib/featured";
+import { useAuth } from "@/lib/use-auth";
 import logoUrl from "@/assets/seeparah-logo.png";
 import { coverFor } from "@/lib/covers";
 
@@ -27,9 +28,12 @@ export const Route = createFileRoute("/")({
   component: LandingPage,
 });
 
-function LandingPage() {
+// Exported (in addition to being wired as the route's component below) so
+// it can be rendered directly in tests without a full router harness.
+export function LandingPage() {
   const [googleBusy, setGoogleBusy] = useState(false);
   const [googleError, setGoogleError] = useState<string | null>(null);
+  const { isDemo, loading: authLoading, displayName } = useAuth();
   const booksQuery = useQuery({ queryKey: ["books"], queryFn: listBooks });
   const featured = pickFeaturedBook(booksQuery.data ?? []);
   const featuredCover = featured ? coverFor(featured.id, featured.cover_url) : null;
@@ -70,14 +74,29 @@ function LandingPage() {
               <p className="text-xs text-muted-foreground">Read world classics in your language</p>
             </div>
           </div>
-          <button
-            onClick={signInWithGoogle}
-            disabled={googleBusy}
-            className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-sm font-medium text-foreground card-shadow transition-colors hover:bg-secondary disabled:opacity-60"
-          >
-            <Globe2 className="h-4 w-4 text-primary" />
-            {googleBusy ? "Opening Google…" : "Sign in with Google"}
-          </button>
+          {authLoading ? (
+            <div
+              className="h-[38px] w-[150px] animate-pulse rounded-full bg-secondary"
+              aria-hidden="true"
+            />
+          ) : isDemo ? (
+            <button
+              onClick={signInWithGoogle}
+              disabled={googleBusy}
+              className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-sm font-medium text-foreground card-shadow transition-colors hover:bg-secondary disabled:opacity-60"
+            >
+              <Globe2 className="h-4 w-4 text-primary" />
+              {googleBusy ? "Opening Google…" : "Sign in with Google"}
+            </button>
+          ) : (
+            <Link
+              to="/profile"
+              className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-sm font-medium text-foreground card-shadow transition-colors hover:bg-secondary"
+            >
+              <User className="h-4 w-4 text-primary" />
+              {displayName}
+            </Link>
+          )}
         </header>
         {googleError && (
           <p className="mb-2 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
