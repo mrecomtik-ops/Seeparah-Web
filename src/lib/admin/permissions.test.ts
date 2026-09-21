@@ -30,6 +30,15 @@ describe("permission matrix", () => {
     expect(roleHasCapability("editor", "translation.requests.decide")).toBe(true);
   });
 
+  it("gates the 'Reply to requester' capability (support.tickets.public_reply) to owner/administrator/support only — never editor, never an unassigned role", () => {
+    expect(roleHasCapability("owner", "support.tickets.public_reply")).toBe(true);
+    expect(roleHasCapability("administrator", "support.tickets.public_reply")).toBe(true);
+    expect(roleHasCapability("support", "support.tickets.public_reply")).toBe(true);
+    expect(roleHasCapability("editor", "support.tickets.public_reply")).toBe(false);
+    expect(roleHasCapability(null, "support.tickets.public_reply")).toBe(false);
+    expect(roleHasCapability(undefined, "support.tickets.public_reply")).toBe(false);
+  });
+
   it("denies every capability to a null/unassigned role", () => {
     for (const role of [null, undefined] as const) {
       expect(capabilitiesFor(role)).toEqual([]);

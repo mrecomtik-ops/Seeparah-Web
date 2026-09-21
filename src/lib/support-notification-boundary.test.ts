@@ -45,4 +45,20 @@ describe("SUPPORT_NOTIFICATION_TO stays out of client-reachable code", () => {
     }
     expect(offenders).toEqual([]);
   });
+
+  it("sendTicketReplyEmail's own function body never references SUPPORT_NOTIFICATION_TO", () => {
+    // The requester-facing reply must never be able to leak the private
+    // inbox address, even indirectly. Isolate just this function's source
+    // (up to the next top-level export) rather than the whole file, so a
+    // future addition elsewhere in this file can't hide a violation here.
+    const content = readFileSync(
+      resolve(SRC_DIR, "lib/support-notification.server.ts"),
+      "utf8",
+    );
+    const start = content.indexOf("export async function sendTicketReplyEmail");
+    expect(start).toBeGreaterThan(-1);
+    const nextExport = content.indexOf("\nexport ", start + 1);
+    const fnBody = content.slice(start, nextExport === -1 ? undefined : nextExport);
+    expect(fnBody).not.toContain("SUPPORT_NOTIFICATION_TO");
+  });
 });

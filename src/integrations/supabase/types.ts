@@ -746,6 +746,7 @@ export type Database = {
           author_id: string | null
           body: string
           created_at: string
+          delivery_status: string
           id: string
           ticket_id: string
           visibility: string
@@ -754,6 +755,7 @@ export type Database = {
           author_id?: string | null
           body: string
           created_at?: string
+          delivery_status?: string
           id?: string
           ticket_id: string
           visibility?: string
@@ -762,6 +764,7 @@ export type Database = {
           author_id?: string | null
           body?: string
           created_at?: string
+          delivery_status?: string
           id?: string
           ticket_id?: string
           visibility?: string

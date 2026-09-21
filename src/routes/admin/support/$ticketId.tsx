@@ -8,6 +8,7 @@ import {
   adminGetTicket,
   adminSetTicketStatus,
   adminAddTicketNote,
+  adminReplyToTicket,
 } from "@/lib/admin/support.functions";
 
 export const Route = createFileRoute("/admin/support/$ticketId")({
@@ -88,10 +89,31 @@ function AdminTicketDetail() {
         data: { accessToken: await getAccessToken(), ticketId, body: note.trim(), visibility },
       });
       setNote("");
-      toast.success(visibility === "public" ? "Public reply sent" : "Internal note added");
+      toast.success(visibility === "public" ? "Public note added" : "Internal note added");
       await refresh();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Couldn't add the note");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function sendReply() {
+    if (!note.trim()) return;
+    setBusy(true);
+    try {
+      const result = await adminReplyToTicket({
+        data: { accessToken: await getAccessToken(), ticketId, body: note.trim() },
+      });
+      setNote("");
+      toast[result.delivered ? "success" : "error"](
+        result.delivered
+          ? "Reply sent to the requester"
+          : "Reply saved, but delivery failed — the requester was not emailed. Follow up manually.",
+      );
+      await refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Couldn't send the reply");
     } finally {
       setBusy(false);
     }
@@ -176,8 +198,18 @@ function AdminTicketDetail() {
               key={n.id}
               className={`rounded-xl border p-3 text-sm ${n.visibility === "public" ? "border-primary/30 bg-primary/5" : "border-border bg-card"}`}
             >
-              <p className="text-xs font-semibold text-muted-foreground">
-                {n.visibility === "public" ? "Public reply" : "Internal note"}
+              <p className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+                {n.visibility === "public" ? "Public note" : "Internal note"}
+                {n.delivery_status === "sent" && (
+                  <span className="rounded-full bg-accent px-2 py-0.5 text-[10px] font-semibold text-accent-foreground">
+                    Emailed to requester
+                  </span>
+                )}
+                {n.delivery_status === "failed" && (
+                  <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-semibold text-destructive">
+                    Email delivery failed
+                  </span>
+                )}
               </p>
               <p className="mt-1 text-foreground">{n.body}</p>
             </div>
@@ -192,7 +224,7 @@ function AdminTicketDetail() {
             placeholder="Write a note…"
             className="w-full rounded-xl border border-border bg-card px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
           />
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <label className="flex items-center gap-1.5 text-xs">
               <input
                 type="radio"
@@ -208,20 +240,36 @@ function AdminTicketDetail() {
                   checked={visibility === "public"}
                   onChange={() => setVisibility("public")}
                 />{" "}
-                Public reply
-                {ticket.is_anonymous
-                  ? " (visible only if this becomes a signed-in ticket)"
-                  : " (visible to the user)"}
+                Public note (visible to the user, not emailed)
               </label>
             )}
             <button
               onClick={addNote}
               disabled={busy || !note.trim()}
-              className="ml-auto rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-60"
+              className="ml-auto rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary disabled:opacity-60"
             >
-              Add
+              Add note
             </button>
+            {canReplyPublic && (
+              <button
+                onClick={sendReply}
+                disabled={busy || !note.trim() || !ticket.contact_email}
+                title={
+                  ticket.contact_email
+                    ? "Sends an email to the requester's reply address and records it here"
+                    : "This ticket has no reply email on file"
+                }
+                className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-60"
+              >
+                Reply to requester
+              </button>
+            )}
           </div>
+          {canReplyPublic && !ticket.contact_email && (
+            <p className="text-xs text-muted-foreground">
+              No reply email on file for this ticket — "Reply to requester" is unavailable.
+            </p>
+          )}
         </div>
       </section>
     </div>

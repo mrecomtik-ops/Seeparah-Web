@@ -11,7 +11,7 @@ import {
   isSameOriginRequest,
 } from "@/lib/support-request-guard.server";
 import { generateReferenceCode } from "@/lib/reference-code.server";
-import { sendSupportNotificationEmail } from "@/lib/support-notification.server";
+import { sendSupportNotificationEmail, sendTicketReplyEmail } from "@/lib/support-notification.server";
 import { SUPPORT_REQUEST_SCHEMA, COPYRIGHT_REQUEST_SCHEMA } from "@/lib/support-request-schemas";
 
 const withToken = <T extends z.ZodRawShape>(shape: T) =>
@@ -313,4 +313,60 @@ export const adminAddTicketNote = createServerFn({ method: "POST" })
       entityId: data.ticketId,
     });
     return note;
+  });
+
+/**
+ * "Reply to requester" — sends a real email to the ticket's own stored,
+ * validated contact_email (never a client-supplied address), records the
+ * reply as a public note with its actual delivery outcome, and never
+ * returns the requester's address or any part of the raw Resend response
+ * to the caller. Same capability as a public note reply
+ * (support.tickets.public_reply — owner/administrator/support), which
+ * already requires MFA (aal2) inside requireAdmin.
+ */
+export const adminReplyToTicket = createServerFn({ method: "POST" })
+  .inputValidator((data) =>
+    withToken({
+      ticketId: z.string(),
+      body: z.string().min(1).max(5000),
+    }).parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { userId, role } = await requireAdmin(data.accessToken, "support.tickets.public_reply");
+    const { replyToTicket } = await import("@/lib/admin/support.server");
+    let delivered: boolean;
+    try {
+      const result = await replyToTicket({
+        ticketId: data.ticketId,
+        authorId: userId,
+        body: data.body,
+        notify: (contactEmail, referenceCode, subject) =>
+          sendTicketReplyEmail({ to: contactEmail, referenceCode, subject, body: data.body }),
+      });
+      delivered = result.delivered;
+    } catch (error) {
+      await recordAudit({
+        actorId: userId,
+        actorRole: role,
+        action: "ticket.reply_failed",
+        entityType: "support_ticket",
+        entityId: data.ticketId,
+      });
+      // Generic client-facing error — never the underlying DB/validation
+      // detail, which could otherwise hint at internal state.
+      throw new Error(
+        error instanceof Error && error.message.includes("no reply email")
+          ? "This ticket has no reply email on file."
+          : "Couldn't send the reply — try again in a moment.",
+      );
+    }
+    await recordAudit({
+      actorId: userId,
+      actorRole: role,
+      action: "ticket.reply",
+      entityType: "support_ticket",
+      entityId: data.ticketId,
+      after: { delivered },
+    });
+    return { ok: true as const, delivered };
   });

@@ -98,6 +98,79 @@ export async function sendSupportNotificationEmail(
   }
 }
 
+export interface TicketReplyInput {
+  /** The ticket's own stored, validated reply address — the ONLY value
+   * this ever sends to. There is no other field on this interface a
+   * caller could use to redirect delivery; that's deliberate, not an
+   * oversight — see replyToTicket() in support.server.ts, the only
+   * intended caller, which reads this from the database row itself. */
+  to: string;
+  referenceCode: string;
+  subject: string;
+  body: string;
+}
+
+/**
+ * The admin "Reply to requester" send. Distinct from
+ * sendSupportNotificationEmail above (which goes to the private internal
+ * inbox) — this one goes TO the requester and must never mention or leak
+ * SUPPORT_NOTIFICATION_TO anywhere in it. No reply_to is set: replies from
+ * the requester's side default to SUPPORT_NOTIFICATION_FROM (a monitored
+ * sender address), never to the private inbox. Same logging discipline as
+ * sendSupportNotificationEmail — never logs the message body, any
+ * address, or the raw Resend response.
+ */
+export async function sendTicketReplyEmail(input: TicketReplyInput): Promise<boolean> {
+  const apiKey = process.env["RESEND_API_KEY"];
+  const from = process.env["SUPPORT_NOTIFICATION_FROM"];
+  if (!apiKey || !from) {
+    console.error(`[support-notification] reply not configured — skipping send for ${input.referenceCode}`);
+    return false;
+  }
+
+  const to = normalizeReplyEmail(input.to);
+  if (!to) {
+    console.error(`[support-notification] reply has no valid recipient for ${input.referenceCode}`);
+    return false;
+  }
+
+  const safeReference = escapeHtml(input.referenceCode);
+  const safeSubject = escapeHtml(input.subject).slice(0, 500);
+  const safeBody = escapeHtml(input.body).slice(0, 5000).replace(/\n/g, "<br>");
+
+  const html = `<div>
+<p>Re: ${safeSubject} (${safeReference})</p>
+<p>${safeBody}</p>
+</div>`;
+
+  const text = `Re: ${input.subject} (${input.referenceCode})\n\n${input.body}`;
+
+  try {
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from,
+        to: [to],
+        subject: `[Seeparah] Re: ${input.subject} (${input.referenceCode})`,
+        html,
+        text,
+      }),
+    });
+    if (!response.ok) {
+      console.error(`[support-notification] reply send failed (status ${response.status}) for ${input.referenceCode}`);
+      return false;
+    }
+    return true;
+  } catch {
+    console.error(`[support-notification] reply send threw for ${input.referenceCode}`);
+    return false;
+  }
+}
+
 /** A strict, conservative email check — reply_to must never carry anything
  * that could smuggle extra headers or malformed data into the provider
  * call. Rejects (returns undefined) rather than best-effort-sanitizing. */

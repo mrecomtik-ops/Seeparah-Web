@@ -241,6 +241,7 @@ export async function addTicketNote(params: {
   authorId: string;
   body: string;
   visibility: "internal" | "public";
+  deliveryStatus?: "sent" | "failed" | "not_applicable" | undefined;
 }) {
   const db = await admin();
   const { data, error } = await db
@@ -250,6 +251,7 @@ export async function addTicketNote(params: {
       author_id: params.authorId,
       body: params.body.slice(0, 5000),
       visibility: params.visibility,
+      delivery_status: params.deliveryStatus ?? "not_applicable",
     })
     .select()
     .single();
@@ -259,4 +261,72 @@ export async function addTicketNote(params: {
     .update({ updated_at: new Date().toISOString() })
     .eq("id", params.ticketId);
   return data;
+}
+
+/** Just enough of a ticket to send a reply to it, without also pulling
+ * every note (getTicket does that; not needed here). The reply-email
+ * address returned here — contact_email — is the ONLY source a reply can
+ * ever be sent to: it's the value the requester themselves submitted and
+ * that Zod validated at submission time (see support-request-schemas.ts),
+ * read straight from the stored row, never accepted as a parameter from
+ * whoever is sending the reply. */
+export async function getTicketContactInfo(
+  ticketId: string,
+): Promise<{ id: string; contactEmail: string | null; referenceCode: string | null; subject: string }> {
+  const db = await admin();
+  const { data, error } = await db
+    .from("support_tickets")
+    .select("id, contact_email, reference_code, subject")
+    .eq("id", ticketId)
+    .single();
+  if (error || !data) throw new Error("Ticket not found");
+  return {
+    id: data.id,
+    contactEmail: data.contact_email,
+    referenceCode: data.reference_code,
+    subject: data.subject,
+  };
+}
+
+/**
+ * The full "reply to requester" sequence: look up the ticket's own stored,
+ * validated contact email (never anything the caller supplies), send via
+ * the injected notifier, then record the attempt as a public note with its
+ * real delivery outcome. Mirrors submitTicketAndNotify's own "store first,
+ * notify best-effort, record the outcome" shape, adapted for a reply: here
+ * the note itself IS the thing being recorded, so on a notifier failure
+ * the note is still written (delivery_status='failed') rather than
+ * skipped — the admin's reply text is never lost even if delivery fails.
+ */
+export async function replyToTicket(params: {
+  ticketId: string;
+  authorId: string;
+  body: string;
+  notify: (contactEmail: string, referenceCode: string, subject: string) => Promise<boolean>;
+}): Promise<{ delivered: boolean }> {
+  const ticket = await getTicketContactInfo(params.ticketId);
+  if (!ticket.contactEmail) {
+    throw new Error("This ticket has no reply email on file");
+  }
+
+  let delivered = false;
+  try {
+    delivered = await params.notify(
+      ticket.contactEmail,
+      ticket.referenceCode ?? ticket.id,
+      ticket.subject,
+    );
+  } catch {
+    delivered = false;
+  }
+
+  await addTicketNote({
+    ticketId: params.ticketId,
+    authorId: params.authorId,
+    body: params.body,
+    visibility: "public",
+    deliveryStatus: delivered ? "sent" : "failed",
+  });
+
+  return { delivered };
 }
