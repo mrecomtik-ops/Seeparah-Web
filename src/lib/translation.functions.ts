@@ -53,6 +53,18 @@ export const cancelTranslationJob = createServerFn({ method: "POST" })
     return run(data.jobId, userId);
   });
 
+/** Public, no auth required — same trust level as a book's own
+ * available_languages (already public). Used by the book-detail and reader
+ * pages to show "translation in progress" instead of a flat "not
+ * available" for a language that already has an active job, without ever
+ * implying it's readable yet. */
+export const getBookTranslationLanguageStatus = createServerFn({ method: "GET" })
+  .inputValidator((data) => z.object({ bookId: z.string() }).parse(data))
+  .handler(async ({ data }) => {
+    const { getBookTranslationLanguageStatus: run } = await import("@/lib/translation.server");
+    return run(data.bookId);
+  });
+
 export const getBookTranslationStatus = createServerFn({ method: "POST" })
   .inputValidator((data) => withToken({ bookId: z.string() }).parse(data))
   .handler(async ({ data }) => {

@@ -96,11 +96,19 @@ function LibraryPage() {
   const books = booksQuery.data ?? [];
   const shelves = shelvesQuery.data ?? [];
 
+  // Keeps the language of the winning (highest-chunk) row alongside the
+  // index — a book can have saved progress in more than one language, and
+  // "Continue reading" must resend the reader to the language that
+  // progress actually belongs to, not always the book's source language
+  // or the device's generic language preference. See BookCard's
+  // progressLanguage prop and the featured-card Link below.
   const progressByBook = useMemo(() => {
-    const map = new Map<string, number>();
+    const map = new Map<string, { lastChunkIndex: number; language: string }>();
     for (const p of progressQuery.data ?? []) {
-      const prev = map.get(p.book_id) ?? -1;
-      if (p.last_chunk_index > prev) map.set(p.book_id, p.last_chunk_index);
+      const prev = map.get(p.book_id);
+      if (!prev || p.last_chunk_index > prev.lastChunkIndex) {
+        map.set(p.book_id, { lastChunkIndex: p.last_chunk_index, language: p.language });
+      }
     }
     return map;
   }, [progressQuery.data]);
@@ -118,7 +126,9 @@ function LibraryPage() {
     switch (tab) {
       case "continue":
         return books.filter(
-          (b) => progressByBook.has(b.id) && (progressByBook.get(b.id) ?? 0) + 1 < b.total_chunks,
+          (b) =>
+            progressByBook.has(b.id) &&
+            (progressByBook.get(b.id)?.lastChunkIndex ?? 0) + 1 < b.total_chunks,
         );
       case "history":
         return books.filter((b) => progressByBook.has(b.id));
@@ -155,11 +165,13 @@ function LibraryPage() {
   const featured: Book | undefined = books.find((b) => b.id === FEATURED_BOOK_ID) ?? books[0];
   const featuredIsSample = featured ? SAMPLE_EXCERPT_BOOK_IDS.has(featured.id) : false;
   const featuredIsDemo = featured ? DEMO_MANUSCRIPT_BOOK_IDS.has(featured.id) : false;
-  const pagesRead = [...progressByBook.values()].reduce((a, b) => a + b + 1, 0);
+  const pagesRead = [...progressByBook.values()].reduce((a, p) => a + p.lastChunkIndex + 1, 0);
   const counts: Record<TabKey, number> = {
     all: books.length,
     continue: books.filter(
-      (b) => progressByBook.has(b.id) && (progressByBook.get(b.id) ?? 0) + 1 < b.total_chunks,
+      (b) =>
+        progressByBook.has(b.id) &&
+        (progressByBook.get(b.id)?.lastChunkIndex ?? 0) + 1 < b.total_chunks,
     ).length,
     history: progressByBook.size,
     saved: shelfIds("saved").size,
@@ -234,7 +246,7 @@ function LibraryPage() {
                 <Link
                   to="/read/$bookId"
                   params={{ bookId: featured.id }}
-                  search={{ lang: featured.source_language }}
+                  search={{ lang: progressByBook.get(featured.id)?.language ?? featured.source_language }}
                   className="mt-6 inline-flex items-center gap-2 rounded-xl bg-accent px-5 py-3 text-sm font-semibold text-accent-foreground transition-transform hover:-translate-y-0.5"
                 >
                   {progressByBook.has(featured.id) ? "Continue reading" : "Start reading"}
@@ -380,8 +392,9 @@ function LibraryPage() {
                 <BookCard
                   key={b.id}
                   book={b}
-                  progress={progressByBook.get(b.id) ?? null}
+                  progress={progressByBook.get(b.id)?.lastChunkIndex ?? null}
                   preferredLanguage={lang}
+                  progressLanguage={progressByBook.get(b.id)?.language ?? null}
                   monetizationEnabled={monetizationEnabled}
                 />
               ))}

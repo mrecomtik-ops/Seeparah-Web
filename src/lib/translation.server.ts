@@ -615,6 +615,26 @@ export async function saveTranslationGuide(params: {
   return { ok: true as const };
 }
 
+// Public, reader-facing: which languages currently have an in-progress
+// translation job for this book, so the UI can distinguish "already being
+// worked on" from "not yet requested" — never implying either is readable
+// (only a published book_editions row means that). Deliberately returns
+// only {language, inProgress}, nothing else from the job row (no ids,
+// timestamps, attempts, errors) — this is meant to be safe to call with no
+// auth, unlike getBookTranslationStatus below which is author-only.
+export async function getBookTranslationLanguageStatus(bookId: string) {
+  const db = await admin();
+  const { data: jobs, error } = await db
+    .from("book_translation_jobs")
+    .select("language, status")
+    .eq("book_id", bookId);
+  if (error) throw new Error(error.message);
+  const inProgressStatuses = new Set(["pending", "processing", "awaiting_review"]);
+  return (jobs ?? [])
+    .filter((j) => inProgressStatuses.has(j.status))
+    .map((j) => ({ language: j.language as string }));
+}
+
 export async function getBookTranslationStatus(bookId: string, requesterId: string) {
   const db = await admin();
   const { data: book } = await db.from("books").select("author_id").eq("id", bookId).single();

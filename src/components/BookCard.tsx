@@ -11,6 +11,7 @@ export function BookCard({
   progress,
   withShelves = true,
   preferredLanguage,
+  progressLanguage,
   monetizationEnabled = false,
 }: {
   book: Book;
@@ -21,6 +22,14 @@ export function BookCard({
    * source language, so a book always opens in a language the reader
    * actually chose rather than always defaulting to the original. */
   preferredLanguage?: string | null;
+  /** The language this book's SAVED READING PROGRESS is actually keyed
+   * under (from the caller's progress-by-book map), if any. Takes
+   * priority over preferredLanguage/the device's generic language
+   * preference — a "Continue reading" link must reopen the same
+   * (book, language) the reader was actually reading, or the reader route's
+   * saved-progress lookup won't find a matching row and silently restarts
+   * at page 1. See src/routes/read.$bookId.tsx's seeding effect. */
+  progressLanguage?: string | null;
   /** Defaults to false — during free launch there is no paid tier, so a
    * "Premium" badge must never render unless the caller has confirmed
    * monetization is actually on (see content_settings.monetization_enabled).
@@ -36,6 +45,7 @@ export function BookCard({
       : null;
   const savedLanguage = getPrefs().language;
   const openLanguage =
+    (progressLanguage && book.available_languages.includes(progressLanguage) && progressLanguage) ||
     (preferredLanguage && book.available_languages.includes(preferredLanguage) && preferredLanguage) ||
     (book.available_languages.includes(savedLanguage) && savedLanguage) ||
     book.source_language;

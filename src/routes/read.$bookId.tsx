@@ -109,6 +109,23 @@ function ReaderPage() {
   const [lineHeight, setLineHeight] = useState(prefs.lineHeight);
   const [theme, setTheme] = useState<ReaderTheme>(prefs.theme);
 
+  // Dark/sepia are scoped CSS classes (.dark/.sepia in src/styles.css) —
+  // applying THEME_CLASS only to this route's own wrapper div left the
+  // real page canvas (document.body, painted behind/around that div —
+  // visible at overscroll edges and anywhere the wrapper doesn't fully
+  // cover) permanently light. Mirroring the same class onto <body> while
+  // this route is mounted keeps the whole reading surface — not just the
+  // text card and toolbar — coherent, and nothing else in the app uses
+  // these tokens (confirmed: no other route references .dark/.sepia), so
+  // this can't leak an unwanted theme onto any other page.
+  useEffect(() => {
+    const themeClass = THEME_CLASS[theme];
+    if (themeClass) document.body.classList.add(themeClass);
+    return () => {
+      if (themeClass) document.body.classList.remove(themeClass);
+    };
+  }, [theme]);
+
   const seededBookRef = useRef<string | null>(null);
 
   const progressQuery = useQuery({
@@ -155,33 +172,39 @@ function ReaderPage() {
     (myTranslationRequestsQuery.data ?? []).map((r) => [r.language as string, r]),
   );
 
-  // Seed the starting page exactly once per book, from whichever language
-  // is active at that moment (URL param, else preferred language, else the
-  // book's source language). After that, index is only ever changed by
-  // explicit navigation — a later language switch never re-seeds it, so the
-  // same passage stays open across languages where alignment is available.
+  // Seed the starting page exactly once per (book, signed-in identity),
+  // from whichever language is active at that moment (URL param, else
+  // preferred language, else the book's source language). After that,
+  // index is only ever changed by explicit navigation — a later language
+  // switch never re-seeds it, so the same passage stays open across
+  // languages where alignment is available. Keyed on userId as well as
+  // bookId so a sign-in partway through a demo session (progressQuery
+  // refetching with the reader's real cross-device history) re-seeds from
+  // that real data instead of staying stuck at wherever the signed-out
+  // view had already landed.
+  const seedKey = `${bookId}:${userId}`;
   useEffect(() => {
     if (!book || !progressQuery.data) return;
-    if (seededBookRef.current === bookId) return;
+    if (seededBookRef.current === seedKey) return;
     const saved = progressQuery.data.find((p) => p.book_id === bookId && p.language === language);
     setIndex(saved ? Math.min(saved.last_chunk_index, book.total_chunks - 1) : 0);
-    seededBookRef.current = bookId;
-  }, [book, progressQuery.data, bookId, language]);
+    seededBookRef.current = seedKey;
+  }, [book, progressQuery.data, bookId, language, seedKey]);
 
   const chunkQuery = useQuery({
     queryKey: ["reader-chunk", bookId, language, index],
     queryFn: () => getReaderChunk(bookId, language, index),
-    enabled: !!book && seededBookRef.current === bookId,
+    enabled: !!book && seededBookRef.current === seedKey,
   });
 
   // Autosave on every navigation and every language switch, once the
   // initial position has been seeded (so this never overwrites a just-
   // loaded saved position with the default page).
   useEffect(() => {
-    if (seededBookRef.current !== bookId) return;
+    if (seededBookRef.current !== seedKey) return;
     void persist(index, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [index, language, bookId]);
+  }, [index, language, seedKey]);
 
   const rtl = RTL_LANGUAGES.has(language);
   const isUrdu = language === "Urdu";
@@ -254,9 +277,13 @@ function ReaderPage() {
     toast.success("Passage saved to your highlights");
   }
 
+  const isOriginalLanguage = book ? language === book.source_language : true;
+
   async function handleReportIssue() {
     const reason = window.prompt(
-      `What's wrong with this ${language} page? A quick note helps us fix it.`,
+      isOriginalLanguage
+        ? "What's wrong with this page? Report a typo, formatting problem, or extraction artifact — a quick note helps us fix it."
+        : `What's wrong with this ${language} translation? A quick note helps us fix it.`,
     );
     if (!reason || !reason.trim()) return;
     try {
@@ -579,7 +606,8 @@ function ReaderPage() {
                 onClick={handleReportIssue}
                 className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground"
               >
-                <Flag className="h-3.5 w-3.5" /> Report translation issue
+                <Flag className="h-3.5 w-3.5" />{" "}
+                {isOriginalLanguage ? "Report a problem with this page" : "Report translation issue"}
               </button>
             </div>
           </>

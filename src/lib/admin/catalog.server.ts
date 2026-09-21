@@ -98,6 +98,49 @@ export async function evaluatePublishGate(
   return computePublishGate(book, reviewedLanguages);
 }
 
+const PLACEHOLDER_RIGHTS_TEXT = new Set([
+  "n/a",
+  "na",
+  "none",
+  "tbd",
+  "todo",
+  "test",
+  "testing",
+  "xx",
+  "xxx",
+  "asdf",
+  "placeholder",
+  "unknown",
+]);
+
+/** True when `value` cannot possibly be a real rights statement — too
+ * short, an all-repeated-character string ("hh", "xxxx"), or a known
+ * placeholder token. This is a floor, not a substitute for a human
+ * actually reading the evidence: it exists so a single stray character (or
+ * two, as happened with this exact book) can never alone satisfy rights
+ * review, which was previously enforced by nothing beyond
+ * `z.string().min(1)` at submission time and zero content check at
+ * approval time. */
+export function isPlaceholderRightsText(value: string | null | undefined): boolean {
+  const trimmed = (value ?? "").trim();
+  if (trimmed.length < 20) return true;
+  if (/^(.)\1*$/.test(trimmed)) return true;
+  if (PLACEHOLDER_RIGHTS_TEXT.has(trimmed.toLowerCase())) return true;
+  if (/lorem ipsum/i.test(trimmed)) return true;
+  return false;
+}
+
+function isPlausibleEvidenceUrl(value: string | null | undefined): boolean {
+  const trimmed = (value ?? "").trim();
+  if (!trimmed) return false;
+  try {
+    const url = new URL(trimmed);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 export async function reviewRights(params: {
   bookId: string;
   decision: "approved" | "rejected";
@@ -107,9 +150,21 @@ export async function reviewRights(params: {
   const db = await admin();
   const { data: before } = await db
     .from("books")
-    .select("rights_status, edition_review_status, status")
+    .select("rights_status, edition_review_status, status, rights_basis, rights_evidence_url")
     .eq("id", params.bookId)
     .single();
+  if (params.decision === "approved") {
+    if (isPlaceholderRightsText(before?.rights_basis)) {
+      throw new Error(
+        "Rights basis reads like a placeholder, not a real rights statement — enter what actually establishes permission (public-domain status of THIS edition, or a license/permission reference) before approving.",
+      );
+    }
+    if (!isPlausibleEvidenceUrl(before?.rights_evidence_url)) {
+      throw new Error(
+        "Rights evidence URL is missing or not a real link — approval requires a link to the actual documentation, not just a basis statement.",
+      );
+    }
+  }
   const bothApproved =
     params.decision === "approved" && before?.edition_review_status === "approved";
   const statusPatch =

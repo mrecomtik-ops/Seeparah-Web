@@ -5,8 +5,14 @@ import { getBook } from "@/lib/library";
 import { coverFor } from "@/lib/covers";
 import { getPrefs } from "@/lib/prefs";
 import { ShelfButtons } from "@/components/ShelfButtons";
-import { SAMPLE_EXCERPT_BOOK_IDS, DEMO_MANUSCRIPT_BOOK_IDS, TRANSLATION_EXPLAINER_SHORT } from "@/lib/data";
+import {
+  SAMPLE_EXCERPT_BOOK_IDS,
+  DEMO_MANUSCRIPT_BOOK_IDS,
+  TRANSLATION_EXPLAINER_SHORT,
+  REQUESTABLE_TRANSLATION_LANGUAGES,
+} from "@/lib/data";
 import { getPublicContentSettings } from "@/lib/admin/settings.functions";
+import { getBookTranslationLanguageStatus } from "@/lib/translation.functions";
 
 export const Route = createFileRoute("/book/$bookId")({
   head: () => ({
@@ -24,6 +30,10 @@ function BookDetailPage() {
   const settingsQuery = useQuery({
     queryKey: ["public-content-settings"],
     queryFn: () => getPublicContentSettings(),
+  });
+  const translationStatusQuery = useQuery({
+    queryKey: ["translation-language-status", bookId],
+    queryFn: () => getBookTranslationLanguageStatus({ data: { bookId } }),
   });
   const monetizationEnabled = settingsQuery.data?.["monetization_enabled"] === true;
   const book = bookQuery.data;
@@ -137,7 +147,7 @@ function BookDetailPage() {
 
             <div className="mt-6">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Available editions
+                Editions
               </p>
               <div className="mt-2 flex flex-wrap gap-2">
                 {book.available_languages.map((l) => (
@@ -145,7 +155,30 @@ function BookDetailPage() {
                     key={l}
                     className="rounded-full bg-accent px-3 py-1 text-xs font-medium text-accent-foreground"
                   >
-                    {l}
+                    {l} · published
+                  </span>
+                ))}
+                {(translationStatusQuery.data ?? [])
+                  .filter((s) => !book.available_languages.includes(s.language))
+                  .map((s) => (
+                    <span
+                      key={s.language}
+                      className="rounded-full border border-dashed border-border px-3 py-1 text-xs font-medium text-muted-foreground"
+                    >
+                      {s.language} · translation in progress
+                    </span>
+                  ))}
+                {REQUESTABLE_TRANSLATION_LANGUAGES.filter(
+                  (l) =>
+                    !book.available_languages.includes(l) &&
+                    l !== book.source_language &&
+                    !(translationStatusQuery.data ?? []).some((s) => s.language === l),
+                ).map((l) => (
+                  <span
+                    key={l}
+                    className="rounded-full border border-dashed border-border px-3 py-1 text-xs font-medium text-muted-foreground"
+                  >
+                    {l} · available on request
                   </span>
                 ))}
               </div>
