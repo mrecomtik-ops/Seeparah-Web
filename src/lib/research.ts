@@ -106,7 +106,11 @@ export function matchesPaperSearch(
 }
 
 // ---------------------------------------------------------------------------
-// Public — published papers only (RLS: is_current = true and withdrawn = false)
+// Public — published papers only (RLS: research_papers.published_version_id
+// points at this exact row AND research_papers.status = 'published' — see
+// migration 0014's "PUBLIC VISIBILITY DESIGN" note for why visibility is
+// derived from that single pointer+status pair rather than a flag on this
+// table itself).
 // ---------------------------------------------------------------------------
 export async function listPublishedPapers(): Promise<ResearchPaperVersion[]> {
   const { data, error } = await supabase

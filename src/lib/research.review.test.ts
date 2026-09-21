@@ -143,45 +143,45 @@ describe("publishPaperVersion — versioning and immutability", () => {
     expect(mock.insertSpy).not.toHaveBeenCalled();
   });
 
-  it("creates version 1 with no prior versions, and never supersedes anything", async () => {
+  it("creates version 1 with no prior versions — no supersede step exists anymore", async () => {
     mock = makeMockSupabase([
       { data: { status: "approved", ...snapshot }, error: null }, // paper read
       { data: [], error: null }, // existing versions (none)
-      { data: null, error: null }, // supersede update (no-op, zero rows matched)
       { data: { id: "v1" }, error: null }, // insert new version
-      { data: null, error: null }, // update research_papers
+      { data: { id: "p1" }, error: null }, // pointer update (CAS match)
     ]);
     const result = await publishPaperVersion({ paperId: "p1", publisherId: "admin-1" });
     expect(result).toEqual({ versionId: "v1", version: 1 });
     const insertPayload = mock.insertSpy.mock.calls[0]![0] as Record<string, unknown>;
     expect(insertPayload["version"]).toBe(1);
     expect(insertPayload["paper_id"]).toBe("p1");
+    // Only 2 tables are ever touched: research_papers (read + final update)
+    // and research_paper_versions (read-highest-version + insert) — no
+    // third "supersede" update to research_paper_versions.
+    expect(mock.updateSpy).toHaveBeenCalledTimes(1);
   });
 
-  it("supersedes the prior current version before inserting version 2 — never two is_current rows", async () => {
+  it("increments to version 2 with a prior version, without touching that prior row at all", async () => {
     mock = makeMockSupabase([
       { data: { status: "approved", ...snapshot }, error: null },
-      { data: [{ id: "v1", version: 1 }], error: null },
-      { data: null, error: null }, // supersede
+      { data: [{ version: 1 }], error: null },
       { data: { id: "v2" }, error: null },
-      { data: null, error: null },
+      { data: { id: "p1" }, error: null },
     ]);
     const result = await publishPaperVersion({ paperId: "p1", publisherId: "admin-1" });
     expect(result.version).toBe(2);
-    // The supersede update ran before the insert (call order in updateSpy vs insertSpy
-    // reflects the awaited sequence in publishPaperVersion).
-    expect(mock.updateSpy.mock.invocationCallOrder[0]).toBeLessThan(
-      mock.insertSpy.mock.invocationCallOrder[0]!,
-    );
+    // The only update in the whole call is the final research_papers
+    // pointer move — the old version row is never written to; it becomes
+    // invisible purely because the pointer no longer names it.
+    expect(mock.updateSpy).toHaveBeenCalledTimes(1);
   });
 
-  it("sets research_papers.status to published and points published_version_id at the new snapshot", async () => {
+  it("sets research_papers.status to published and points published_version_id at the new snapshot, guarded by a compare-and-swap on status='approved'", async () => {
     mock = makeMockSupabase([
       { data: { status: "approved", ...snapshot }, error: null },
       { data: [], error: null },
-      { data: null, error: null },
       { data: { id: "v1" }, error: null },
-      { data: null, error: null },
+      { data: { id: "p1" }, error: null },
     ]);
     await publishPaperVersion({ paperId: "p1", publisherId: "admin-1" });
     const finalUpdate = mock.updateSpy.mock.calls[mock.updateSpy.mock.calls.length - 1]![0] as Record<
@@ -189,6 +189,18 @@ describe("publishPaperVersion — versioning and immutability", () => {
       unknown
     >;
     expect(finalUpdate).toEqual({ status: "published", published_version_id: "v1" });
+  });
+
+  it("refuses (does not silently succeed) when a concurrent action already changed the paper's status before the pointer update could run", async () => {
+    mock = makeMockSupabase([
+      { data: { status: "approved", ...snapshot }, error: null },
+      { data: [], error: null },
+      { data: { id: "v1" }, error: null },
+      { data: null, error: null }, // CAS matched zero rows — status already changed
+    ]);
+    await expect(publishPaperVersion({ paperId: "p1", publisherId: "admin-1" })).rejects.toThrow(
+      /concurrent action/i,
+    );
   });
 });
 
@@ -202,21 +214,40 @@ describe("withdrawPublishedPaper", () => {
     ).rejects.toThrow(/no published version/i);
   });
 
-  it("marks the current version withdrawn (with reason) and moves the paper to unpublished", async () => {
+  it("refuses to withdraw a paper whose status isn't currently 'published', even with a stale pointer", async () => {
+    mock = makeMockSupabase([
+      { data: { status: "unpublished", published_version_id: "v1" }, error: null },
+    ]);
+    await expect(
+      withdrawPublishedPaper({ paperId: "p1", actorId: "admin-1", reason: "test" }),
+    ).rejects.toThrow(/no published version/i);
+  });
+
+  it("cuts off visibility FIRST (the research_papers status update), then marks the version row's audit fields", async () => {
     mock = makeMockSupabase([
       { data: { status: "published", published_version_id: "v1" }, error: null },
-      { data: null, error: null }, // version withdrawn update
-      { data: null, error: null }, // paper status update
+      { data: { id: "p1" }, error: null }, // paper status update (CAS match) — runs first
+      { data: null, error: null }, // version withdrawn-audit update — runs second
     ]);
     await withdrawPublishedPaper({
       paperId: "p1",
       actorId: "admin-1",
       reason: "Factual correction needed",
     });
-    const versionPayload = mock.updateSpy.mock.calls[0]![0] as Record<string, unknown>;
+    const paperPayload = mock.updateSpy.mock.calls[0]![0] as Record<string, unknown>;
+    expect(paperPayload["status"]).toBe("unpublished");
+    const versionPayload = mock.updateSpy.mock.calls[1]![0] as Record<string, unknown>;
     expect(versionPayload["withdrawn"]).toBe(true);
     expect(versionPayload["withdrawn_reason"]).toBe("Factual correction needed");
-    const paperPayload = mock.updateSpy.mock.calls[1]![0] as Record<string, unknown>;
-    expect(paperPayload["status"]).toBe("unpublished");
+  });
+
+  it("refuses when a concurrent action already changed the paper's status before this could complete", async () => {
+    mock = makeMockSupabase([
+      { data: { status: "published", published_version_id: "v1" }, error: null },
+      { data: null, error: null }, // CAS matched zero rows
+    ]);
+    await expect(
+      withdrawPublishedPaper({ paperId: "p1", actorId: "admin-1", reason: "test" }),
+    ).rejects.toThrow(/concurrent action/i);
   });
 });

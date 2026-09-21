@@ -27,20 +27,9 @@
 --     (0005/0007), for the same reasons (accountable review, no
 --     self-publication).
 --   * research_paper_versions — an IMMUTABLE snapshot taken at the moment
---     an admin publishes a version. Readers only ever read from here, via
---     `research_papers.published_version_id` pointing at whichever
---     version row is current. This is the same principle as book_chunks'
---     new pending_content staging column from migration 0013 — applied at
---     whole-document granularity instead of per-chunk — so a reader never
---     sees an in-review edit, and "the previously approved version
---     remains stable" is true by construction: publishing a NEW version
---     never modifies the old snapshot row, it only creates a new one and
---     repoints published_version_id. Withdrawal sets `withdrawn` on the
---     live snapshot and clears the pointer — the paper disappears from
---     public view, nothing is deleted, and the full version history
---     (including every past snapshot) stays in the table as the audit
---     trail, on top of the standard audit_log entries every admin action
---     here also writes via recordAudit().
+--     an admin publishes a version. Readers only ever read from here.
+--     Publishing/withdrawal design is covered in its own section below —
+--     see "PUBLIC VISIBILITY DESIGN".
 --
 -- HONESTY CONSTRAINTS (product rule, enforced by omission, not by a
 -- column): there is no `doi`, `journal`, `peer_reviewed`, or `indexed`
@@ -62,6 +51,56 @@
 -- research_papers (and research_paper_versions, its own dependent) are
 -- created first; category_suggestions — the one table with a forward
 -- reference — now comes last.
+--
+-- DRAFT COMPLETENESS (caught during a second review round, also before
+-- this ever ran): the original draft's NOT NULL + CHECK constraints on
+-- title/abstract/references_text/rights_declaration/author_name, and the
+-- has-content constraint, were UNCONDITIONAL — they would have refused to
+-- save a genuinely incomplete draft (e.g. just a title, nothing else)
+-- even though the whole point of 'draft' status is that it's allowed to
+-- be incomplete, and src/lib/research.ts's firstSubmissionProblem()
+-- already implements exactly this distinction at the application layer
+-- (permissive for a draft save, strict for a submission). Every one of
+-- these constraints below is now conditional on status: `status = 'draft'
+-- or <the real requirement>` — a draft can leave any of them empty; every
+-- other status (submitted and beyond) requires them, matching
+-- firstSubmissionProblem() as the same check duplicated at the DB layer,
+-- not a stricter or looser one.
+--
+-- PUBLIC VISIBILITY DESIGN (also caught during the second review round):
+-- the original draft made `is_current` the version table's own
+-- independent "am I the public one" flag, defaulting to true on INSERT,
+-- with research_papers.published_version_id as a SEPARATE pointer set in
+-- a later statement. Between "insert the new version (is_current=true by
+-- default)" and "point research_papers.published_version_id at it", the
+-- new version was ALREADY publicly readable per the old
+-- research_paper_versions_public_read policy (`is_current = true and
+-- withdrawn = false`) — and if the second statement never ran at all
+-- (a crash, a network failure, anything short-circuiting
+-- publishPaperVersion between its insert and its final update), the new
+-- version would stay silently, permanently public with no
+-- research_papers row ever actually pointing at it as published. This
+-- was a real gap, not a rounding error, so it's designed out here rather
+-- than patched: `is_current` is removed entirely. Public visibility is
+-- now derived from exactly ONE fact — `research_papers.published_version_id
+-- = research_paper_versions.id AND research_papers.status = 'published'`
+-- — set in a single UPDATE statement that is the last step of publishing.
+-- A version row can exist in the table (already inserted, snapshot taken)
+-- without ever being visible until that one UPDATE actually commits; if
+-- it never runs, the row simply stays permanently invisible — an orphan,
+-- not a leak. Superseding an old version now happens for free: moving
+-- the pointer to the new version's id is the ONLY UPDATE required, and it
+-- simultaneously makes the previous version invisible (its id no longer
+-- matches the pointer) — no separate "set is_current = false" step, and
+-- so no window where that step hasn't run yet either. Withdrawal
+-- similarly needs no pointer changes: moving research_papers.status away
+-- from 'published' alone makes the version invisible via the same
+-- `status = 'published'` clause; `withdrawn`/`withdrawn_at`/
+-- `withdrawn_by`/`withdrawn_reason` on the version row remain, purely as
+-- an audit record of *that specific version* having been formally
+-- withdrawn (as opposed to superseded by a newer one) — no longer
+-- security-relevant, since the pointer+status check already fully
+-- determines visibility on its own.
 
 begin;
 
@@ -90,13 +129,13 @@ end $$;
 create table public.research_papers (
   id uuid primary key default gen_random_uuid(),
   author_id uuid not null,
-  author_name text not null check (length(trim(author_name)) > 0),
+  author_name text not null default '',
   coauthor_names text[] not null default '{}',
   affiliation text,
   orcid text,
   language text not null,
-  title text not null check (length(trim(title)) > 0),
-  abstract text not null check (length(trim(abstract)) > 0),
+  title text not null default '',
+  abstract text not null default '',
   keywords text[] not null default '{}',
   topic text,
   paper_type text not null check (
@@ -107,8 +146,8 @@ create table public.research_papers (
   pdf_filename text,
   pdf_size_bytes integer,
   citation_style text,
-  references_text text not null check (length(trim(references_text)) > 0),
-  rights_declaration text not null check (length(trim(rights_declaration)) > 0),
+  references_text text not null default '',
+  rights_declaration text not null default '',
   third_party_rights_note text,
   funding_note text,
   conflicts_of_interest text,
@@ -124,8 +163,30 @@ create table public.research_papers (
   published_version_id uuid,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  constraint research_papers_has_content check (
-    (body_text is not null and length(trim(body_text)) > 0) or pdf_data is not null
+  -- Each of these is exempt only for 'draft' — every other status
+  -- (submitted and beyond) requires the real thing. Named individually
+  -- (rather than one combined constraint) so a violation names exactly
+  -- which field is missing, matching firstSubmissionProblem()'s own
+  -- one-problem-at-a-time reporting in src/lib/research.ts.
+  constraint research_papers_author_name_required_unless_draft check (
+    status = 'draft' or length(trim(author_name)) > 0
+  ),
+  constraint research_papers_title_required_unless_draft check (
+    status = 'draft' or length(trim(title)) > 0
+  ),
+  constraint research_papers_abstract_required_unless_draft check (
+    status = 'draft' or length(trim(abstract)) > 0
+  ),
+  constraint research_papers_references_required_unless_draft check (
+    status = 'draft' or length(trim(references_text)) > 0
+  ),
+  constraint research_papers_rights_required_unless_draft check (
+    status = 'draft' or length(trim(rights_declaration)) > 0
+  ),
+  constraint research_papers_has_content_unless_draft check (
+    status = 'draft'
+    or (body_text is not null and length(trim(body_text)) > 0)
+    or pdf_data is not null
   ),
   constraint research_papers_orcid_format check (
     orcid is null or orcid ~ '^\d{4}-\d{4}-\d{4}-\d{3}[0-9X]$'
@@ -188,7 +249,9 @@ grant update (
 -- code in src/lib/admin/research.server.ts.
 
 -- ============================================================================
--- 2. research_paper_versions — immutable published snapshots.
+-- 2. research_paper_versions — immutable published snapshots. Visibility
+--    is governed entirely from research_papers (see PUBLIC VISIBILITY
+--    DESIGN above) — this table carries no visibility flag of its own.
 -- ============================================================================
 create table public.research_paper_versions (
   id uuid primary key default gen_random_uuid(),
@@ -214,7 +277,6 @@ create table public.research_paper_versions (
   conflicts_of_interest text,
   acknowledgments text,
   ai_assistance_disclosure text,
-  is_current boolean not null default true,
   withdrawn boolean not null default false,
   withdrawn_at timestamptz,
   withdrawn_by uuid,
@@ -225,19 +287,27 @@ create table public.research_paper_versions (
 );
 
 create index research_paper_versions_paper_idx on public.research_paper_versions (paper_id);
-create index research_paper_versions_current_idx
-  on public.research_paper_versions (is_current)
-  where is_current = true and withdrawn = false;
 
 alter table public.research_paper_versions enable row level security;
 
--- Public read: exactly the current, non-withdrawn snapshot — the one and
--- only thing a reader is ever allowed to see. RLS enforces this
--- independently of whatever application code does or doesn't filter,
--- exactly like book_chunks_read_access for books.
+-- Public read: exactly the one version research_papers.published_version_id
+-- currently names, and only while that paper's own status is 'published'.
+-- Both conditions are set together in the SAME UPDATE statement
+-- (publishPaperVersion's final step) — a version row can be fully inserted
+-- and sitting in this table without this policy ever matching it, and it
+-- stays that way permanently if the pointer update never runs. Nothing
+-- about this row's own columns (there is no is_current here) makes it
+-- visible; only being the thing research_papers currently points to does.
 create policy research_paper_versions_public_read on public.research_paper_versions
 for select
-using (is_current = true and withdrawn = false);
+using (
+  exists (
+    select 1 from public.research_papers rp
+    where rp.id = research_paper_versions.paper_id
+      and rp.published_version_id = research_paper_versions.id
+      and rp.status = 'published'
+  )
+);
 
 create policy research_paper_versions_admin_read on public.research_paper_versions
 for select
@@ -346,6 +416,27 @@ begin
   ) <> 2 then
     raise exception 'Postcondition failed: category_suggestions has an unexpected policy count — rolling back';
   end if;
+  -- is_current must not exist — confirms the redesigned, pointer-only
+  -- visibility model actually landed, not a partial/mixed state.
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'research_paper_versions' and column_name = 'is_current'
+  ) then
+    raise exception 'Postcondition failed: research_paper_versions.is_current exists — rolling back';
+  end if;
+  -- The public-read policy's USING clause must actually reference
+  -- published_version_id and status — not just exist under the right
+  -- name with stale logic. Guards against a future edit accidentally
+  -- reverting the qual while leaving the policy name alone.
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public' and tablename = 'research_paper_versions'
+      and policyname = 'research_paper_versions_public_read'
+      and qual like '%published_version_id%'
+      and qual not like '%is_current%'
+  ) then
+    raise exception 'Postcondition failed: research_paper_versions_public_read does not reference published_version_id, or still references is_current — rolling back';
+  end if;
   if has_column_privilege('authenticated', 'public.research_papers', 'reviewed_by', 'UPDATE') then
     raise exception 'Postcondition failed: authenticated can UPDATE research_papers.reviewed_by — rolling back';
   end if;
@@ -377,6 +468,15 @@ commit;
 -- -- research_papers_author_insert, research_papers_author_update (3),
 -- -- research_paper_versions_public_read, research_paper_versions_admin_read (2)
 --
+-- select policyname, qual from pg_policies where schemaname='public'
+--   and tablename='research_paper_versions' and policyname='research_paper_versions_public_read';
+-- -- expect the qual text to reference published_version_id and rp.status = 'published'::text,
+-- -- NOT is_current (that column no longer exists at all)
+--
+-- select column_name from information_schema.columns
+-- where table_schema='public' and table_name='research_paper_versions' and column_name='is_current';
+-- -- expect 0 rows
+--
 -- select has_column_privilege('authenticated', 'public.research_papers', 'status', 'UPDATE') as authed_can_set_status,
 --        has_column_privilege('authenticated', 'public.research_papers', 'reviewed_by', 'UPDATE') as authed_can_set_reviewer,
 --        has_column_privilege('authenticated', 'public.research_paper_versions', 'title', 'INSERT') as authed_can_insert_version;
@@ -384,7 +484,9 @@ commit;
 -- --   even though the grant allows the column — RLS is the real gate on WHICH values), authed_can_set_reviewer=false,
 -- --   authed_can_insert_version=false
 --
--- -- IMPORTANT: the check above only proves the GRANT exists, not that RLS
--- -- actually refuses an out-of-range status value. That needs a real
--- -- authenticated-role test (not just a metadata query) — see the live
--- -- REST checks this session runs after you confirm this migration applied.
+-- -- IMPORTANT: the checks above only prove grants/policy text, not runtime
+-- -- behavior. Real behavioral tests (draft save with blank fields succeeds,
+-- -- submission with blank fields is refused, anon cannot read an unpointed
+-- -- or withdrawn version, anon reads exactly the published one) run live
+-- -- against wxldqxuxpjurttspbxok after you confirm this migration applied —
+-- -- see this session's report for the exact results.
