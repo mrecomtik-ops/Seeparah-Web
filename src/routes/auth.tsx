@@ -66,7 +66,16 @@ function AuthPage() {
     // Supabase will refuse the callback.
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: `${window.location.origin}${target}` },
+      options: {
+        redirectTo: `${window.location.origin}${target}`,
+        // Forces Google's account chooser every time, even for a browser
+        // signed into exactly one Google account — without this, Google
+        // silently reuses the last-used account and a reader who just
+        // signed out (e.g. to switch accounts) gets signed straight back
+        // into the same one. Deliberately not login_hint — that forces a
+        // *specific* account instead of offering the picker.
+        queryParams: { prompt: "select_account" },
+      },
     });
     if (error) {
       toast.error("Google sign-in didn't complete. Try email instead.");

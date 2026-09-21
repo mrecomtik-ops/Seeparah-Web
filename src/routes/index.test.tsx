@@ -10,7 +10,7 @@
 // faked, which is the appropriate boundary for this bug.
 import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { User } from "@supabase/supabase-js";
 
@@ -18,6 +18,7 @@ type AuthChangeCallback = (event: string, session: { user: User } | null) => voi
 
 let currentUser: User | null = null;
 let authChangeCallback: AuthChangeCallback | null = null;
+const signInWithOAuthMock = vi.fn().mockResolvedValue({ error: null });
 
 function makeUser(overrides: Partial<User> = {}): User {
   return {
@@ -39,7 +40,7 @@ vi.mock("@/integrations/supabase/client", () => ({
         authChangeCallback = cb;
         return { data: { subscription: { unsubscribe: vi.fn() } } };
       },
-      signInWithOAuth: vi.fn(),
+      signInWithOAuth: signInWithOAuthMock,
     },
   },
 }));
@@ -80,6 +81,7 @@ function renderHomepage() {
 beforeEach(() => {
   currentUser = null;
   authChangeCallback = null;
+  signInWithOAuthMock.mockClear();
 });
 
 afterEach(() => {
@@ -124,5 +126,20 @@ describe("homepage header auth state", () => {
     await waitFor(() => {
       expect(screen.queryByText("Sign in with Google")).toBeTruthy();
     });
+  });
+});
+
+describe("homepage Google sign-in always offers account selection", () => {
+  it("passes queryParams.prompt = 'select_account' (not login_hint) while preserving redirectTo", async () => {
+    renderHomepage();
+    const button = await screen.findByText("Sign in with Google");
+    fireEvent.click(button);
+
+    await waitFor(() => expect(signInWithOAuthMock).toHaveBeenCalledTimes(1));
+    const call = signInWithOAuthMock.mock.calls[0]![0];
+    expect(call.provider).toBe("google");
+    expect(call.options.redirectTo).toBe(window.location.origin);
+    expect(call.options.queryParams).toEqual({ prompt: "select_account" });
+    expect(call.options.queryParams.login_hint).toBeUndefined();
   });
 });

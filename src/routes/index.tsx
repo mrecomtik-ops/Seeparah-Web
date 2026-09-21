@@ -47,7 +47,13 @@ export function LandingPage() {
     // there is no further navigation to do here on success.
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: window.location.origin },
+      options: {
+        redirectTo: window.location.origin,
+        // See src/routes/auth.tsx's handleGoogle for why: forces Google's
+        // account chooser instead of silently reusing the last session.
+        // Not login_hint — that pins a specific account, not a picker.
+        queryParams: { prompt: "select_account" },
+      },
     });
     if (error) {
       setGoogleError("Google sign-in didn't complete. You can still use demo mode below.");
