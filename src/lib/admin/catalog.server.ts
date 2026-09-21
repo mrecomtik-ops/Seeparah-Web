@@ -205,6 +205,141 @@ export async function setBookLifecycleStatus(params: {
 }
 
 // ---------------------------------------------------------------------------
+// Edition-level (Free/Premium) access control
+// ---------------------------------------------------------------------------
+// books.access_type/subscription_price_usd are admin-only writes — the
+// authenticated-role column grant that would have let an author set these
+// directly was revoked in migration 0011 after an audit found it still
+// present. This is now the ONLY path that can change either, and it's
+// gated by requireAdmin() in catalog.functions.ts, same as every other
+// admin mutation.
+
+export type EditionAccessType = "free" | "paid";
+
+/** The original-language edition's access (books.access_type). */
+export async function setBookAccessType(params: {
+  bookId: string;
+  accessType: EditionAccessType;
+}): Promise<{ before: Record<string, unknown> | null; after: Record<string, unknown> }> {
+  const db = await admin();
+  const { data: before } = await db
+    .from("books")
+    .select("access_type")
+    .eq("id", params.bookId)
+    .single();
+  const { error } = await db
+    .from("books")
+    .update({ access_type: params.accessType })
+    .eq("id", params.bookId);
+  if (error) throw new Error(error.message);
+  return { before, after: { access_type: params.accessType } };
+}
+
+/** A translated edition's access — only for an edition that has actually
+ * been published at least once (a book_editions row exists; see migration
+ * 0011's own comment on what a row's existence means). Refuses rather than
+ * silently creating a row for an edition that was never produced — there's
+ * nothing meaningful to set Free/Premium on yet. */
+export async function setEditionAccessType(params: {
+  bookId: string;
+  language: string;
+  accessType: EditionAccessType;
+}): Promise<{ before: Record<string, unknown> | null; after: Record<string, unknown> }> {
+  const db = await admin();
+  const { data: before, error: beforeError } = await db
+    .from("book_editions")
+    .select("access_type")
+    .eq("book_id", params.bookId)
+    .eq("language", params.language)
+    .maybeSingle();
+  if (beforeError) throw new Error(beforeError.message);
+  if (!before) {
+    throw new Error(
+      `No published ${params.language} edition exists yet for this book — nothing to set.`,
+    );
+  }
+  const { error } = await db
+    .from("book_editions")
+    .update({ access_type: params.accessType, updated_at: new Date().toISOString() })
+    .eq("book_id", params.bookId)
+    .eq("language", params.language);
+  if (error) throw new Error(error.message);
+  return { before, after: { access_type: params.accessType } };
+}
+
+export interface AccessTarget {
+  bookId: string;
+  /** null = the original edition (books.access_type); a language string =
+   * that translated edition (book_editions.access_type). */
+  language: string | null;
+}
+
+export interface BulkAccessResult {
+  target: AccessTarget;
+  ok: boolean;
+  error?: string;
+}
+
+/** Applies one access_type to many targets in one call — the server side
+ * of the admin bulk-edit action. The actual "preview before applying" the
+ * product rules require is a client-side confirmation step (the admin
+ * reviews the exact list before this is ever called); this function does
+ * the real writes, one row at a time so a single bad target (e.g. an
+ * edition that was never published) doesn't abort the rest of the batch —
+ * each result is reported individually. */
+export async function bulkSetAccessType(params: {
+  targets: AccessTarget[];
+  accessType: EditionAccessType;
+}): Promise<BulkAccessResult[]> {
+  const results: BulkAccessResult[] = [];
+  for (const target of params.targets) {
+    try {
+      if (target.language === null) {
+        await setBookAccessType({ bookId: target.bookId, accessType: params.accessType });
+      } else {
+        await setEditionAccessType({
+          bookId: target.bookId,
+          language: target.language,
+          accessType: params.accessType,
+        });
+      }
+      results.push({ target, ok: true });
+    } catch (error) {
+      results.push({
+        target,
+        ok: false,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+  return results;
+}
+
+/** Every translated edition that's actually been published for a book, for
+ * the admin book-detail page's per-edition editor. */
+export interface BookEditionRow {
+  book_id: string;
+  language: string;
+  access_type: EditionAccessType;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function listBookEditions(bookId: string): Promise<BookEditionRow[]> {
+  const db = await admin();
+  const { data, error } = await db
+    .from("book_editions")
+    .select("*")
+    .eq("book_id", bookId)
+    .order("language");
+  if (error) throw new Error(error.message);
+  // access_type is `text` with a CHECK constraint at the DB layer, not a
+  // Postgres enum, so generated types widen it to `string` — narrowed here
+  // since the constraint guarantees only 'free' | 'paid' ever lands in it.
+  return (data ?? []) as BookEditionRow[];
+}
+
+// ---------------------------------------------------------------------------
 // Admin upload / batch import
 // ---------------------------------------------------------------------------
 

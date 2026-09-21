@@ -213,6 +213,38 @@ export type Database = {
           },
         ]
       }
+      book_editions: {
+        Row: {
+          access_type: string
+          book_id: string
+          created_at: string
+          language: string
+          updated_at: string
+        }
+        Insert: {
+          access_type?: string
+          book_id: string
+          created_at?: string
+          language: string
+          updated_at?: string
+        }
+        Update: {
+          access_type?: string
+          book_id?: string
+          created_at?: string
+          language?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "book_editions_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       book_highlights: {
         Row: {
           book_id: string
@@ -1007,8 +1039,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      book_chunk_readable: {
+        Args: { p_book_id: string; p_chunk_index: number; p_language: string }
+        Returns: boolean
+      }
       current_admin_role: { Args: never; Returns: string }
+      has_active_plan_subscription: {
+        Args: { p_user_id: string }
+        Returns: boolean
+      }
       is_admin: { Args: { min_roles: string[] }; Returns: boolean }
+      is_monetization_enabled: { Args: never; Returns: boolean }
     }
     Enums: {
       [_ in never]: never

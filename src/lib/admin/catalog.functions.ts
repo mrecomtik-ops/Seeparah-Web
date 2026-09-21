@@ -42,12 +42,15 @@ export const adminGetCatalogBook = createServerFn({ method: "POST" })
   .inputValidator((data) => withToken({ bookId: z.string() }).parse(data))
   .handler(async ({ data }) => {
     await requireAdmin(data.accessToken, "catalog.read_unpublished");
-    const { adminGetBook, evaluatePublishGate } = await import("@/lib/admin/catalog.server");
-    const [detail, gate] = await Promise.all([
+    const { adminGetBook, evaluatePublishGate, listBookEditions } = await import(
+      "@/lib/admin/catalog.server"
+    );
+    const [detail, gate, editions] = await Promise.all([
       adminGetBook(data.bookId),
       evaluatePublishGate(data.bookId),
+      listBookEditions(data.bookId),
     ]);
-    return { ...detail, gate };
+    return { ...detail, gate, editions };
   });
 
 export const adminReviewBookRights = createServerFn({ method: "POST" })
@@ -155,6 +158,85 @@ export const adminSetBookLifecycle = createServerFn({ method: "POST" })
       after: diff.after,
     });
     return { ok: true as const };
+  });
+
+const ACCESS_TYPE = z.enum(["free", "paid"]);
+
+export const adminSetBookAccessType = createServerFn({ method: "POST" })
+  .inputValidator((data) =>
+    withToken({ bookId: z.string(), accessType: ACCESS_TYPE }).parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { userId, role } = await requireAdmin(data.accessToken, "catalog.publish");
+    const { setBookAccessType } = await import("@/lib/admin/catalog.server");
+    const diff = await setBookAccessType({ bookId: data.bookId, accessType: data.accessType });
+    await recordAudit({
+      actorId: userId,
+      actorRole: role,
+      action: "catalog.set_access_type",
+      entityType: "book",
+      entityId: data.bookId,
+      before: diff.before,
+      after: diff.after,
+    });
+    return { ok: true as const };
+  });
+
+export const adminSetEditionAccessType = createServerFn({ method: "POST" })
+  .inputValidator((data) =>
+    withToken({ bookId: z.string(), language: z.string(), accessType: ACCESS_TYPE }).parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { userId, role } = await requireAdmin(data.accessToken, "catalog.publish");
+    const { setEditionAccessType } = await import("@/lib/admin/catalog.server");
+    const diff = await setEditionAccessType({
+      bookId: data.bookId,
+      language: data.language,
+      accessType: data.accessType,
+    });
+    await recordAudit({
+      actorId: userId,
+      actorRole: role,
+      action: "catalog.set_edition_access_type",
+      entityType: "book_edition",
+      entityId: `${data.bookId}:${data.language}`,
+      before: diff.before,
+      after: diff.after,
+    });
+    return { ok: true as const };
+  });
+
+/** Bulk edit — the client shows the exact selected-items preview before
+ * ever calling this; the server applies for real and reports a per-target
+ * result so a partial failure (e.g. one target is an edition that was
+ * never published) doesn't hide whether the rest actually succeeded. */
+export const adminBulkSetAccessType = createServerFn({ method: "POST" })
+  .inputValidator((data) =>
+    withToken({
+      targets: z
+        .array(z.object({ bookId: z.string(), language: z.string().nullable() }))
+        .min(1)
+        .max(200),
+      accessType: ACCESS_TYPE,
+    }).parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { userId, role } = await requireAdmin(data.accessToken, "catalog.publish");
+    const { bulkSetAccessType } = await import("@/lib/admin/catalog.server");
+    const results = await bulkSetAccessType({ targets: data.targets, accessType: data.accessType });
+    await recordAudit({
+      actorId: userId,
+      actorRole: role,
+      action: "catalog.bulk_set_access_type",
+      entityType: "book",
+      after: {
+        accessType: data.accessType,
+        targetCount: data.targets.length,
+        succeeded: results.filter((r) => r.ok).length,
+        failed: results.filter((r) => !r.ok).length,
+      },
+    });
+    return results;
   });
 
 const rightsInputShape = {

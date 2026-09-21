@@ -16,6 +16,7 @@ const KEY = z.enum([
   "language_availability",
   "translation_budget",
   "monetization_enabled",
+  "monthly_plan_price_usd",
 ]);
 
 /** Public, unauthenticated — the config contract both clients fetch. */

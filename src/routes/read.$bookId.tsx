@@ -48,6 +48,7 @@ import {
   setPrefs,
   type ReaderTheme,
 } from "@/lib/prefs";
+import { getPublicContentSettings } from "@/lib/admin/settings.functions";
 
 const searchSchema = z.object({ lang: z.string().optional() });
 
@@ -118,6 +119,17 @@ function ReaderPage() {
     queryKey: ["subscriptions", userId],
     queryFn: () => listSubscriptions(userId),
   });
+  const settingsQuery = useQuery({
+    queryKey: ["public-content-settings"],
+    queryFn: () => getPublicContentSettings(),
+  });
+  // "One subscription unlocks all Premium books and translations" — this is
+  // the single plan price, not per-book pricing; same $2 default as
+  // settings.server.ts's DEFAULT_MONTHLY_PLAN_PRICE_USD.
+  const planPrice =
+    typeof settingsQuery.data?.["monthly_plan_price_usd"] === "number"
+      ? (settingsQuery.data["monthly_plan_price_usd"] as number)
+      : 2;
   const highlightsQuery = useQuery({
     queryKey: ["highlights", userId],
     queryFn: () => listHighlights(userId),
@@ -483,7 +495,7 @@ function ReaderPage() {
                           : `${language} is available on request — an admin reviews each request. You'll be notified once it's ready.`
                   : lockReason === "not_available"
                     ? "This title isn't published yet — check back later."
-                    : `You've read the free opening page of ${book.title}. Subscribe for $${book.subscription_price_usd}/month to keep reading — 70% goes straight to ${book.author}.`}
+                    : `You've read the free opening page of ${book.title}. One Seeparah Premium subscription — $${planPrice.toFixed(2)}/month — unlocks this and every other Premium book and translation.`}
             </p>
             <div className="mt-6 flex flex-wrap justify-center gap-3">
               {lockReason === "sign_in_required" ? (
@@ -528,7 +540,7 @@ function ReaderPage() {
                   search={{ book: book.id }}
                   className="inline-flex items-center gap-2 rounded-xl bg-gold px-5 py-3 text-sm font-semibold text-gold-foreground transition-transform hover:-translate-y-0.5"
                 >
-                  Unlock for ${book.subscription_price_usd}/mo
+                  Unlock for ${planPrice.toFixed(2)}/mo
                 </Link>
               )}
               {lockReason !== "not_available" && (

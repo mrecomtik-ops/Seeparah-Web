@@ -18,6 +18,7 @@ export const Route = createFileRoute("/admin/settings")({
 
 const KEYS = [
   "monetization_enabled",
+  "monthly_plan_price_usd",
   "maintenance_message",
   "support_contact",
   "announcements",
@@ -28,11 +29,69 @@ const KEYS = [
   "translation_budget",
 ] as const;
 
+const DEFAULT_MONTHLY_PLAN_PRICE_USD = 2;
+
 function AdminSettingsPage() {
   const [key, setKey] = useState<(typeof KEYS)[number]>("monetization_enabled");
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
+  const [priceDraft, setPriceDraft] = useState("");
+  const [priceBusy, setPriceBusy] = useState(false);
   const queryClient = useQueryClient();
+
+  const planPriceQuery = useQuery({
+    queryKey: ["admin-setting", "monthly_plan_price_usd"],
+    queryFn: async () =>
+      adminGetSetting({
+        data: { accessToken: await getAccessToken(), key: "monthly_plan_price_usd" },
+      }),
+  });
+  const effectivePlanPrice =
+    typeof planPriceQuery.data?.value === "number"
+      ? planPriceQuery.data.value
+      : DEFAULT_MONTHLY_PLAN_PRICE_USD;
+
+  useEffect(() => {
+    setPriceDraft(String(effectivePlanPrice));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [planPriceQuery.data]);
+
+  async function publishPlanPrice() {
+    const parsed = Number(priceDraft);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      toast.error("Enter a price greater than $0");
+      return;
+    }
+    if (
+      !window.confirm(
+        `Set the monthly plan price to $${parsed.toFixed(2)}? This does not change what a payment ` +
+          "provider actually charges — see the note below.",
+      )
+    ) {
+      return;
+    }
+    setPriceBusy(true);
+    try {
+      await adminPublishSetting({
+        data: {
+          accessToken: await getAccessToken(),
+          key: "monthly_plan_price_usd",
+          value: parsed,
+        },
+      });
+      toast.success(`Monthly plan price set to $${parsed.toFixed(2)}`);
+      await queryClient.invalidateQueries({
+        queryKey: ["admin-setting", "monthly_plan_price_usd"],
+      });
+      if (key === "monthly_plan_price_usd") {
+        await queryClient.invalidateQueries({ queryKey: ["admin-setting-history", key] });
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Couldn't update the price");
+    } finally {
+      setPriceBusy(false);
+    }
+  }
 
   const settingQuery = useQuery({
     queryKey: ["admin-setting", key],
@@ -103,6 +162,41 @@ function AdminSettingsPage() {
           </span>
         </div>
       )}
+
+      <section className="mt-6 rounded-2xl border border-border bg-card p-5 card-shadow">
+        <h2 className="font-display text-base font-semibold text-foreground">Monthly plan price</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Effective price right now:{" "}
+          <span className="font-semibold text-foreground">
+            ${effectivePlanPrice.toFixed(2)}/month
+          </span>
+          {planPriceQuery.data?.value === undefined && " (proposed default — not yet published)"}
+        </p>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <span className="text-sm text-muted-foreground">$</span>
+          <input
+            value={priceDraft}
+            onChange={(e) => setPriceDraft(e.target.value)}
+            inputMode="decimal"
+            className="w-24 rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+          />
+          <span className="text-sm text-muted-foreground">/month</span>
+          <button
+            onClick={publishPlanPrice}
+            disabled={priceBusy}
+            className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+          >
+            {priceBusy ? "Saving…" : "Save price"}
+          </button>
+        </div>
+        <p className="mt-3 rounded-lg bg-secondary px-3 py-2 text-xs text-secondary-foreground">
+          This is the database record of the intended price, versioned and audited like every
+          other setting — it is <strong>not</strong> a completed billing change. When a payment
+          provider is connected, its actual recurring price must be synchronized separately, with
+          an explicit decision on whether a change here affects existing subscribers or only new
+          ones. Nothing here ever changes what an existing subscriber is currently charged.
+        </p>
+      </section>
 
       <div className="mt-4 flex flex-wrap gap-2">
         {KEYS.map((k) => (

@@ -72,7 +72,7 @@ export function BookCard({
           )}
           {monetizationEnabled && book.access_type === "paid" && (
             <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-gold px-2.5 py-1 text-[11px] font-semibold text-gold-foreground">
-              <Crown className="h-3 w-3" /> Premium · ${book.subscription_price_usd}/mo
+              <Crown className="h-3 w-3" /> Premium
             </span>
           )}
           {(isSample || isDemoManuscript) && (
