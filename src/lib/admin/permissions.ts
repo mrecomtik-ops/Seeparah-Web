@@ -17,6 +17,7 @@ export type Capability =
   | "catalog.upload" // admin batch upload / CSV import
   | "catalog.review" // rights review + edition review, request changes
   | "catalog.publish" // approve -> published, unpublish, archive
+  | "catalog.delete_permanent" // irreversible DELETE of a book and all its content — owner/administrator only
   | "translation.jobs.manage" // retry/cancel/review jobs, edit glossary
   | "translation.requests.decide" // approve/decline/revoke reader access requests
   | "support.tickets.read_all"
@@ -37,6 +38,7 @@ const MATRIX: Record<AdminRole, Capability[]> = {
     "catalog.upload",
     "catalog.review",
     "catalog.publish",
+    "catalog.delete_permanent",
     "translation.jobs.manage",
     "translation.requests.decide",
     "support.tickets.read_all",
@@ -55,6 +57,7 @@ const MATRIX: Record<AdminRole, Capability[]> = {
     "catalog.upload",
     "catalog.review",
     "catalog.publish",
+    "catalog.delete_permanent",
     "translation.jobs.manage",
     "translation.requests.decide",
     "support.tickets.read_all",

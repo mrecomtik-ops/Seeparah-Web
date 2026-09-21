@@ -38,3 +38,4 @@ dist-ssr
 # cache) — regenerated per machine by `supabase link`, never meant to be
 # committed.
 supabase/.temp/
+backups/

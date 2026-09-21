@@ -1,10 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Loader2, Plus } from "lucide-react";
+import { Loader2, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { getAccessToken } from "@/lib/admin/use-admin-session";
-import { adminListCatalog, adminBulkSetAccessType } from "@/lib/admin/catalog.functions";
+import { getAccessToken, useAdminSession, can } from "@/lib/admin/use-admin-session";
+import {
+  adminListCatalog,
+  adminBulkSetAccessType,
+  adminSetBookLifecycle,
+} from "@/lib/admin/catalog.functions";
 
 export const Route = createFileRoute("/admin/books/")({
   component: AdminBooksList,
@@ -30,7 +34,11 @@ function AdminBooksList() {
   const [showPreview, setShowPreview] = useState(false);
   const [pendingAccessType, setPendingAccessType] = useState<"free" | "paid">("free");
   const [applying, setApplying] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const queryClient = useQueryClient();
+  const sessionQuery = useAdminSession();
+  const canPublish = can(sessionQuery.data, "catalog.publish");
 
   const booksQuery = useQuery({
     queryKey: ["admin-books", status, query, page],
@@ -91,6 +99,28 @@ function AdminBooksList() {
       toast.error(error instanceof Error ? error.message : "Bulk update failed");
     } finally {
       setApplying(false);
+    }
+  }
+
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await adminSetBookLifecycle({
+        data: {
+          accessToken: await getAccessToken(),
+          bookId: deleteTarget.id,
+          status: "archived",
+          reason: "Deleted (reversible) from the admin catalog list",
+        },
+      });
+      toast.success("Archived — reversible from the book's detail page anytime.");
+      setDeleteTarget(null);
+      await queryClient.invalidateQueries({ queryKey: ["admin-books"] });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Couldn't delete this book");
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -182,6 +212,7 @@ function AdminBooksList() {
                 <th className="px-4 py-2">Access</th>
                 <th className="px-4 py-2">Rights</th>
                 <th className="px-4 py-2">Edition review</th>
+                <th className="px-4 py-2">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -218,11 +249,30 @@ function AdminBooksList() {
                   </td>
                   <td className="px-4 py-2 text-xs">{b.rights_status}</td>
                   <td className="px-4 py-2 text-xs">{b.edition_review_status}</td>
+                  <td className="px-4 py-2 text-xs">
+                    <div className="flex items-center gap-2">
+                      <Link
+                        to="/admin/books/$bookId"
+                        params={{ bookId: b.id }}
+                        className="text-primary hover:underline"
+                      >
+                        Edit
+                      </Link>
+                      {canPublish && b.status !== "archived" && (
+                        <button
+                          onClick={() => setDeleteTarget({ id: b.id, title: b.title })}
+                          className="inline-flex items-center gap-1 text-destructive hover:underline"
+                        >
+                          <Trash2 className="h-3 w-3" /> Delete
+                        </button>
+                      )}
+                    </div>
+                  </td>
                 </tr>
               ))}
               {books.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-sm text-muted-foreground">
+                  <td colSpan={8} className="px-4 py-8 text-center text-sm text-muted-foreground">
                     No books match.
                   </td>
                 </tr>
@@ -288,6 +338,39 @@ function AdminBooksList() {
                 className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60"
               >
                 {applying ? "Applying…" : "Apply"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 card-shadow-lg">
+            <h2 className="font-display text-lg font-semibold text-foreground">
+              Delete “{deleteTarget.title}”?
+            </h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              This archives the book — it stops being published and disappears from the catalog,
+              but nothing is erased. Chunks, translations, editions, reader highlights and
+              progress, requests, and audit history all stay intact, and this can be reversed from
+              the book's detail page anytime. For irreversible deletion, open the book and use
+              "Delete permanently" (owner/administrator only).
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                onClick={() => setDeleteTarget(null)}
+                disabled={deleting}
+                className="rounded-lg border border-border px-4 py-2 text-sm font-semibold hover:bg-secondary disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                disabled={deleting}
+                className="rounded-lg bg-destructive px-4 py-2 text-sm font-semibold text-destructive-foreground disabled:opacity-60"
+              >
+                {deleting ? "Archiving…" : "Delete (archive)"}
               </button>
             </div>
           </div>

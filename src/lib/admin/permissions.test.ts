@@ -55,4 +55,16 @@ describe("permission matrix", () => {
   it("defines exactly the four documented roles", () => {
     expect(ADMIN_ROLES).toEqual(["owner", "administrator", "editor", "support"]);
   });
+
+  it("gates permanent book deletion (catalog.delete_permanent) to owner/administrator only — never editor, support, or an unassigned role", () => {
+    expect(roleHasCapability("owner", "catalog.delete_permanent")).toBe(true);
+    expect(roleHasCapability("administrator", "catalog.delete_permanent")).toBe(true);
+    expect(roleHasCapability("editor", "catalog.delete_permanent")).toBe(false);
+    expect(roleHasCapability("support", "catalog.delete_permanent")).toBe(false);
+    expect(roleHasCapability(null, "catalog.delete_permanent")).toBe(false);
+    // Reversible delete/unpublish/archive stays under the existing
+    // catalog.publish capability editors already have — only IRREVERSIBLE
+    // deletion is narrowed to owner/administrator.
+    expect(roleHasCapability("editor", "catalog.publish")).toBe(true);
+  });
 });

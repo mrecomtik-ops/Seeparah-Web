@@ -1,8 +1,9 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, Pencil, Trash2 } from "lucide-react";
+import { GENRES } from "@/lib/data";
 import { getAccessToken, useAdminSession, can } from "@/lib/admin/use-admin-session";
 import {
   adminGetCatalogBook,
@@ -14,7 +15,15 @@ import {
   adminQueueTranslationJob,
   adminSetBookAccessType,
   adminSetEditionAccessType,
+  adminUpdateBookMetadata,
+  adminGetBookDeletionImpact,
+  adminDeleteBookPermanently,
+  adminGetChunkForEdit,
+  adminStageChunkContentEdit,
+  adminPublishChunkContentEdit,
+  adminDiscardChunkContentEdit,
 } from "@/lib/admin/catalog.functions";
+import type { BookDeletionImpact } from "@/lib/admin/catalog.server";
 
 export const Route = createFileRoute("/admin/books/$bookId")({
   component: AdminBookDetail,
@@ -22,10 +31,35 @@ export const Route = createFileRoute("/admin/books/$bookId")({
 
 function AdminBookDetail() {
   const { bookId } = Route.useParams();
+  const navigate = useNavigate();
   const sessionQuery = useAdminSession();
   const queryClient = useQueryClient();
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
+
+  const [editOpen, setEditOpen] = useState(false);
+  const [editDraft, setEditDraft] = useState({
+    title: "",
+    author: "",
+    description: "",
+    genre: "",
+    coverUrl: "",
+  });
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [permDeleteOpen, setPermDeleteOpen] = useState(false);
+  const [permDeleteImpact, setPermDeleteImpact] = useState<BookDeletionImpact | null>(null);
+  const [permDeleteConfirmText, setPermDeleteConfirmText] = useState("");
+
+  const [editorLanguage, setEditorLanguage] = useState("");
+  const [editorChunkIndex, setEditorChunkIndex] = useState(0);
+  const [editorContent, setEditorContent] = useState<string | null>(null);
+  const [editorPending, setEditorPending] = useState<{
+    content: string;
+    by: string | null;
+    at: string | null;
+  } | null>(null);
+  const [editorDraft, setEditorDraft] = useState("");
+  const [editorLoading, setEditorLoading] = useState(false);
 
   const detailQuery = useQuery({
     queryKey: ["admin-book", bookId],
@@ -65,6 +99,162 @@ function AdminBookDetail() {
   const canReview = can(session, "catalog.review");
   const canPublish = can(session, "catalog.publish");
   const canManageTranslations = can(session, "translation.jobs.manage");
+  const canDeletePermanently = can(session, "catalog.delete_permanent");
+
+  const allLanguages = [book.source_language, ...book.available_languages.filter((l) => l !== book.source_language)];
+
+  function openEdit() {
+    setEditDraft({
+      title: book.title,
+      author: book.author,
+      description: book.description,
+      genre: book.genre ?? "",
+      coverUrl: book.cover_url ?? "",
+    });
+    setEditOpen(true);
+  }
+
+  async function saveEdit() {
+    if (!editDraft.title.trim() || !editDraft.description.trim()) {
+      toast.error("Title and description can't be empty.");
+      return;
+    }
+    await withBusy(async () => {
+      await adminUpdateBookMetadata({
+        data: {
+          accessToken: await getAccessToken(),
+          bookId,
+          title: editDraft.title.trim(),
+          author: editDraft.author.trim(),
+          description: editDraft.description.trim(),
+          genre: editDraft.genre.trim() || null,
+          coverUrl: editDraft.coverUrl.trim() || null,
+        },
+      });
+      toast.success("Saved");
+      setEditOpen(false);
+    });
+  }
+
+  async function confirmDelete() {
+    await withBusy(async () => {
+      await adminSetBookLifecycle({
+        data: {
+          accessToken: await getAccessToken(),
+          bookId,
+          status: "archived",
+          reason: "Deleted (reversible) from the admin book detail view",
+        },
+      });
+      toast.success("Archived — reversible from here anytime.");
+      setDeleteOpen(false);
+    });
+  }
+
+  async function openPermDelete() {
+    setPermDeleteConfirmText("");
+    setPermDeleteImpact(null);
+    setPermDeleteOpen(true);
+    try {
+      const impact = await adminGetBookDeletionImpact({
+        data: { accessToken: await getAccessToken(), bookId },
+      });
+      setPermDeleteImpact(impact);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Couldn't load deletion impact");
+      setPermDeleteOpen(false);
+    }
+  }
+
+  async function confirmPermDelete() {
+    await withBusy(async () => {
+      await adminDeleteBookPermanently({
+        data: { accessToken: await getAccessToken(), bookId, confirmTitle: permDeleteConfirmText },
+      });
+      toast.success("Permanently deleted");
+      setPermDeleteOpen(false);
+      navigate({ to: "/admin/books" });
+    });
+  }
+
+  async function loadChunkForEdit() {
+    setEditorLoading(true);
+    setEditorContent(null);
+    setEditorPending(null);
+    try {
+      const chunk = await adminGetChunkForEdit({
+        data: {
+          accessToken: await getAccessToken(),
+          bookId,
+          language: editorLanguage,
+          chunkIndex: editorChunkIndex,
+        },
+      });
+      if (!chunk) {
+        toast.error("No page at that language/index.");
+        return;
+      }
+      setEditorContent(chunk.content);
+      setEditorDraft(chunk.pending_content ?? chunk.content);
+      if (chunk.pending_content) {
+        setEditorPending({
+          content: chunk.pending_content,
+          by: chunk.pending_content_by,
+          at: chunk.pending_content_at,
+        });
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Couldn't load this page");
+    } finally {
+      setEditorLoading(false);
+    }
+  }
+
+  async function stageEdit() {
+    await withBusy(async () => {
+      await adminStageChunkContentEdit({
+        data: {
+          accessToken: await getAccessToken(),
+          bookId,
+          language: editorLanguage,
+          chunkIndex: editorChunkIndex,
+          newContent: editorDraft,
+        },
+      });
+      toast.success("Staged — publish this edit once you're satisfied it reads correctly.");
+    });
+    await loadChunkForEdit();
+  }
+
+  async function publishEdit() {
+    await withBusy(async () => {
+      await adminPublishChunkContentEdit({
+        data: {
+          accessToken: await getAccessToken(),
+          bookId,
+          language: editorLanguage,
+          chunkIndex: editorChunkIndex,
+        },
+      });
+      toast.success("Published — this page now shows the edited text to readers.");
+    });
+    await loadChunkForEdit();
+  }
+
+  async function discardEdit() {
+    await withBusy(async () => {
+      await adminDiscardChunkContentEdit({
+        data: {
+          accessToken: await getAccessToken(),
+          bookId,
+          language: editorLanguage,
+          chunkIndex: editorChunkIndex,
+        },
+      });
+      toast.success("Pending edit discarded");
+    });
+    await loadChunkForEdit();
+  }
 
   return (
     <div>
@@ -81,6 +271,32 @@ function AdminBookDetail() {
             by {book.author} · {book.source_language} · status: {book.status}
           </p>
         </div>
+        {canPublish && (
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={openEdit}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary"
+            >
+              <Pencil className="h-3.5 w-3.5" /> Edit
+            </button>
+            {book.status !== "archived" && (
+              <button
+                onClick={() => setDeleteOpen(true)}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-destructive/40 px-3 py-1.5 text-xs font-semibold text-destructive hover:bg-destructive/10"
+              >
+                <Trash2 className="h-3.5 w-3.5" /> Delete
+              </button>
+            )}
+            {canDeletePermanently && (
+              <button
+                onClick={() => void openPermDelete()}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-destructive px-3 py-1.5 text-xs font-semibold text-destructive-foreground hover:opacity-90"
+              >
+                <Trash2 className="h-3.5 w-3.5" /> Delete permanently
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       <section className="mt-6 grid gap-4 lg:grid-cols-2">
@@ -471,6 +687,275 @@ function AdminBookDetail() {
           )}
         </ul>
       </section>
+
+      {canReview && (
+        <section className="mt-6 rounded-2xl border border-border bg-card p-5 card-shadow">
+          <h2 className="font-display text-base font-semibold text-foreground">
+            Edit page content
+          </h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Works on any language, original or translated. An edit is staged, not published
+            immediately — readers keep seeing the current text until you explicitly publish it.
+          </p>
+          <div className="mt-3 flex flex-wrap items-end gap-2">
+            <label className="flex flex-col gap-1">
+              <span className="text-xs font-medium text-muted-foreground">Language</span>
+              <select
+                value={editorLanguage}
+                onChange={(e) => setEditorLanguage(e.target.value)}
+                className="rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <option value="">Choose…</option>
+                {allLanguages.map((l) => (
+                  <option key={l} value={l}>
+                    {l}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-xs font-medium text-muted-foreground">
+                Page (0–{book.total_chunks - 1})
+              </span>
+              <input
+                type="number"
+                min={0}
+                max={book.total_chunks - 1}
+                value={editorChunkIndex}
+                onChange={(e) => setEditorChunkIndex(Number(e.target.value))}
+                className="w-28 rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+            </label>
+            <button
+              disabled={!editorLanguage || editorLoading}
+              onClick={() => void loadChunkForEdit()}
+              className="rounded-lg border border-border px-3 py-2 text-sm font-semibold text-foreground hover:bg-secondary disabled:opacity-60"
+            >
+              {editorLoading ? "Loading…" : "Load"}
+            </button>
+          </div>
+
+          {editorContent !== null && (
+            <div className="mt-4">
+              {editorPending && (
+                <p className="mb-2 rounded-lg bg-gold/10 px-3 py-2 text-xs text-gold-foreground">
+                  Pending edit staged
+                  {editorPending.at ? ` ${new Date(editorPending.at).toLocaleString()}` : ""} —
+                  not yet visible to readers.
+                </p>
+              )}
+              <textarea
+                value={editorDraft}
+                onChange={(e) => setEditorDraft(e.target.value)}
+                rows={10}
+                className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+              <div className="mt-2 flex flex-wrap gap-2">
+                <button
+                  disabled={busy || editorDraft === editorContent}
+                  onClick={() => void stageEdit()}
+                  className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary disabled:opacity-60"
+                >
+                  Stage edit
+                </button>
+                {editorPending && (
+                  <>
+                    <button
+                      disabled={busy}
+                      onClick={() => void publishEdit()}
+                      className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-60"
+                    >
+                      Publish staged edit
+                    </button>
+                    <button
+                      disabled={busy}
+                      onClick={() => void discardEdit()}
+                      className="rounded-lg border border-destructive/40 px-3 py-1.5 text-xs font-semibold text-destructive disabled:opacity-60"
+                    >
+                      Discard staged edit
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+        </section>
+      )}
+
+      {editOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 card-shadow-lg">
+            <h2 className="font-display text-lg font-semibold text-foreground">Edit metadata</h2>
+            <div className="mt-3 space-y-2.5">
+              <input
+                value={editDraft.title}
+                onChange={(e) => setEditDraft((d) => ({ ...d, title: e.target.value }))}
+                placeholder="Title"
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+              <input
+                value={editDraft.author}
+                onChange={(e) => setEditDraft((d) => ({ ...d, author: e.target.value }))}
+                placeholder="Author byline"
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+              <textarea
+                value={editDraft.description}
+                onChange={(e) => setEditDraft((d) => ({ ...d, description: e.target.value }))}
+                placeholder="Description"
+                rows={4}
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+              <select
+                value={editDraft.genre}
+                onChange={(e) => setEditDraft((d) => ({ ...d, genre: e.target.value }))}
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <option value="">No genre</option>
+                {GENRES.map((g) => (
+                  <option key={g} value={g}>
+                    {g}
+                  </option>
+                ))}
+              </select>
+              <input
+                value={editDraft.coverUrl}
+                onChange={(e) => setEditDraft((d) => ({ ...d, coverUrl: e.target.value }))}
+                placeholder="Cover image URL (optional)"
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+            </div>
+            <p className="mt-2 text-[11px] text-muted-foreground">
+              Rights, access, and pricing fields aren't edited here — this stays admin-published
+              immediately, no re-review required (you are the reviewer).
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                onClick={() => setEditOpen(false)}
+                disabled={busy}
+                className="rounded-lg border border-border px-4 py-2 text-sm font-semibold hover:bg-secondary disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => void saveEdit()}
+                disabled={busy}
+                className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+              >
+                {busy ? "Saving…" : "Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 card-shadow-lg">
+            <h2 className="font-display text-lg font-semibold text-foreground">
+              Delete “{book.title}”?
+            </h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              This archives the book — it stops being published and disappears from the catalog,
+              but nothing is erased. Chunks, translations, editions, reader highlights and
+              progress, requests, and audit history all stay intact, and this can be reversed from
+              here anytime. For irreversible deletion, use "Delete permanently" instead (owner/
+              administrator only).
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                onClick={() => setDeleteOpen(false)}
+                disabled={busy}
+                className="rounded-lg border border-border px-4 py-2 text-sm font-semibold hover:bg-secondary disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => void confirmDelete()}
+                disabled={busy}
+                className="rounded-lg bg-destructive px-4 py-2 text-sm font-semibold text-destructive-foreground disabled:opacity-60"
+              >
+                {busy ? "Archiving…" : "Delete (archive)"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {permDeleteOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-lg rounded-2xl border border-destructive/40 bg-card p-6 card-shadow-lg">
+            <h2 className="font-display text-lg font-semibold text-destructive">
+              Permanently delete “{book.title}”?
+            </h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              This cannot be undone. Everything below is deleted along with the book:
+            </p>
+            {!permDeleteImpact ? (
+              <div className="mt-3 flex justify-center py-4">
+                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+              </div>
+            ) : (
+              <ul className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 rounded-xl border border-border bg-background p-3 text-xs">
+                <li>Pages (chunks): {permDeleteImpact.chunkCount}</li>
+                <li>Translated editions: {permDeleteImpact.editionCount}</li>
+                <li>Translation jobs: {permDeleteImpact.translationJobCount}</li>
+                <li>Reading progress rows: {permDeleteImpact.progressCount}</li>
+                <li>Reader highlights: {permDeleteImpact.highlightCount}</li>
+                <li>Shelf entries: {permDeleteImpact.shelfCount}</li>
+                <li>Subscriptions: {permDeleteImpact.subscriptionCount}</li>
+                <li>Translation requests: {permDeleteImpact.translationRequestCount}</li>
+                <li>Issue reports: {permDeleteImpact.translationReportCount}</li>
+                <li>
+                  Support tickets referencing it: {permDeleteImpact.relatedSupportTicketCount}{" "}
+                  {permDeleteImpact.relatedSupportTicketCount > 0 ? "(kept, unlinked)" : ""}
+                </li>
+              </ul>
+            )}
+            <p className="mt-3 text-xs text-muted-foreground">
+              Moderation and audit history for this book cannot be erased and is not affected by
+              this action.
+            </p>
+            {permDeleteImpact && permDeleteImpact.status !== "archived" && permDeleteImpact.status !== "unpublished" && (
+              <p className="mt-2 rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                This book is still {permDeleteImpact.status} — take it down (Delete/archive) first,
+                then permanently delete it as a separate step.
+              </p>
+            )}
+            <label className="mt-3 block">
+              <span className="text-xs font-medium text-muted-foreground">
+                Type the exact title to confirm: <strong>{book.title}</strong>
+              </span>
+              <input
+                value={permDeleteConfirmText}
+                onChange={(e) => setPermDeleteConfirmText(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+            </label>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                onClick={() => setPermDeleteOpen(false)}
+                disabled={busy}
+                className="rounded-lg border border-border px-4 py-2 text-sm font-semibold hover:bg-secondary disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                disabled={
+                  busy ||
+                  !permDeleteImpact ||
+                  permDeleteConfirmText !== book.title ||
+                  (permDeleteImpact.status !== "archived" && permDeleteImpact.status !== "unpublished")
+                }
+                onClick={() => void confirmPermDelete()}
+                className="rounded-lg bg-destructive px-4 py-2 text-sm font-semibold text-destructive-foreground disabled:opacity-60"
+              >
+                {busy ? "Deleting…" : "Permanently delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

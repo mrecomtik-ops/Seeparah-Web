@@ -651,3 +651,303 @@ export async function extractEpubToManuscriptText(
     throw new Error(error instanceof Error ? error.message : "Could not read this EPUB file");
   }
 }
+
+// ============================================================================
+// Book metadata editing (admin) — title/author/description/genre/cover only.
+// Never touches status, access_type, subscription_price_usd, or any rights/
+// review column — those all go through the dedicated review/access
+// functions above, each with their own gate. An admin editing metadata
+// keeps the book at whatever status it's already at (unlike an author's
+// self-edit, which must force a published book back into review — see
+// editBookMetadata in src/lib/library.ts): the admin IS the reviewer, so
+// their own edit doesn't need to re-request their own approval.
+// ============================================================================
+export interface BookMetadataPatch {
+  title?: string | undefined;
+  author?: string | undefined;
+  description?: string | undefined;
+  genre?: string | null | undefined;
+  coverUrl?: string | null | undefined;
+}
+
+export async function updateBookMetadata(params: {
+  bookId: string;
+  patch: BookMetadataPatch;
+}): Promise<{ before: Record<string, unknown> | null; after: Record<string, unknown> }> {
+  const db = await admin();
+  const { data: before, error: beforeError } = await db
+    .from("books")
+    .select("title, author, description, genre, cover_url")
+    .eq("id", params.bookId)
+    .single();
+  if (beforeError) throw new Error(beforeError.message);
+  const payload: {
+    title?: string;
+    author?: string;
+    description?: string;
+    genre?: string | null;
+    cover_url?: string | null;
+  } = {
+    ...(params.patch.title !== undefined ? { title: params.patch.title } : {}),
+    ...(params.patch.author !== undefined ? { author: params.patch.author } : {}),
+    ...(params.patch.description !== undefined ? { description: params.patch.description } : {}),
+    ...(params.patch.genre !== undefined ? { genre: params.patch.genre } : {}),
+    ...(params.patch.coverUrl !== undefined ? { cover_url: params.patch.coverUrl } : {}),
+  };
+  if (Object.keys(payload).length === 0) {
+    throw new Error("No metadata fields were provided to update.");
+  }
+  const { error } = await db.from("books").update(payload).eq("id", params.bookId);
+  if (error) throw new Error(error.message);
+  return { before, after: payload };
+}
+
+// ============================================================================
+// Staged content editing (admin) — see migration 0013's header for the full
+// rationale. An edit never touches `content` directly; it lands in
+// `pending_content` until a separate publish action promotes it. Works for
+// any language, original or translated, since it's just editing an
+// existing (book_id, language, chunk_index) row's text — language/edition
+// association can never drift because no new row is ever created.
+// ============================================================================
+export interface ChunkForEdit {
+  content: string;
+  pending_content: string | null;
+  pending_content_by: string | null;
+  pending_content_at: string | null;
+}
+
+export async function getChunkForEdit(params: {
+  bookId: string;
+  language: string;
+  chunkIndex: number;
+}): Promise<ChunkForEdit | null> {
+  const db = await admin();
+  const { data, error } = await db
+    .from("book_chunks")
+    .select("content, pending_content, pending_content_by, pending_content_at")
+    .eq("book_id", params.bookId)
+    .eq("language", params.language)
+    .eq("chunk_index", params.chunkIndex)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return (data as ChunkForEdit | null) ?? null;
+}
+
+export async function stageChunkContentEdit(params: {
+  bookId: string;
+  language: string;
+  chunkIndex: number;
+  newContent: string;
+  editorId: string;
+}): Promise<{ before: string; after: string }> {
+  if (!params.newContent.trim()) {
+    throw new Error("Edited content cannot be empty.");
+  }
+  const db = await admin();
+  const { data: before, error: beforeError } = await db
+    .from("book_chunks")
+    .select("content")
+    .eq("book_id", params.bookId)
+    .eq("language", params.language)
+    .eq("chunk_index", params.chunkIndex)
+    .maybeSingle();
+  if (beforeError) throw new Error(beforeError.message);
+  if (!before) throw new Error("That page doesn't exist for this book and language.");
+  const { error } = await db
+    .from("book_chunks")
+    .update({
+      pending_content: params.newContent,
+      pending_content_by: params.editorId,
+      pending_content_at: new Date().toISOString(),
+    })
+    .eq("book_id", params.bookId)
+    .eq("language", params.language)
+    .eq("chunk_index", params.chunkIndex);
+  if (error) throw new Error(error.message);
+  return { before: before.content, after: params.newContent };
+}
+
+export async function publishChunkContentEdit(params: {
+  bookId: string;
+  language: string;
+  chunkIndex: number;
+}): Promise<{ before: string; after: string }> {
+  const db = await admin();
+  const { data: row, error: rowError } = await db
+    .from("book_chunks")
+    .select("content, pending_content")
+    .eq("book_id", params.bookId)
+    .eq("language", params.language)
+    .eq("chunk_index", params.chunkIndex)
+    .maybeSingle();
+  if (rowError) throw new Error(rowError.message);
+  if (!row || !row.pending_content) {
+    throw new Error("There is no pending edit to publish for this page.");
+  }
+  const { error } = await db
+    .from("book_chunks")
+    .update({
+      content: row.pending_content,
+      pending_content: null,
+      pending_content_by: null,
+      pending_content_at: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("book_id", params.bookId)
+    .eq("language", params.language)
+    .eq("chunk_index", params.chunkIndex);
+  if (error) throw new Error(error.message);
+  return { before: row.content, after: row.pending_content };
+}
+
+export async function discardChunkContentEdit(params: {
+  bookId: string;
+  language: string;
+  chunkIndex: number;
+}): Promise<{ discarded: string | null }> {
+  const db = await admin();
+  const { data: row } = await db
+    .from("book_chunks")
+    .select("pending_content")
+    .eq("book_id", params.bookId)
+    .eq("language", params.language)
+    .eq("chunk_index", params.chunkIndex)
+    .maybeSingle();
+  const { error } = await db
+    .from("book_chunks")
+    .update({ pending_content: null, pending_content_by: null, pending_content_at: null })
+    .eq("book_id", params.bookId)
+    .eq("language", params.language)
+    .eq("chunk_index", params.chunkIndex);
+  if (error) throw new Error(error.message);
+  return { discarded: row?.pending_content ?? null };
+}
+
+// ============================================================================
+// Deletion — reversible by default (setBookLifecycleStatus's 'archived',
+// above), permanent as a separate, explicit, owner/administrator-only
+// action gated by catalog.delete_permanent (see catalog.functions.ts).
+// ============================================================================
+export interface BookDeletionImpact {
+  bookId: string;
+  title: string;
+  status: string;
+  chunkCount: number;
+  editionCount: number;
+  translationJobCount: number;
+  progressCount: number;
+  highlightCount: number;
+  shelfCount: number;
+  subscriptionCount: number;
+  translationRequestCount: number;
+  translationReportCount: number;
+  relatedSupportTicketCount: number;
+}
+
+type DeletionImpactTable =
+  | "book_chunks"
+  | "book_editions"
+  | "book_translation_jobs"
+  | "reading_progress"
+  | "book_highlights"
+  | "book_shelves"
+  | "user_subscriptions"
+  | "translation_requests"
+  | "translation_reports"
+  | "support_tickets";
+
+async function countWhere(
+  db: Awaited<ReturnType<typeof admin>>,
+  table: DeletionImpactTable,
+  column: string,
+  bookId: string,
+): Promise<number> {
+  const { count, error } = await db
+    .from(table)
+    .select("*", { count: "exact", head: true })
+    .eq(column, bookId);
+  if (error) throw new Error(`Couldn't count ${table}: ${error.message}`);
+  return count ?? 0;
+}
+
+export async function getBookDeletionImpact(bookId: string): Promise<BookDeletionImpact> {
+  const db = await admin();
+  const { data: book, error: bookError } = await db
+    .from("books")
+    .select("title, status")
+    .eq("id", bookId)
+    .single();
+  if (bookError || !book) throw new Error("Book not found.");
+
+  const [
+    chunkCount,
+    editionCount,
+    translationJobCount,
+    progressCount,
+    highlightCount,
+    shelfCount,
+    subscriptionCount,
+    translationRequestCount,
+    translationReportCount,
+    relatedSupportTicketCount,
+  ] = await Promise.all([
+    countWhere(db, "book_chunks", "book_id", bookId),
+    countWhere(db, "book_editions", "book_id", bookId),
+    countWhere(db, "book_translation_jobs", "book_id", bookId),
+    countWhere(db, "reading_progress", "book_id", bookId),
+    countWhere(db, "book_highlights", "book_id", bookId),
+    countWhere(db, "book_shelves", "book_id", bookId),
+    countWhere(db, "user_subscriptions", "book_id", bookId),
+    countWhere(db, "translation_requests", "book_id", bookId),
+    countWhere(db, "translation_reports", "book_id", bookId),
+    countWhere(db, "support_tickets", "related_book_id", bookId),
+  ]);
+
+  return {
+    bookId,
+    title: book.title,
+    status: book.status,
+    chunkCount,
+    editionCount,
+    translationJobCount,
+    progressCount,
+    highlightCount,
+    shelfCount,
+    subscriptionCount,
+    translationRequestCount,
+    translationReportCount,
+    relatedSupportTicketCount,
+  };
+}
+
+export async function deleteBookPermanently(params: {
+  bookId: string;
+}): Promise<{ impact: BookDeletionImpact }> {
+  const impact = await getBookDeletionImpact(params.bookId);
+  if (impact.status !== "archived" && impact.status !== "unpublished") {
+    throw new Error(
+      "Permanent deletion requires the book to already be archived or unpublished — take it down first (reversible), then delete it permanently as a separate step.",
+    );
+  }
+  const db = await admin();
+  // support_tickets.related_book_id has no ON DELETE cascade, by design —
+  // a support ticket is a moderation/audit record and must survive the
+  // book it references being deleted, never disappearing along with it.
+  // Detach the reference explicitly so the DELETE below doesn't fail
+  // against this one non-cascading FK; every other related table (chunks,
+  // editions, jobs, progress, highlights, shelves, subscriptions,
+  // requests, reports) cascades automatically.
+  if (impact.relatedSupportTicketCount > 0) {
+    const { error: detachError } = await db
+      .from("support_tickets")
+      .update({ related_book_id: null })
+      .eq("related_book_id", params.bookId);
+    if (detachError) {
+      throw new Error(`Couldn't detach related support tickets: ${detachError.message}`);
+    }
+  }
+  const { error } = await db.from("books").delete().eq("id", params.bookId);
+  if (error) throw new Error(error.message);
+  return { impact };
+}

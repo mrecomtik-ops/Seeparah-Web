@@ -762,6 +762,99 @@ export async function setBookStatus(
   if (error) throw new Error(error.message);
 }
 
+export interface AuthorBookMetadataPatch {
+  title?: string;
+  author?: string;
+  description?: string;
+  genre?: string | null;
+  coverUrl?: string | null;
+}
+
+// Statuses an author can already write to directly, per RLS
+// (books_author_update's WITH CHECK, migration 0007) — the resulting row's
+// status must be one of these no matter what changed. Anything else
+// (published, approved, rejected, changes_requested) is not
+// self-updatable by design: this is exactly why a metadata edit on one of
+// those states must ALSO move status to 'in_review' in the same
+// statement, below, or the whole update is refused by the database.
+const AUTHOR_EDITABLE_STATUSES = new Set(["draft", "in_review", "unpublished"]);
+
+/**
+ * Author-facing metadata edit — title/author/description/genre/cover only,
+ * matching exactly the column list migration 0011 grants `authenticated`
+ * on `books` (access_type, subscription_price_usd, and every rights/review
+ * column are excluded from that grant entirely, so an author literally
+ * cannot set them through this or any other client call, regardless of
+ * what this function's own TypeScript signature does or doesn't allow —
+ * the database is the real boundary, not this file).
+ *
+ * "An edit to a published book's content or rights-sensitive metadata must
+ * return it to review before the changed version can be published": since
+ * RLS already refuses ANY author update that would leave status outside
+ * draft/in_review/unpublished, a book currently published (or approved,
+ * rejected, changes_requested — every other post-review state) can only
+ * be edited by this function if the SAME update also moves status to
+ * 'in_review' — so that's exactly what happens here, automatically,
+ * whenever the book isn't already in one of the three self-editable
+ * states. There is no path through this function that leaves a
+ * previously-published book both edited AND still published.
+ */
+export async function editBookMetadata(
+  userId: string,
+  bookId: string,
+  patch: AuthorBookMetadataPatch,
+): Promise<void> {
+  if (userId === DEMO_USER_ID) {
+    const published = demoStore.getPublishedBooks();
+    const entry = published.find((p) => p.book.id === bookId);
+    if (entry) {
+      if (patch.title !== undefined) entry.book.title = patch.title;
+      if (patch.author !== undefined) entry.book.author = patch.author;
+      if (patch.description !== undefined) entry.book.description = patch.description;
+      if (patch.genre !== undefined) entry.book.genre = patch.genre;
+      if (patch.coverUrl !== undefined) entry.book.cover_url = patch.coverUrl;
+      demoStore.setPublishedBooks(published);
+    }
+    return;
+  }
+
+  const { data: current, error: readError } = await supabase
+    .from("books")
+    .select("status")
+    .eq("id", bookId)
+    .eq("author_id", userId)
+    .single();
+  if (readError) throw new Error(`Couldn't load this book: ${readError.message}`);
+
+  const payload: {
+    title?: string;
+    author?: string;
+    description?: string;
+    genre?: string | null;
+    cover_url?: string | null;
+    status?: string;
+  } = {
+    ...(patch.title !== undefined ? { title: patch.title } : {}),
+    ...(patch.author !== undefined ? { author: patch.author } : {}),
+    ...(patch.description !== undefined ? { description: patch.description } : {}),
+    ...(patch.genre !== undefined ? { genre: patch.genre } : {}),
+    ...(patch.coverUrl !== undefined ? { cover_url: patch.coverUrl } : {}),
+  };
+  if (Object.keys(payload).length === 0) {
+    throw new Error("No changes to save.");
+  }
+  if (!AUTHOR_EDITABLE_STATUSES.has(current.status)) {
+    payload.status = "in_review";
+  }
+
+  const { error } = await supabase
+    .from("books")
+    .update(payload)
+    .eq("id", bookId)
+    .eq("author_id", userId);
+  if (error) throw new Error(error.message);
+}
+
 // ---------------------------------------------------------------------------
 // Author profiles (pen name, bio, avatar — public author page)
 // ---------------------------------------------------------------------------
