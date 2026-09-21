@@ -4,10 +4,12 @@ import { useState } from "react";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { getAccessToken, useAdminSession, can } from "@/lib/admin/use-admin-session";
+import { getPublicContentSettings } from "@/lib/admin/settings.functions";
 import {
   adminListCatalog,
   adminBulkSetAccessType,
   adminSetBookLifecycle,
+  adminBulkPatchBookCategory,
 } from "@/lib/admin/catalog.functions";
 
 export const Route = createFileRoute("/admin/books/")({
@@ -36,9 +38,17 @@ function AdminBooksList() {
   const [applying, setApplying] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [bulkCategory, setBulkCategory] = useState("");
+  const [categoryBusy, setCategoryBusy] = useState(false);
   const queryClient = useQueryClient();
   const sessionQuery = useAdminSession();
   const canPublish = can(sessionQuery.data, "catalog.publish");
+  const canManageCategories = can(sessionQuery.data, "catalog.categories.manage");
+  const masterCategoriesQuery = useQuery({
+    queryKey: ["public-content-settings"],
+    queryFn: () => getPublicContentSettings(),
+  });
+  const masterCategories = (masterCategoriesQuery.data?.["categories"] as string[] | undefined) ?? [];
 
   const booksQuery = useQuery({
     queryKey: ["admin-books", status, query, page],
@@ -124,6 +134,32 @@ function AdminBooksList() {
     }
   }
 
+  async function applyBulkCategory(action: "add" | "remove") {
+    if (!bulkCategory || selected.size === 0) return;
+    setCategoryBusy(true);
+    try {
+      const results = await adminBulkPatchBookCategory({
+        data: {
+          accessToken: await getAccessToken(),
+          bookIds: [...selected],
+          category: bulkCategory,
+          action,
+        },
+      });
+      const failed = results.filter((r) => !r.ok);
+      if (failed.length === 0) {
+        toast.success(`${action === "add" ? "Added to" : "Removed from"} ${results.length} book(s)`);
+      } else {
+        toast.error(`${results.length - failed.length} succeeded, ${failed.length} failed`);
+      }
+      await queryClient.invalidateQueries({ queryKey: ["admin-books"] });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Bulk category update failed");
+    } finally {
+      setCategoryBusy(false);
+    }
+  }
+
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -180,6 +216,36 @@ function AdminBooksList() {
           >
             Set Premium…
           </button>
+          {canManageCategories && masterCategories.length > 0 && (
+            <>
+              <select
+                value={bulkCategory}
+                onChange={(e) => setBulkCategory(e.target.value)}
+                className="rounded-lg border border-border bg-card px-2 py-1.5 text-xs outline-none focus:ring-2 focus:ring-ring"
+              >
+                <option value="">Category…</option>
+                {masterCategories.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+              <button
+                disabled={!bulkCategory || categoryBusy}
+                onClick={() => applyBulkCategory("add")}
+                className="rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-semibold hover:bg-secondary disabled:opacity-60"
+              >
+                Add category
+              </button>
+              <button
+                disabled={!bulkCategory || categoryBusy}
+                onClick={() => applyBulkCategory("remove")}
+                className="rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-semibold hover:bg-secondary disabled:opacity-60"
+              >
+                Remove category
+              </button>
+            </>
+          )}
           <button
             onClick={() => setSelected(new Set())}
             className="ml-auto text-xs text-muted-foreground hover:text-foreground"

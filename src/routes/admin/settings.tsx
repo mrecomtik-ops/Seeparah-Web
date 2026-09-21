@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
-import { getAccessToken } from "@/lib/admin/use-admin-session";
+import { getAccessToken, useAdminSession, can } from "@/lib/admin/use-admin-session";
 import {
   adminGetSetting,
   adminPublishSetting,
@@ -11,6 +11,10 @@ import {
   adminRollbackSetting,
   adminGetSecretsStatus,
 } from "@/lib/admin/settings.functions";
+import {
+  adminListCategorySuggestions,
+  adminDecideCategorySuggestion,
+} from "@/lib/admin/catalog.functions";
 
 export const Route = createFileRoute("/admin/settings")({
   component: AdminSettingsPage,
@@ -37,7 +41,36 @@ function AdminSettingsPage() {
   const [busy, setBusy] = useState(false);
   const [priceDraft, setPriceDraft] = useState("");
   const [priceBusy, setPriceBusy] = useState(false);
+  const [suggestionBusy, setSuggestionBusy] = useState<string | null>(null);
   const queryClient = useQueryClient();
+  const sessionQuery = useAdminSession();
+  const canManageCategories = can(sessionQuery.data, "catalog.categories.manage");
+
+  const suggestionsQuery = useQuery({
+    queryKey: ["category-suggestions", "pending"],
+    queryFn: async () =>
+      adminListCategorySuggestions({ data: { accessToken: await getAccessToken(), status: "pending" } }),
+    enabled: canManageCategories,
+  });
+
+  async function decideSuggestion(suggestionId: string, decision: "approved" | "declined") {
+    setSuggestionBusy(suggestionId);
+    try {
+      await adminDecideCategorySuggestion({
+        data: { accessToken: await getAccessToken(), suggestionId, decision },
+      });
+      toast.success(
+        decision === "approved"
+          ? "Marked approved — add it to the categories list above if you want it live."
+          : "Declined",
+      );
+      await queryClient.invalidateQueries({ queryKey: ["category-suggestions", "pending"] });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Couldn't record this decision");
+    } finally {
+      setSuggestionBusy(null);
+    }
+  }
 
   const planPriceQuery = useQuery({
     queryKey: ["admin-setting", "monthly_plan_price_usd"],
@@ -234,6 +267,48 @@ function AdminSettingsPage() {
             Publish
           </button>
         </div>
+      )}
+
+      {canManageCategories && (suggestionsQuery.data?.length ?? 0) > 0 && (
+        <section className="mt-6">
+          <h2 className="font-display text-base font-semibold text-foreground">
+            Category suggestions
+          </h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            From authors, for their own submissions. Approving here only records your decision —
+            add the category to the list above yourself if you want it live; nothing here changes
+            the categories setting or any book automatically.
+          </p>
+          <ul className="mt-2 space-y-1.5">
+            {(suggestionsQuery.data ?? []).map((s) => (
+              <li
+                key={s.id as string}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-card px-3 py-2 text-xs"
+              >
+                <span>
+                  <strong>{s.suggested_category as string}</strong> — for {s.content_type as string}{" "}
+                  {(s.content_id as string).slice(0, 8)}…
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    disabled={suggestionBusy === s.id}
+                    onClick={() => decideSuggestion(s.id as string, "approved")}
+                    className="rounded-lg bg-primary px-3 py-1 font-semibold text-primary-foreground disabled:opacity-60"
+                  >
+                    Approve
+                  </button>
+                  <button
+                    disabled={suggestionBusy === s.id}
+                    onClick={() => decideSuggestion(s.id as string, "declined")}
+                    className="rounded-lg border border-border px-3 py-1 font-semibold hover:bg-secondary disabled:opacity-60"
+                  >
+                    Decline
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
 
       {historyQuery.data && historyQuery.data.length > 0 && (

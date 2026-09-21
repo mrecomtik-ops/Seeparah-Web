@@ -18,6 +18,10 @@ export type Capability =
   | "catalog.review" // rights review + edition review, request changes
   | "catalog.publish" // approve -> published, unpublish, archive
   | "catalog.delete_permanent" // irreversible DELETE of a book and all its content — owner/administrator only
+  | "catalog.categories.manage" // assign/change book categories, decide category suggestions
+  | "research.read_unpublished" // view draft/submitted/rejected research papers
+  | "research.review" // rights/quality review of a submitted paper, request changes
+  | "research.publish" // approve -> published version, unpublish, withdraw
   | "translation.jobs.manage" // retry/cancel/review jobs, edit glossary
   | "translation.requests.decide" // approve/decline/revoke reader access requests
   | "support.tickets.read_all"
@@ -39,6 +43,10 @@ const MATRIX: Record<AdminRole, Capability[]> = {
     "catalog.review",
     "catalog.publish",
     "catalog.delete_permanent",
+    "catalog.categories.manage",
+    "research.read_unpublished",
+    "research.review",
+    "research.publish",
     "translation.jobs.manage",
     "translation.requests.decide",
     "support.tickets.read_all",
@@ -58,6 +66,10 @@ const MATRIX: Record<AdminRole, Capability[]> = {
     "catalog.review",
     "catalog.publish",
     "catalog.delete_permanent",
+    "catalog.categories.manage",
+    "research.read_unpublished",
+    "research.review",
+    "research.publish",
     "translation.jobs.manage",
     "translation.requests.decide",
     "support.tickets.read_all",
@@ -75,6 +87,10 @@ const MATRIX: Record<AdminRole, Capability[]> = {
     "catalog.read_unpublished",
     "catalog.review",
     "catalog.publish",
+    "catalog.categories.manage",
+    "research.read_unpublished",
+    "research.review",
+    "research.publish",
     "translation.jobs.manage",
     "translation.requests.decide",
     "health.read",

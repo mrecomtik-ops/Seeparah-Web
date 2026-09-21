@@ -103,6 +103,18 @@ export function BookCard({
               {book.genre}
             </span>
           )}
+          {book.categories && book.categories.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {book.categories.slice(0, 2).map((c) => (
+                <span
+                  key={c}
+                  className="w-fit rounded-full bg-accent/60 px-2 py-0.5 text-[11px] font-medium text-accent-foreground"
+                >
+                  {c}
+                </span>
+              ))}
+            </div>
+          )}
           <p className="line-clamp-2 text-sm text-muted-foreground">
             {book.description}
           </p>

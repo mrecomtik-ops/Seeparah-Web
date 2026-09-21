@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isMissingColumnError, ManuscriptSaveError } from "@/lib/library";
+import { isMissingColumnError, ManuscriptSaveError, matchesBookSearch } from "@/lib/library";
 
 describe("isMissingColumnError — the schema-tolerant retry's trigger condition", () => {
   it("matches the real PGRST204 shape PostgREST returns for an unrecognized insert column", () => {
@@ -60,5 +60,35 @@ describe("ManuscriptSaveError", () => {
     expect(err.message).toContain("saved as a private draft");
     expect(err.message).not.toMatch(/text is safe/i);
     expect(err).toBeInstanceOf(Error);
+  });
+});
+
+describe("matchesBookSearch — title/author search matching", () => {
+  it("matches a partial, case-different substring of the title", () => {
+    expect(matchesBookSearch({ title: "How to Win Friends", author: "Dale Carnegie" }, "win FRIENDS")).toBe(
+      true,
+    );
+  });
+
+  it("matches a partial substring of the author name", () => {
+    expect(matchesBookSearch({ title: "How to Win Friends", author: "Dale Carnegie" }, "carne")).toBe(true);
+  });
+
+  it("does not match unrelated text", () => {
+    expect(matchesBookSearch({ title: "How to Win Friends", author: "Dale Carnegie" }, "philosophy")).toBe(
+      false,
+    );
+  });
+
+  it("matches Urdu title text correctly, case rules aside (no Latin casing applies)", () => {
+    expect(matchesBookSearch({ title: "کتاب کا نام", author: "مصنف" }, "کتاب")).toBe(true);
+  });
+
+  it("matches Arabic author text correctly", () => {
+    expect(matchesBookSearch({ title: "The Title", author: "أحمد" }, "أحمد")).toBe(true);
+  });
+
+  it("treats an empty/whitespace-only query as matching everything", () => {
+    expect(matchesBookSearch({ title: "Anything", author: "Anyone" }, "   ")).toBe(true);
   });
 });

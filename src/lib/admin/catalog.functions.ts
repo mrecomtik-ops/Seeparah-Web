@@ -575,3 +575,94 @@ export const adminDeleteBookPermanently = createServerFn({ method: "POST" })
     });
     return { ok: true as const };
   });
+
+// ============================================================================
+// Book categories (admin) — assignment against the master list published at
+// content_settings["categories"]; individual and bulk.
+// ============================================================================
+export const adminSetBookCategories = createServerFn({ method: "POST" })
+  .inputValidator((data) =>
+    withToken({ bookId: z.string(), categories: z.array(z.string()) }).parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { userId, role } = await requireAdmin(data.accessToken, "catalog.categories.manage");
+    const { setBookCategories } = await import("@/lib/admin/catalog.server");
+    const diff = await setBookCategories({ bookId: data.bookId, categories: data.categories });
+    await recordAudit({
+      actorId: userId,
+      actorRole: role,
+      action: "catalog.set_categories",
+      entityType: "book",
+      entityId: data.bookId,
+      before: { categories: diff.before },
+      after: { categories: diff.after },
+    });
+    return { ok: true as const };
+  });
+
+export const adminBulkPatchBookCategory = createServerFn({ method: "POST" })
+  .inputValidator((data) =>
+    withToken({
+      bookIds: z.array(z.string()).min(1),
+      category: z.string().min(1),
+      action: z.enum(["add", "remove"]),
+    }).parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { userId, role } = await requireAdmin(data.accessToken, "catalog.categories.manage");
+    const { bulkPatchBookCategory } = await import("@/lib/admin/catalog.server");
+    const results = await bulkPatchBookCategory({
+      bookIds: data.bookIds,
+      category: data.category,
+      action: data.action,
+    });
+    await recordAudit({
+      actorId: userId,
+      actorRole: role,
+      action: `catalog.bulk_${data.action}_category`,
+      entityType: "book",
+      after: {
+        category: data.category,
+        succeeded: results.filter((r) => r.ok).length,
+        failed: results.filter((r) => !r.ok).length,
+      },
+    });
+    return results;
+  });
+
+export const adminListCategorySuggestions = createServerFn({ method: "POST" })
+  .inputValidator((data) => withToken({ status: z.string().optional() }).parse(data))
+  .handler(async ({ data }) => {
+    await requireAdmin(data.accessToken, "catalog.categories.manage");
+    const { listCategorySuggestions } = await import("@/lib/admin/catalog.server");
+    return listCategorySuggestions(data.status);
+  });
+
+export const adminDecideCategorySuggestion = createServerFn({ method: "POST" })
+  .inputValidator((data) =>
+    withToken({
+      suggestionId: z.string(),
+      decision: z.enum(["approved", "declined"]),
+      note: z.string().optional(),
+    }).parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { userId, role } = await requireAdmin(data.accessToken, "catalog.categories.manage");
+    const { decideCategorySuggestion } = await import("@/lib/admin/catalog.server");
+    const diff = await decideCategorySuggestion({
+      suggestionId: data.suggestionId,
+      decision: data.decision,
+      decidedBy: userId,
+      note: data.note,
+    });
+    await recordAudit({
+      actorId: userId,
+      actorRole: role,
+      action: "catalog.decide_category_suggestion",
+      entityType: "category_suggestion",
+      entityId: data.suggestionId,
+      before: diff.before,
+      after: { status: data.decision, note: data.note ?? null },
+    });
+    return { ok: true as const };
+  });

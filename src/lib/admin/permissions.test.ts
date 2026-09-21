@@ -56,6 +56,19 @@ describe("permission matrix", () => {
     expect(ADMIN_ROLES).toEqual(["owner", "administrator", "editor", "support"]);
   });
 
+  it("gives owner/administrator/editor the new categories and research capabilities, never support", () => {
+    for (const role of ["owner", "administrator", "editor"] as const) {
+      expect(roleHasCapability(role, "catalog.categories.manage")).toBe(true);
+      expect(roleHasCapability(role, "research.read_unpublished")).toBe(true);
+      expect(roleHasCapability(role, "research.review")).toBe(true);
+      expect(roleHasCapability(role, "research.publish")).toBe(true);
+    }
+    expect(roleHasCapability("support", "catalog.categories.manage")).toBe(false);
+    expect(roleHasCapability("support", "research.read_unpublished")).toBe(false);
+    expect(roleHasCapability("support", "research.review")).toBe(false);
+    expect(roleHasCapability("support", "research.publish")).toBe(false);
+  });
+
   it("gates permanent book deletion (catalog.delete_permanent) to owner/administrator only — never editor, support, or an unassigned role", () => {
     expect(roleHasCapability("owner", "catalog.delete_permanent")).toBe(true);
     expect(roleHasCapability("administrator", "catalog.delete_permanent")).toBe(true);

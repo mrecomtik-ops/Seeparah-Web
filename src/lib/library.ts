@@ -69,6 +69,51 @@ export async function getBook(id: string): Promise<Book | null> {
   return (data as Book | null) ?? null;
 }
 
+/**
+ * Pure title/author search predicate — no Supabase import, unit-testable
+ * without a database. Case-insensitive, partial-substring, and correct for
+ * any script including Urdu/Arabic: JS's `toLowerCase()` + `includes()`
+ * operate on Unicode code points, not Latin-specific casing/stemming
+ * rules, so this needs no per-language configuration to work for RTL text.
+ * Matches title OR author — the two fields the product rule names
+ * explicitly — never anything else, so a search for "history" doesn't
+ * surface unrelated genre matches under the "search" heading (genre/
+ * description filtering is a separate, additional client-side facet in
+ * the Library UI, not part of "search" itself).
+ */
+export function matchesBookSearch(book: Pick<Book, "title" | "author">, query: string): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  return book.title.toLowerCase().includes(q) || book.author.toLowerCase().includes(q);
+}
+
+/**
+ * Server-side search by title or author — same matching rule as
+ * matchesBookSearch, expressed as `ilike` so it scales past whatever's
+ * already fetched to the client and works from a page that hasn't loaded
+ * the full catalog. Goes through the plain (RLS-backed) client, exactly
+ * like listBooks/getBook — never service-role — so an unpublished or
+ * otherwise inaccessible book can never appear in a result: the SAME
+ * `books_read_access` policy that already gates listBooks() gates this,
+ * by construction, not by an extra filter this function has to remember
+ * to apply.
+ */
+export async function searchBooks(query: string): Promise<Book[]> {
+  const q = query.trim();
+  if (!q) return [];
+  const escaped = q.replace(/[%_]/g, (c) => `\\${c}`);
+  const { data, error } = await supabase
+    .from("books")
+    .select("*")
+    .or(`title.ilike.%${escaped}%,author.ilike.%${escaped}%`)
+    .order("created_at", { ascending: true });
+  if (error) {
+    console.error("[searchBooks] real query failed:", error.message);
+    return [];
+  }
+  return (data as Book[]) ?? [];
+}
+
 export interface ReaderChunkResult {
   content: string | null;
   locked: boolean;

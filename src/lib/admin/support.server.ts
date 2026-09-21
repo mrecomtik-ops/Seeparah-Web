@@ -46,6 +46,7 @@ export interface CreateTicketParams {
   category: SupportCategory;
   relatedBookId?: string | null | undefined;
   relatedJobId?: string | null | undefined;
+  relatedPaperId?: string | null | undefined;
   requestKind?: RequestKind | undefined;
   referenceCode?: string | undefined;
   structuredData?: Record<string, unknown> | undefined;
@@ -65,6 +66,7 @@ export async function createTicket(params: CreateTicketParams) {
       category: params.category,
       related_book_id: params.relatedBookId ?? null,
       related_job_id: params.relatedJobId ?? null,
+      related_paper_id: params.relatedPaperId ?? null,
       request_kind: params.requestKind ?? "ticket",
       reference_code: params.referenceCode ?? null,
       structured_data: toJsonSafe(params.structuredData),

@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { ArrowLeft, Loader2, Pencil, Trash2 } from "lucide-react";
 import { GENRES } from "@/lib/data";
 import { getAccessToken, useAdminSession, can } from "@/lib/admin/use-admin-session";
+import { getPublicContentSettings } from "@/lib/admin/settings.functions";
 import {
   adminGetCatalogBook,
   adminReviewBookRights,
@@ -22,6 +23,7 @@ import {
   adminStageChunkContentEdit,
   adminPublishChunkContentEdit,
   adminDiscardChunkContentEdit,
+  adminSetBookCategories,
 } from "@/lib/admin/catalog.functions";
 import type { BookDeletionImpact } from "@/lib/admin/catalog.server";
 
@@ -60,6 +62,13 @@ function AdminBookDetail() {
   } | null>(null);
   const [editorDraft, setEditorDraft] = useState("");
   const [editorLoading, setEditorLoading] = useState(false);
+
+  const [categoriesBusy, setCategoriesBusy] = useState(false);
+  const masterCategoriesQuery = useQuery({
+    queryKey: ["public-content-settings"],
+    queryFn: () => getPublicContentSettings(),
+  });
+  const masterCategories = (masterCategoriesQuery.data?.["categories"] as string[] | undefined) ?? [];
 
   const detailQuery = useQuery({
     queryKey: ["admin-book", bookId],
@@ -254,6 +263,23 @@ function AdminBookDetail() {
       toast.success("Pending edit discarded");
     });
     await loadChunkForEdit();
+  }
+
+  async function toggleCategory(category: string, current: string[]) {
+    setCategoriesBusy(true);
+    try {
+      const next = current.includes(category)
+        ? current.filter((c) => c !== category)
+        : [...current, category];
+      await adminSetBookCategories({
+        data: { accessToken: await getAccessToken(), bookId, categories: next },
+      });
+      await refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Couldn't update categories");
+    } finally {
+      setCategoriesBusy(false);
+    }
   }
 
   return (
@@ -649,6 +675,42 @@ function AdminBookDetail() {
           </p>
         )}
       </section>
+
+      {canPublish && (
+        <section className="mt-6 rounded-2xl border border-border bg-card p-5 card-shadow">
+          <h2 className="font-display text-base font-semibold text-foreground">Categories</h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            A book may belong to more than one category. Only categories already in the master
+            list (Admin Settings → categories) can be assigned here.
+          </p>
+          {masterCategories.length === 0 ? (
+            <p className="mt-3 text-xs text-muted-foreground">
+              No categories defined yet — add some to the "categories" setting in Admin Settings
+              first.
+            </p>
+          ) : (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {masterCategories.map((c) => {
+                const active = (book.categories ?? []).includes(c);
+                return (
+                  <button
+                    key={c}
+                    disabled={categoriesBusy}
+                    onClick={() => toggleCategory(c, book.categories ?? [])}
+                    className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-60 ${
+                      active
+                        ? "bg-primary text-primary-foreground"
+                        : "border border-border bg-background text-foreground hover:bg-secondary"
+                    }`}
+                  >
+                    {c}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      )}
 
       <section className="mt-6 rounded-2xl border border-border bg-card p-5 card-shadow">
         <h2 className="font-display text-base font-semibold text-foreground">

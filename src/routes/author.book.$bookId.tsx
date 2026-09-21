@@ -17,6 +17,7 @@ import { LANGUAGES, GENRES } from "@/lib/data";
 import { getBook, setBookStatus, editBookMetadata, type BookStatus } from "@/lib/library";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/use-auth";
+import { suggestBookCategory } from "@/lib/categories.functions";
 import {
   cancelTranslationJob,
   getBookTranslationStatus,
@@ -166,6 +167,31 @@ function ManageBookPage() {
       toast.error(error instanceof Error ? error.message : "Couldn't remove this book");
     } finally {
       setDeleteBusy(false);
+    }
+  }
+
+  const [categorySuggestion, setCategorySuggestion] = useState("");
+  const [suggestingCategory, setSuggestingCategory] = useState(false);
+
+  async function suggestCategory() {
+    if (!categorySuggestion.trim()) return;
+    setSuggestingCategory(true);
+    try {
+      const { data } = await supabase.auth.getSession();
+      const accessToken = data.session?.access_token;
+      if (!accessToken) {
+        toast.error("Sign in to suggest a category.");
+        return;
+      }
+      await suggestBookCategory({
+        data: { accessToken, contentType: "book", contentId: bookId, category: categorySuggestion.trim() },
+      });
+      toast.success("Thanks — an admin will review this suggestion. It doesn't change your book's categories yet.");
+      setCategorySuggestion("");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Couldn't send the suggestion");
+    } finally {
+      setSuggestingCategory(false);
     }
   }
 
@@ -383,6 +409,31 @@ function ManageBookPage() {
             Rejected: {book.rejection_reason}
           </p>
         )}
+
+        <section className="mt-8 rounded-2xl border border-border bg-card p-5 card-shadow">
+          <h2 className="font-display text-base font-semibold text-foreground">
+            Suggest a category
+          </h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            You can suggest a category for this book — an admin reviews it before it's added.
+            Suggesting one never changes your book's categories directly.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <input
+              value={categorySuggestion}
+              onChange={(e) => setCategorySuggestion(e.target.value)}
+              placeholder="e.g. Historical Fiction"
+              className="min-w-0 flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            />
+            <button
+              disabled={suggestingCategory || !categorySuggestion.trim()}
+              onClick={() => void suggestCategory()}
+              className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+            >
+              {suggestingCategory ? "Sending…" : "Suggest"}
+            </button>
+          </div>
+        </section>
 
         <section className="mt-8 rounded-2xl border border-border bg-card p-6 card-shadow">
           <div className="flex items-center justify-between">

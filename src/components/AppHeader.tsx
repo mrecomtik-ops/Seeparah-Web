@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { BookOpen, Feather, LayoutDashboard, LogIn, ShieldCheck, User } from "lucide-react";
+import { BookOpen, Feather, FileText, LayoutDashboard, LogIn, ShieldCheck, User } from "lucide-react";
 import logoUrl from "@/assets/seeparah-logo.png";
 import { useAuth } from "@/lib/use-auth";
 import { useAdminSession } from "@/lib/admin/use-admin-session";
@@ -12,6 +12,7 @@ import { useAdminSession } from "@/lib/admin/use-admin-session";
 const NAV = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/library", label: "Library", icon: BookOpen },
+  { to: "/research", label: "Research", icon: FileText },
   { to: "/author", label: "Author", icon: Feather },
   { to: "/profile", label: "Profile", icon: User },
 ] as const;

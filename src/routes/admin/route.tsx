@@ -13,6 +13,7 @@ const NAV: { to: string; label: string; capability?: Parameters<typeof can>[1] }
   { to: "/admin", label: "Overview" },
   { to: "/admin/users", label: "Users", capability: "users.read" },
   { to: "/admin/books", label: "Catalog", capability: "catalog.read_unpublished" },
+  { to: "/admin/research", label: "Literature Research", capability: "research.read_unpublished" },
   {
     to: "/admin/translation-requests",
     label: "Translation requests",

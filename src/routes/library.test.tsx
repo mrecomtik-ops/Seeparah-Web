@@ -35,6 +35,11 @@ let progressRows: Progress[] = [];
 vi.mock("@/lib/library", () => ({
   listBooks: () => Promise.resolve([book]),
   listProgress: () => Promise.resolve(progressRows),
+  matchesBookSearch: (b: { title: string; author: string }, query: string) => {
+    const q = query.trim().toLowerCase();
+    if (!q) return true;
+    return b.title.toLowerCase().includes(q) || b.author.toLowerCase().includes(q);
+  },
 }));
 
 vi.mock("@/lib/use-auth", () => ({

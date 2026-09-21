@@ -9,6 +9,11 @@ export interface Book {
   source_language: string;
   description: string;
   genre?: string | null;
+  // Admin-managed, multi-select (migration 0005's books.categories text[]) —
+  // distinct from the older free-text `genre` field above, which stays as
+  // legacy/unrelated. Optional because demo books and older fetched rows
+  // may not carry it.
+  categories?: string[];
   status: string;
   access_type: "free" | "paid";
   subscription_price_usd: number | null;

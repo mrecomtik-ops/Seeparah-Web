@@ -951,3 +951,196 @@ export async function deleteBookPermanently(params: {
   if (error) throw new Error(error.message);
   return { impact };
 }
+
+// ============================================================================
+// Book categories — admin-managed assignment against the controlled
+// vocabulary published at content_settings["categories"] (already a legal
+// settings key, already public/versioned/audited — reused as-is, not
+// duplicated). A book may belong to more than one category
+// (books.categories text[], migration 0005) — never a new book record.
+// ============================================================================
+async function getMasterCategories(): Promise<string[]> {
+  const { getSetting } = await import("@/lib/admin/settings.server");
+  const row = await getSetting("categories");
+  const value = row?.value;
+  return Array.isArray(value) ? (value.filter((v) => typeof v === "string") as string[]) : [];
+}
+
+function validateCategoriesAgainstMasterList(categories: string[], master: string[]): void {
+  const invalid = categories.filter((c) => !master.includes(c));
+  if (invalid.length > 0) {
+    throw new Error(
+      `Not in the category list: ${invalid.join(", ")}. Add ${invalid.length === 1 ? "it" : "them"} to the master list in Admin Settings first, or pick an existing category.`,
+    );
+  }
+}
+
+export async function setBookCategories(params: {
+  bookId: string;
+  categories: string[];
+}): Promise<{ before: string[]; after: string[] }> {
+  const master = await getMasterCategories();
+  const deduped = [...new Set(params.categories.map((c) => c.trim()).filter(Boolean))];
+  validateCategoriesAgainstMasterList(deduped, master);
+  const db = await admin();
+  const { data: before, error: beforeError } = await db
+    .from("books")
+    .select("categories")
+    .eq("id", params.bookId)
+    .single();
+  if (beforeError) throw new Error(beforeError.message);
+  const { error } = await db.from("books").update({ categories: deduped }).eq("id", params.bookId);
+  if (error) throw new Error(error.message);
+  return { before: (before?.categories as string[] | null) ?? [], after: deduped };
+}
+
+export interface BulkCategoryResult {
+  bookId: string;
+  ok: boolean;
+  error?: string;
+}
+
+/** Adds OR removes a single category across many books at once — safe to
+ * do in bulk because each book's own array is patched independently (no
+ * shared state, no risk of one book's failure corrupting another's), the
+ * same resilience pattern as bulkSetAccessType. */
+export async function bulkPatchBookCategory(params: {
+  bookIds: string[];
+  category: string;
+  action: "add" | "remove";
+}): Promise<BulkCategoryResult[]> {
+  const master = await getMasterCategories();
+  if (params.action === "add") {
+    validateCategoriesAgainstMasterList([params.category], master);
+  }
+  const db = await admin();
+  const results: BulkCategoryResult[] = [];
+  for (const bookId of params.bookIds) {
+    try {
+      const { data: row, error: readError } = await db
+        .from("books")
+        .select("categories")
+        .eq("id", bookId)
+        .single();
+      if (readError) throw new Error(readError.message);
+      const current = (row?.categories as string[] | null) ?? [];
+      const next =
+        params.action === "add"
+          ? current.includes(params.category)
+            ? current
+            : [...current, params.category]
+          : current.filter((c) => c !== params.category);
+      const { error: writeError } = await db
+        .from("books")
+        .update({ categories: next })
+        .eq("id", bookId);
+      if (writeError) throw new Error(writeError.message);
+      results.push({ bookId, ok: true });
+    } catch (error) {
+      results.push({ bookId, ok: false, error: error instanceof Error ? error.message : String(error) });
+    }
+  }
+  return results;
+}
+
+export async function suggestCategory(params: {
+  contentType: "book" | "research_paper";
+  contentId: string;
+  suggestedBy: string;
+  category: string;
+}): Promise<{ id: string }> {
+  if (!params.category.trim()) throw new Error("Enter a category to suggest.");
+  const db = await admin();
+  // Ownership is re-verified here even though RLS also enforces it on the
+  // client-facing insert path — this function is called from a server
+  // function that (like every other admin-adjacent one in this codebase)
+  // uses the service-role client, which bypasses RLS entirely, so this
+  // check IS the enforcement for this specific call path, not a redundant
+  // extra.
+  const table = params.contentType === "book" ? "books" : "research_papers";
+  const { data: owned, error: ownError } = await db
+    .from(table)
+    .select("author_id")
+    .eq("id", params.contentId)
+    .maybeSingle();
+  if (ownError) throw new Error(ownError.message);
+  if (!owned || owned.author_id !== params.suggestedBy) {
+    throw new Error("You can only suggest a category for your own submission.");
+  }
+  const { data, error } = await db
+    .from("category_suggestions")
+    .insert({
+      content_type: params.contentType,
+      content_id: params.contentId,
+      suggested_by: params.suggestedBy,
+      suggested_category: params.category.trim(),
+    })
+    .select("id")
+    .single();
+  if (error) throw new Error(error.message);
+  return { id: data.id as string };
+}
+
+export interface CategorySuggestionRow {
+  id: string;
+  content_type: "book" | "research_paper";
+  content_id: string;
+  suggested_category: string;
+  suggested_by: string;
+  status: "pending" | "approved" | "declined";
+  decision_note: string | null;
+  decided_by: string | null;
+  decided_at: string | null;
+  created_at: string;
+}
+
+// Explicit return type — without it, since category_suggestions isn't in
+// the generated Supabase types until migration 0014 is applied, TS falls
+// back to a polluted union of unrelated table row shapes (content_settings,
+// admin_action_events, ...) that leaks into every caller, same class of bug
+// as listBookEditions had in an earlier pass.
+export async function listCategorySuggestions(status?: string): Promise<CategorySuggestionRow[]> {
+  const db = await admin();
+  let query = db
+    .from("category_suggestions")
+    .select("*")
+    .order("created_at", { ascending: false });
+  if (status) query = query.eq("status", status);
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+  return (data ?? []) as unknown as CategorySuggestionRow[];
+}
+
+/** Deciding a suggestion NEVER itself changes books.categories or the
+ * master list — "approved" only means "an admin agrees this is a
+ * reasonable category," recorded for reference. Actually adding it to a
+ * book (setBookCategories) or to the master vocabulary (a separate
+ * content_settings["categories"] publish) is always a distinct, later,
+ * deliberate admin action — this is what keeps "an author must not
+ * publish a new public category or bypass review" true regardless of how
+ * this decision comes out. */
+export async function decideCategorySuggestion(params: {
+  suggestionId: string;
+  decision: "approved" | "declined";
+  decidedBy: string;
+  note?: string | undefined;
+}): Promise<{ before: Record<string, unknown> | null }> {
+  const db = await admin();
+  const { data: before, error: beforeError } = await db
+    .from("category_suggestions")
+    .select("*")
+    .eq("id", params.suggestionId)
+    .single();
+  if (beforeError) throw new Error(beforeError.message);
+  const { error } = await db
+    .from("category_suggestions")
+    .update({
+      status: params.decision,
+      decided_by: params.decidedBy,
+      decided_at: new Date().toISOString(),
+      decision_note: params.note ?? null,
+    })
+    .eq("id", params.suggestionId);
+  if (error) throw new Error(error.message);
+  return { before };
+}
