@@ -81,26 +81,79 @@
 -- version would stay silently, permanently public with no
 -- research_papers row ever actually pointing at it as published. This
 -- was a real gap, not a rounding error, so it's designed out here rather
--- than patched: `is_current` is removed entirely. Public visibility is
--- now derived from exactly ONE fact — `research_papers.published_version_id
--- = research_paper_versions.id AND research_papers.status = 'published'`
--- — set in a single UPDATE statement that is the last step of publishing.
--- A version row can exist in the table (already inserted, snapshot taken)
--- without ever being visible until that one UPDATE actually commits; if
--- it never runs, the row simply stays permanently invisible — an orphan,
--- not a leak. Superseding an old version now happens for free: moving
--- the pointer to the new version's id is the ONLY UPDATE required, and it
--- simultaneously makes the previous version invisible (its id no longer
--- matches the pointer) — no separate "set is_current = false" step, and
--- so no window where that step hasn't run yet either. Withdrawal
--- similarly needs no pointer changes: moving research_papers.status away
--- from 'published' alone makes the version invisible via the same
--- `status = 'published'` clause; `withdrawn`/`withdrawn_at`/
--- `withdrawn_by`/`withdrawn_reason` on the version row remain, purely as
--- an audit record of *that specific version* having been formally
--- withdrawn (as opposed to superseded by a newer one) — no longer
--- security-relevant, since the pointer+status check already fully
--- determines visibility on its own.
+-- than patched: `is_current` is removed entirely. A version row can exist
+-- in the table (already inserted, snapshot taken) without ever being
+-- visible until research_papers.published_version_id is moved to name it;
+-- if that never happens, the row simply stays permanently invisible — an
+-- orphan, not a leak.
+--
+-- THIRD REVIEW ROUND (also caught before this ever ran) — two more gaps
+-- in the second round's design, both fixed below:
+--
+-- (a) RLS-on-RLS recursion: the second round's policy read
+--     `exists (select 1 from public.research_papers rp where rp.id = ...
+--     and rp.published_version_id = ... and rp.status = 'published')`
+--     directly inside research_paper_versions' own USING clause. Postgres
+--     does NOT exempt a table referenced inside another table's policy
+--     expression from that table's own RLS — the subquery is evaluated as
+--     the CURRENT caller (anon/authenticated), and research_papers has no
+--     public-read policy at all, only research_papers_author_select
+--     (author or admin). An anonymous or non-author reader's subquery
+--     would therefore find the referenced research_papers row invisible
+--     to THEM specifically, `exists(...)` would evaluate false, and
+--     research_paper_versions_public_read would never match anything for
+--     anon or a logged-in non-author — this was not a leak, it was a
+--     silent total outage of the entire public papers feature (worse in
+--     some ways: it would have looked like "no papers exist" rather than
+--     erroring). Fixed by moving the check into a SECURITY DEFINER
+--     function, `is_paper_version_published(paper_id, version_id)` below
+--     — the exact same pattern already established by
+--     public.is_admin()/public.current_admin_role() in migration 0004
+--     ("security definer so policies elsewhere can check role without
+--     recursive RLS on admin_users itself"). A SECURITY DEFINER function
+--     executes with its OWNER's privileges (the migration role, which is
+--     research_papers' table owner and therefore bypasses its RLS by
+--     default), so the visibility check itself can see the row — while
+--     the function's return value is still just a boolean, revealing
+--     nothing about research_papers' actual content to the caller.
+--
+-- (b) status coupling breaks the "stays visible through a revision" promise:
+--     the second round's condition included `rp.status = 'published'`.
+--     But a paper that already has a live published version and later
+--     gets a REVISION submitted for review must pass back through
+--     'submitted' -> 'changes_requested'/'approved' before the next
+--     publish — the exact same review cycle every paper goes through
+--     (reviewResearchPaper only acts on status = 'submitted'). While that
+--     revision is in flight, research_papers.status is temporarily NOT
+--     'published' even though the OLD version is still the correct thing
+--     to show readers — nothing about the still-live published snapshot
+--     has changed. Requiring status = 'published' in the visibility check
+--     would hide that old, still-good version the moment the author
+--     merely STARTED editing a revision, before any replacement was ever
+--     approved or published — breaking exactly the "existing published
+--     snapshot stays visible while a replacement is submitted, reviewed,
+--     or approved" guarantee. Fixed by dropping the status condition
+--     entirely: visibility is now governed SOLELY by
+--     `research_papers.published_version_id = research_paper_versions.id`
+--     — nothing else. `status` is now a purely editorial-workflow field
+--     (what state the CURRENT draft/revision is in) with zero bearing on
+--     what's publicly readable. Superseding an old version still happens
+--     for free: moving the pointer to the new version's id is the ONLY
+--     statement required, and it simultaneously makes the previous
+--     version invisible (its id no longer matches the pointer) — no
+--     window where old and new are both visible, or both invisible.
+--     Withdrawal now explicitly NULLs the pointer (see
+--     withdrawPublishedPaper in research.server.ts) rather than relying
+--     on status leaving 'published' — required precisely because status
+--     may legitimately already be something else (a revision mid-review)
+--     at the moment an admin withdraws the currently-live version; nulling
+--     the pointer is the one action that cuts visibility regardless of
+--     what state the live draft/revision is in.
+--     `withdrawn`/`withdrawn_at`/`withdrawn_by`/`withdrawn_reason` on the
+--     version row remain, purely as an audit record of *that specific
+--     version* having been formally withdrawn (as opposed to superseded
+--     by a newer one) — not security-relevant, since the pointer alone
+--     fully determines visibility.
 
 begin;
 
@@ -290,24 +343,40 @@ create index research_paper_versions_paper_idx on public.research_paper_versions
 
 alter table public.research_paper_versions enable row level security;
 
+-- SECURITY DEFINER so this can check research_papers.published_version_id
+-- without applying the CALLER's RLS to research_papers (which has no
+-- public-read policy at all — only author-or-admin). Same pattern, same
+-- reason, as public.is_admin()/public.current_admin_role() in migration
+-- 0004: a policy referencing another RLS-protected table directly in its
+-- USING clause is evaluated under the CALLER's privileges on that other
+-- table too, not the definer's — see this file's "THIRD REVIEW ROUND (a)"
+-- note above for what breaks without this. Returns only a boolean; reveals
+-- nothing about research_papers' actual content.
+create or replace function public.is_paper_version_published(p_paper_id uuid, p_version_id uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (
+    select 1 from public.research_papers rp
+    where rp.id = p_paper_id
+      and rp.published_version_id = p_version_id
+  );
+$$;
+
 -- Public read: exactly the one version research_papers.published_version_id
--- currently names, and only while that paper's own status is 'published'.
--- Both conditions are set together in the SAME UPDATE statement
--- (publishPaperVersion's final step) — a version row can be fully inserted
--- and sitting in this table without this policy ever matching it, and it
--- stays that way permanently if the pointer update never runs. Nothing
--- about this row's own columns (there is no is_current here) makes it
--- visible; only being the thing research_papers currently points to does.
+-- currently names — nothing else. Deliberately does NOT check
+-- research_papers.status (see "THIRD REVIEW ROUND (b)" above) — the
+-- pointer alone is the single source of truth, so an in-progress revision
+-- (status back to submitted/changes_requested/approved) never hides the
+-- still-live published snapshot. A version row can be fully inserted and
+-- sitting in this table without this policy ever matching it, and it
+-- stays that way permanently if the pointer update never runs.
 create policy research_paper_versions_public_read on public.research_paper_versions
 for select
-using (
-  exists (
-    select 1 from public.research_papers rp
-    where rp.id = research_paper_versions.paper_id
-      and rp.published_version_id = research_paper_versions.id
-      and rp.status = 'published'
-  )
-);
+using (public.is_paper_version_published(paper_id, id));
 
 create policy research_paper_versions_admin_read on public.research_paper_versions
 for select
@@ -372,6 +441,7 @@ do $$
 declare
   new_tables text[] := array['research_papers', 'research_paper_versions', 'category_suggestions'];
   tbl text;
+  v_fn_def text;
 begin
   if not exists (
     select 1 from information_schema.tables
@@ -424,18 +494,39 @@ begin
   ) then
     raise exception 'Postcondition failed: research_paper_versions.is_current exists — rolling back';
   end if;
-  -- The public-read policy's USING clause must actually reference
-  -- published_version_id and status — not just exist under the right
-  -- name with stale logic. Guards against a future edit accidentally
-  -- reverting the qual while leaving the policy name alone.
+  -- The public-read policy must actually call is_paper_version_published
+  -- — not just exist under the right name with stale inline logic. Guards
+  -- against a future edit reverting to a direct cross-table subquery
+  -- (bringing back the RLS-recursion outage from "THIRD REVIEW ROUND (a)")
+  -- while leaving the policy name alone.
   if not exists (
     select 1 from pg_policies
     where schemaname = 'public' and tablename = 'research_paper_versions'
       and policyname = 'research_paper_versions_public_read'
-      and qual like '%published_version_id%'
-      and qual not like '%is_current%'
+      and qual like '%is_paper_version_published%'
   ) then
-    raise exception 'Postcondition failed: research_paper_versions_public_read does not reference published_version_id, or still references is_current — rolling back';
+    raise exception 'Postcondition failed: research_paper_versions_public_read does not call is_paper_version_published — rolling back';
+  end if;
+  if to_regprocedure('public.is_paper_version_published(uuid, uuid)') is null then
+    raise exception 'Postcondition failed: is_paper_version_published(uuid, uuid) was not created — rolling back';
+  end if;
+  select pg_get_functiondef('public.is_paper_version_published(uuid, uuid)'::regprocedure) into v_fn_def;
+  if v_fn_def not ilike '%security definer%' then
+    raise exception 'Postcondition failed: is_paper_version_published is not SECURITY DEFINER — it cannot see research_papers under the caller''s own RLS, so anon could never read a published version — rolling back';
+  end if;
+  if v_fn_def not like '%published_version_id%' then
+    raise exception 'Postcondition failed: is_paper_version_published does not reference published_version_id — rolling back';
+  end if;
+  if v_fn_def like '%is_current%' then
+    raise exception 'Postcondition failed: is_paper_version_published still references the removed is_current column — rolling back';
+  end if;
+  -- Must NOT reference status at all — see "THIRD REVIEW ROUND (b)":
+  -- coupling visibility to research_papers.status hides an already-published
+  -- version the moment its author starts a revision, before anything new
+  -- has been approved or published. Regression guard against that
+  -- reappearing under a different name later.
+  if v_fn_def ilike '%status%' then
+    raise exception 'Postcondition failed: is_paper_version_published references status — visibility must depend only on published_version_id — rolling back';
   end if;
   if has_column_privilege('authenticated', 'public.research_papers', 'reviewed_by', 'UPDATE') then
     raise exception 'Postcondition failed: authenticated can UPDATE research_papers.reviewed_by — rolling back';
@@ -470,8 +561,12 @@ commit;
 --
 -- select policyname, qual from pg_policies where schemaname='public'
 --   and tablename='research_paper_versions' and policyname='research_paper_versions_public_read';
--- -- expect the qual text to reference published_version_id and rp.status = 'published'::text,
--- -- NOT is_current (that column no longer exists at all)
+-- -- expect the qual text to be a call to is_paper_version_published(...)
+-- -- (a function call, not an inline subquery — see "THIRD REVIEW ROUND (a)")
+--
+-- select pg_get_functiondef('public.is_paper_version_published(uuid, uuid)'::regprocedure);
+-- -- expect: SECURITY DEFINER, references published_version_id, does NOT
+-- -- reference status or is_current
 --
 -- select column_name from information_schema.columns
 -- where table_schema='public' and table_name='research_paper_versions' and column_name='is_current';
@@ -484,9 +579,14 @@ commit;
 -- --   even though the grant allows the column — RLS is the real gate on WHICH values), authed_can_set_reviewer=false,
 -- --   authed_can_insert_version=false
 --
--- -- IMPORTANT: the checks above only prove grants/policy text, not runtime
--- -- behavior. Real behavioral tests (draft save with blank fields succeeds,
--- -- submission with blank fields is refused, anon cannot read an unpointed
--- -- or withdrawn version, anon reads exactly the published one) run live
--- -- against wxldqxuxpjurttspbxok after you confirm this migration applied —
--- -- see this session's report for the exact results.
+-- -- IMPORTANT: the checks above only prove grants/policy/function text, not
+-- -- runtime behavior under an actual anon session (RLS-on-RLS recursion in
+-- -- particular cannot be proven from SQL Editor alone, since the SQL Editor
+-- -- runs as an elevated role, not anon). Real behavioral tests (draft save
+-- -- with blank fields succeeds, submission with blank fields is refused,
+-- -- anon cannot read an unpointed or withdrawn version, anon reads exactly
+-- -- the published one even while a revision is mid-review, a revision
+-- -- publish moves the pointer atomically) run live against
+-- -- wxldqxuxpjurttspbxok, via real anon/authenticated REST calls — not the
+-- -- SQL Editor — after you confirm this migration applied. See this
+-- -- session's report for the exact results.

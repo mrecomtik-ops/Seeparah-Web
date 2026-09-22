@@ -275,16 +275,19 @@ export async function publishPaperVersion(params: {
   if (versionsError) throw new Error(versionsError.message);
   const nextVersion = (existingVersions?.[0]?.version ?? 0) + 1;
 
-  // Insert the new snapshot first — it is NOT publicly visible yet. The
-  // public-read policy requires research_papers.published_version_id to
-  // point at this exact row AND research_papers.status = 'published',
-  // neither of which is true until the update below actually commits. If
-  // anything fails between here and there, this row stays a permanent,
-  // harmless orphan (never returned to any reader) rather than a leak —
-  // see migration 0014's "PUBLIC VISIBILITY DESIGN" note for the full
-  // reasoning. There is no separate "supersede the old version" step
-  // anymore: moving the pointer below is the only statement that matters,
-  // and it simultaneously hides whatever the pointer used to reference.
+  // Insert the new snapshot first — it is NOT publicly visible yet.
+  // Visibility is governed SOLELY by research_papers.published_version_id
+  // pointing at this exact row (see migration 0014's "PUBLIC VISIBILITY
+  // DESIGN" / "THIRD REVIEW ROUND" notes) — not by status, deliberately,
+  // so that if this paper already has a live published version (this is a
+  // revision), that OLD version stays fully visible right up until the
+  // pointer below moves. If anything fails between here and there, this
+  // row stays a permanent, harmless orphan (never returned to any reader)
+  // rather than a leak. There is no separate "supersede the old version"
+  // step: moving the pointer below is the only statement that matters,
+  // and it atomically swaps whichever version was visible for this one —
+  // old and new are never simultaneously visible, or simultaneously
+  // invisible.
   const { author_name, coauthor_names, affiliation, orcid, language, title, abstract, keywords, topic, paper_type, body_text, pdf_data, pdf_filename, pdf_size_bytes, citation_style, references_text, funding_note, conflicts_of_interest, acknowledgments, ai_assistance_disclosure } = paper;
   const { data: newVersion, error: insertError } = await db
     .from("research_paper_versions")
@@ -346,16 +349,27 @@ export async function publishPaperVersion(params: {
  * `reason`. The paper's full version history, including this one, stays
  * in research_paper_versions as the audit trail regardless.
  *
- * Order matters: the research_papers status update runs FIRST, because
- * it's the only statement that actually cuts off public visibility (the
- * public-read policy requires status = 'published' — see migration
- * 0014's "PUBLIC VISIBILITY DESIGN" note). If the second statement
- * (marking the version row's own withdrawn_* audit fields) fails, the
- * paper is already correctly hidden; only a historical annotation is
- * missing, not a live leak. `published_version_id` is deliberately left
- * pointing at this version afterward — it's the historical record of
- * "the last thing that was published," not a security-relevant field
- * once status is no longer 'published'. */
+ * Order and target column both matter, and both changed in the "THIRD
+ * REVIEW ROUND" of migration 0014's design: the public-read policy no
+ * longer checks status at all (only published_version_id), because status
+ * must be free to move through a revision's own review cycle — submitted,
+ * changes_requested, approved — WITHOUT hiding the still-live published
+ * version in the meantime. That means this paper's status may legitimately
+ * already be something other than 'published' at the moment an admin
+ * withdraws the currently-live version (a revision could be mid-review
+ * right now), so withdrawal can no longer be gated or driven by status.
+ * Instead:
+ *   1. NULL research_papers.published_version_id FIRST — this is now the
+ *      only statement that actually cuts off public visibility, guarded by
+ *      a compare-and-swap on published_version_id itself (not status).
+ *      status is reset to 'unpublished' in the SAME update, but only when
+ *      it was still 'published' (no revision in flight) — a revision's own
+ *      in-progress review status is left completely untouched, since
+ *      withdrawing the old public version has nothing to do with whether a
+ *      replacement is being drafted or reviewed right now.
+ *   2. Mark the version row's own withdrawn_* audit fields second. If this
+ *      second statement fails, the paper is already correctly hidden; only
+ *      a historical annotation is missing, not a live leak. */
 export async function withdrawPublishedPaper(params: {
   paperId: string;
   actorId: string;
@@ -368,20 +382,23 @@ export async function withdrawPublishedPaper(params: {
     .eq("id", params.paperId)
     .single();
   if (beforeError) throw new Error(beforeError.message);
-  if (!before.published_version_id || before.status !== "published") {
+  if (!before.published_version_id) {
     throw new Error("This paper has no published version to withdraw.");
   }
+  const versionId = before.published_version_id as string;
+  const nextStatus = before.status === "published" ? "unpublished" : before.status;
+
   const { data: updated, error: paperError } = await db
     .from("research_papers")
-    .update({ status: "unpublished" })
+    .update({ published_version_id: null, status: nextStatus })
     .eq("id", params.paperId)
-    .eq("status", "published")
+    .eq("published_version_id", versionId)
     .select("id")
     .maybeSingle();
   if (paperError) throw new Error(paperError.message);
   if (!updated) {
     throw new Error(
-      "This paper's status changed before withdrawal could complete (likely a concurrent action). Reload and try again.",
+      "This paper's published version changed before withdrawal could complete (likely a concurrent action) — nothing was withdrawn. Reload and try again.",
     );
   }
   const { error: versionError } = await db
@@ -392,7 +409,7 @@ export async function withdrawPublishedPaper(params: {
       withdrawn_by: params.actorId,
       withdrawn_reason: params.reason,
     })
-    .eq("id", before.published_version_id);
+    .eq("id", versionId);
   if (versionError) throw new Error(versionError.message);
   return { before };
 }

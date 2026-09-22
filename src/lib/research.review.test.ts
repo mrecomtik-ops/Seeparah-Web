@@ -30,6 +30,11 @@ function makeMockSupabase(script: ScriptEntry[]) {
   const updateSpy = vi.fn();
   const insertSpy = vi.fn();
   const fromSpy = vi.fn();
+  // Records the (column, value) pair of every .eq() call in call order, so
+  // tests can assert WHICH column a compare-and-swap guard is actually
+  // keyed on (e.g. published_version_id vs status) — not just that some
+  // update happened.
+  const eqSpy = vi.fn();
 
   function chain(): MockChain {
     const builder: MockChain = {
@@ -42,7 +47,10 @@ function makeMockSupabase(script: ScriptEntry[]) {
         return builder;
       },
       select: () => builder,
-      eq: () => builder,
+      eq: (...args: unknown[]) => {
+        eqSpy(args);
+        return builder;
+      },
       order: () => builder,
       limit: () => builder,
       single: async () => next(),
@@ -62,6 +70,7 @@ function makeMockSupabase(script: ScriptEntry[]) {
     updateSpy,
     insertSpy,
     fromSpy,
+    eqSpy,
   };
 }
 
@@ -202,6 +211,24 @@ describe("publishPaperVersion — versioning and immutability", () => {
       /concurrent action/i,
     );
   });
+
+  it("publishing a revision never requires published_version_id to be cleared first — the compare-and-swap is keyed only on status", async () => {
+    // A paper that already has a live published version (v1) submits a
+    // revision, gets re-approved, and is published again — the OLD
+    // version must still be fully visible right up until this call's own
+    // pointer update, so nothing here should gate on published_version_id
+    // at all (see migration 0014's "THIRD REVIEW ROUND (b)" note).
+    mock = makeMockSupabase([
+      { data: { status: "approved", ...snapshot }, error: null },
+      { data: [{ version: 1 }], error: null },
+      { data: { id: "v2" }, error: null },
+      { data: { id: "p1" }, error: null },
+    ]);
+    await publishPaperVersion({ paperId: "p1", publisherId: "admin-1" });
+    const eqCalls = mock.eqSpy.mock.calls.map((c) => c[0] as [string, unknown]);
+    expect(eqCalls.some(([column]) => column === "published_version_id")).toBe(false);
+    expect(eqCalls).toContainEqual(["status", "approved"]);
+  });
 });
 
 describe("withdrawPublishedPaper", () => {
@@ -214,19 +241,10 @@ describe("withdrawPublishedPaper", () => {
     ).rejects.toThrow(/no published version/i);
   });
 
-  it("refuses to withdraw a paper whose status isn't currently 'published', even with a stale pointer", async () => {
-    mock = makeMockSupabase([
-      { data: { status: "unpublished", published_version_id: "v1" }, error: null },
-    ]);
-    await expect(
-      withdrawPublishedPaper({ paperId: "p1", actorId: "admin-1", reason: "test" }),
-    ).rejects.toThrow(/no published version/i);
-  });
-
-  it("cuts off visibility FIRST (the research_papers status update), then marks the version row's audit fields", async () => {
+  it("cuts off visibility FIRST (nulls published_version_id), then marks the version row's audit fields — resting case, status was 'published'", async () => {
     mock = makeMockSupabase([
       { data: { status: "published", published_version_id: "v1" }, error: null },
-      { data: { id: "p1" }, error: null }, // paper status update (CAS match) — runs first
+      { data: { id: "p1" }, error: null }, // pointer-null update (CAS match) — runs first
       { data: null, error: null }, // version withdrawn-audit update — runs second
     ]);
     await withdrawPublishedPaper({
@@ -235,13 +253,35 @@ describe("withdrawPublishedPaper", () => {
       reason: "Factual correction needed",
     });
     const paperPayload = mock.updateSpy.mock.calls[0]![0] as Record<string, unknown>;
+    expect(paperPayload["published_version_id"]).toBeNull();
     expect(paperPayload["status"]).toBe("unpublished");
     const versionPayload = mock.updateSpy.mock.calls[1]![0] as Record<string, unknown>;
     expect(versionPayload["withdrawn"]).toBe(true);
     expect(versionPayload["withdrawn_reason"]).toBe("Factual correction needed");
+    // The compare-and-swap is keyed on published_version_id, not status —
+    // required so withdrawal still works when status is no longer
+    // 'published' (see the mid-revision test below).
+    const eqCalls = mock.eqSpy.mock.calls.map((c) => c[0] as [string, unknown]);
+    expect(eqCalls).toContainEqual(["published_version_id", "v1"]);
   });
 
-  it("refuses when a concurrent action already changed the paper's status before this could complete", async () => {
+  it("withdraws while a revision is mid-review — nulls the pointer but leaves the revision's own status untouched", async () => {
+    // The paper's status is already 'submitted' (a revision awaiting
+    // re-review) while published_version_id still points at the OLD,
+    // currently-live version. Withdrawing that old version must not
+    // clobber the in-progress review state.
+    mock = makeMockSupabase([
+      { data: { status: "submitted", published_version_id: "v1" }, error: null },
+      { data: { id: "p1" }, error: null },
+      { data: null, error: null },
+    ]);
+    await withdrawPublishedPaper({ paperId: "p1", actorId: "admin-1", reason: "Retracted" });
+    const paperPayload = mock.updateSpy.mock.calls[0]![0] as Record<string, unknown>;
+    expect(paperPayload["published_version_id"]).toBeNull();
+    expect(paperPayload["status"]).toBe("submitted");
+  });
+
+  it("refuses when a concurrent action already changed the published version before this could complete", async () => {
     mock = makeMockSupabase([
       { data: { status: "published", published_version_id: "v1" }, error: null },
       { data: null, error: null }, // CAS matched zero rows

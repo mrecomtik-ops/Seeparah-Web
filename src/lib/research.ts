@@ -107,10 +107,12 @@ export function matchesPaperSearch(
 
 // ---------------------------------------------------------------------------
 // Public — published papers only (RLS: research_papers.published_version_id
-// points at this exact row AND research_papers.status = 'published' — see
-// migration 0014's "PUBLIC VISIBILITY DESIGN" note for why visibility is
-// derived from that single pointer+status pair rather than a flag on this
-// table itself).
+// points at this exact row, checked via the SECURITY DEFINER function
+// is_paper_version_published() so it works for an anonymous caller — see
+// migration 0014's "PUBLIC VISIBILITY DESIGN" / "THIRD REVIEW ROUND" notes.
+// Deliberately independent of research_papers.status: a revision can be
+// submitted, reviewed, and approved without ever hiding the still-live
+// published version below).
 // ---------------------------------------------------------------------------
 export async function listPublishedPapers(): Promise<ResearchPaperVersion[]> {
   const { data, error } = await supabase
@@ -183,6 +185,27 @@ export function isValidOrcid(value: string): boolean {
   return ORCID_PATTERN.test(value.trim());
 }
 
+const REVISION_EDITABLE_STATUSES: ResearchPaperStatus[] = [
+  "draft",
+  "submitted",
+  "changes_requested",
+  "published",
+];
+
+/** Whether the author can still save an edit given the paper's CURRENT
+ * status. 'published' is included on purpose: since public visibility is
+ * governed solely by research_papers.published_version_id (never by
+ * status — see migration 0014's "THIRD REVIEW ROUND" note), an author
+ * starting a revision of an already-published paper can move status back
+ * to 'submitted' for re-review without that ever hiding the still-live
+ * published snapshot; only a later, explicit publish of the revision (or
+ * an explicit withdrawal) changes what's public. 'approved' and 'rejected'
+ * are deliberately excluded — unchanged, admin-action-pending states,
+ * matching the equivalent book workflow. */
+export function isEditableForRevision(status: ResearchPaperStatus): boolean {
+  return REVISION_EDITABLE_STATUSES.includes(status);
+}
+
 function toRow(input: PaperDraftInput) {
   return {
     author_name: input.authorName.trim(),
@@ -233,7 +256,10 @@ export function firstSubmissionProblem(input: PaperDraftInput, hasContent: boole
  * (research_papers_author_update's WITH CHECK) independently refuses this
  * to leave status anywhere but draft/submitted/changes_requested no matter
  * what is passed — this function cannot itself publish or approve
- * anything. */
+ * anything. The existing-row check below (isEditableForRevision) allows
+ * this to run even when the paper is currently 'published' — starting a
+ * revision — since doing so never affects what's publicly visible (see
+ * migration 0014's "THIRD REVIEW ROUND" note). */
 export async function saveMyPaperDraft(
   userId: string,
   input: PaperDraftInput,
@@ -256,7 +282,7 @@ export async function saveMyPaperDraft(
       .maybeSingle();
     if (fetchError) throw new Error(`Couldn't load this draft: ${fetchError.message}`);
     if (!existing) throw new Error("That draft couldn't be found, or isn't yours to edit.");
-    if (!["draft", "submitted", "changes_requested"].includes(existing.status)) {
+    if (!isEditableForRevision(existing.status as ResearchPaperStatus)) {
       throw new Error("This paper is no longer editable — it's already in or past review.");
     }
     const { data, error } = await supabase

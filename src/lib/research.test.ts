@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { matchesPaperSearch } from "@/lib/research";
+import { isEditableForRevision, matchesPaperSearch } from "@/lib/research";
 
 describe("matchesPaperSearch — title/author/abstract/keyword search matching", () => {
   const paper = {
@@ -36,5 +36,22 @@ describe("matchesPaperSearch — title/author/abstract/keyword search matching",
 
   it("matches Urdu/Arabic text correctly — no per-script configuration needed", () => {
     expect(matchesPaperSearch({ ...paper, title: "خاموشی پر ایک مقالہ" }, "خاموشی")).toBe(true);
+  });
+});
+
+describe("isEditableForRevision — which statuses let the author keep editing", () => {
+  it("allows draft, submitted, and changes_requested — the original pre-review cycle", () => {
+    expect(isEditableForRevision("draft")).toBe(true);
+    expect(isEditableForRevision("submitted")).toBe(true);
+    expect(isEditableForRevision("changes_requested")).toBe(true);
+  });
+
+  it("allows published — starting a revision must not require the live version to be taken down first", () => {
+    expect(isEditableForRevision("published")).toBe(true);
+  });
+
+  it("refuses approved and rejected — unchanged, admin-action-pending terminal states", () => {
+    expect(isEditableForRevision("approved")).toBe(false);
+    expect(isEditableForRevision("rejected")).toBe(false);
   });
 });
