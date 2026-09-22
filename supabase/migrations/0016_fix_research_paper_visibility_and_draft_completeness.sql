@@ -35,11 +35,7 @@
 --   A. Backfills research_papers.published_version_id from whatever
 --      research_paper_versions row is currently is_current=true and
 --      withdrawn=false for that paper, for any paper that doesn't
---      already have a pointer set — so no version that the OLD design
---      considered "the public one" silently disappears the moment the
---      new pointer-only policy takes over. Two data-integrity
---      PRECONDITIONS guard the cases where the old pointer and is_current
---      could already disagree — see "DATA-INTEGRITY GUARDS" below.
+--      already have a pointer set.
 --   B. Replaces research_paper_versions_public_read with the
 --      pointer-only design from 0014's "THIRD REVIEW ROUND": drops the
 --      is_current column and its partial index, adds the SECURITY
@@ -54,30 +50,56 @@
 --      versions, or category_suggestions — row counts are captured
 --      before any change and compared after.
 --
--- DATA-INTEGRITY GUARDS (added after explicit review of exactly this
--- question — what could this migration silently change about which
--- version is public?): the OLD design's published_version_id and
+-- DATA-INTEGRITY GUARDS — the actual deliverable is an invariant, not a
+-- list of cases: the set of publicly readable versions immediately
+-- before this migration must equal the set immediately after its
+-- backfill and policy change. The OLD design's published_version_id and
 -- is_current/withdrawn were maintained somewhat independently — nothing
--- enforced they always agreed. The backfill above only fills a NULL
--- pointer; it never overwrites one that's already set. That means if the
--- pointer was already set but WRONG in either of two ways, this migration
--- would silently adopt that wrongness as the new, sole source of truth
--- the moment the pointer-only policy takes over:
---   1. published_version_id points at a version with withdrawn = true
---      (e.g. an old withdraw path that cleared is_current/withdrawn but
---      never cleared the pointer) — the new policy has no concept of
---      "withdrawn" at all, so that version would become PUBLIC again.
---   2. published_version_id points at a DIFFERENT version than whichever
---      one is currently is_current = true, non-withdrawn — visibility
---      would silently swap from the is_current version (what's public
---      today) to the pointer's version (what would be public after this
---      migration), with no one having taken a "publish" action.
--- Both are checked as PRECONDITIONS below and abort the migration rather
--- than resolve them automatically — deciding which version should
--- actually be public in a genuinely inconsistent state is not this
--- migration's call to make silently. Today, with zero rows in every
--- affected table, both checks are vacuously true; they exist for
--- whenever this actually runs against real data.
+-- enforced they always agreed — so the backfill (which only fills a NULL
+-- pointer, never overwrites one already set) could silently let an
+-- already-wrong pointer become the new, sole source of truth. Two layers
+-- enforce the invariant:
+--
+--   1. Four NAMED PRECONDITIONS, each diagnosing one concrete way an
+--      already-set pointer can be wrong, so a failure names the actual
+--      problem instead of just "something's wrong":
+--        a) a non-null pointer for a paper where NO version is currently
+--           is_current=true/withdrawn=false at all (nothing to legitimately
+--           point at, yet something is pointed at anyway);
+--        b) a pointer that references a version belonging to a DIFFERENT
+--           paper (research_paper_versions.paper_id <> the pointer's own
+--           research_papers.id — the FK only guarantees the pointer names
+--           an existing version row, never that it's THIS paper's row);
+--        c) a pointer that references a version marked withdrawn = true
+--           (the new policy has no "withdrawn" concept at all — this
+--           would make a withdrawn version public again);
+--        d) a pointer that disagrees with whichever DIFFERENT version is
+--           actually is_current=true/withdrawn=false for that paper.
+--      (A fifth precondition, kept from before, guards the backfill
+--      itself: no paper may have more than one is_current=true,
+--      non-withdrawn version, which would make the backfill's own
+--      UPDATE...FROM pick a match nondeterministically.)
+--
+--   2. One COMPREHENSIVE, DIRECT set-equality check, run immediately
+--      after the backfill (while is_current still exists to compute the
+--      "before" side): for every version, is "is_current=true and
+--      withdrawn=false" (before) exactly equal to "some paper's
+--      published_version_id now names it" (after)? This is not derived
+--      from the four cases above — it's computed straight from the data,
+--      so it catches the actual invariant even if some future edit to
+--      this file's reasoning missed a case the four named checks don't
+--      cover.
+--
+-- Every one of these checks is a PRECONDITION or an early postcondition
+-- that raises an exception and aborts the whole transaction — nothing is
+-- "resolved" automatically by picking a side; a human decides. Today,
+-- with zero rows in every affected table, all of them are vacuously
+-- satisfied; they exist for whenever this actually runs against real
+-- data. See the "GUARD TEST HARNESS" comment block at the end of this
+-- file for SQL that constructs each of the four bad states and confirms
+-- the corresponding guard fires — written but NOT executed by this
+-- session (no local Postgres available in this sandbox; never run it
+-- against wxldqxuxpjurttspbxok).
 --
 -- ROLLBACK BEHAVIOR: everything below runs inside one `begin; ... commit;`
 -- transaction, exactly like every other migration in this repo. Any
@@ -164,10 +186,12 @@ begin
   if not exists (select 1 from pg_constraint where conrelid = 'public.research_papers'::regclass and conname = 'research_papers_has_content') then
     raise exception 'Precondition failed: expected constraint research_papers_has_content not found — inspect pg_constraint manually before proceeding';
   end if;
-  -- Guard the backfill below: if any paper somehow has more than one
-  -- is_current=true, non-withdrawn version, an automatic UPDATE...FROM
-  -- would pick one nondeterministically. Fail loud instead so a human
-  -- resolves it deliberately.
+
+  -- ---- Data-integrity guards (see "DATA-INTEGRITY GUARDS" above) ----
+
+  -- Guard 0: at most one is_current=true, non-withdrawn version per
+  -- paper — the backfill's UPDATE...FROM would otherwise pick a match
+  -- nondeterministically.
   if exists (
     select 1 from public.research_paper_versions
     where is_current = true and withdrawn = false
@@ -176,11 +200,34 @@ begin
   ) then
     raise exception 'Precondition failed: at least one paper has more than one is_current=true, non-withdrawn version — resolve manually before running this migration';
   end if;
-  -- Guard 1: published_version_id already pointing at a withdrawn
-  -- version. The new pointer-only policy has no "withdrawn" concept at
-  -- all — if this were allowed through, that version would become
-  -- public again the instant this migration commits. See "DATA-INTEGRITY
-  -- GUARDS" above.
+
+  -- Guard a: a non-null pointer for a paper where NO version is
+  -- currently is_current=true/withdrawn=false at all.
+  if exists (
+    select 1 from public.research_papers rp
+    where rp.published_version_id is not null
+      and not exists (
+        select 1 from public.research_paper_versions v2
+        where v2.paper_id = rp.id and v2.is_current = true and v2.withdrawn = false
+      )
+  ) then
+    raise exception 'Precondition failed: at least one paper has published_version_id set but no version is currently is_current=true (non-withdrawn) at all for that paper — resolve manually before running this migration';
+  end if;
+
+  -- Guard b: a pointer to a version belonging to a DIFFERENT paper. The
+  -- FK only guarantees published_version_id names an EXISTING version
+  -- row — never that it's this paper's own row.
+  if exists (
+    select 1 from public.research_papers rp
+    join public.research_paper_versions v on v.id = rp.published_version_id
+    where v.paper_id <> rp.id
+  ) then
+    raise exception 'Precondition failed: at least one paper''s published_version_id references a version belonging to a DIFFERENT paper — resolve manually before running this migration';
+  end if;
+
+  -- Guard c: a pointer to a version already marked withdrawn = true —
+  -- the new policy has no "withdrawn" concept at all, so this would make
+  -- that version public again the instant this migration commits.
   if exists (
     select 1 from public.research_papers rp
     join public.research_paper_versions v on v.id = rp.published_version_id
@@ -188,10 +235,11 @@ begin
   ) then
     raise exception 'Precondition failed: at least one paper''s published_version_id points at a version marked withdrawn = true — this migration would silently make it public again under the new pointer-only policy; resolve manually (null the pointer, or deliberately un-withdraw) before running this migration';
   end if;
-  -- Guard 2: published_version_id disagreeing with is_current about
-  -- which version is currently the public one. Silently trusting the
-  -- pointer here would change what's public with no publish action ever
-  -- having happened. See "DATA-INTEGRITY GUARDS" above.
+
+  -- Guard d: a pointer that disagrees with whichever DIFFERENT version
+  -- is actually is_current=true/withdrawn=false for that paper. Silently
+  -- trusting the pointer here would change what's public with no publish
+  -- action ever having happened.
   if exists (
     select 1 from public.research_papers rp
     join public.research_paper_versions v on v.paper_id = rp.id
@@ -232,17 +280,36 @@ where v.paper_id = rp.id
   and v.withdrawn = false
   and rp.published_version_id is null;
 
--- Verify the backfill actually closed every gap before is_current (the
--- only source of truth for "closed every gap") is dropped below — not
--- just assumed to have worked.
+-- Comprehensive, direct proof of the actual invariant — computed
+-- straight from the data, not derived from the four named guards above:
+-- the set of versions publicly readable under the OLD policy
+-- (is_current=true, withdrawn=false) must exactly equal the set publicly
+-- readable under the NEW policy (some paper's published_version_id now
+-- names it). Must run here, before is_current is dropped below, since
+-- this is the only point where both sides of the comparison can still be
+-- computed.
 do $$
+declare
+  newly_hidden int;   -- publicly readable before, would NOT be after
+  newly_visible int;  -- NOT publicly readable before, would be after
 begin
-  if exists (
-    select 1 from public.research_paper_versions v
-    join public.research_papers rp on rp.id = v.paper_id
-    where v.is_current = true and v.withdrawn = false and rp.published_version_id is null
-  ) then
-    raise exception 'Postcondition failed: backfill did not set published_version_id for every currently-is_current, non-withdrawn version — rolling back';
+  select count(*) into newly_hidden
+  from public.research_paper_versions v
+  where v.is_current = true and v.withdrawn = false
+    and not exists (
+      select 1 from public.research_papers rp
+      where rp.id = v.paper_id and rp.published_version_id = v.id
+    );
+
+  select count(*) into newly_visible
+  from public.research_paper_versions v
+  join public.research_papers rp on rp.id = v.paper_id
+  where rp.published_version_id = v.id
+    and not (v.is_current = true and v.withdrawn = false);
+
+  if newly_hidden > 0 or newly_visible > 0 then
+    raise exception 'Postcondition failed: the set of publicly readable versions would change across this migration (% version(s) would newly disappear, % version(s) would newly become visible) — resolve the underlying data inconsistency manually before running this migration; nothing has been committed',
+      newly_hidden, newly_visible;
   end if;
 end $$;
 
@@ -430,3 +497,81 @@ commit;
 -- -- constraint text, not runtime behavior under an actual anon session —
 -- -- run the live anon/authenticated REST tests after confirming this
 -- -- migration applied, before repairing its migration history.
+--
+-- ---------------------------------------------------------------------------
+-- GUARD TEST HARNESS (optional — reference SQL only, NOT executed by this
+-- session: no local Postgres/Docker is available in this sandbox to run
+-- it against. Written to demonstrate each of the four named guards above
+-- actually fires on the bad state it targets. Run ONLY against a
+-- disposable database that already has migration 0014's ORIGINAL schema
+-- applied (is_current/withdrawn design) — e.g. a local `supabase start`
+-- instance, never against wxldqxuxpjurttspbxok. Each scenario is wrapped
+-- in its own begin/rollback so nothing persists even if run by mistake;
+-- strip the leading "-- " from a block and run it, then run this file's
+-- precondition do-block (or the whole file) and confirm the matching
+-- exception message appears, then move to the next scenario.
+-- ---------------------------------------------------------------------------
+--
+-- -- Scenario a: non-null pointer when no version is is_current at all.
+-- -- Expect: 'published_version_id set but no version is currently
+-- -- is_current=true (non-withdrawn) at all for that paper'
+-- begin;
+-- insert into public.research_papers
+--   (id, author_id, author_name, language, title, abstract, paper_type, body_text, references_text, rights_declaration, status)
+--   values ('11111111-0000-0000-0000-00000000000a', gen_random_uuid(), 'Test Author', 'English', 'Test', 'Test abstract', 'other', 'Test body', 'Test refs', 'Test rights', 'published');
+-- insert into public.research_paper_versions
+--   (id, paper_id, version, author_name, language, title, abstract, paper_type, references_text, published_by, is_current, withdrawn)
+--   values ('22222222-0000-0000-0000-00000000000a', '11111111-0000-0000-0000-00000000000a', 1, 'Test Author', 'English', 'Test', 'Test abstract', 'other', 'Test refs', gen_random_uuid(), false, false);
+-- update public.research_papers set published_version_id = '22222222-0000-0000-0000-00000000000a'
+--   where id = '11111111-0000-0000-0000-00000000000a';
+-- -- run this file's precondition do-block here
+-- rollback;
+--
+-- -- Scenario b: pointer references a version belonging to a DIFFERENT paper.
+-- -- Expect: 'references a version belonging to a DIFFERENT paper'
+-- begin;
+-- insert into public.research_papers
+--   (id, author_id, author_name, language, title, abstract, paper_type, body_text, references_text, rights_declaration, status) values
+--   ('11111111-0000-0000-0000-00000000000b', gen_random_uuid(), 'A', 'English', 'Paper A', 'Abstract A', 'other', 'Body A', 'Refs A', 'Rights A', 'published'),
+--   ('11111111-0000-0000-0000-00000000000c', gen_random_uuid(), 'B', 'English', 'Paper B', 'Abstract B', 'other', 'Body B', 'Refs B', 'Rights B', 'published');
+-- insert into public.research_paper_versions
+--   (id, paper_id, version, author_name, language, title, abstract, paper_type, references_text, published_by, is_current, withdrawn)
+--   values ('22222222-0000-0000-0000-00000000000b', '11111111-0000-0000-0000-00000000000c', 1, 'B', 'English', 'Paper B', 'Abstract B', 'other', 'Refs B', gen_random_uuid(), true, false);
+-- update public.research_papers set published_version_id = '22222222-0000-0000-0000-00000000000b'
+--   where id = '11111111-0000-0000-0000-00000000000b'; -- paper A points at paper B's version
+-- -- run this file's precondition do-block here
+-- rollback;
+--
+-- -- Scenario c: pointer references a version marked withdrawn = true.
+-- -- Expect: 'points at a version marked withdrawn = true'
+-- begin;
+-- insert into public.research_papers
+--   (id, author_id, author_name, language, title, abstract, paper_type, body_text, references_text, rights_declaration, status)
+--   values ('11111111-0000-0000-0000-00000000000d', gen_random_uuid(), 'Test Author', 'English', 'Test', 'Test abstract', 'other', 'Test body', 'Test refs', 'Test rights', 'unpublished');
+-- insert into public.research_paper_versions
+--   (id, paper_id, version, author_name, language, title, abstract, paper_type, references_text, published_by, is_current, withdrawn)
+--   values ('22222222-0000-0000-0000-00000000000d', '11111111-0000-0000-0000-00000000000d', 1, 'Test Author', 'English', 'Test', 'Test abstract', 'other', 'Test refs', gen_random_uuid(), false, true);
+-- update public.research_papers set published_version_id = '22222222-0000-0000-0000-00000000000d'
+--   where id = '11111111-0000-0000-0000-00000000000d';
+-- -- run this file's precondition do-block here
+-- rollback;
+--
+-- -- Scenario d: pointer disagrees with the version that IS is_current.
+-- -- Expect: 'pointing at a DIFFERENT version than the one currently is_current = true'
+-- begin;
+-- insert into public.research_papers
+--   (id, author_id, author_name, language, title, abstract, paper_type, body_text, references_text, rights_declaration, status)
+--   values ('11111111-0000-0000-0000-00000000000e', gen_random_uuid(), 'Test Author', 'English', 'Test', 'Test abstract', 'other', 'Test body', 'Test refs', 'Test rights', 'published');
+-- insert into public.research_paper_versions
+--   (id, paper_id, version, author_name, language, title, abstract, paper_type, references_text, published_by, is_current, withdrawn) values
+--   ('22222222-0000-0000-0000-00000000000e', '11111111-0000-0000-0000-00000000000e', 1, 'Test Author', 'English', 'Test v1', 'Test abstract', 'other', 'Test refs', gen_random_uuid(), false, false),
+--   ('22222222-0000-0000-0000-00000000000f', '11111111-0000-0000-0000-00000000000e', 2, 'Test Author', 'English', 'Test v2', 'Test abstract', 'other', 'Test refs', gen_random_uuid(), true, false);
+-- update public.research_papers set published_version_id = '22222222-0000-0000-0000-00000000000e' -- v1, not the is_current v2
+--   where id = '11111111-0000-0000-0000-00000000000e';
+-- -- run this file's precondition do-block here
+-- rollback;
+--
+-- -- A fifth scenario (guard 0: more than one is_current=true, non-withdrawn
+-- -- version for one paper) is omitted for brevity — it's the same
+-- -- two-insert shape as (d) above, just with BOTH versions' is_current set
+-- -- to true instead of one true/one false.
