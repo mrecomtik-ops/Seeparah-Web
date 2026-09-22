@@ -1,25 +1,23 @@
--- Seeparah — forward-fix migration 0014 was silently already applied in
--- an earlier, less-correct form.
+-- Seeparah — transforms the ORIGINAL research-papers schema (exactly
+-- what 0014 creates) into the corrected design established during
+-- review, before anything is applied.
 --
--- WHAT HAPPENED (established by reading live pg_policies output the user
--- reported, and diffing it against every committed version of 0014):
--- the version of 0014 at git commit 001c9b2 — table-creation-order and
--- precondition fixes only — was executed against wxldqxuxpjurttspbxok at
--- some point. 0014.sql on this branch was then revised twice more in
--- place (commits d94eb5e, e89268c: draft completeness made
--- status-conditional, is_current removed in favor of a
--- published_version_id-only pointer, and a SECURITY DEFINER function
--- added to fix an RLS-on-RLS recursion) under the mistaken belief that
--- 0014 had never run at all. It's now confirmed the live schema still
--- has the ORIGINAL 001c9b2 shape: research_paper_versions still has
--- is_current, research_paper_versions_public_read still reads
--- `(is_current = true) AND (withdrawn = false)`, and research_papers
--- still has unconditional (non-status-aware) NOT NULL/CHECK constraints
--- on author_name/title/abstract/references_text/rights_declaration.
--- Per this project's own rule ("do not directly modify an
--- already-applied migration"), 0014.sql cannot be re-applied to fix
--- this — this file is the correct forward fix instead. See 0014.sql's
--- own "HISTORICAL NOTE" for the full paper trail.
+-- WHY THIS IS A SEPARATE FILE, NOT A CHANGE TO 0014: 0014.sql was edited
+-- in place three times this session (drafting draft-completeness and
+-- visibility fixes) under the belief it had never been applied anywhere.
+-- That was wrong — a version of it matching git commit 001c9b2 had
+-- already run against wxldqxuxpjurttspbxok. 0014.sql has since been
+-- RESTORED to exactly that applied SQL (see its own header note): it
+-- still creates research_paper_versions with is_current/withdrawn, and
+-- research_papers' completeness constraints are still unconditional.
+-- This matters for more than just the live database — it also means the
+-- migration chain now replays identically from nothing: a fresh database
+-- running 0014 -> 0015 -> 0016 in order reaches the exact same corrected
+-- schema that wxldqxuxpjurttspbxok reaches by having already run 0014's
+-- original form and then this file. Editing 0014 in place instead would
+-- have made a "replay from scratch" diverge from "what the live database
+-- actually has," which is the whole point of not touching an
+-- already-applied migration.
 --
 -- LIVE DATA CHECKED BEFORE WRITING THIS (read-only, via service-role
 -- REST, no content columns selected): research_papers, research_paper_
@@ -28,8 +26,10 @@
 -- the DESIGN before real data starts flowing through it, not to clean up
 -- a live incident. It is nonetheless written to be correct in general
 -- (not "safe only because the tables happen to be empty right now"): the
--- published_version_id backfill below and every constraint change here
--- would behave correctly even with real rows present.
+-- published_version_id backfill below, its data-integrity guards, and
+-- every constraint change here would behave correctly with real rows
+-- present, and would refuse to run rather than guess if the data doesn't
+-- look like what's expected.
 --
 -- WHAT THIS MIGRATION DOES:
 --   A. Backfills research_papers.published_version_id from whatever
@@ -37,7 +37,9 @@
 --      withdrawn=false for that paper, for any paper that doesn't
 --      already have a pointer set — so no version that the OLD design
 --      considered "the public one" silently disappears the moment the
---      new pointer-only policy takes over.
+--      new pointer-only policy takes over. Two data-integrity
+--      PRECONDITIONS guard the cases where the old pointer and is_current
+--      could already disagree — see "DATA-INTEGRITY GUARDS" below.
 --   B. Replaces research_paper_versions_public_read with the
 --      pointer-only design from 0014's "THIRD REVIEW ROUND": drops the
 --      is_current column and its partial index, adds the SECURITY
@@ -52,6 +54,31 @@
 --      versions, or category_suggestions — row counts are captured
 --      before any change and compared after.
 --
+-- DATA-INTEGRITY GUARDS (added after explicit review of exactly this
+-- question — what could this migration silently change about which
+-- version is public?): the OLD design's published_version_id and
+-- is_current/withdrawn were maintained somewhat independently — nothing
+-- enforced they always agreed. The backfill above only fills a NULL
+-- pointer; it never overwrites one that's already set. That means if the
+-- pointer was already set but WRONG in either of two ways, this migration
+-- would silently adopt that wrongness as the new, sole source of truth
+-- the moment the pointer-only policy takes over:
+--   1. published_version_id points at a version with withdrawn = true
+--      (e.g. an old withdraw path that cleared is_current/withdrawn but
+--      never cleared the pointer) — the new policy has no concept of
+--      "withdrawn" at all, so that version would become PUBLIC again.
+--   2. published_version_id points at a DIFFERENT version than whichever
+--      one is currently is_current = true, non-withdrawn — visibility
+--      would silently swap from the is_current version (what's public
+--      today) to the pointer's version (what would be public after this
+--      migration), with no one having taken a "publish" action.
+-- Both are checked as PRECONDITIONS below and abort the migration rather
+-- than resolve them automatically — deciding which version should
+-- actually be public in a genuinely inconsistent state is not this
+-- migration's call to make silently. Today, with zero rows in every
+-- affected table, both checks are vacuously true; they exist for
+-- whenever this actually runs against real data.
+--
 -- ROLLBACK BEHAVIOR: everything below runs inside one `begin; ... commit;`
 -- transaction, exactly like every other migration in this repo. Any
 -- `raise exception` in a postcondition (or precondition) check aborts the
@@ -65,14 +92,13 @@
 -- feature toggle.
 --
 -- MIGRATION HISTORY: this migration does not touch, repair, or assume
--- anything about supabase_migrations.schema_migrations. After this is
--- reviewed and run, the recommended reconciliation (for you to run, not
--- this session) is: repair 0014 as applied (a version of it did run —
--- see the note above for what "applied" means here) and repair 0016 as
--- applied once it succeeds. 0015 is untouched by this file and has no
--- ordering dependency on it either direction — it only adds a column to
--- support_tickets and already requires research_papers to exist, which
--- it does.
+-- anything about supabase_migrations.schema_migrations. After 0014 (now
+-- restored to what actually ran), 0015, and this file have all been
+-- reviewed and run in order, the recommended reconciliation (for you to
+-- run, not this session) is: repair 0014, 0015, and 0016 as applied, in
+-- that order. 0014.sql's text now genuinely matches what ran, so
+-- "applied" is a plain, accurate description — no hedging needed the way
+-- it was before 0014.sql was restored.
 
 begin;
 
@@ -149,6 +175,31 @@ begin
     having count(*) > 1
   ) then
     raise exception 'Precondition failed: at least one paper has more than one is_current=true, non-withdrawn version — resolve manually before running this migration';
+  end if;
+  -- Guard 1: published_version_id already pointing at a withdrawn
+  -- version. The new pointer-only policy has no "withdrawn" concept at
+  -- all — if this were allowed through, that version would become
+  -- public again the instant this migration commits. See "DATA-INTEGRITY
+  -- GUARDS" above.
+  if exists (
+    select 1 from public.research_papers rp
+    join public.research_paper_versions v on v.id = rp.published_version_id
+    where v.withdrawn = true
+  ) then
+    raise exception 'Precondition failed: at least one paper''s published_version_id points at a version marked withdrawn = true — this migration would silently make it public again under the new pointer-only policy; resolve manually (null the pointer, or deliberately un-withdraw) before running this migration';
+  end if;
+  -- Guard 2: published_version_id disagreeing with is_current about
+  -- which version is currently the public one. Silently trusting the
+  -- pointer here would change what's public with no publish action ever
+  -- having happened. See "DATA-INTEGRITY GUARDS" above.
+  if exists (
+    select 1 from public.research_papers rp
+    join public.research_paper_versions v on v.paper_id = rp.id
+    where v.is_current = true and v.withdrawn = false
+      and rp.published_version_id is not null
+      and rp.published_version_id <> v.id
+  ) then
+    raise exception 'Precondition failed: at least one paper has published_version_id pointing at a DIFFERENT version than the one currently is_current = true — resolve manually (decide which version should actually be public) before running this migration, since this migration would otherwise silently change which version is public';
   end if;
 end $$;
 
