@@ -1,6 +1,27 @@
 -- Seeparah — book category suggestions, and the Literature Research
 -- content type (submission, review, versioning, publication).
 --
+-- HISTORICAL NOTE (added after discovering live drift — read this before
+-- trusting "0014 has never been applied" anywhere else in this repo's
+-- history): the version of this file at git commit 001c9b2 — table order
+-- and precondition fixes only, NONE of the draft-completeness or
+-- visibility-design changes below — was actually executed against
+-- wxldqxuxpjurttspbxok. This file kept being revised in place afterward
+-- (commits d94eb5e, e89268c) under the belief it had never run at all;
+-- that belief was wrong for the schema, even though the *file on disk*
+-- genuinely was never applied verbatim as it now reads. `git show
+-- 001c9b2:supabase/migrations/0014_categories_and_research_papers.sql`
+-- is the authoritative record of what actually ran. Migration 0016
+-- (`0016_fix_research_paper_visibility_and_draft_completeness.sql`)
+-- brings the live schema from that 001c9b2 state up to what this file
+-- describes today — it is the accurate record of "what happened" from
+-- here forward. This file's own migration-history entry should eventually
+-- be repaired as applied (something under version 0014 genuinely did
+-- run) — but only once 0016 has been reviewed and run, and with the
+-- understanding that "applied" records that a version 0014 ran, not that
+-- this exact file's current text is what ran; see 0016's own header for
+-- the full reasoning before running that repair command.
+--
 -- CATEGORIES: no schema change needed for the core feature.
 -- `books.categories text[]` already exists (migration 0005), currently
 -- populated only by the admin CSV import path and otherwise unused. The
