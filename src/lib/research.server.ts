@@ -33,7 +33,9 @@ export async function uploadPaperPdf(params: {
   const { error } = await db
     .from("research_papers")
     .update({
-      pdf_data: bytes,
+      // PostgREST's wire format for bytea is a "\x"-prefixed hex string —
+      // matches downloadPublishedPaperPdf's read-side parsing below.
+      pdf_data: `\\x${bytes.toString("hex")}`,
       pdf_filename: params.filename,
       pdf_size_bytes: bytes.length,
       updated_at: new Date().toISOString(),
@@ -232,14 +234,20 @@ export async function reviewResearchPaper(params: {
       `Can only review a paper that's currently submitted (this one is ${before.status}).`,
     );
   }
-  const patch: Record<string, unknown> = {
+  const patch: {
+    status: "changes_requested" | "approved" | "rejected";
+    review_notes: string | null;
+    reviewed_by: string;
+    reviewed_at: string;
+    rejection_reason?: string;
+  } = {
     status: params.decision,
     review_notes: params.notes ?? null,
     reviewed_by: params.reviewerId,
     reviewed_at: new Date().toISOString(),
   };
   if (params.decision === "rejected") {
-    patch["rejection_reason"] = params.notes ?? "Not approved for publication";
+    patch.rejection_reason = params.notes ?? "Not approved for publication";
   }
   const { error } = await db.from("research_papers").update(patch).eq("id", params.paperId);
   if (error) throw new Error(error.message);

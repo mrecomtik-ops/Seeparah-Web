@@ -164,6 +164,9 @@ export type Database = {
           job_id: string | null
           language: string
           model: string | null
+          pending_content: string | null
+          pending_content_at: string | null
+          pending_content_by: string | null
           prompt_version: string | null
           provider: string | null
           source_version: number
@@ -177,6 +180,9 @@ export type Database = {
           job_id?: string | null
           language: string
           model?: string | null
+          pending_content?: string | null
+          pending_content_at?: string | null
+          pending_content_by?: string | null
           prompt_version?: string | null
           provider?: string | null
           source_version?: number
@@ -190,6 +196,9 @@ export type Database = {
           job_id?: string | null
           language?: string
           model?: string | null
+          pending_content?: string | null
+          pending_content_at?: string | null
+          pending_content_by?: string | null
           prompt_version?: string | null
           provider?: string | null
           source_version?: number
@@ -597,6 +606,45 @@ export type Database = {
         }
         Relationships: []
       }
+      category_suggestions: {
+        Row: {
+          content_id: string
+          content_type: string
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_note: string | null
+          id: string
+          status: string
+          suggested_by: string
+          suggested_category: string
+        }
+        Insert: {
+          content_id: string
+          content_type: string
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          id?: string
+          status?: string
+          suggested_by: string
+          suggested_category: string
+        }
+        Update: {
+          content_id?: string
+          content_type?: string
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          id?: string
+          status?: string
+          suggested_by?: string
+          suggested_category?: string
+        }
+        Relationships: []
+      }
       content_settings: {
         Row: {
           is_public: boolean
@@ -755,6 +803,223 @@ export type Database = {
           },
         ]
       }
+      research_paper_versions: {
+        Row: {
+          abstract: string
+          acknowledgments: string | null
+          affiliation: string | null
+          ai_assistance_disclosure: string | null
+          author_name: string
+          body_text: string | null
+          citation_style: string | null
+          coauthor_names: string[]
+          conflicts_of_interest: string | null
+          funding_note: string | null
+          id: string
+          keywords: string[]
+          language: string
+          orcid: string | null
+          paper_id: string
+          paper_type: string
+          pdf_data: string | null
+          pdf_filename: string | null
+          pdf_size_bytes: number | null
+          published_at: string
+          published_by: string
+          references_text: string
+          title: string
+          topic: string | null
+          version: number
+          withdrawn: boolean
+          withdrawn_at: string | null
+          withdrawn_by: string | null
+          withdrawn_reason: string | null
+        }
+        Insert: {
+          abstract: string
+          acknowledgments?: string | null
+          affiliation?: string | null
+          ai_assistance_disclosure?: string | null
+          author_name: string
+          body_text?: string | null
+          citation_style?: string | null
+          coauthor_names?: string[]
+          conflicts_of_interest?: string | null
+          funding_note?: string | null
+          id?: string
+          keywords?: string[]
+          language: string
+          orcid?: string | null
+          paper_id: string
+          paper_type: string
+          pdf_data?: string | null
+          pdf_filename?: string | null
+          pdf_size_bytes?: number | null
+          published_at?: string
+          published_by: string
+          references_text: string
+          title: string
+          topic?: string | null
+          version: number
+          withdrawn?: boolean
+          withdrawn_at?: string | null
+          withdrawn_by?: string | null
+          withdrawn_reason?: string | null
+        }
+        Update: {
+          abstract?: string
+          acknowledgments?: string | null
+          affiliation?: string | null
+          ai_assistance_disclosure?: string | null
+          author_name?: string
+          body_text?: string | null
+          citation_style?: string | null
+          coauthor_names?: string[]
+          conflicts_of_interest?: string | null
+          funding_note?: string | null
+          id?: string
+          keywords?: string[]
+          language?: string
+          orcid?: string | null
+          paper_id?: string
+          paper_type?: string
+          pdf_data?: string | null
+          pdf_filename?: string | null
+          pdf_size_bytes?: number | null
+          published_at?: string
+          published_by?: string
+          references_text?: string
+          title?: string
+          topic?: string | null
+          version?: number
+          withdrawn?: boolean
+          withdrawn_at?: string | null
+          withdrawn_by?: string | null
+          withdrawn_reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "research_paper_versions_paper_id_fkey"
+            columns: ["paper_id"]
+            isOneToOne: false
+            referencedRelation: "research_papers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      research_papers: {
+        Row: {
+          abstract: string
+          acknowledgments: string | null
+          affiliation: string | null
+          ai_assistance_disclosure: string | null
+          author_id: string
+          author_name: string
+          body_text: string | null
+          citation_style: string | null
+          coauthor_names: string[]
+          conflicts_of_interest: string | null
+          created_at: string
+          funding_note: string | null
+          id: string
+          keywords: string[]
+          language: string
+          orcid: string | null
+          paper_type: string
+          pdf_data: string | null
+          pdf_filename: string | null
+          pdf_size_bytes: number | null
+          published_version_id: string | null
+          references_text: string
+          rejection_reason: string | null
+          review_notes: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          rights_declaration: string
+          status: string
+          third_party_rights_note: string | null
+          title: string
+          topic: string | null
+          updated_at: string
+        }
+        Insert: {
+          abstract?: string
+          acknowledgments?: string | null
+          affiliation?: string | null
+          ai_assistance_disclosure?: string | null
+          author_id: string
+          author_name?: string
+          body_text?: string | null
+          citation_style?: string | null
+          coauthor_names?: string[]
+          conflicts_of_interest?: string | null
+          created_at?: string
+          funding_note?: string | null
+          id?: string
+          keywords?: string[]
+          language: string
+          orcid?: string | null
+          paper_type: string
+          pdf_data?: string | null
+          pdf_filename?: string | null
+          pdf_size_bytes?: number | null
+          published_version_id?: string | null
+          references_text?: string
+          rejection_reason?: string | null
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          rights_declaration?: string
+          status?: string
+          third_party_rights_note?: string | null
+          title?: string
+          topic?: string | null
+          updated_at?: string
+        }
+        Update: {
+          abstract?: string
+          acknowledgments?: string | null
+          affiliation?: string | null
+          ai_assistance_disclosure?: string | null
+          author_id?: string
+          author_name?: string
+          body_text?: string | null
+          citation_style?: string | null
+          coauthor_names?: string[]
+          conflicts_of_interest?: string | null
+          created_at?: string
+          funding_note?: string | null
+          id?: string
+          keywords?: string[]
+          language?: string
+          orcid?: string | null
+          paper_type?: string
+          pdf_data?: string | null
+          pdf_filename?: string | null
+          pdf_size_bytes?: number | null
+          published_version_id?: string | null
+          references_text?: string
+          rejection_reason?: string | null
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          rights_declaration?: string
+          status?: string
+          third_party_rights_note?: string | null
+          title?: string
+          topic?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "research_papers_published_version_fkey"
+            columns: ["published_version_id"]
+            isOneToOne: false
+            referencedRelation: "research_paper_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       support_report_rate_limit: {
         Row: {
           count: number
@@ -824,6 +1089,7 @@ export type Database = {
           reference_code: string | null
           related_book_id: string | null
           related_job_id: string | null
+          related_paper_id: string | null
           request_kind: string
           resolution: string | null
           resolved_at: string | null
@@ -846,6 +1112,7 @@ export type Database = {
           reference_code?: string | null
           related_book_id?: string | null
           related_job_id?: string | null
+          related_paper_id?: string | null
           request_kind?: string
           resolution?: string | null
           resolved_at?: string | null
@@ -868,6 +1135,7 @@ export type Database = {
           reference_code?: string | null
           related_book_id?: string | null
           related_job_id?: string | null
+          related_paper_id?: string | null
           request_kind?: string
           resolution?: string | null
           resolved_at?: string | null
@@ -891,6 +1159,13 @@ export type Database = {
             columns: ["related_job_id"]
             isOneToOne: false
             referencedRelation: "book_translation_jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_tickets_related_paper_id_fkey"
+            columns: ["related_paper_id"]
+            isOneToOne: false
+            referencedRelation: "research_papers"
             referencedColumns: ["id"]
           },
         ]
@@ -1050,6 +1325,10 @@ export type Database = {
       }
       is_admin: { Args: { min_roles: string[] }; Returns: boolean }
       is_monetization_enabled: { Args: never; Returns: boolean }
+      is_paper_version_published: {
+        Args: { p_paper_id: string; p_version_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never
