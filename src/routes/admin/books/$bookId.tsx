@@ -4,7 +4,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { ArrowLeft, Loader2, Pencil, Trash2 } from "lucide-react";
 import { GENRES } from "@/lib/data";
-import { getAccessToken, useAdminSession, can } from "@/lib/admin/use-admin-session";
+import { getAccessToken, useResolvedAdminSession, can } from "@/lib/admin/use-admin-session";
 import { getPublicContentSettings } from "@/lib/admin/settings.functions";
 import {
   adminGetCatalogBook,
@@ -34,7 +34,7 @@ export const Route = createFileRoute("/admin/books/$bookId")({
 function AdminBookDetail() {
   const { bookId } = Route.useParams();
   const navigate = useNavigate();
-  const sessionQuery = useAdminSession();
+  const session = useResolvedAdminSession();
   const queryClient = useQueryClient();
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
@@ -104,7 +104,6 @@ function AdminBookDetail() {
   }
 
   const { book, jobs, gate, editions } = detailQuery.data;
-  const session = sessionQuery.data;
   const canReview = can(session, "catalog.review");
   const canPublish = can(session, "catalog.publish");
   const canManageTranslations = can(session, "translation.jobs.manage");

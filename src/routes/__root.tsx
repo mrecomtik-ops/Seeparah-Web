@@ -151,7 +151,7 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       {/* Exactly one admin-session auth-event listener for the whole app
-          — see useAdminSessionAuthSync()'s comment in use-admin-session.ts
+          — see useAdminSessionAuthSync()'s comment in use-admin-session.tsx
           for why this must not be duplicated per useAdminSession()
           consumer. Mounted unconditionally (not gated by `bare`) since the
           admin-whoami cache needs to stay correct even while browsing a

@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { getAccessToken, useAdminSession, can } from "@/lib/admin/use-admin-session";
+import { getAccessToken, useResolvedAdminSession, can } from "@/lib/admin/use-admin-session";
 import { getPublicContentSettings } from "@/lib/admin/settings.functions";
 import { AdminQueryError } from "@/components/admin/AdminQueryError";
 import {
@@ -42,9 +42,9 @@ function AdminBooksList() {
   const [bulkCategory, setBulkCategory] = useState("");
   const [categoryBusy, setCategoryBusy] = useState(false);
   const queryClient = useQueryClient();
-  const sessionQuery = useAdminSession();
-  const canPublish = can(sessionQuery.data, "catalog.publish");
-  const canManageCategories = can(sessionQuery.data, "catalog.categories.manage");
+  const session = useResolvedAdminSession();
+  const canPublish = can(session, "catalog.publish");
+  const canManageCategories = can(session, "catalog.categories.manage");
   const masterCategoriesQuery = useQuery({
     queryKey: ["public-content-settings"],
     queryFn: () => getPublicContentSettings(),

@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 import { ArrowLeft, Loader2 } from "lucide-react";
-import { getAccessToken, useAdminSession, can } from "@/lib/admin/use-admin-session";
+import { getAccessToken, useResolvedAdminSession, can } from "@/lib/admin/use-admin-session";
 import {
   adminGetTicket,
   adminSetTicketStatus,
@@ -50,7 +50,7 @@ function StructuredDataView({ data }: { data: Record<string, unknown> }) {
 
 function AdminTicketDetail() {
   const { ticketId } = Route.useParams();
-  const sessionQuery = useAdminSession();
+  const session = useResolvedAdminSession();
   const queryClient = useQueryClient();
   const [note, setNote] = useState("");
   const [visibility, setVisibility] = useState<"internal" | "public">("internal");
@@ -130,7 +130,6 @@ function AdminTicketDetail() {
     return <p className="text-sm text-destructive">Couldn't load this ticket.</p>;
 
   const { ticket, notes } = ticketQuery.data;
-  const session = sessionQuery.data;
   const canReplyPublic = can(session, "support.tickets.public_reply");
 
   return (

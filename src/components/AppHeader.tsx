@@ -21,6 +21,17 @@ export function AppHeader() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const href = useRouterState({ select: (s) => s.location.href });
   const { isDemo, loading: authLoading } = useAuth();
+  // Deliberately still a real useAdminSession() call here, not
+  // useResolvedAdminSession() — AppHeader renders on every route, above
+  // and outside AdminLayout's <Outlet /> (it's mounted by RootComponent,
+  // an ANCESTOR of AdminLayout, never a descendant of it), so there is
+  // no <AdminSessionProvider> in scope for most pages this renders on.
+  // It needs to know whether to show the Admin nav link regardless of
+  // whether the visitor is currently on an admin page at all. This is
+  // safe: the shared query is cached and reset/invalidated by the one
+  // global <AdminSessionSync /> listener the same as every other
+  // consumer, so this doesn't reintroduce the per-mount-subscription bug
+  // — it's just one more plain query observer, same as AdminLayout's own.
   const adminSession = useAdminSession();
   const isAdmin = !isDemo && !!adminSession.data?.role;
 

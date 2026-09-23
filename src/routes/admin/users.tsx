@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Loader2, Search } from "lucide-react";
-import { getAccessToken, useAdminSession, can } from "@/lib/admin/use-admin-session";
+import { getAccessToken, useResolvedAdminSession, can } from "@/lib/admin/use-admin-session";
 import { AdminQueryError } from "@/components/admin/AdminQueryError";
 import {
   searchAdminUsers,
@@ -19,8 +19,7 @@ export const Route = createFileRoute("/admin/users")({
 });
 
 function AdminUsersPage() {
-  const sessionQuery = useAdminSession();
-  const session = sessionQuery.data;
+  const session = useResolvedAdminSession();
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
   const [busyId, setBusyId] = useState<string | null>(null);

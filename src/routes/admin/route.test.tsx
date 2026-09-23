@@ -31,6 +31,11 @@ vi.mock("@/lib/admin/use-admin-session", () => ({
   useAdminSession: () => sessionState,
   can: (session: typeof sessionState.data, capability: string) =>
     session?.capabilities.includes(capability) ?? false,
+  // Real AdminSessionProvider is just a Context.Provider passthrough --
+  // this test only exercises AdminLayout's own loading-gate logic, not
+  // context consumption by children, so a plain passthrough is faithful
+  // enough without importing React context machinery into the mock.
+  AdminSessionProvider: ({ children }: { children: import("react").ReactNode }) => children,
 }));
 
 vi.mock("@/components/admin/AdminMfaGate", () => ({

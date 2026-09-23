@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
-import { getAccessToken, useAdminSession, can } from "@/lib/admin/use-admin-session";
+import { getAccessToken, useResolvedAdminSession, can } from "@/lib/admin/use-admin-session";
 import {
   adminGetSetting,
   adminPublishSetting,
@@ -15,6 +15,7 @@ import {
   adminListCategorySuggestions,
   adminDecideCategorySuggestion,
 } from "@/lib/admin/catalog.functions";
+import { AdminQueryError } from "@/components/admin/AdminQueryError";
 
 export const Route = createFileRoute("/admin/settings")({
   component: AdminSettingsPage,
@@ -43,8 +44,8 @@ function AdminSettingsPage() {
   const [priceBusy, setPriceBusy] = useState(false);
   const [suggestionBusy, setSuggestionBusy] = useState<string | null>(null);
   const queryClient = useQueryClient();
-  const sessionQuery = useAdminSession();
-  const canManageCategories = can(sessionQuery.data, "catalog.categories.manage");
+  const session = useResolvedAdminSession();
+  const canManageCategories = can(session, "catalog.categories.manage");
 
   const suggestionsQuery = useQuery({
     queryKey: ["category-suggestions", "pending"],
@@ -247,6 +248,15 @@ function AdminSettingsPage() {
         <div className="mt-8 flex justify-center">
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
         </div>
+      ) : settingQuery.isError ? (
+        <AdminQueryError
+          message={
+            settingQuery.error instanceof Error
+              ? settingQuery.error.message
+              : "Couldn't load this setting."
+          }
+          onRetry={() => settingQuery.refetch()}
+        />
       ) : (
         <div className="mt-4 space-y-3">
           <p className="text-xs text-muted-foreground">

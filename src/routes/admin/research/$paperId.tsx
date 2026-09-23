@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 import { ArrowLeft, Loader2 } from "lucide-react";
-import { getAccessToken, useAdminSession, can } from "@/lib/admin/use-admin-session";
+import { getAccessToken, useResolvedAdminSession, can } from "@/lib/admin/use-admin-session";
 import {
   adminGetResearchPaper,
   adminReviewResearchPaper,
@@ -26,7 +26,7 @@ function Row({ label, value }: { label: string; value: string }) {
 
 function AdminResearchDetail() {
   const { paperId } = Route.useParams();
-  const sessionQuery = useAdminSession();
+  const session = useResolvedAdminSession();
   const queryClient = useQueryClient();
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
@@ -66,7 +66,6 @@ function AdminResearchDetail() {
   }
 
   const paper = detailQuery.data;
-  const session = sessionQuery.data;
   const canReview = can(session, "research.review");
   const canPublish = can(session, "research.publish");
 

@@ -1,7 +1,7 @@
 import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { Loader2, ShieldAlert } from "lucide-react";
 import { useAuth } from "@/lib/use-auth";
-import { useAdminSession, can } from "@/lib/admin/use-admin-session";
+import { useAdminSession, can, AdminSessionProvider } from "@/lib/admin/use-admin-session";
 import { AdminMfaGate } from "@/components/admin/AdminMfaGate";
 
 export const Route = createFileRoute("/admin")({
@@ -31,7 +31,18 @@ function AdminLayout() {
   const sessionQuery = useAdminSession();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
-  if (authLoading || sessionQuery.isLoading) {
+  // Gates on data presence, not isLoading/isPending: React Query v5 keeps
+  // isPending (and therefore isLoading) false throughout a BACKGROUND
+  // refetch of already-successful data — status/fetchStatus are
+  // deliberately decoupled for exactly this reason — so a plain
+  // staleTime-triggered or invalidateQueries-triggered refetch was
+  // already safe under the old check too. What data === undefined adds
+  // is intent that survives a reset directly: after a genuine identity
+  // change (queryClient.resetQueries in useAdminSessionAuthSync), data
+  // really is cleared back to undefined, so this still correctly shows
+  // the spinner then — but it says so without relying on inferring that
+  // fact through isPending/isFetching's combination.
+  if (authLoading || sessionQuery.data === undefined) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -106,7 +117,12 @@ function AdminLayout() {
           </nav>
         </aside>
         <main className="min-w-0 flex-1">
-          <Outlet />
+          {/* Every child admin route reads this same, already-resolved
+              session via useResolvedAdminSession() instead of mounting
+              its own useAdminSession() query observer. */}
+          <AdminSessionProvider session={session}>
+            <Outlet />
+          </AdminSessionProvider>
         </main>
       </div>
     </div>
