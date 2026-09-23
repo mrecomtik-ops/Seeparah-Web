@@ -5,6 +5,7 @@ import { Loader2, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { getAccessToken, useAdminSession, can } from "@/lib/admin/use-admin-session";
 import { getPublicContentSettings } from "@/lib/admin/settings.functions";
+import { AdminQueryError } from "@/components/admin/AdminQueryError";
 import {
   adminListCatalog,
   adminBulkSetAccessType,
@@ -259,6 +260,15 @@ function AdminBooksList() {
         <div className="mt-8 flex justify-center">
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
         </div>
+      ) : booksQuery.isError ? (
+        <AdminQueryError
+          message={
+            booksQuery.error instanceof Error
+              ? booksQuery.error.message
+              : "Couldn't load the catalog."
+          }
+          onRetry={() => booksQuery.refetch()}
+        />
       ) : (
         <div className="mt-4 overflow-x-auto rounded-2xl border border-border bg-card card-shadow">
           <table className="w-full text-sm">

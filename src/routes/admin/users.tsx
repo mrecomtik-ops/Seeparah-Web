@@ -4,6 +4,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Loader2, Search } from "lucide-react";
 import { getAccessToken, useAdminSession, can } from "@/lib/admin/use-admin-session";
+import { AdminQueryError } from "@/components/admin/AdminQueryError";
 import {
   searchAdminUsers,
   suspendUserAccount,
@@ -173,6 +174,15 @@ function AdminUsersPage() {
         <div className="mt-8 flex justify-center">
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
         </div>
+      ) : usersQuery.isError ? (
+        <AdminQueryError
+          message={
+            usersQuery.error instanceof Error
+              ? usersQuery.error.message
+              : "Couldn't load users."
+          }
+          onRetry={() => usersQuery.refetch()}
+        />
       ) : (
         <div className="mt-4 overflow-x-auto rounded-2xl border border-border bg-card card-shadow">
           <table className="w-full text-sm">
