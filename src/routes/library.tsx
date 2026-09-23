@@ -335,6 +335,7 @@ function LibraryPage() {
             />
             <Select
               label="Category"
+              allLabel="All categories"
               value={category}
               options={categoriesInUse}
               onChange={(v) => updateSearch({ category: v ?? undefined })}
@@ -457,11 +458,17 @@ function LibraryPage() {
 
 function Select({
   label,
+  allLabel,
   value,
   options,
   onChange,
 }: {
   label: string;
+  /** Text for the blank/"any value" option, e.g. "All categories". Naive
+   * `${label.toLowerCase()}s` pluralization breaks on words like
+   * "Category" -> "categorys" — pass this explicitly for any label whose
+   * plural isn't just "+s". */
+  allLabel?: string;
   value: string | null;
   options: string[];
   onChange: (v: string | null) => void;
@@ -474,7 +481,7 @@ function Select({
         onChange={(e) => onChange(e.target.value || null)}
         className="rounded-xl border border-border bg-card px-3 py-2.5 text-sm text-foreground card-shadow outline-none focus:ring-2 focus:ring-ring"
       >
-        <option value="">All {label.toLowerCase()}s</option>
+        <option value="">{allLabel ?? `All ${label.toLowerCase()}s`}</option>
         {options.map((o) => (
           <option key={o} value={o}>
             {o}
