@@ -35,7 +35,14 @@ function makeUser(overrides: Partial<User> = {}): User {
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
     auth: {
-      getUser: () => Promise.resolve({ data: { user: currentUser } }),
+      // useAuth() resolves its initial state from getSession() (local,
+      // no network call), not getUser() — see use-auth.ts's own comment
+      // for why. Mirrors currentUser the same way the old getUser() mock
+      // did, just in getSession()'s actual response shape.
+      getSession: () =>
+        Promise.resolve({
+          data: { session: currentUser ? { user: currentUser, access_token: "test-token" } : null },
+        }),
       onAuthStateChange: (cb: AuthChangeCallback) => {
         authChangeCallback = cb;
         return { data: { subscription: { unsubscribe: vi.fn() } } };
