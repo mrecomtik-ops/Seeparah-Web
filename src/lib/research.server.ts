@@ -8,7 +8,16 @@ async function admin() {
   return supabaseAdmin;
 }
 
-const EDITABLE_STATUSES = new Set(["draft", "submitted", "changes_requested"]);
+// Must stay in sync with research.ts's isEditableForRevision(): 'published'
+// is included deliberately. Public visibility is governed solely by
+// research_papers.published_version_id (migration 0014's "THIRD REVIEW
+// ROUND"), never by this row's own status — so an author revising an
+// already-published paper's PDF, same as its text fields, never affects
+// what readers currently see. Excluding 'published' here while
+// isEditableForRevision() allowed it (research.ts) meant an author could
+// revise a published paper's text but got refused revising its PDF in the
+// same revision — a real, now-fixed inconsistency.
+const EDITABLE_STATUSES = new Set(["draft", "submitted", "changes_requested", "published"]);
 
 export async function uploadPaperPdf(params: {
   paperId: string;

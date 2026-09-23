@@ -82,9 +82,8 @@ vi.mock("@/integrations/supabase/client.server", () => ({
   },
 }));
 
-const { reviewResearchPaper, publishPaperVersion, withdrawPublishedPaper } = await import(
-  "@/lib/research.server"
-);
+const { reviewResearchPaper, publishPaperVersion, withdrawPublishedPaper, uploadPaperPdf } =
+  await import("@/lib/research.server");
 
 describe("reviewResearchPaper — only ever moves a submitted paper", () => {
   it("refuses to review a paper that isn't currently submitted", async () => {
@@ -289,5 +288,45 @@ describe("withdrawPublishedPaper", () => {
     await expect(
       withdrawPublishedPaper({ paperId: "p1", actorId: "admin-1", reason: "test" }),
     ).rejects.toThrow(/concurrent action/i);
+  });
+});
+
+// Regression coverage: EDITABLE_STATUSES in research.server.ts previously
+// excluded 'published', so an author revising an already-published paper's
+// text (allowed by research.ts's isEditableForRevision, widened earlier)
+// could not revise its PDF in the same revision — a real inconsistency,
+// not a deliberate restriction. Confirms it's fixed, and that unrelated
+// non-editable statuses are still correctly refused.
+describe("uploadPaperPdf — editable-status set matches research.ts's isEditableForRevision", () => {
+  it("allows uploading a PDF revision for an already-published paper", async () => {
+    mock = makeMockSupabase([
+      { data: { author_id: "author-1", status: "published" }, error: null },
+      { data: null, error: null },
+    ]);
+    await expect(
+      uploadPaperPdf({
+        paperId: "p1",
+        authorId: "author-1",
+        filename: "revised.pdf",
+        fileBase64: Buffer.from("hello").toString("base64"),
+      }),
+    ).resolves.toEqual({ ok: true });
+    const payload = mock.updateSpy.mock.calls[0]![0] as Record<string, unknown>;
+    expect(payload["pdf_data"]).toBe(`\\x${Buffer.from("hello").toString("hex")}`);
+  });
+
+  it("still refuses for a status that was never editable, e.g. 'approved' (pending publish)", async () => {
+    mock = makeMockSupabase([
+      { data: { author_id: "author-1", status: "approved" }, error: null },
+    ]);
+    await expect(
+      uploadPaperPdf({
+        paperId: "p1",
+        authorId: "author-1",
+        filename: "revised.pdf",
+        fileBase64: Buffer.from("hello").toString("base64"),
+      }),
+    ).rejects.toThrow(/no longer editable/i);
+    expect(mock.updateSpy).not.toHaveBeenCalled();
   });
 });
