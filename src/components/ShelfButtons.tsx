@@ -44,9 +44,14 @@ const ACTIONS: ShelfAction[] = [
 ];
 
 export function useShelves() {
-  const { userId } = useAuth();
+  const { userId, loading } = useAuth();
   return useQuery({
     queryKey: ["shelves", userId],
+    // While auth is still resolving, userId is the DEMO_USER_ID fallback
+    // — not yet known to be right. Waiting for loading to clear avoids
+    // firing a request (and caching a result) against the wrong,
+    // possibly-temporary identity.
+    enabled: !loading,
     queryFn: () => listShelves(userId),
   });
 }

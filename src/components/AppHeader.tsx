@@ -20,7 +20,7 @@ const NAV = [
 export function AppHeader() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const href = useRouterState({ select: (s) => s.location.href });
-  const { isDemo } = useAuth();
+  const { isDemo, loading: authLoading } = useAuth();
   const adminSession = useAdminSession();
   const isAdmin = !isDemo && !!adminSession.data?.role;
 
@@ -73,14 +73,26 @@ export function AppHeader() {
             )}
           </nav>
           <div className="flex items-center gap-2">
-            {isDemo && (
-              <Link
-                to="/auth"
-                search={{ redirect: href }}
-                className="hidden items-center gap-1.5 rounded-xl border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground hover:bg-secondary sm:inline-flex"
-              >
-                <LogIn className="h-3.5 w-3.5" /> Sign in
-              </Link>
+            {authLoading ? (
+              // Reserves roughly the same footprint as the "Sign in"
+              // button so it doesn't jump in/out, without committing to
+              // "definitely signed out" before auth has actually
+              // resolved — see index.tsx's landing-page header for the
+              // same established pattern.
+              <div
+                className="hidden h-[38px] w-[92px] animate-pulse rounded-xl bg-secondary sm:block"
+                aria-hidden="true"
+              />
+            ) : (
+              isDemo && (
+                <Link
+                  to="/auth"
+                  search={{ redirect: href }}
+                  className="hidden items-center gap-1.5 rounded-xl border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground hover:bg-secondary sm:inline-flex"
+                >
+                  <LogIn className="h-3.5 w-3.5" /> Sign in
+                </Link>
+              )
             )}
             <Link
               to="/library"
