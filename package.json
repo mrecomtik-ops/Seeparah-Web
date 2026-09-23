@@ -10,7 +10,12 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "dev:cloudflare": "vite dev -c vite.config.cloudflare.ts",
+    "build:cloudflare": "vite build -c vite.config.cloudflare.ts",
+    "preview:cloudflare": "vite preview -c vite.config.cloudflare.ts",
+    "deploy:cloudflare": "npm run build:cloudflare && wrangler deploy",
+    "cf-typegen": "wrangler types"
   },
   "overrides": {
     "rolldown": "1.2.1"
@@ -73,6 +78,7 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.57.3",
     "@eslint/js": "^9.32.0",
     "@testing-library/react": "^16.3.3",
     "@types/node": "^22.16.5",
@@ -95,6 +101,7 @@
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.56.1",
     "vite": "8.1.5",
-    "vitest": "^5.0.0"
+    "vitest": "^5.0.0",
+    "wrangler": "^4.136.3"
   }
 }
