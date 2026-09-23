@@ -13,6 +13,7 @@ import { Toaster } from "sonner";
 
 import appCss from "../styles.css?url";
 import { AppHeader } from "@/components/AppHeader";
+import { AdminSessionSync } from "@/lib/admin/use-admin-session";
 
 function NotFoundComponent() {
   return (
@@ -149,6 +150,13 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      {/* Exactly one admin-session auth-event listener for the whole app
+          — see useAdminSessionAuthSync()'s comment in use-admin-session.ts
+          for why this must not be duplicated per useAdminSession()
+          consumer. Mounted unconditionally (not gated by `bare`) since the
+          admin-whoami cache needs to stay correct even while browsing a
+          bare page, before ever navigating to an admin route. */}
+      <AdminSessionSync />
       {!bare && <AppHeader />}
       <Outlet />
       {!bare && (
