@@ -8,7 +8,7 @@ export const Route = createFileRoute("/legal")({
   component: LegalPage,
 });
 
-const LAST_UPDATED = "2026-09-20";
+const LAST_UPDATED = "2026-09-24";
 
 // Exported (in addition to being wired as the route's component below) so
 // it can be rendered directly in tests without a full router harness.
@@ -95,8 +95,13 @@ export function LegalPage() {
                 stored in Supabase's infrastructure.
               </li>
               <li>
-                <span className="font-semibold text-foreground">Netlify</span> — hosts the
-                Seeparah website and runs its server-side request handling.
+                <span className="font-semibold text-foreground">Cloudflare</span> — hosts and
+                serves the Seeparah application (Cloudflare Workers) and handles the underlying
+                network and server request traffic, including page rendering and the admin/reader
+                functionality described above. We also use Cloudflare Web Analytics, a cookie-free
+                traffic and performance analytics feature, to see aggregate metrics like page views
+                and load times — not to advertise to you or track you individually across other
+                sites.
               </li>
               <li>
                 <span className="font-semibold text-foreground">Google</span> — only if you choose
