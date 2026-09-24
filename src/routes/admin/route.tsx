@@ -1,8 +1,10 @@
-import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
+import { toast } from "sonner";
 import { Loader2, ShieldAlert } from "lucide-react";
-import { useAuth } from "@/lib/use-auth";
+import { useAuth, signOut } from "@/lib/use-auth";
 import { useAdminSession, can, AdminSessionProvider } from "@/lib/admin/use-admin-session";
 import { AdminMfaGate } from "@/components/admin/AdminMfaGate";
+import { AdminQueryError } from "@/components/admin/AdminQueryError";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({ meta: [{ title: "Admin — Seeparah" }, { name: "robots", content: "noindex" }] }),
@@ -30,6 +32,45 @@ function AdminLayout() {
   const { loading: authLoading, isDemo } = useAuth();
   const sessionQuery = useAdminSession();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const navigate = useNavigate();
+
+  if (authLoading) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // A failed adminWhoAmI query must never look like "still loading" —
+  // data stays undefined forever on a query stuck in an error state, so
+  // the old `data === undefined` check alone spun forever on any failure
+  // (a missing/misconfigured server-side env var was the incident that
+  // surfaced this: the server function itself returned 200 at the
+  // transport layer, so there was nothing for the browser console to
+  // complain about, but the query still resolved to an error, not data).
+  // Checked before the data-presence gate below so an error is never
+  // mistaken for "just hasn't resolved yet".
+  if (sessionQuery.isError) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-4">
+        <AdminQueryError
+          message="Couldn't verify admin access. This is usually temporary — try again."
+          onRetry={() => sessionQuery.refetch()}
+        />
+        <button
+          onClick={async () => {
+            await signOut();
+            toast.success("Signed out.");
+            navigate({ to: "/auth", search: { redirect: pathname } });
+          }}
+          className="text-xs font-medium text-muted-foreground underline hover:text-foreground"
+        >
+          Sign out and sign in again
+        </button>
+      </div>
+    );
+  }
 
   // Gates on data presence, not isLoading/isPending: React Query v5 keeps
   // isPending (and therefore isLoading) false throughout a BACKGROUND
@@ -42,7 +83,7 @@ function AdminLayout() {
   // really is cleared back to undefined, so this still correctly shows
   // the spinner then — but it says so without relying on inferring that
   // fact through isPending/isFetching's combination.
-  if (authLoading || sessionQuery.data === undefined) {
+  if (sessionQuery.data === undefined) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin text-primary" />
