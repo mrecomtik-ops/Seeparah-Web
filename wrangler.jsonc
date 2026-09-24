@@ -24,4 +24,39 @@
   "observability": {
     "enabled": true,
   },
+  // Without this, `wrangler deploy` treats this file as the sole source of
+  // truth for the Worker's environment and DELETES any plaintext `vars`
+  // configured through the Cloudflare dashboard that aren't also listed
+  // here (confirmed in wrangler's own config schema: "If you change your
+  // vars in the dashboard, wrangler *will* override/delete them on its
+  // next deploy"). This file intentionally has no `vars` block of its own
+  // (see the env-var audit in the migration report for why -- nothing
+  // here should ever hold even non-secret values, to keep exactly one
+  // place, the dashboard, as the record of what's actually configured).
+  // That means a plain `wrangler deploy` with keep_vars left at its
+  // default (false) would wipe every dashboard-set var on every deploy --
+  // the likely cause of the SUPABASE_URL-dependent admin outage this was
+  // added to fix. keep_vars: true makes deploys leave dashboard vars
+  // alone, which is what we actually want given the file has none of its
+  // own to be a competing source of truth.
+  "keep_vars": true,
+  // Secrets (SUPABASE_SERVICE_ROLE_KEY, GEMINI_API_KEY, etc.) are NEVER
+  // touched by a deploy regardless of keep_vars -- wrangler only removes a
+  // secret via an explicit `wrangler secret delete`, per its own docs.
+  // This block doesn't protect them from anything; it makes a deploy FAIL
+  // LOUDLY (rather than silently shipping a Worker that 200s with hidden
+  // internal errors, per the adminWhoAmI incident this was added
+  // alongside) if any of these were never set / were deleted. Names only
+  // -- never values -- and this list intentionally does not include
+  // SUPABASE_URL/SUPABASE_PUBLISHABLE_KEY, which are plain `vars`
+  // (non-secret), not secrets; `keep_vars` above is what protects those.
+  "secrets": {
+    "required": [
+      "SUPABASE_SERVICE_ROLE_KEY",
+      "GEMINI_API_KEY",
+      "RESEND_API_KEY",
+      "SUPPORT_RATE_LIMIT_SALT",
+      "SUPPORT_RATE_LIMIT_PEPPER",
+    ],
+  },
 }
