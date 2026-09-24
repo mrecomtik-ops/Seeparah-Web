@@ -10,13 +10,12 @@ export const BOOK_COVERS: Record<string, string> = {
   "44444444-4444-4444-4444-444444444444": prophetCover,
 };
 
-// Previously pointed at the fake "Lantern in the Rain" publishing-flow demo
-// manuscript and was labeled "Book of the day" — presenting a demo entry as
-// a curated real pick. Repointed at a genuine (if excerpted) public-domain
-// classic; callers should label this "Featured", not imply daily curation
-// that isn't actually happening yet.
+// Preference only, never a fabricated entry: callers look this ID up in
+// the REAL fetched books array and fall back to the first real result if
+// it isn't there (which, on a fresh catalog, it never is — see
+// src/routes/index.tsx and src/routes/library.tsx). Never used to invent
+// or render a book that doesn't actually exist in the database.
 export const FEATURED_BOOK_ID = "11111111-1111-1111-1111-111111111111";
-export const DEMO_BOOK_ID = "11111111-1111-1111-1111-111111111111";
 
 export function coverFor(bookId: string, coverUrl?: string | null): string | null {
   return BOOK_COVERS[bookId] ?? coverUrl ?? null;

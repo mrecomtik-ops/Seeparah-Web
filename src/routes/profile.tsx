@@ -25,6 +25,7 @@ import { LANGUAGES } from "@/lib/data";
 import { getPrefs, setPrefs } from "@/lib/prefs";
 import { useShelves } from "@/components/ShelfButtons";
 import { SHELF_LABELS, type ShelfKind } from "@/lib/shelves";
+import { getPublicContentSettings } from "@/lib/admin/settings.functions";
 
 export const Route = createFileRoute("/profile")({
   head: () => ({
@@ -43,7 +44,7 @@ export const Route = createFileRoute("/profile")({
 });
 
 function ProfilePage() {
-  const { user, userId, displayName, isDemo } = useAuth();
+  const { user, userId, displayName, isDemo, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [language, setLanguage] = useState("English");
@@ -60,24 +61,39 @@ function ProfilePage() {
     setGoal(p.weeklyGoalPages);
   }, []);
 
+  // While auth is still resolving, userId is the DEMO_USER_ID fallback —
+  // not yet known to be right. These four are all scoped to whichever
+  // identity userId currently names, so firing them before authLoading
+  // clears risks querying (and caching, under the demo id) a signed-in
+  // reader's stats as if they were the demo reader's. booksQuery and
+  // settingsQuery are identity-independent (public data) and stay
+  // unconditional.
   const booksQuery = useQuery({ queryKey: ["books"], queryFn: listBooks });
   const progressQuery = useQuery({
     queryKey: ["progress", userId],
     queryFn: () => listProgress(userId),
+    enabled: !authLoading,
   });
   const highlightsQuery = useQuery({
     queryKey: ["highlights", userId],
     queryFn: () => listHighlights(userId),
+    enabled: !authLoading,
   });
   const subsQuery = useQuery({
     queryKey: ["subscriptions", userId],
     queryFn: () => listSubscriptions(userId),
+    enabled: !authLoading,
   });
   const authorProfileQuery = useQuery({
     queryKey: ["author-profile", userId],
     queryFn: () => getAuthorProfile(userId),
-    enabled: !isDemo,
+    enabled: !authLoading && !isDemo,
   });
+  const settingsQuery = useQuery({
+    queryKey: ["public-content-settings"],
+    queryFn: () => getPublicContentSettings(),
+  });
+  const monetizationEnabled = settingsQuery.data?.["monetization_enabled"] === true;
 
   useEffect(() => {
     if (!authorProfileQuery.data) return;
@@ -119,46 +135,66 @@ function ProfilePage() {
   return (
     <div className="min-h-screen bg-background">
       <main className="mx-auto max-w-3xl px-4 pb-20 pt-8 sm:px-6">
-        <section className="flex items-center gap-4 rounded-2xl border border-border bg-card p-6 card-shadow">
-          <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-accent">
-            {user?.user_metadata?.["avatar_url"] ? (
-              <img
-                src={user.user_metadata["avatar_url"] as string}
-                alt={`${displayName}'s avatar`}
-                className="h-full w-full object-cover"
-              />
-            ) : (
-              <UserIcon className="h-7 w-7 text-accent-foreground" />
-            )}
-          </div>
-          <div className="min-w-0 flex-1">
-            <h1 className="truncate font-display text-2xl font-semibold text-foreground">
-              {displayName}
-            </h1>
-            <p className="flex items-center gap-1.5 truncate text-sm text-muted-foreground">
-              <Mail className="h-3.5 w-3.5" />
-              {user?.email ?? "demo reader — progress stays on this device"}
-            </p>
-          </div>
-          <div className="flex flex-col items-end gap-2">
-            {isDemo && (
-              <Link
-                to="/auth"
-                search={{ redirect: "/profile" }}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90"
+        {authLoading ? (
+          // Auth unresolved is a distinct state from confirmed signed
+          // out: userId/isDemo/displayName all still carry their demo
+          // fallback values at this point, so rendering them here would
+          // be exactly the false "Demo Reader" flash this guards against
+          // — a neutral skeleton, not a guess, until useAuth() settles.
+          <section
+            className="flex items-center gap-4 rounded-2xl border border-border bg-card p-6 card-shadow"
+            aria-busy="true"
+            aria-label="Loading your profile"
+          >
+            <div className="h-16 w-16 shrink-0 animate-pulse rounded-full bg-secondary" />
+            <div className="min-w-0 flex-1 space-y-2">
+              <div className="h-6 w-40 animate-pulse rounded bg-secondary" />
+              <div className="h-4 w-56 animate-pulse rounded bg-secondary" />
+            </div>
+            <div className="h-10 w-28 animate-pulse rounded-xl bg-secondary" />
+          </section>
+        ) : (
+          <section className="flex items-center gap-4 rounded-2xl border border-border bg-card p-6 card-shadow">
+            <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-accent">
+              {user?.user_metadata?.["avatar_url"] ? (
+                <img
+                  src={user.user_metadata["avatar_url"] as string}
+                  alt={`${displayName}'s avatar`}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <UserIcon className="h-7 w-7 text-accent-foreground" />
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <h1 className="truncate font-display text-2xl font-semibold text-foreground">
+                {displayName}
+              </h1>
+              <p className="flex items-center gap-1.5 truncate text-sm text-muted-foreground">
+                <Mail className="h-3.5 w-3.5" />
+                {user?.email ?? "demo reader — progress stays on this device"}
+              </p>
+            </div>
+            <div className="flex flex-col items-end gap-2">
+              {isDemo && (
+                <Link
+                  to="/auth"
+                  search={{ redirect: "/profile" }}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90"
+                >
+                  <LogIn className="h-4 w-4" /> Sign in
+                </Link>
+              )}
+              <button
+                onClick={handleSignOut}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground hover:bg-secondary"
               >
-                <LogIn className="h-4 w-4" /> Sign in
-              </Link>
-            )}
-            <button
-              onClick={handleSignOut}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground hover:bg-secondary"
-            >
-              <LogOut className="h-4 w-4" />
-              {isDemo ? "Clear session" : "Sign out"}
-            </button>
-          </div>
-        </section>
+                <LogOut className="h-4 w-4" />
+                {isDemo ? "Clear session" : "Sign out"}
+              </button>
+            </div>
+          </section>
+        )}
 
         <div className="mt-6 grid gap-4 sm:grid-cols-3">
           {[
@@ -185,15 +221,19 @@ function ProfilePage() {
           {subs.length === 0 ? (
             <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
               <p className="text-sm text-muted-foreground">
-                You're on the free plan — every free book, in every language.
+                {monetizationEnabled
+                  ? "You're on the free plan — every free book, in every language."
+                  : "Every book is free to read during launch — no plan needed."}
               </p>
-              <Link
-                to="/subscribe"
-                search={{ book: undefined }}
-                className="rounded-xl bg-gold px-4 py-2 text-sm font-semibold text-gold-foreground"
-              >
-                See plans
-              </Link>
+              {monetizationEnabled && (
+                <Link
+                  to="/subscribe"
+                  search={{ book: undefined }}
+                  className="rounded-xl bg-gold px-4 py-2 text-sm font-semibold text-gold-foreground"
+                >
+                  See plans
+                </Link>
+              )}
             </div>
           ) : (
             <ul className="mt-4 space-y-3">
@@ -220,7 +260,15 @@ function ProfilePage() {
           )}
         </section>
 
-        {isDemo ? (
+        {authLoading ? (
+          <section
+            className="mt-8 rounded-2xl border border-border bg-card p-6 card-shadow"
+            aria-busy="true"
+          >
+            <div className="h-6 w-40 animate-pulse rounded bg-secondary" />
+            <div className="mt-3 h-4 w-full max-w-md animate-pulse rounded bg-secondary" />
+          </section>
+        ) : isDemo ? (
           <section className="mt-8 rounded-2xl border border-dashed border-border bg-card p-6 text-center card-shadow">
             <Feather className="mx-auto h-8 w-8 text-muted-foreground/60" />
             <h2 className="mt-2 font-display text-lg font-semibold text-foreground">

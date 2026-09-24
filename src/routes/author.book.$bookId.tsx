@@ -7,14 +7,17 @@ import {
   BookCheck,
   Languages,
   Loader2,
+  Pencil,
   RefreshCw,
   ShieldCheck,
+  Trash2,
   XCircle,
 } from "lucide-react";
-import { LANGUAGES } from "@/lib/data";
-import { getBook, setBookStatus, type BookStatus } from "@/lib/library";
+import { LANGUAGES, GENRES } from "@/lib/data";
+import { getBook, setBookStatus, editBookMetadata, type BookStatus } from "@/lib/library";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/use-auth";
+import { suggestBookCategory } from "@/lib/categories.functions";
 import {
   cancelTranslationJob,
   getBookTranslationStatus,
@@ -59,6 +62,7 @@ async function token(): Promise<string> {
 
 function ManageBookPage() {
   const { bookId } = Route.useParams();
+  const navigate = Route.useNavigate();
   const { userId, isDemo } = useAuth();
   const queryClient = useQueryClient();
   const [guideOpen, setGuideOpen] = useState(false);
@@ -70,6 +74,17 @@ function ManageBookPage() {
     targetConventions: "",
     toneInstructions: "",
   });
+  const [editOpen, setEditOpen] = useState(false);
+  const [editBusy, setEditBusy] = useState(false);
+  const [editDraft, setEditDraft] = useState({
+    title: "",
+    author: "",
+    description: "",
+    genre: "",
+    coverUrl: "",
+  });
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteBusy, setDeleteBusy] = useState(false);
 
   const bookQuery = useQuery({ queryKey: ["book", bookId], queryFn: () => getBook(bookId) });
   const jobsQuery = useQuery({
@@ -91,6 +106,92 @@ function ManageBookPage() {
       toast.success(`Status set to ${STATUS_LABEL[status] ?? status}`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Couldn't update status");
+    }
+  }
+
+  function openEdit() {
+    if (!book) return;
+    setEditDraft({
+      title: book.title,
+      author: book.author,
+      description: book.description,
+      genre: book.genre ?? "",
+      coverUrl: book.cover_url ?? "",
+    });
+    setEditOpen(true);
+  }
+
+  async function saveEdit() {
+    if (!book) return;
+    if (!editDraft.title.trim() || !editDraft.description.trim()) {
+      toast.error("Title and description can't be empty.");
+      return;
+    }
+    const wasPublished = !["draft", "in_review", "unpublished"].includes(book.status);
+    setEditBusy(true);
+    try {
+      await editBookMetadata(userId, bookId, {
+        title: editDraft.title.trim(),
+        author: editDraft.author.trim(),
+        description: editDraft.description.trim(),
+        genre: editDraft.genre.trim() || null,
+        coverUrl: editDraft.coverUrl.trim() || null,
+      });
+      queryClient.invalidateQueries({ queryKey: ["book", bookId] });
+      queryClient.invalidateQueries({ queryKey: ["my-books", userId] });
+      queryClient.invalidateQueries({ queryKey: ["books"] });
+      toast.success(
+        wasPublished
+          ? "Saved — this book is back in review before the changes go live."
+          : "Saved.",
+      );
+      setEditOpen(false);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Couldn't save changes");
+    } finally {
+      setEditBusy(false);
+    }
+  }
+
+  async function confirmDelete() {
+    setDeleteBusy(true);
+    try {
+      await setBookStatus(userId, bookId, "unpublished");
+      queryClient.invalidateQueries({ queryKey: ["book", bookId] });
+      queryClient.invalidateQueries({ queryKey: ["my-books", userId] });
+      queryClient.invalidateQueries({ queryKey: ["books"] });
+      toast.success("Removed from the library. You can republish it anytime from here.");
+      setDeleteOpen(false);
+      navigate({ to: "/author" });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Couldn't remove this book");
+    } finally {
+      setDeleteBusy(false);
+    }
+  }
+
+  const [categorySuggestion, setCategorySuggestion] = useState("");
+  const [suggestingCategory, setSuggestingCategory] = useState(false);
+
+  async function suggestCategory() {
+    if (!categorySuggestion.trim()) return;
+    setSuggestingCategory(true);
+    try {
+      const { data } = await supabase.auth.getSession();
+      const accessToken = data.session?.access_token;
+      if (!accessToken) {
+        toast.error("Sign in to suggest a category.");
+        return;
+      }
+      await suggestBookCategory({
+        data: { accessToken, contentType: "book", contentId: bookId, category: categorySuggestion.trim() },
+      });
+      toast.success("Thanks — an admin will review this suggestion. It doesn't change your book's categories yet.");
+      setCategorySuggestion("");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Couldn't send the suggestion");
+    } finally {
+      setSuggestingCategory(false);
     }
   }
 
@@ -250,6 +351,20 @@ function ManageBookPage() {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <button
+              onClick={openEdit}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground hover:bg-secondary"
+            >
+              <Pencil className="h-3.5 w-3.5" /> Edit
+            </button>
+            {book.status !== "unpublished" && (
+              <button
+                onClick={() => setDeleteOpen(true)}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-destructive/40 bg-card px-4 py-2 text-sm font-semibold text-destructive hover:bg-destructive/10"
+              >
+                <Trash2 className="h-3.5 w-3.5" /> Delete
+              </button>
+            )}
             {book.status === "published" && (
               <button
                 onClick={() => changeStatus("unpublished")}
@@ -294,6 +409,31 @@ function ManageBookPage() {
             Rejected: {book.rejection_reason}
           </p>
         )}
+
+        <section className="mt-8 rounded-2xl border border-border bg-card p-5 card-shadow">
+          <h2 className="font-display text-base font-semibold text-foreground">
+            Suggest a category
+          </h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            You can suggest a category for this book — an admin reviews it before it's added.
+            Suggesting one never changes your book's categories directly.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <input
+              value={categorySuggestion}
+              onChange={(e) => setCategorySuggestion(e.target.value)}
+              placeholder="e.g. Historical Fiction"
+              className="min-w-0 flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            />
+            <button
+              disabled={suggestingCategory || !categorySuggestion.trim()}
+              onClick={() => void suggestCategory()}
+              className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+            >
+              {suggestingCategory ? "Sending…" : "Suggest"}
+            </button>
+          </div>
+        </section>
 
         <section className="mt-8 rounded-2xl border border-border bg-card p-6 card-shadow">
           <div className="flex items-center justify-between">
@@ -452,6 +592,113 @@ function ManageBookPage() {
           </p>
         </section>
       </main>
+
+      {editOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 card-shadow-lg">
+            <h2 className="font-display text-lg font-semibold text-foreground">Edit book details</h2>
+            {book.status !== "draft" && book.status !== "in_review" && book.status !== "unpublished" && (
+              <p className="mt-1 rounded-lg bg-secondary px-3 py-2 text-xs text-secondary-foreground">
+                This book is {STATUS_LABEL[book.status]?.toLowerCase() ?? book.status} — saving will
+                send it back into review before the changes are visible to readers.
+              </p>
+            )}
+            <div className="mt-3 space-y-2.5">
+              <input
+                value={editDraft.title}
+                onChange={(e) => setEditDraft((d) => ({ ...d, title: e.target.value }))}
+                placeholder="Title"
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+              <input
+                value={editDraft.author}
+                onChange={(e) => setEditDraft((d) => ({ ...d, author: e.target.value }))}
+                placeholder="Author byline"
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+              <textarea
+                value={editDraft.description}
+                onChange={(e) => setEditDraft((d) => ({ ...d, description: e.target.value }))}
+                placeholder="Description"
+                rows={4}
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+              <select
+                value={editDraft.genre}
+                onChange={(e) => setEditDraft((d) => ({ ...d, genre: e.target.value }))}
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <option value="">No genre</option>
+                {GENRES.map((g) => (
+                  <option key={g} value={g}>
+                    {g}
+                  </option>
+                ))}
+              </select>
+              <input
+                value={editDraft.coverUrl}
+                onChange={(e) => setEditDraft((d) => ({ ...d, coverUrl: e.target.value }))}
+                placeholder="Cover image URL (optional)"
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+            </div>
+            <p className="mt-2 text-[11px] text-muted-foreground">
+              Rights, access, and pricing fields aren't editable here — those stay admin-controlled.
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                onClick={() => setEditOpen(false)}
+                disabled={editBusy}
+                className="rounded-lg border border-border px-4 py-2 text-sm font-semibold hover:bg-secondary disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveEdit}
+                disabled={editBusy}
+                className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+              >
+                {editBusy ? "Saving…" : "Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 card-shadow-lg">
+            <h2 className="font-display text-lg font-semibold text-foreground">
+              Delete “{book.title}”?
+            </h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              This removes it from the library and stops readers from opening it — it will no
+              longer be published. Nothing is permanently erased: your manuscript, translations,
+              readers' highlights and progress, and your submission history all stay intact. You
+              can republish it from here anytime.
+            </p>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Permanent deletion, if you ever want that, is an admin-only action — contact support.
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                onClick={() => setDeleteOpen(false)}
+                disabled={deleteBusy}
+                className="rounded-lg border border-border px-4 py-2 text-sm font-semibold hover:bg-secondary disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                disabled={deleteBusy}
+                className="rounded-lg bg-destructive px-4 py-2 text-sm font-semibold text-destructive-foreground disabled:opacity-60"
+              >
+                {deleteBusy ? "Removing…" : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

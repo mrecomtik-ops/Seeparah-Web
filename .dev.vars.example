@@ -1,0 +1,35 @@
+# Local-only reference for `npm run dev:cloudflare` / `npm run preview:cloudflare`
+# (both run through workerd via @cloudflare/vite-plugin, wrangler's local
+# runtime). Copy this to `.dev.vars` (already gitignored, never commit real
+# values there or in this file) and fill in the ones you need.
+#
+# In production these same names are set via `wrangler secret put NAME`
+# (secrets) or the `vars` block in wrangler.jsonc (non-secret config) --
+# see the migration report for which is which. Unlike Netlify, Cloudflare
+# has no tracked .env with public defaults baked in, so every server-side
+# name below has to be set explicitly, even the Supabase project id/URL.
+
+# --- Supabase (required for the app to do anything backend-related) ---
+SUPABASE_URL=
+SUPABASE_PUBLISHABLE_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+
+# --- Gemini (primary translation provider) ---
+GEMINI_API_KEY=
+# Optional -- defaults to Google's rolling "latest flash" alias if unset.
+GEMINI_TRANSLATION_MODEL=gemini-flash-latest
+# Optional -- caps sections translated per Gemini call. Defaults applied
+# in code if unset/not a number; see src/lib/translation.server.ts.
+TRANSLATION_BATCH_SIZE=
+
+# --- Admin surface / rate-limit salts (both optional, safe to leave unset) ---
+SUPPORT_RATE_LIMIT_PEPPER=
+SUPPORT_RATE_LIMIT_SALT=
+
+# --- Support/copyright form notifications ---
+SUPPORT_NOTIFICATION_TO=
+SUPPORT_NOTIFICATION_FROM=
+RESEND_API_KEY=
+
+# --- Test-only escape hatch -- leave unset/false in every real environment ---
+ALLOW_TEST_SUBSCRIPTIONS=

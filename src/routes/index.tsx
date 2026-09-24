@@ -1,9 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { ArrowRight, BookOpen, Feather, Globe2, Languages } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { ArrowRight, BookOpen, Feather, Globe2, Languages, User } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { listBooks } from "@/lib/library";
+import { pickFeaturedBook } from "@/lib/featured";
+import { useAuth } from "@/lib/use-auth";
 import logoUrl from "@/assets/seeparah-logo.png";
-import { coverFor, FEATURED_BOOK_ID, DEMO_BOOK_ID } from "@/lib/covers";
+import { coverFor } from "@/lib/covers";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -24,10 +28,15 @@ export const Route = createFileRoute("/")({
   component: LandingPage,
 });
 
-function LandingPage() {
+// Exported (in addition to being wired as the route's component below) so
+// it can be rendered directly in tests without a full router harness.
+export function LandingPage() {
   const [googleBusy, setGoogleBusy] = useState(false);
   const [googleError, setGoogleError] = useState<string | null>(null);
-  const featuredCover = coverFor(FEATURED_BOOK_ID);
+  const { isDemo, loading: authLoading, displayName } = useAuth();
+  const booksQuery = useQuery({ queryKey: ["books"], queryFn: listBooks });
+  const featured = pickFeaturedBook(booksQuery.data ?? []);
+  const featuredCover = featured ? coverFor(featured.id, featured.cover_url) : null;
 
   async function signInWithGoogle() {
     setGoogleBusy(true);
@@ -38,7 +47,13 @@ function LandingPage() {
     // there is no further navigation to do here on success.
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: window.location.origin },
+      options: {
+        redirectTo: window.location.origin,
+        // See src/routes/auth.tsx's handleGoogle for why: forces Google's
+        // account chooser instead of silently reusing the last session.
+        // Not login_hint — that pins a specific account, not a picker.
+        queryParams: { prompt: "select_account" },
+      },
     });
     if (error) {
       setGoogleError("Google sign-in didn't complete. You can still use demo mode below.");
@@ -65,14 +80,29 @@ function LandingPage() {
               <p className="text-xs text-muted-foreground">Read world classics in your language</p>
             </div>
           </div>
-          <button
-            onClick={signInWithGoogle}
-            disabled={googleBusy}
-            className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-sm font-medium text-foreground card-shadow transition-colors hover:bg-secondary disabled:opacity-60"
-          >
-            <Globe2 className="h-4 w-4 text-primary" />
-            {googleBusy ? "Opening Google…" : "Sign in with Google"}
-          </button>
+          {authLoading ? (
+            <div
+              className="h-[38px] w-[150px] animate-pulse rounded-full bg-secondary"
+              aria-hidden="true"
+            />
+          ) : isDemo ? (
+            <button
+              onClick={signInWithGoogle}
+              disabled={googleBusy}
+              className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-sm font-medium text-foreground card-shadow transition-colors hover:bg-secondary disabled:opacity-60"
+            >
+              <Globe2 className="h-4 w-4 text-primary" />
+              {googleBusy ? "Opening Google…" : "Sign in with Google"}
+            </button>
+          ) : (
+            <Link
+              to="/profile"
+              className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-sm font-medium text-foreground card-shadow transition-colors hover:bg-secondary"
+            >
+              <User className="h-4 w-4 text-primary" />
+              {displayName}
+            </Link>
+          )}
         </header>
         {googleError && (
           <p className="mb-2 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
@@ -113,15 +143,6 @@ function LandingPage() {
                 Continue as Author
               </Link>
             </div>
-            <Link
-              to="/read/$bookId"
-              params={{ bookId: DEMO_BOOK_ID }}
-              search={{ lang: "English" }}
-              className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline"
-            >
-              Try the demo reader — Pride and Prejudice
-              <ArrowRight className="h-4 w-4" />
-            </Link>
 
             <div className="mt-10 grid max-w-lg grid-cols-3 gap-4 border-t border-border pt-6">
               {[
@@ -139,28 +160,51 @@ function LandingPage() {
 
           <div className="relative mx-auto w-full max-w-sm">
             <div className="absolute -inset-6 -rotate-2 rounded-3xl bg-accent/60" />
-            <div className="relative rotate-1 overflow-hidden rounded-2xl border border-border bg-card card-shadow-lg">
-              {featuredCover && (
-                <img
-                  src={featuredCover}
-                  alt="Cover of Pride and Prejudice by Jane Austen"
-                  className="aspect-[2/3] w-full object-cover"
-                  width={832}
-                  height={1248}
-                />
-              )}
-              <div className="border-t border-border bg-card p-4">
-                <p className="text-[11px] font-semibold uppercase tracking-widest text-gold">
-                  Featured · Sample chapters
+            {booksQuery.isLoading ? (
+              <div className="relative aspect-[2/3] w-full animate-pulse rounded-2xl border border-border bg-secondary card-shadow-lg" />
+            ) : featured ? (
+              <Link
+                to="/read/$bookId"
+                params={{ bookId: featured.id }}
+                search={{ lang: featured.source_language }}
+                className="relative block rotate-1 overflow-hidden rounded-2xl border border-border bg-card card-shadow-lg transition-transform hover:-translate-y-0.5"
+              >
+                {featuredCover && (
+                  <img
+                    src={featuredCover}
+                    alt={`Cover of ${featured.title}`}
+                    className="aspect-[2/3] w-full object-cover"
+                    width={832}
+                    height={1248}
+                  />
+                )}
+                <div className="border-t border-border bg-card p-4">
+                  <p className="text-[11px] font-semibold uppercase tracking-widest text-gold">
+                    Featured · Sample chapters
+                  </p>
+                  <p className="mt-1 font-display text-lg font-semibold text-foreground">
+                    {featured.title}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {featured.author} · opening chapters, free to read
+                  </p>
+                </div>
+              </Link>
+            ) : (
+              <div className="relative flex aspect-[2/3] w-full flex-col items-center justify-center gap-3 rotate-1 rounded-2xl border border-border bg-card p-8 text-center card-shadow-lg">
+                <BookOpen className="h-8 w-8 text-muted-foreground/50" />
+                <p className="font-display text-lg font-semibold text-foreground">
+                  Our first reviewed editions are coming soon
                 </p>
-                <p className="mt-1 font-display text-lg font-semibold text-foreground">
-                  Pride and Prejudice
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  Jane Austen · opening chapters, free to read
-                </p>
+                <Link
+                  to="/library"
+                  className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline"
+                >
+                  Browse the library
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
               </div>
-            </div>
+            )}
           </div>
         </main>
 

@@ -11,7 +11,10 @@ export default defineConfig({
     },
   },
   test: {
+    // Default stays "node" for the pure-logic modules under test; a
+    // component test that needs a DOM can override with a per-file
+    // `// @vitest-environment happy-dom` directive at the top of the file.
     environment: "node",
-    include: ["src/**/*.test.ts"],
+    include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
   },
 });

@@ -9,3 +9,24 @@ export async function requireUserId(accessToken: string | null | undefined): Pro
   if (error || !data.user) throw new Error("Unauthorized: invalid session");
   return data.user.id;
 }
+
+/** For guest-allowed endpoints that should still attach the real user id
+ * when the caller happens to be signed in: verifies the token server-side
+ * exactly like requireUserId, but returns null instead of throwing on a
+ * missing/invalid token rather than rejecting the whole request — the
+ * caller is choosing to allow anonymous submission, not to skip
+ * verification of a token that IS present. Never trust a client-supplied
+ * user id in place of this. */
+export async function tryResolveUserId(
+  accessToken: string | null | undefined,
+): Promise<string | null> {
+  if (!accessToken) return null;
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data, error } = await supabaseAdmin.auth.getUser(accessToken);
+    if (error || !data.user) return null;
+    return data.user.id;
+  } catch {
+    return null;
+  }
+}

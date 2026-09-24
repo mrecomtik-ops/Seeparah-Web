@@ -53,8 +53,17 @@ function SubscribePage() {
   const monetizationEnabled = settingsQuery.data?.["monetization_enabled"] === true;
 
   const book = bookQuery.data;
-  const price = book?.subscription_price_usd ?? 4.99;
-  const alreadySubscribed = !!book && (subsQuery.data ?? []).some((s) => s.book_id === book.id);
+  // ONE plan price, not a per-book price — "there are no per-book or
+  // per-translation charges." Same $2 default as
+  // settings.server.ts's DEFAULT_MONTHLY_PLAN_PRICE_USD for as long as no
+  // admin has published a real value yet.
+  const price =
+    typeof settingsQuery.data?.["monthly_plan_price_usd"] === "number"
+      ? (settingsQuery.data["monthly_plan_price_usd"] as number)
+      : 2;
+  // "One subscription unlocks all Premium books and translations" — any
+  // active subscription counts, not one tied to this specific book.
+  const alreadySubscribed = (subsQuery.data ?? []).some((s) => s.status === "active");
 
   async function activate() {
     if (!book) return;
@@ -87,7 +96,7 @@ function SubscribePage() {
           </h1>
           <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground">
             {monetizationEnabled
-              ? `Every book on Seeparah starts with a free opening page. Premium books continue with a small monthly subscription — ${Math.round(AUTHOR_PAYOUT * 100)}% goes straight to the author.`
+              ? `Every book on Seeparah starts with a free opening page. One subscription — $${price.toFixed(2)}/month — unlocks every Premium book and translation, with no separate per-book or per-translation charge.`
               : "Seeparah is completely free during launch — every book, every language, no checkout and no premium locks."}
           </p>
         </div>
@@ -149,7 +158,7 @@ function SubscribePage() {
               <div className="flex items-center gap-2">
                 <Crown className="h-5 w-5 text-gold" />
                 <h2 className="font-display text-xl font-semibold text-foreground">
-                  {book ? book.title : "Premium book"}
+                  Seeparah Premium
                 </h2>
               </div>
               <p className="mt-1 font-display text-3xl font-semibold text-foreground">
@@ -160,9 +169,8 @@ function SubscribePage() {
                 {[
                   book
                     ? `The whole of “${book.title}”, page by page`
-                    : "A full premium book of your choice",
-                  "Every reviewed edition of this book",
-                  `${Math.round(AUTHOR_PAYOUT * 100)}% paid directly to ${book?.author ?? "the author"}`,
+                    : "Every Premium book, page by page",
+                  "Every Premium book and translated edition on Seeparah — one plan, no separate per-book charge",
                   "Cancel anytime — access runs to the end of the month",
                 ].map((f) => (
                   <li key={f} className="flex items-start gap-2">
@@ -267,10 +275,12 @@ function SubscribePage() {
               How the 70/30 split works
             </h2>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-              Every subscription is split the same way, every month, with no hidden fees:{" "}
-              {Math.round(AUTHOR_PAYOUT * 100)}% goes to the author who wrote the book, and{" "}
-              {Math.round(PLATFORM_COMMISSION * 100)}% stays with Seeparah to pay for translation,
-              hosting and payments.
+              Every subscription is one plan covering every Premium book and translation, with no
+              hidden fees: {Math.round(AUTHOR_PAYOUT * 100)}% of plan revenue is set aside for
+              authors, and {Math.round(PLATFORM_COMMISSION * 100)}% stays with Seeparah to pay for
+              translation, hosting and payments. The exact method for dividing the author share
+              across the books readers actually read will be published here before real billing
+              goes live — this isn't active yet.
             </p>
             <div className="mt-5 flex h-4 w-full overflow-hidden rounded-full">
               <div className="flex h-full w-[70%] items-center justify-center bg-primary text-[10px] font-bold text-primary-foreground">

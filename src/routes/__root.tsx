@@ -12,8 +12,8 @@ import { useEffect, type ReactNode } from "react";
 import { Toaster } from "sonner";
 
 import appCss from "../styles.css?url";
-import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AppHeader } from "@/components/AppHeader";
+import { AdminSessionSync } from "@/lib/admin/use-admin-session";
 
 function NotFoundComponent() {
   return (
@@ -40,10 +40,14 @@ function NotFoundComponent() {
 }
 
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
-  console.error(error);
   const router = useRouter();
   useEffect(() => {
-    reportLovableError(error, { boundary: "tanstack_root_error_component" });
+    // Was forwarded to Lovable's in-editor error panel
+    // (`window.__lovableEvents`), which never exists outside Lovable's own
+    // iframe and was already a silent no-op on the real site. Plain
+    // console.error is the honest replacement until a real error-monitoring
+    // sink (e.g. Sentry) is wired up — see docs/lovable-final-handoff.md §5.
+    console.error(error);
   }, [error]);
 
   return (
@@ -146,6 +150,13 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      {/* Exactly one admin-session auth-event listener for the whole app
+          — see useAdminSessionAuthSync()'s comment in use-admin-session.tsx
+          for why this must not be duplicated per useAdminSession()
+          consumer. Mounted unconditionally (not gated by `bare`) since the
+          admin-whoami cache needs to stay correct even while browsing a
+          bare page, before ever navigating to an admin route. */}
+      <AdminSessionSync />
       {!bare && <AppHeader />}
       <Outlet />
       {!bare && (

@@ -63,7 +63,7 @@ function AdminUploadBook() {
     }
     if (epubFile && epubFile.size > MAX_UPLOAD_RAW_BYTES) {
       toast.error(
-        `That EPUB is ${(epubFile.size / (1024 * 1024)).toFixed(1)}MB — the upload transport caps at ${Math.floor(MAX_UPLOAD_RAW_BYTES / (1024 * 1024))}MB per file (a Netlify Functions platform limit, not this app's own choice).`,
+        `That EPUB is ${(epubFile.size / (1024 * 1024)).toFixed(1)}MB — the upload transport caps at ${Math.floor(MAX_UPLOAD_RAW_BYTES / (1024 * 1024))}MB per file (a platform limit on this upload path, not this app's own choice).`,
       );
       return;
     }

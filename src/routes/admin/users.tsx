@@ -3,7 +3,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Loader2, Search } from "lucide-react";
-import { getAccessToken, useAdminSession, can } from "@/lib/admin/use-admin-session";
+import { getAccessToken, useResolvedAdminSession, can } from "@/lib/admin/use-admin-session";
+import { AdminQueryError } from "@/components/admin/AdminQueryError";
 import {
   searchAdminUsers,
   suspendUserAccount,
@@ -18,8 +19,7 @@ export const Route = createFileRoute("/admin/users")({
 });
 
 function AdminUsersPage() {
-  const sessionQuery = useAdminSession();
-  const session = sessionQuery.data;
+  const session = useResolvedAdminSession();
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -173,6 +173,15 @@ function AdminUsersPage() {
         <div className="mt-8 flex justify-center">
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
         </div>
+      ) : usersQuery.isError ? (
+        <AdminQueryError
+          message={
+            usersQuery.error instanceof Error
+              ? usersQuery.error.message
+              : "Couldn't load users."
+          }
+          onRetry={() => usersQuery.refetch()}
+        />
       ) : (
         <div className="mt-4 overflow-x-auto rounded-2xl border border-border bg-card card-shadow">
           <table className="w-full text-sm">

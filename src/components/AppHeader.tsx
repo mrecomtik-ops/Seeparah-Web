@@ -1,29 +1,37 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import {
-  BookOpen,
-  Feather,
-  LayoutDashboard,
-  LineChart,
-  LogIn,
-  ShieldCheck,
-  User,
-} from "lucide-react";
+import { BookOpen, Feather, FileText, LayoutDashboard, LogIn, ShieldCheck, User } from "lucide-react";
 import logoUrl from "@/assets/seeparah-logo.png";
 import { useAuth } from "@/lib/use-auth";
 import { useAdminSession } from "@/lib/admin/use-admin-session";
 
+// No "Plans" nav entry — there's no active paid plan during the free
+// launch, so featuring it as primary navigation would overstate that
+// pricing is a live concern. /subscribe itself still exists and degrades
+// to an honest "nothing to subscribe to yet" state; it's reached only from
+// context (e.g. a paid book's own page), never top-level nav, while off.
 const NAV = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/library", label: "Library", icon: BookOpen },
+  { to: "/research", label: "Research", icon: FileText },
   { to: "/author", label: "Author", icon: Feather },
-  { to: "/subscribe", label: "Plans", icon: LineChart },
   { to: "/profile", label: "Profile", icon: User },
 ] as const;
 
 export function AppHeader() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const href = useRouterState({ select: (s) => s.location.href });
-  const { isDemo } = useAuth();
+  const { isDemo, loading: authLoading } = useAuth();
+  // Deliberately still a real useAdminSession() call here, not
+  // useResolvedAdminSession() — AppHeader renders on every route, above
+  // and outside AdminLayout's <Outlet /> (it's mounted by RootComponent,
+  // an ANCESTOR of AdminLayout, never a descendant of it), so there is
+  // no <AdminSessionProvider> in scope for most pages this renders on.
+  // It needs to know whether to show the Admin nav link regardless of
+  // whether the visitor is currently on an admin page at all. This is
+  // safe: the shared query is cached and reset/invalidated by the one
+  // global <AdminSessionSync /> listener the same as every other
+  // consumer, so this doesn't reintroduce the per-mount-subscription bug
+  // — it's just one more plain query observer, same as AdminLayout's own.
   const adminSession = useAdminSession();
   const isAdmin = !isDemo && !!adminSession.data?.role;
 
@@ -76,14 +84,26 @@ export function AppHeader() {
             )}
           </nav>
           <div className="flex items-center gap-2">
-            {isDemo && (
-              <Link
-                to="/auth"
-                search={{ redirect: href }}
-                className="hidden items-center gap-1.5 rounded-xl border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground hover:bg-secondary sm:inline-flex"
-              >
-                <LogIn className="h-3.5 w-3.5" /> Sign in
-              </Link>
+            {authLoading ? (
+              // Reserves roughly the same footprint as the "Sign in"
+              // button so it doesn't jump in/out, without committing to
+              // "definitely signed out" before auth has actually
+              // resolved — see index.tsx's landing-page header for the
+              // same established pattern.
+              <div
+                className="hidden h-[38px] w-[92px] animate-pulse rounded-xl bg-secondary sm:block"
+                aria-hidden="true"
+              />
+            ) : (
+              isDemo && (
+                <Link
+                  to="/auth"
+                  search={{ redirect: href }}
+                  className="hidden items-center gap-1.5 rounded-xl border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground hover:bg-secondary sm:inline-flex"
+                >
+                  <LogIn className="h-3.5 w-3.5" /> Sign in
+                </Link>
+              )
             )}
             <Link
               to="/library"

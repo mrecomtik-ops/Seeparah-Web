@@ -20,7 +20,7 @@ import {
   DEMO_MANUSCRIPT_BOOK_IDS,
   type Book,
 } from "@/lib/data";
-import { listBooks, listProgress } from "@/lib/library";
+import { listBooks, listProgress, matchesBookSearch } from "@/lib/library";
 import { useAuth } from "@/lib/use-auth";
 import { BookCard } from "@/components/BookCard";
 import { useShelves } from "@/components/ShelfButtons";
@@ -45,6 +45,7 @@ const searchSchema = z.object({
   lang: z.string().optional(),
   genre: z.string().optional(),
   author: z.string().optional(),
+  category: z.string().optional(),
 });
 
 export const Route = createFileRoute("/library")({
@@ -76,6 +77,7 @@ function LibraryPage() {
   const lang = search.lang ?? null;
   const genre = search.genre ?? null;
   const author = search.author ?? null;
+  const category = search.category ?? null;
 
   function updateSearch(patch: Partial<z.infer<typeof searchSchema>>) {
     navigate({ search: (prev) => ({ ...prev, ...patch }), replace: true });
@@ -96,11 +98,19 @@ function LibraryPage() {
   const books = booksQuery.data ?? [];
   const shelves = shelvesQuery.data ?? [];
 
+  // Keeps the language of the winning (highest-chunk) row alongside the
+  // index — a book can have saved progress in more than one language, and
+  // "Continue reading" must resend the reader to the language that
+  // progress actually belongs to, not always the book's source language
+  // or the device's generic language preference. See BookCard's
+  // progressLanguage prop and the featured-card Link below.
   const progressByBook = useMemo(() => {
-    const map = new Map<string, number>();
+    const map = new Map<string, { lastChunkIndex: number; language: string }>();
     for (const p of progressQuery.data ?? []) {
-      const prev = map.get(p.book_id) ?? -1;
-      if (p.last_chunk_index > prev) map.set(p.book_id, p.last_chunk_index);
+      const prev = map.get(p.book_id);
+      if (!prev || p.last_chunk_index > prev.lastChunkIndex) {
+        map.set(p.book_id, { lastChunkIndex: p.last_chunk_index, language: p.language });
+      }
     }
     return map;
   }, [progressQuery.data]);
@@ -110,6 +120,23 @@ function LibraryPage() {
     () => [...new Set(books.map((b) => b.genre).filter(Boolean) as string[])],
     [books],
   );
+  // Counts drive both the category filter dropdown's option list and the
+  // "Browse by category" chip cloud below — a category with zero published
+  // books never appears in either, so the UI never advertises an empty
+  // browse target.
+  const categoryCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const b of books) {
+      for (const c of b.categories ?? []) {
+        counts.set(c, (counts.get(c) ?? 0) + 1);
+      }
+    }
+    return counts;
+  }, [books]);
+  const categoriesInUse = useMemo(
+    () => [...categoryCounts.keys()].sort((a, b) => a.localeCompare(b)),
+    [categoryCounts],
+  );
 
   const shelfIds = (kind: string) =>
     new Set(shelves.filter((s) => s.shelf === kind).map((s) => s.book_id));
@@ -118,7 +145,9 @@ function LibraryPage() {
     switch (tab) {
       case "continue":
         return books.filter(
-          (b) => progressByBook.has(b.id) && (progressByBook.get(b.id) ?? 0) + 1 < b.total_chunks,
+          (b) =>
+            progressByBook.has(b.id) &&
+            (progressByBook.get(b.id)?.lastChunkIndex ?? 0) + 1 < b.total_chunks,
         );
       case "history":
         return books.filter((b) => progressByBook.has(b.id));
@@ -133,20 +162,18 @@ function LibraryPage() {
     }
   }, [tab, books, progressByBook, shelves]);
 
-  const hasActiveFilters = Boolean(query.trim() || lang || genre || author);
+  const hasActiveFilters = Boolean(query.trim() || lang || genre || author || category);
 
   const filtered = tabBooks.filter((b) => {
-    const q = query.trim().toLowerCase();
-    const matchesQuery =
-      !q ||
-      b.title.toLowerCase().includes(q) ||
-      b.author.toLowerCase().includes(q) ||
-      b.description.toLowerCase().includes(q) ||
-      (b.genre ?? "").toLowerCase().includes(q);
+    // Search matches title or author only — the exact contract this box
+    // promises ("Search by title, author…" below). Genre/category are
+    // separate, explicit filter facets, not folded into free-text search.
+    const matchesQuery = matchesBookSearch(b, query);
     const matchesLang = !lang || b.available_languages.includes(lang);
     const matchesGenre = !genre || b.genre === genre;
     const matchesAuthor = !author || b.author === author;
-    return matchesQuery && matchesLang && matchesGenre && matchesAuthor;
+    const matchesCategory = !category || (b.categories ?? []).includes(category);
+    return matchesQuery && matchesLang && matchesGenre && matchesAuthor && matchesCategory;
   });
 
   const isEmptyShelf = tabBooks.length === 0 && !hasActiveFilters;
@@ -155,11 +182,13 @@ function LibraryPage() {
   const featured: Book | undefined = books.find((b) => b.id === FEATURED_BOOK_ID) ?? books[0];
   const featuredIsSample = featured ? SAMPLE_EXCERPT_BOOK_IDS.has(featured.id) : false;
   const featuredIsDemo = featured ? DEMO_MANUSCRIPT_BOOK_IDS.has(featured.id) : false;
-  const pagesRead = [...progressByBook.values()].reduce((a, b) => a + b + 1, 0);
+  const pagesRead = [...progressByBook.values()].reduce((a, p) => a + p.lastChunkIndex + 1, 0);
   const counts: Record<TabKey, number> = {
     all: books.length,
     continue: books.filter(
-      (b) => progressByBook.has(b.id) && (progressByBook.get(b.id) ?? 0) + 1 < b.total_chunks,
+      (b) =>
+        progressByBook.has(b.id) &&
+        (progressByBook.get(b.id)?.lastChunkIndex ?? 0) + 1 < b.total_chunks,
     ).length,
     history: progressByBook.size,
     saved: shelfIds("saved").size,
@@ -175,7 +204,7 @@ function LibraryPage() {
             <p className="text-sm font-medium text-muted-foreground">
               {isDemo ? (
                 <>
-                  Demo reader —{" "}
+                  Reading as a guest —{" "}
                   <Link
                     to="/auth"
                     search={{ redirect: "/library" }}
@@ -234,7 +263,7 @@ function LibraryPage() {
                 <Link
                   to="/read/$bookId"
                   params={{ bookId: featured.id }}
-                  search={{ lang: featured.source_language }}
+                  search={{ lang: progressByBook.get(featured.id)?.language ?? featured.source_language }}
                   className="mt-6 inline-flex items-center gap-2 rounded-xl bg-accent px-5 py-3 text-sm font-semibold text-accent-foreground transition-transform hover:-translate-y-0.5"
                 >
                   {progressByBook.has(featured.id) ? "Continue reading" : "Start reading"}
@@ -265,27 +294,27 @@ function LibraryPage() {
           </div>
         </div>
 
-        <div className="mt-5 flex flex-col gap-3">
+        <div className="mt-6 flex flex-col gap-3">
           <div className="relative">
-            <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
             <input
               value={query}
               onChange={(e) => updateSearch({ q: e.target.value || undefined })}
-              placeholder="Search by title, author or theme…"
-              aria-label="Search the library"
-              className="w-full rounded-xl border border-border bg-card py-3 pl-11 pr-11 text-sm text-foreground card-shadow outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-ring"
+              placeholder="Search by title or author…"
+              aria-label="Search the library by title or author"
+              className="w-full rounded-2xl border-2 border-primary/25 bg-card py-4 pl-12 pr-12 text-base text-foreground card-shadow-lg outline-none placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-ring"
             />
             {query && (
               <button
                 onClick={() => updateSearch({ q: undefined })}
                 aria-label="Clear search"
-                className="absolute right-3 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground"
+                className="absolute right-4 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground"
               >
                 <X className="h-4 w-4" />
               </button>
             )}
           </div>
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <Select
               label="Language"
               value={lang}
@@ -304,11 +333,24 @@ function LibraryPage() {
               options={genresInUse.length ? genresInUse : [...GENRES]}
               onChange={(v) => updateSearch({ genre: v ?? undefined })}
             />
+            <Select
+              label="Category"
+              allLabel="All categories"
+              value={category}
+              options={categoriesInUse}
+              onChange={(v) => updateSearch({ category: v ?? undefined })}
+            />
           </div>
           {hasActiveFilters && (
             <button
               onClick={() =>
-                updateSearch({ q: undefined, lang: undefined, genre: undefined, author: undefined })
+                updateSearch({
+                  q: undefined,
+                  lang: undefined,
+                  genre: undefined,
+                  author: undefined,
+                  category: undefined,
+                })
               }
               className="self-start text-xs font-semibold text-primary hover:underline"
             >
@@ -316,6 +358,25 @@ function LibraryPage() {
             </button>
           )}
         </div>
+
+        {categoriesInUse.length > 0 && tab === "all" && !hasActiveFilters && (
+          <div className="mt-5">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Browse by category
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {categoriesInUse.map((c) => (
+                <button
+                  key={c}
+                  onClick={() => updateSearch({ category: c })}
+                  className="rounded-full border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary"
+                >
+                  {c} <span className="text-muted-foreground">({categoryCounts.get(c)})</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <section className="mt-8">
           <div className="flex items-baseline justify-between gap-2">
@@ -367,6 +428,7 @@ function LibraryPage() {
                     lang: undefined,
                     genre: undefined,
                     author: undefined,
+                    category: undefined,
                   })
                 }
                 className="mt-5 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground"
@@ -380,8 +442,9 @@ function LibraryPage() {
                 <BookCard
                   key={b.id}
                   book={b}
-                  progress={progressByBook.get(b.id) ?? null}
+                  progress={progressByBook.get(b.id)?.lastChunkIndex ?? null}
                   preferredLanguage={lang}
+                  progressLanguage={progressByBook.get(b.id)?.language ?? null}
                   monetizationEnabled={monetizationEnabled}
                 />
               ))}
@@ -395,11 +458,17 @@ function LibraryPage() {
 
 function Select({
   label,
+  allLabel,
   value,
   options,
   onChange,
 }: {
   label: string;
+  /** Text for the blank/"any value" option, e.g. "All categories". Naive
+   * `${label.toLowerCase()}s` pluralization breaks on words like
+   * "Category" -> "categorys" — pass this explicitly for any label whose
+   * plural isn't just "+s". */
+  allLabel?: string;
   value: string | null;
   options: string[];
   onChange: (v: string | null) => void;
@@ -412,7 +481,7 @@ function Select({
         onChange={(e) => onChange(e.target.value || null)}
         className="rounded-xl border border-border bg-card px-3 py-2.5 text-sm text-foreground card-shadow outline-none focus:ring-2 focus:ring-ring"
       >
-        <option value="">All {label.toLowerCase()}s</option>
+        <option value="">{allLabel ?? `All ${label.toLowerCase()}s`}</option>
         {options.map((o) => (
           <option key={o} value={o}>
             {o}

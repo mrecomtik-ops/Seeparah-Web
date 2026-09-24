@@ -206,6 +206,27 @@ New, all server-only (never prefix with `VITE_`):
   used for the public support-report rate limit. Safe to leave unset (the
   hash still works, just without a pepper); set one if you want the hashes
   to not be reproducible outside this deployment.
+- `SUPPORT_NOTIFICATION_TO` — the private inbox that receives an email each
+  time the `/legal#support` or `/legal#copyright` forms get a new
+  submission. Never committed, never logged, never returned to the browser
+  — read from `process.env` in exactly one file
+  (`src/lib/support-notification.server.ts`), which is what
+  `src/lib/support-notification-boundary.test.ts` continuously verifies.
+- `SUPPORT_NOTIFICATION_FROM` — a verified sender address on a domain you
+  control in Resend.
+- `RESEND_API_KEY` — from https://resend.com/api-keys. Used via a direct
+  `fetch()` call to Resend's HTTPS API, no SDK dependency.
+- `SUPPORT_RATE_LIMIT_SALT` — optional. Same idea as
+  `SUPPORT_RATE_LIMIT_PEPPER` above, but deliberately a separate value used
+  only by the two new public forms, so setting or rotating it never changes
+  the older "can't sign in" report path's rate-limit behavior.
+
+If a submission's notification email fails to send (Resend down, key
+missing, etc.), the request itself is **never lost** — it's stored first,
+unconditionally; only `support_tickets.notification_status` becomes
+`'failed'`, surfaced as a red "Notification failed — follow up manually"
+badge in `/admin/support` and its detail view. Check for that badge
+periodically if you haven't wired up a separate alert on it.
 
 Everything else needed by the admin surface (`SUPABASE_URL`,
 `SUPABASE_SERVICE_ROLE_KEY`, `GEMINI_API_KEY`) already existed — see

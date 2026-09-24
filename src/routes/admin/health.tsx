@@ -3,20 +3,21 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
-import { getAccessToken, useAdminSession, can } from "@/lib/admin/use-admin-session";
+import { getAccessToken, useResolvedAdminSession, can } from "@/lib/admin/use-admin-session";
 import {
   adminGetHealthSnapshot,
   adminRecoverRetryJob,
   adminRecoverResumeJob,
   adminMarkErrorResolved,
 } from "@/lib/admin/health.functions";
+import { AdminQueryError } from "@/components/admin/AdminQueryError";
 
 export const Route = createFileRoute("/admin/health")({
   component: AdminHealthPage,
 });
 
 function AdminHealthPage() {
-  const sessionQuery = useAdminSession();
+  const session = useResolvedAdminSession();
   const [busyId, setBusyId] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
@@ -26,7 +27,7 @@ function AdminHealthPage() {
     refetchInterval: 30_000,
   });
 
-  const canRecover = can(sessionQuery.data, "health.recover");
+  const canRecover = can(session, "health.recover");
 
   async function refresh() {
     await queryClient.invalidateQueries({ queryKey: ["admin-health-full"] });
@@ -79,8 +80,33 @@ function AdminHealthPage() {
       </div>
     );
   }
+  if (healthQuery.isError) {
+    return (
+      <AdminQueryError
+        message={
+          healthQuery.error instanceof Error
+            ? healthQuery.error.message
+            : "Couldn't load the health snapshot."
+        }
+        onRetry={() => healthQuery.refetch()}
+      />
+    );
+  }
+  // healthQuery.data can only be undefined here if isLoading/isError are
+  // both false yet the query somehow never populated data — shouldn't
+  // happen given the two branches above, but "silently render nothing"
+  // was exactly the previous bug (a genuine fetch error fell straight
+  // through to `if (!h) return null`, a blank page with no error and no
+  // way to retry). Surface it the same honest way rather than repeat that.
   const h = healthQuery.data;
-  if (!h) return null;
+  if (!h) {
+    return (
+      <AdminQueryError
+        message="The health snapshot didn't load."
+        onRetry={() => healthQuery.refetch()}
+      />
+    );
+  }
 
   return (
     <div>

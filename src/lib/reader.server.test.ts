@@ -8,7 +8,7 @@ const BASE = {
   isOwner: false,
   monetizationEnabled: false,
   hasActiveSubscription: false,
-  hasGrantedTranslationAccess: false,
+  editionAccessType: undefined as "free" | "paid" | undefined,
 };
 
 describe("resolveReaderAccess — the catalog gate", () => {
@@ -57,7 +57,89 @@ describe("resolveReaderAccess — the catalog gate", () => {
   });
 });
 
-describe("resolveReaderAccess — subscription gate", () => {
+describe("resolveReaderAccess — free-at-launch (rule 1): originals and published translations are free with no per-reader approval", () => {
+  const publishedFreeBook = { status: "published", accessType: "free", sourceLanguage: "French" };
+
+  it("a published translated edition (book_editions row exists, free) is readable with no individual grant at all", () => {
+    const result = resolveReaderAccess({
+      ...BASE,
+      language: "Hindi",
+      book: publishedFreeBook,
+      editionAccessType: "free",
+    });
+    expect(result.locked).toBe(false);
+  });
+
+  it("this is true even for a signed-out, anonymous reader — no sign-in, no request, no grant needed", () => {
+    const result = resolveReaderAccess({
+      ...BASE,
+      userId: null,
+      language: "Arabic",
+      book: publishedFreeBook,
+      editionAccessType: "free",
+    });
+    expect(result.locked).toBe(false);
+  });
+
+  it("the original edition never needs editionAccessType at all — book.accessType governs it directly", () => {
+    const result = resolveReaderAccess({
+      ...BASE,
+      language: "French",
+      book: publishedFreeBook,
+      editionAccessType: undefined,
+    });
+    expect(result.locked).toBe(false);
+  });
+});
+
+describe("resolveReaderAccess — an edition that has never been published (no book_editions row)", () => {
+  const book = { status: "published", accessType: "free", sourceLanguage: "English" };
+
+  it("is locked with translation_access_required — not a premium lock, a 'go request it' case", () => {
+    const result = resolveReaderAccess({
+      ...BASE,
+      language: "Hindi",
+      book,
+      editionAccessType: undefined,
+    });
+    expect(result).toEqual({ locked: true, reason: "translation_access_required" });
+  });
+
+  it("applies the same way to an anonymous reader (no special sign-in requirement just to see the request prompt)", () => {
+    const result = resolveReaderAccess({
+      ...BASE,
+      userId: null,
+      language: "Arabic",
+      book,
+      editionAccessType: undefined,
+    });
+    expect(result).toEqual({ locked: true, reason: "translation_access_required" });
+  });
+
+  it("never blocks the book's own author this way", () => {
+    const result = resolveReaderAccess({
+      ...BASE,
+      language: "Arabic",
+      isOwner: true,
+      book,
+      editionAccessType: undefined,
+    });
+    expect(result.locked).toBe(false);
+  });
+
+  it("is irrelevant for the free-preview page (chunkIndex 0) — always open regardless", () => {
+    const result = resolveReaderAccess({
+      ...BASE,
+      chunkIndex: 0,
+      language: "Hindi",
+      book,
+      editionAccessType: undefined,
+    });
+    expect(result.locked).toBe(false);
+  });
+});
+
+describe("resolveReaderAccess — subscription gate (original edition)", () => {
   const paidBook = { status: "published", accessType: "paid", sourceLanguage: "English" };
 
   it("never gates when monetization is disabled, even for a paid book past page 1", () => {
@@ -117,69 +199,55 @@ describe("resolveReaderAccess — subscription gate", () => {
   });
 });
 
-describe("resolveReaderAccess — reader-requested translation gate (Hindi/Arabic)", () => {
+describe("resolveReaderAccess — subscription gate (translated edition, independently Free/Premium)", () => {
   const book = { status: "published", accessType: "free", sourceLanguage: "English" };
 
-  it("gates a Hindi translated edition behind a granted request", () => {
+  it("a Premium translated edition subscription-gates even though the original itself is Free", () => {
     const result = resolveReaderAccess({
       ...BASE,
       language: "Hindi",
       book,
-      hasGrantedTranslationAccess: false,
+      editionAccessType: "paid",
+      monetizationEnabled: true,
+      hasActiveSubscription: false,
     });
-    expect(result).toEqual({ locked: true, reason: "translation_access_required" });
+    expect(result).toEqual({ locked: true, reason: "subscription_required" });
   });
 
-  it("tells an anonymous reader to sign in rather than 'request', for a gated language", () => {
-    const result = resolveReaderAccess({
-      ...BASE,
-      language: "Arabic",
-      userId: null,
-      book,
-      hasGrantedTranslationAccess: false,
-    });
-    expect(result).toEqual({ locked: true, reason: "sign_in_required" });
-  });
-
-  it("lets a reader with a granted request through", () => {
+  it("the SAME active subscription that unlocks a Premium original also unlocks a Premium translation — one plan, not per-edition", () => {
     const result = resolveReaderAccess({
       ...BASE,
       language: "Hindi",
       book,
-      hasGrantedTranslationAccess: true,
+      editionAccessType: "paid",
+      monetizationEnabled: true,
+      hasActiveSubscription: true,
     });
     expect(result.locked).toBe(false);
   });
 
-  it("never gates English or Urdu behind a translation request", () => {
-    for (const language of ["English", "Urdu"]) {
+  it("a Free translated edition is never subscription-gated, monetization on or off", () => {
+    for (const monetizationEnabled of [true, false]) {
       const result = resolveReaderAccess({
         ...BASE,
-        language,
-        book: { ...book, sourceLanguage: "French" },
-        hasGrantedTranslationAccess: false,
+        language: "Hindi",
+        book,
+        editionAccessType: "free",
+        monetizationEnabled,
+        hasActiveSubscription: false,
       });
       expect(result.locked).toBe(false);
     }
   });
 
-  it("never gates the book's own source language even if it happens to be Hindi", () => {
+  it("a Premium translated edition never gates while monetization itself is disabled", () => {
     const result = resolveReaderAccess({
       ...BASE,
       language: "Hindi",
-      book: { ...book, sourceLanguage: "Hindi" },
-      hasGrantedTranslationAccess: false,
-    });
-    expect(result.locked).toBe(false);
-  });
-
-  it("never gates the book's own author out of a Hindi/Arabic edition", () => {
-    const result = resolveReaderAccess({
-      ...BASE,
-      language: "Arabic",
-      isOwner: true,
       book,
-      hasGrantedTranslationAccess: false,
+      editionAccessType: "paid",
+      monetizationEnabled: false,
+      hasActiveSubscription: false,
     });
     expect(result.locked).toBe(false);
   });

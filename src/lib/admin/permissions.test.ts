@@ -30,6 +30,15 @@ describe("permission matrix", () => {
     expect(roleHasCapability("editor", "translation.requests.decide")).toBe(true);
   });
 
+  it("gates the 'Reply to requester' capability (support.tickets.public_reply) to owner/administrator/support only — never editor, never an unassigned role", () => {
+    expect(roleHasCapability("owner", "support.tickets.public_reply")).toBe(true);
+    expect(roleHasCapability("administrator", "support.tickets.public_reply")).toBe(true);
+    expect(roleHasCapability("support", "support.tickets.public_reply")).toBe(true);
+    expect(roleHasCapability("editor", "support.tickets.public_reply")).toBe(false);
+    expect(roleHasCapability(null, "support.tickets.public_reply")).toBe(false);
+    expect(roleHasCapability(undefined, "support.tickets.public_reply")).toBe(false);
+  });
+
   it("denies every capability to a null/unassigned role", () => {
     for (const role of [null, undefined] as const) {
       expect(capabilitiesFor(role)).toEqual([]);
@@ -45,5 +54,30 @@ describe("permission matrix", () => {
 
   it("defines exactly the four documented roles", () => {
     expect(ADMIN_ROLES).toEqual(["owner", "administrator", "editor", "support"]);
+  });
+
+  it("gives owner/administrator/editor the new categories and research capabilities, never support", () => {
+    for (const role of ["owner", "administrator", "editor"] as const) {
+      expect(roleHasCapability(role, "catalog.categories.manage")).toBe(true);
+      expect(roleHasCapability(role, "research.read_unpublished")).toBe(true);
+      expect(roleHasCapability(role, "research.review")).toBe(true);
+      expect(roleHasCapability(role, "research.publish")).toBe(true);
+    }
+    expect(roleHasCapability("support", "catalog.categories.manage")).toBe(false);
+    expect(roleHasCapability("support", "research.read_unpublished")).toBe(false);
+    expect(roleHasCapability("support", "research.review")).toBe(false);
+    expect(roleHasCapability("support", "research.publish")).toBe(false);
+  });
+
+  it("gates permanent book deletion (catalog.delete_permanent) to owner/administrator only — never editor, support, or an unassigned role", () => {
+    expect(roleHasCapability("owner", "catalog.delete_permanent")).toBe(true);
+    expect(roleHasCapability("administrator", "catalog.delete_permanent")).toBe(true);
+    expect(roleHasCapability("editor", "catalog.delete_permanent")).toBe(false);
+    expect(roleHasCapability("support", "catalog.delete_permanent")).toBe(false);
+    expect(roleHasCapability(null, "catalog.delete_permanent")).toBe(false);
+    // Reversible delete/unpublish/archive stays under the existing
+    // catalog.publish capability editors already have — only IRREVERSIBLE
+    // deletion is narrowed to owner/administrator.
+    expect(roleHasCapability("editor", "catalog.publish")).toBe(true);
   });
 });

@@ -11,6 +11,7 @@ export function BookCard({
   progress,
   withShelves = true,
   preferredLanguage,
+  progressLanguage,
   monetizationEnabled = false,
 }: {
   book: Book;
@@ -21,6 +22,14 @@ export function BookCard({
    * source language, so a book always opens in a language the reader
    * actually chose rather than always defaulting to the original. */
   preferredLanguage?: string | null;
+  /** The language this book's SAVED READING PROGRESS is actually keyed
+   * under (from the caller's progress-by-book map), if any. Takes
+   * priority over preferredLanguage/the device's generic language
+   * preference — a "Continue reading" link must reopen the same
+   * (book, language) the reader was actually reading, or the reader route's
+   * saved-progress lookup won't find a matching row and silently restarts
+   * at page 1. See src/routes/read.$bookId.tsx's seeding effect. */
+  progressLanguage?: string | null;
   /** Defaults to false — during free launch there is no paid tier, so a
    * "Premium" badge must never render unless the caller has confirmed
    * monetization is actually on (see content_settings.monetization_enabled).
@@ -36,6 +45,7 @@ export function BookCard({
       : null;
   const savedLanguage = getPrefs().language;
   const openLanguage =
+    (progressLanguage && book.available_languages.includes(progressLanguage) && progressLanguage) ||
     (preferredLanguage && book.available_languages.includes(preferredLanguage) && preferredLanguage) ||
     (book.available_languages.includes(savedLanguage) && savedLanguage) ||
     book.source_language;
@@ -72,7 +82,7 @@ export function BookCard({
           )}
           {monetizationEnabled && book.access_type === "paid" && (
             <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-gold px-2.5 py-1 text-[11px] font-semibold text-gold-foreground">
-              <Crown className="h-3 w-3" /> Premium · ${book.subscription_price_usd}/mo
+              <Crown className="h-3 w-3" /> Premium
             </span>
           )}
           {(isSample || isDemoManuscript) && (
@@ -92,6 +102,18 @@ export function BookCard({
             <span className="w-fit rounded-full bg-secondary px-2 py-0.5 text-[11px] font-semibold text-secondary-foreground">
               {book.genre}
             </span>
+          )}
+          {book.categories && book.categories.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {book.categories.slice(0, 2).map((c) => (
+                <span
+                  key={c}
+                  className="w-fit rounded-full bg-accent/60 px-2 py-0.5 text-[11px] font-medium text-accent-foreground"
+                >
+                  {c}
+                </span>
+              ))}
+            </div>
           )}
           <p className="line-clamp-2 text-sm text-muted-foreground">
             {book.description}

@@ -42,12 +42,15 @@ export const adminGetCatalogBook = createServerFn({ method: "POST" })
   .inputValidator((data) => withToken({ bookId: z.string() }).parse(data))
   .handler(async ({ data }) => {
     await requireAdmin(data.accessToken, "catalog.read_unpublished");
-    const { adminGetBook, evaluatePublishGate } = await import("@/lib/admin/catalog.server");
-    const [detail, gate] = await Promise.all([
+    const { adminGetBook, evaluatePublishGate, listBookEditions } = await import(
+      "@/lib/admin/catalog.server"
+    );
+    const [detail, gate, editions] = await Promise.all([
       adminGetBook(data.bookId),
       evaluatePublishGate(data.bookId),
+      listBookEditions(data.bookId),
     ]);
-    return { ...detail, gate };
+    return { ...detail, gate, editions };
   });
 
 export const adminReviewBookRights = createServerFn({ method: "POST" })
@@ -155,6 +158,85 @@ export const adminSetBookLifecycle = createServerFn({ method: "POST" })
       after: diff.after,
     });
     return { ok: true as const };
+  });
+
+const ACCESS_TYPE = z.enum(["free", "paid"]);
+
+export const adminSetBookAccessType = createServerFn({ method: "POST" })
+  .inputValidator((data) =>
+    withToken({ bookId: z.string(), accessType: ACCESS_TYPE }).parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { userId, role } = await requireAdmin(data.accessToken, "catalog.publish");
+    const { setBookAccessType } = await import("@/lib/admin/catalog.server");
+    const diff = await setBookAccessType({ bookId: data.bookId, accessType: data.accessType });
+    await recordAudit({
+      actorId: userId,
+      actorRole: role,
+      action: "catalog.set_access_type",
+      entityType: "book",
+      entityId: data.bookId,
+      before: diff.before,
+      after: diff.after,
+    });
+    return { ok: true as const };
+  });
+
+export const adminSetEditionAccessType = createServerFn({ method: "POST" })
+  .inputValidator((data) =>
+    withToken({ bookId: z.string(), language: z.string(), accessType: ACCESS_TYPE }).parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { userId, role } = await requireAdmin(data.accessToken, "catalog.publish");
+    const { setEditionAccessType } = await import("@/lib/admin/catalog.server");
+    const diff = await setEditionAccessType({
+      bookId: data.bookId,
+      language: data.language,
+      accessType: data.accessType,
+    });
+    await recordAudit({
+      actorId: userId,
+      actorRole: role,
+      action: "catalog.set_edition_access_type",
+      entityType: "book_edition",
+      entityId: `${data.bookId}:${data.language}`,
+      before: diff.before,
+      after: diff.after,
+    });
+    return { ok: true as const };
+  });
+
+/** Bulk edit — the client shows the exact selected-items preview before
+ * ever calling this; the server applies for real and reports a per-target
+ * result so a partial failure (e.g. one target is an edition that was
+ * never published) doesn't hide whether the rest actually succeeded. */
+export const adminBulkSetAccessType = createServerFn({ method: "POST" })
+  .inputValidator((data) =>
+    withToken({
+      targets: z
+        .array(z.object({ bookId: z.string(), language: z.string().nullable() }))
+        .min(1)
+        .max(200),
+      accessType: ACCESS_TYPE,
+    }).parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { userId, role } = await requireAdmin(data.accessToken, "catalog.publish");
+    const { bulkSetAccessType } = await import("@/lib/admin/catalog.server");
+    const results = await bulkSetAccessType({ targets: data.targets, accessType: data.accessType });
+    await recordAudit({
+      actorId: userId,
+      actorRole: role,
+      action: "catalog.bulk_set_access_type",
+      entityType: "book",
+      after: {
+        accessType: data.accessType,
+        targetCount: data.targets.length,
+        succeeded: results.filter((r) => r.ok).length,
+        failed: results.filter((r) => !r.ok).length,
+      },
+    });
+    return results;
   });
 
 const rightsInputShape = {
@@ -305,4 +387,282 @@ export const adminQueueTranslationJob = createServerFn({ method: "POST" })
       after: { bookId: data.bookId, language: data.language },
     });
     return job;
+  });
+
+// ============================================================================
+// Book metadata editing (admin)
+// ============================================================================
+export const adminUpdateBookMetadata = createServerFn({ method: "POST" })
+  .inputValidator((data) =>
+    withToken({
+      bookId: z.string(),
+      title: z.string().min(1).optional(),
+      author: z.string().min(1).optional(),
+      description: z.string().min(1).optional(),
+      genre: z.string().nullable().optional(),
+      coverUrl: z.string().nullable().optional(),
+    }).parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { userId, role } = await requireAdmin(data.accessToken, "catalog.publish");
+    const { updateBookMetadata } = await import("@/lib/admin/catalog.server");
+    const diff = await updateBookMetadata({
+      bookId: data.bookId,
+      patch: {
+        title: data.title,
+        author: data.author,
+        description: data.description,
+        genre: data.genre,
+        coverUrl: data.coverUrl,
+      },
+    });
+    await recordAudit({
+      actorId: userId,
+      actorRole: role,
+      action: "catalog.update_metadata",
+      entityType: "book",
+      entityId: data.bookId,
+      before: diff.before,
+      after: diff.after,
+    });
+    return { ok: true as const };
+  });
+
+// ============================================================================
+// Staged content editing (admin) — see migration 0013 and catalog.server.ts
+// for the full rationale. Gated by catalog.review (the same capability
+// that already owns rights/edition quality review), not catalog.publish —
+// this is a content-quality action, not a catalog-lifecycle one.
+// ============================================================================
+export const adminGetChunkForEdit = createServerFn({ method: "POST" })
+  .inputValidator((data) =>
+    withToken({ bookId: z.string(), language: z.string(), chunkIndex: z.number().int().min(0) }).parse(
+      data,
+    ),
+  )
+  .handler(async ({ data }) => {
+    await requireAdmin(data.accessToken, "catalog.review");
+    const { getChunkForEdit } = await import("@/lib/admin/catalog.server");
+    return getChunkForEdit({
+      bookId: data.bookId,
+      language: data.language,
+      chunkIndex: data.chunkIndex,
+    });
+  });
+
+export const adminStageChunkContentEdit = createServerFn({ method: "POST" })
+  .inputValidator((data) =>
+    withToken({
+      bookId: z.string(),
+      language: z.string(),
+      chunkIndex: z.number().int().min(0),
+      newContent: z.string().min(1),
+    }).parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { userId, role } = await requireAdmin(data.accessToken, "catalog.review");
+    const { stageChunkContentEdit } = await import("@/lib/admin/catalog.server");
+    const diff = await stageChunkContentEdit({
+      bookId: data.bookId,
+      language: data.language,
+      chunkIndex: data.chunkIndex,
+      newContent: data.newContent,
+      editorId: userId,
+    });
+    await recordAudit({
+      actorId: userId,
+      actorRole: role,
+      action: "catalog.chunk_edit_staged",
+      entityType: "book_chunk",
+      entityId: `${data.bookId}:${data.language}:${data.chunkIndex}`,
+      before: { content: diff.before },
+      after: { pending_content: diff.after },
+    });
+    return { ok: true as const };
+  });
+
+export const adminPublishChunkContentEdit = createServerFn({ method: "POST" })
+  .inputValidator((data) =>
+    withToken({ bookId: z.string(), language: z.string(), chunkIndex: z.number().int().min(0) }).parse(
+      data,
+    ),
+  )
+  .handler(async ({ data }) => {
+    const { userId, role } = await requireAdmin(data.accessToken, "catalog.review");
+    const { publishChunkContentEdit } = await import("@/lib/admin/catalog.server");
+    const diff = await publishChunkContentEdit({
+      bookId: data.bookId,
+      language: data.language,
+      chunkIndex: data.chunkIndex,
+    });
+    await recordAudit({
+      actorId: userId,
+      actorRole: role,
+      action: "catalog.chunk_edit_published",
+      entityType: "book_chunk",
+      entityId: `${data.bookId}:${data.language}:${data.chunkIndex}`,
+      before: { content: diff.before },
+      after: { content: diff.after },
+    });
+    return { ok: true as const };
+  });
+
+export const adminDiscardChunkContentEdit = createServerFn({ method: "POST" })
+  .inputValidator((data) =>
+    withToken({ bookId: z.string(), language: z.string(), chunkIndex: z.number().int().min(0) }).parse(
+      data,
+    ),
+  )
+  .handler(async ({ data }) => {
+    const { userId, role } = await requireAdmin(data.accessToken, "catalog.review");
+    const { discardChunkContentEdit } = await import("@/lib/admin/catalog.server");
+    const diff = await discardChunkContentEdit({
+      bookId: data.bookId,
+      language: data.language,
+      chunkIndex: data.chunkIndex,
+    });
+    await recordAudit({
+      actorId: userId,
+      actorRole: role,
+      action: "catalog.chunk_edit_discarded",
+      entityType: "book_chunk",
+      entityId: `${data.bookId}:${data.language}:${data.chunkIndex}`,
+      before: { pending_content: diff.discarded },
+      after: { pending_content: null },
+    });
+    return { ok: true as const };
+  });
+
+// ============================================================================
+// Deletion — reversible (reuses adminSetBookLifecycle above, status:
+// 'archived') vs. permanent (this section), gated separately by
+// catalog.delete_permanent (owner/administrator only, never editor).
+// ============================================================================
+export const adminGetBookDeletionImpact = createServerFn({ method: "POST" })
+  .inputValidator((data) => withToken({ bookId: z.string() }).parse(data))
+  .handler(async ({ data }) => {
+    await requireAdmin(data.accessToken, "catalog.delete_permanent");
+    const { getBookDeletionImpact } = await import("@/lib/admin/catalog.server");
+    return getBookDeletionImpact(data.bookId);
+  });
+
+export const adminDeleteBookPermanently = createServerFn({ method: "POST" })
+  .inputValidator((data) =>
+    withToken({ bookId: z.string(), confirmTitle: z.string().min(1) }).parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { userId, role } = await requireAdmin(data.accessToken, "catalog.delete_permanent");
+    const { getBookDeletionImpact, deleteBookPermanently } = await import(
+      "@/lib/admin/catalog.server"
+    );
+    // Defense in depth beyond the confirm dialog itself — the exact title
+    // must be re-typed and re-checked server-side, not just shown/compared
+    // client-side, so a scripted/automated call can't skip the deliberate-
+    // typing safety gate the UI enforces.
+    const impact = await getBookDeletionImpact(data.bookId);
+    if (data.confirmTitle.trim() !== impact.title) {
+      throw new Error("Typed title doesn't match this book's actual title — deletion refused.");
+    }
+    const result = await deleteBookPermanently({ bookId: data.bookId });
+    await recordAudit({
+      actorId: userId,
+      actorRole: role,
+      action: "catalog.delete_permanent",
+      entityType: "book",
+      entityId: data.bookId,
+      before: result.impact as unknown as Record<string, unknown>,
+      after: null,
+    });
+    return { ok: true as const };
+  });
+
+// ============================================================================
+// Book categories (admin) — assignment against the master list published at
+// content_settings["categories"]; individual and bulk.
+// ============================================================================
+export const adminSetBookCategories = createServerFn({ method: "POST" })
+  .inputValidator((data) =>
+    withToken({ bookId: z.string(), categories: z.array(z.string()) }).parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { userId, role } = await requireAdmin(data.accessToken, "catalog.categories.manage");
+    const { setBookCategories } = await import("@/lib/admin/catalog.server");
+    const diff = await setBookCategories({ bookId: data.bookId, categories: data.categories });
+    await recordAudit({
+      actorId: userId,
+      actorRole: role,
+      action: "catalog.set_categories",
+      entityType: "book",
+      entityId: data.bookId,
+      before: { categories: diff.before },
+      after: { categories: diff.after },
+    });
+    return { ok: true as const };
+  });
+
+export const adminBulkPatchBookCategory = createServerFn({ method: "POST" })
+  .inputValidator((data) =>
+    withToken({
+      bookIds: z.array(z.string()).min(1),
+      category: z.string().min(1),
+      action: z.enum(["add", "remove"]),
+    }).parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { userId, role } = await requireAdmin(data.accessToken, "catalog.categories.manage");
+    const { bulkPatchBookCategory } = await import("@/lib/admin/catalog.server");
+    const results = await bulkPatchBookCategory({
+      bookIds: data.bookIds,
+      category: data.category,
+      action: data.action,
+    });
+    await recordAudit({
+      actorId: userId,
+      actorRole: role,
+      action: `catalog.bulk_${data.action}_category`,
+      entityType: "book",
+      after: {
+        category: data.category,
+        succeeded: results.filter((r) => r.ok).length,
+        failed: results.filter((r) => !r.ok).length,
+      },
+    });
+    return results;
+  });
+
+export const adminListCategorySuggestions = createServerFn({ method: "POST" })
+  .inputValidator((data) => withToken({ status: z.string().optional() }).parse(data))
+  .handler(async ({ data }) => {
+    await requireAdmin(data.accessToken, "catalog.categories.manage");
+    const { listCategorySuggestions } = await import("@/lib/admin/catalog.server");
+    return listCategorySuggestions(data.status);
+  });
+
+export const adminDecideCategorySuggestion = createServerFn({ method: "POST" })
+  .inputValidator((data) =>
+    withToken({
+      suggestionId: z.string(),
+      decision: z.enum(["approved", "declined"]),
+      note: z.string().optional(),
+    }).parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { userId, role } = await requireAdmin(data.accessToken, "catalog.categories.manage");
+    const { decideCategorySuggestion } = await import("@/lib/admin/catalog.server");
+    const diff = await decideCategorySuggestion({
+      suggestionId: data.suggestionId,
+      decision: data.decision,
+      decidedBy: userId,
+      note: data.note,
+    });
+    await recordAudit({
+      actorId: userId,
+      actorRole: role,
+      action: "catalog.decide_category_suggestion",
+      entityType: "category_suggestion",
+      entityId: data.suggestionId,
+      before: diff.before,
+      after: { status: data.decision, note: data.note ?? null },
+    });
+    return { ok: true as const };
   });

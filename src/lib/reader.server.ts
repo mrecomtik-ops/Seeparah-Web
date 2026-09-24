@@ -36,31 +36,6 @@ async function isMonetizationEnabled(): Promise<boolean> {
   }
 }
 
-/** Hindi and Arabic TRANSLATED editions (not the original) are only readable
- * by a reader whose translation_requests row for this book+language is
- * 'granted' — approval to produce a translation is separate from permission
- * to read one. English/Urdu/the book's own original language are never
- * gated this way. */
-const REQUEST_GATED_LANGUAGES = new Set(["Hindi", "Arabic"]);
-
-async function hasGrantedTranslationAccess(
-  bookId: string,
-  language: string,
-  userId: string | null,
-): Promise<boolean> {
-  if (!userId) return false;
-  const db = await admin();
-  const { data } = await db
-    .from("translation_requests")
-    .select("status")
-    .eq("book_id", bookId)
-    .eq("language", language)
-    .eq("requester_id", userId)
-    .eq("status", "granted")
-    .maybeSingle();
-  return !!data;
-}
-
 interface ReaderAccessBookState {
   status: string;
   accessType: string;
@@ -75,7 +50,13 @@ interface ReaderAccessInput {
   isOwner: boolean;
   monetizationEnabled: boolean;
   hasActiveSubscription: boolean;
-  hasGrantedTranslationAccess: boolean;
+  /** undefined = this (book, language) edition has no book_editions row at
+   * all yet — not published, not a premium lock, a "request it" case.
+   * 'free' | 'paid' = the edition's own admin-set access, independent of
+   * the original's books.access_type. Ignored entirely when language ===
+   * the book's own source language (that case uses book.accessType
+   * instead — see below). */
+  editionAccessType: "free" | "paid" | undefined;
 }
 
 /**
@@ -87,6 +68,9 @@ interface ReaderAccessInput {
  * unpublished/archived book's text from being readable by anyone who has
  * (or guesses, or enumerates) its id, independent of whatever the
  * `books`/`book_chunks` RLS policies happen to allow at the REST layer.
+ * Mirrors (and must stay in sync with) the DB function
+ * `public.book_chunk_readable` added in migration 0011 — the unbypassable
+ * second layer against a direct REST/SQL read skipping this function.
  */
 export function resolveReaderAccess(
   input: ReaderAccessInput,
@@ -95,27 +79,37 @@ export function resolveReaderAccess(
 
   // The owning author may always open their own book (any status) — this is
   // the only bypass of the catalog gate, and it never bypasses the
-  // subscription/translation-access gates below.
+  // premium/edition-existence gates below.
   if (book.status !== "published" && !input.isOwner) {
     return { locked: true, reason: "not_available" };
   }
 
-  const isFreePreview = input.chunkIndex === 0;
+  if (input.isOwner || input.chunkIndex === 0) {
+    return { locked: false };
+  }
+
+  const isSourceLanguage = input.language === book.sourceLanguage;
+
+  // A translated edition that has never been published (no book_editions
+  // row) isn't a premium lock — there's nothing to unlock. This is the
+  // "go request it" case; a reviewed, published edition in ANY language is
+  // governed by the exact same free/premium rule as the original below —
+  // never by whether THIS reader personally has an approved request for
+  // it (that per-reader gate is gone: "a reader must not need individual
+  // approval merely to read an existing published translation").
+  if (!isSourceLanguage && input.editionAccessType === undefined) {
+    return {
+      locked: true,
+      reason: "translation_access_required",
+    };
+  }
+
+  const effectiveAccessType = isSourceLanguage ? book.accessType : input.editionAccessType;
   const requiresSubscription =
-    input.monetizationEnabled && book.accessType === "paid" && !isFreePreview && !input.isOwner;
+    input.monetizationEnabled && effectiveAccessType === "paid";
   if (requiresSubscription) {
     if (!input.userId) return { locked: true, reason: "sign_in_required" };
     if (!input.hasActiveSubscription) return { locked: true, reason: "subscription_required" };
-  }
-
-  const isTranslatedEdition = input.language !== book.sourceLanguage;
-  if (REQUEST_GATED_LANGUAGES.has(input.language) && isTranslatedEdition && !input.isOwner) {
-    if (!input.hasGrantedTranslationAccess) {
-      return {
-        locked: true,
-        reason: input.userId ? "translation_access_required" : "sign_in_required",
-      };
-    }
   }
 
   return { locked: false };
@@ -138,26 +132,34 @@ export async function getReaderChunk(params: {
   const isOwner = params.userId != null && book.author_id === params.userId;
   const monetizationEnabled = await isMonetizationEnabled();
 
+  // Account-wide: "one subscription unlocks all Premium books and
+  // translations" — deliberately NOT filtered by book_id. See migration
+  // 0011's has_active_plan_subscription() for the same, mirrored check at
+  // the database layer.
   let hasActiveSubscription = false;
-  if (params.userId && monetizationEnabled && book.access_type === "paid") {
-    const { data: sub } = await db
+  if (params.userId && monetizationEnabled) {
+    const { data: subs } = await db
       .from("user_subscriptions")
-      .select("id, status, expires_at")
-      .eq("book_id", params.bookId)
+      .select("status, expires_at")
       .eq("user_id", params.userId)
-      .eq("status", "active")
-      .maybeSingle();
-    hasActiveSubscription = !!sub && (!sub.expires_at || new Date(sub.expires_at) > new Date());
+      .eq("status", "active");
+    hasActiveSubscription = (subs ?? []).some(
+      (s) => !s.expires_at || new Date(s.expires_at) > new Date(),
+    );
   }
 
-  const isTranslatedEdition = params.language !== book.source_language;
-  let grantedTranslationAccess = false;
-  if (REQUEST_GATED_LANGUAGES.has(params.language) && isTranslatedEdition && !isOwner) {
-    grantedTranslationAccess = await hasGrantedTranslationAccess(
-      params.bookId,
-      params.language,
-      params.userId,
-    );
+  const isSourceLanguage = params.language === book.source_language;
+  let editionAccessType: "free" | "paid" | undefined;
+  if (isSourceLanguage) {
+    editionAccessType = undefined; // unused — resolveReaderAccess uses book.accessType instead
+  } else {
+    const { data: edition } = await db
+      .from("book_editions")
+      .select("access_type")
+      .eq("book_id", params.bookId)
+      .eq("language", params.language)
+      .maybeSingle();
+    editionAccessType = (edition?.access_type as "free" | "paid" | undefined) ?? undefined;
   }
 
   const access = resolveReaderAccess({
@@ -172,7 +174,7 @@ export async function getReaderChunk(params: {
     isOwner,
     monetizationEnabled,
     hasActiveSubscription,
-    hasGrantedTranslationAccess: grantedTranslationAccess,
+    editionAccessType,
   });
   if (access.locked) return { content: null, locked: true, reason: access.reason };
 
@@ -253,11 +255,15 @@ export async function activateTestModeSubscription(params: { bookId: string; use
   const db = await admin();
   const { data: book, error: bookError } = await db
     .from("books")
-    .select("id, subscription_price_usd, access_type")
+    .select("id")
     .eq("id", params.bookId)
     .single();
   if (bookError || !book) throw new Error("Book not found");
-  if (book.access_type !== "paid") throw new Error("This book does not require a subscription");
+  // No "this book must be access_type='paid'" check anymore — a
+  // subscription is a single account-wide plan, not tied to any one book
+  // (see migration 0011's has_active_plan_subscription()); bookId here is
+  // kept only as a reference to which book's page the reader subscribed
+  // from, matching user_subscriptions' existing schema.
 
   const { data: existing } = await db
     .from("user_subscriptions")
@@ -268,6 +274,9 @@ export async function activateTestModeSubscription(params: { bookId: string; use
     .maybeSingle();
   if (existing) return existing;
 
+  const { getMonthlyPlanPriceUsd } = await import("@/lib/admin/settings.server");
+  const monthlyPriceUsd = await getMonthlyPlanPriceUsd();
+
   const now = new Date();
   const { data: sub, error } = await db
     .from("user_subscriptions")
@@ -275,7 +284,7 @@ export async function activateTestModeSubscription(params: { bookId: string; use
       user_id: params.userId,
       book_id: params.bookId,
       status: "active",
-      monthly_price_usd: book.subscription_price_usd ?? 0,
+      monthly_price_usd: monthlyPriceUsd,
       starts_at: now.toISOString(),
       expires_at: new Date(now.getTime() + 30 * 86_400_000).toISOString(),
     })

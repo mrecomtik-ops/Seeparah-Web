@@ -1,0 +1,90 @@
+// Cloudflare Workers deployment config for Seeparah, using the CURRENT
+// official TanStack Start Cloudflare architecture: the app is built with
+// @cloudflare/vite-plugin (see vite.config.cloudflare.ts) instead of Nitro
+// — Nitro remains the build backend for the existing Netlify path
+// (vite.config.ts / netlify.toml / `npm run build`), which this file does
+// not touch or replace.
+//
+// seeparah.com and www.seeparah.com are now live in production on this
+// Worker (see the `routes` block below for why they're declared here,
+// in code, rather than left as dashboard-only Custom Domains).
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "seeparah-web",
+  "compatibility_date": "2026-09-23",
+  "compatibility_flags": ["nodejs_compat"],
+  // src/server.ts is this app's actual SSR entry (already shaped as the
+  // Workers { fetch(request, env, ctx) } contract) — it wraps the
+  // framework's real default entry (@tanstack/react-start/server-entry,
+  // imported from *inside* src/server.ts) with the SSR error-page
+  // normalization this app relies on. Pointing "main" straight at the
+  // framework's default entry package path instead — the generic
+  // TanStack docs example — would silently drop that wrapper.
+  "main": "./src/server.ts",
+  "observability": {
+    "enabled": true,
+  },
+  // Declares the production Custom Domains here, in code, rather than
+  // leaving them as dashboard-only bindings. This isn't just style: a
+  // manual `wrangler deploy` after they'd been attached via the
+  // dashboard printed "The local configuration ... differs from the
+  // remote configuration of your Worker" and prompted "Would you like to
+  // continue?" -- confirmed in wrangler's own source
+  // (packages/wrangler's deploy flow) that this diff/prompt only fires
+  // when the Worker's last dashboard-origin deploy doesn't match local
+  // config, and that a `wrangler deploy` proceeding non-interactively
+  // (as CI does, with no --strict flag set) auto-answers "yes" and
+  // silently overwrites the remote routes with local's (empty) ones --
+  // meaning an automatic GitHub deploy with no routes declared here
+  // would have silently detached both production domains from this
+  // Worker on its very first run, with no prompt or hang, just gone.
+  // Declaring them here makes local match remote, so there's no diff
+  // and nothing to silently overwrite.
+  "routes": [
+    { "pattern": "seeparah.com", "custom_domain": true },
+    { "pattern": "www.seeparah.com", "custom_domain": true },
+  ],
+  // Wrangler's own default for `workers_dev` when unset is NOT always
+  // true -- it resolves to `routes.length === 0`, i.e. it silently
+  // flips to false as soon as ANY `routes` entry exists unless set
+  // explicitly (confirmed in wrangler's source, not assumed). Since the
+  // routes above would otherwise trip that default, and workers.dev
+  // should stay available for manual/temporary QA, this has to be
+  // explicit.
+  "workers_dev": true,
+  // Without this, `wrangler deploy` treats this file as the sole source of
+  // truth for the Worker's environment and DELETES any plaintext `vars`
+  // configured through the Cloudflare dashboard that aren't also listed
+  // here (confirmed in wrangler's own config schema: "If you change your
+  // vars in the dashboard, wrangler *will* override/delete them on its
+  // next deploy"). This file intentionally has no `vars` block of its own
+  // (see the env-var audit in the migration report for why -- nothing
+  // here should ever hold even non-secret values, to keep exactly one
+  // place, the dashboard, as the record of what's actually configured).
+  // That means a plain `wrangler deploy` with keep_vars left at its
+  // default (false) would wipe every dashboard-set var on every deploy --
+  // the likely cause of the SUPABASE_URL-dependent admin outage this was
+  // added to fix. keep_vars: true makes deploys leave dashboard vars
+  // alone, which is what we actually want given the file has none of its
+  // own to be a competing source of truth.
+  "keep_vars": true,
+  // Secrets (SUPABASE_SERVICE_ROLE_KEY, GEMINI_API_KEY, etc.) are NEVER
+  // touched by a deploy regardless of keep_vars -- wrangler only removes a
+  // secret via an explicit `wrangler secret delete`, per its own docs.
+  // This block doesn't protect them from anything; it makes a deploy FAIL
+  // LOUDLY (rather than silently shipping a Worker that 200s with hidden
+  // internal errors, per the adminWhoAmI incident this was added
+  // alongside) if any of these were never set / were deleted. Names only
+  // -- never values -- and this list intentionally does not include
+  // SUPABASE_URL/SUPABASE_PUBLISHABLE_KEY, which are plain `vars`
+  // (non-secret), not secrets; `keep_vars` above is what protects those.
+  "secrets": {
+    "required": [
+      "SUPABASE_SERVICE_ROLE_KEY",
+      "GEMINI_API_KEY",
+      "RESEND_API_KEY",
+      "SUPPORT_RATE_LIMIT_SALT",
+      "SUPPORT_RATE_LIMIT_PEPPER",
+    ],
+  },
+}

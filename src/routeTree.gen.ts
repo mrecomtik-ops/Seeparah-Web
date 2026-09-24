@@ -13,11 +13,15 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteRouteImport } from './routes/admin/route'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthorRouteRouteImport } from './routes/author/route'
+import { Route as CopyrightRouteImport } from './routes/copyright'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as LegalRouteImport } from './routes/legal'
 import { Route as LibraryRouteImport } from './routes/library'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as SubscribeRouteImport } from './routes/subscribe'
+import { Route as SupportRouteImport } from './routes/support'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AdminAuditRouteImport } from './routes/admin/audit'
 import { Route as AdminHealthRouteImport } from './routes/admin/health'
@@ -32,9 +36,15 @@ import { Route as AuthorAnalyticsRouteImport } from './routes/author.analytics'
 import { Route as AuthorPublishRouteImport } from './routes/author.publish'
 import { Route as BookBookIdRouteImport } from './routes/book.$bookId'
 import { Route as ReadBookIdRouteImport } from './routes/read.$bookId'
+import { Route as ResearchIndexRouteImport } from './routes/research/index'
+import { Route as ResearchPaperIdRouteImport } from './routes/research/$paperId'
+import { Route as ResearchMineRouteImport } from './routes/research/mine'
+import { Route as ResearchSubmitRouteImport } from './routes/research/submit'
 import { Route as AdminBooksIndexRouteImport } from './routes/admin/books/index'
 import { Route as AdminBooksBookIdRouteImport } from './routes/admin/books/$bookId'
 import { Route as AdminBooksNewRouteImport } from './routes/admin/books/new'
+import { Route as AdminResearchIndexRouteImport } from './routes/admin/research/index'
+import { Route as AdminResearchPaperIdRouteImport } from './routes/admin/research/$paperId'
 import { Route as AdminSupportIndexRouteImport } from './routes/admin/support/index'
 import { Route as AdminSupportTicketIdRouteImport } from './routes/admin/support/$ticketId'
 import { Route as AuthorBookBookIdRouteImport } from './routes/author.book.$bookId'
@@ -59,6 +69,11 @@ const AuthorRouteRoute = AuthorRouteRouteImport.update({
   path: '/author',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CopyrightRoute = CopyrightRouteImport.update({
+  id: '/copyright',
+  path: '/copyright',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -74,6 +89,11 @@ const LibraryRoute = LibraryRouteImport.update({
   path: '/library',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProfileRoute = ProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
@@ -82,6 +102,16 @@ const ProfileRoute = ProfileRouteImport.update({
 const SubscribeRoute = SubscribeRouteImport.update({
   id: '/subscribe',
   path: '/subscribe',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SupportRoute = SupportRouteImport.update({
+  id: '/support',
+  path: '/support',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
@@ -155,6 +185,26 @@ const ReadBookIdRoute = ReadBookIdRouteImport.update({
   path: '/read/$bookId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ResearchIndexRoute = ResearchIndexRouteImport.update({
+  id: '/research/',
+  path: '/research/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResearchPaperIdRoute = ResearchPaperIdRouteImport.update({
+  id: '/research/$paperId',
+  path: '/research/$paperId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResearchMineRoute = ResearchMineRouteImport.update({
+  id: '/research/mine',
+  path: '/research/mine',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResearchSubmitRoute = ResearchSubmitRouteImport.update({
+  id: '/research/submit',
+  path: '/research/submit',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminBooksIndexRoute = AdminBooksIndexRouteImport.update({
   id: '/books/',
   path: '/books/',
@@ -168,6 +218,16 @@ const AdminBooksBookIdRoute = AdminBooksBookIdRouteImport.update({
 const AdminBooksNewRoute = AdminBooksNewRouteImport.update({
   id: '/books/new',
   path: '/books/new',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminResearchIndexRoute = AdminResearchIndexRouteImport.update({
+  id: '/research/',
+  path: '/research/',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminResearchPaperIdRoute = AdminResearchPaperIdRouteImport.update({
+  id: '/research/$paperId',
+  path: '/research/$paperId',
   getParentRoute: () => AdminRouteRoute,
 } as any)
 const AdminSupportIndexRoute = AdminSupportIndexRouteImport.update({
@@ -191,11 +251,15 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRouteRouteWithChildren
   '/author': typeof AuthorRouteRouteWithChildren
   '/auth': typeof AuthRouteWithChildren
+  '/copyright': typeof CopyrightRoute
   '/dashboard': typeof DashboardRoute
   '/legal': typeof LegalRoute
   '/library': typeof LibraryRoute
+  '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/subscribe': typeof SubscribeRoute
+  '/support': typeof SupportRoute
+  '/terms': typeof TermsRoute
   '/admin/audit': typeof AdminAuditRoute
   '/admin/health': typeof AdminHealthRoute
   '/admin/roles': typeof AdminRolesRoute
@@ -208,23 +272,33 @@ export interface FileRoutesByFullPath {
   '/author/publish': typeof AuthorPublishRoute
   '/book/$bookId': typeof BookBookIdRoute
   '/read/$bookId': typeof ReadBookIdRoute
+  '/research/$paperId': typeof ResearchPaperIdRoute
+  '/research/mine': typeof ResearchMineRoute
+  '/research/submit': typeof ResearchSubmitRoute
   '/admin/': typeof AdminIndexRoute
   '/author/': typeof AuthorIndexRoute
+  '/research/': typeof ResearchIndexRoute
   '/admin/books/$bookId': typeof AdminBooksBookIdRoute
   '/admin/books/new': typeof AdminBooksNewRoute
+  '/admin/research/$paperId': typeof AdminResearchPaperIdRoute
   '/admin/support/$ticketId': typeof AdminSupportTicketIdRoute
   '/author/book/$bookId': typeof AuthorBookBookIdRoute
   '/admin/books/': typeof AdminBooksIndexRoute
+  '/admin/research/': typeof AdminResearchIndexRoute
   '/admin/support/': typeof AdminSupportIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRouteWithChildren
+  '/copyright': typeof CopyrightRoute
   '/dashboard': typeof DashboardRoute
   '/legal': typeof LegalRoute
   '/library': typeof LibraryRoute
+  '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/subscribe': typeof SubscribeRoute
+  '/support': typeof SupportRoute
+  '/terms': typeof TermsRoute
   '/admin/audit': typeof AdminAuditRoute
   '/admin/health': typeof AdminHealthRoute
   '/admin/roles': typeof AdminRolesRoute
@@ -237,13 +311,19 @@ export interface FileRoutesByTo {
   '/author/publish': typeof AuthorPublishRoute
   '/book/$bookId': typeof BookBookIdRoute
   '/read/$bookId': typeof ReadBookIdRoute
+  '/research/$paperId': typeof ResearchPaperIdRoute
+  '/research/mine': typeof ResearchMineRoute
+  '/research/submit': typeof ResearchSubmitRoute
   '/admin': typeof AdminIndexRoute
   '/author': typeof AuthorIndexRoute
+  '/research': typeof ResearchIndexRoute
   '/admin/books/$bookId': typeof AdminBooksBookIdRoute
   '/admin/books/new': typeof AdminBooksNewRoute
+  '/admin/research/$paperId': typeof AdminResearchPaperIdRoute
   '/admin/support/$ticketId': typeof AdminSupportTicketIdRoute
   '/author/book/$bookId': typeof AuthorBookBookIdRoute
   '/admin/books': typeof AdminBooksIndexRoute
+  '/admin/research': typeof AdminResearchIndexRoute
   '/admin/support': typeof AdminSupportIndexRoute
 }
 export interface FileRoutesById {
@@ -252,11 +332,15 @@ export interface FileRoutesById {
   '/admin': typeof AdminRouteRouteWithChildren
   '/author': typeof AuthorRouteRouteWithChildren
   '/auth': typeof AuthRouteWithChildren
+  '/copyright': typeof CopyrightRoute
   '/dashboard': typeof DashboardRoute
   '/legal': typeof LegalRoute
   '/library': typeof LibraryRoute
+  '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/subscribe': typeof SubscribeRoute
+  '/support': typeof SupportRoute
+  '/terms': typeof TermsRoute
   '/admin/audit': typeof AdminAuditRoute
   '/admin/health': typeof AdminHealthRoute
   '/admin/roles': typeof AdminRolesRoute
@@ -269,13 +353,19 @@ export interface FileRoutesById {
   '/author/publish': typeof AuthorPublishRoute
   '/book/$bookId': typeof BookBookIdRoute
   '/read/$bookId': typeof ReadBookIdRoute
+  '/research/$paperId': typeof ResearchPaperIdRoute
+  '/research/mine': typeof ResearchMineRoute
+  '/research/submit': typeof ResearchSubmitRoute
   '/admin/': typeof AdminIndexRoute
   '/author/': typeof AuthorIndexRoute
+  '/research/': typeof ResearchIndexRoute
   '/admin/books/$bookId': typeof AdminBooksBookIdRoute
   '/admin/books/new': typeof AdminBooksNewRoute
+  '/admin/research/$paperId': typeof AdminResearchPaperIdRoute
   '/admin/support/$ticketId': typeof AdminSupportTicketIdRoute
   '/author/book/$bookId': typeof AuthorBookBookIdRoute
   '/admin/books/': typeof AdminBooksIndexRoute
+  '/admin/research/': typeof AdminResearchIndexRoute
   '/admin/support/': typeof AdminSupportIndexRoute
 }
 export interface FileRouteTypes {
@@ -285,11 +375,15 @@ export interface FileRouteTypes {
     | '/admin'
     | '/author'
     | '/auth'
+    | '/copyright'
     | '/dashboard'
     | '/legal'
     | '/library'
+    | '/privacy'
     | '/profile'
     | '/subscribe'
+    | '/support'
+    | '/terms'
     | '/admin/audit'
     | '/admin/health'
     | '/admin/roles'
@@ -302,23 +396,33 @@ export interface FileRouteTypes {
     | '/author/publish'
     | '/book/$bookId'
     | '/read/$bookId'
+    | '/research/$paperId'
+    | '/research/mine'
+    | '/research/submit'
     | '/admin/'
     | '/author/'
+    | '/research/'
     | '/admin/books/$bookId'
     | '/admin/books/new'
+    | '/admin/research/$paperId'
     | '/admin/support/$ticketId'
     | '/author/book/$bookId'
     | '/admin/books/'
+    | '/admin/research/'
     | '/admin/support/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/auth'
+    | '/copyright'
     | '/dashboard'
     | '/legal'
     | '/library'
+    | '/privacy'
     | '/profile'
     | '/subscribe'
+    | '/support'
+    | '/terms'
     | '/admin/audit'
     | '/admin/health'
     | '/admin/roles'
@@ -331,13 +435,19 @@ export interface FileRouteTypes {
     | '/author/publish'
     | '/book/$bookId'
     | '/read/$bookId'
+    | '/research/$paperId'
+    | '/research/mine'
+    | '/research/submit'
     | '/admin'
     | '/author'
+    | '/research'
     | '/admin/books/$bookId'
     | '/admin/books/new'
+    | '/admin/research/$paperId'
     | '/admin/support/$ticketId'
     | '/author/book/$bookId'
     | '/admin/books'
+    | '/admin/research'
     | '/admin/support'
   id:
     | '__root__'
@@ -345,11 +455,15 @@ export interface FileRouteTypes {
     | '/admin'
     | '/author'
     | '/auth'
+    | '/copyright'
     | '/dashboard'
     | '/legal'
     | '/library'
+    | '/privacy'
     | '/profile'
     | '/subscribe'
+    | '/support'
+    | '/terms'
     | '/admin/audit'
     | '/admin/health'
     | '/admin/roles'
@@ -362,13 +476,19 @@ export interface FileRouteTypes {
     | '/author/publish'
     | '/book/$bookId'
     | '/read/$bookId'
+    | '/research/$paperId'
+    | '/research/mine'
+    | '/research/submit'
     | '/admin/'
     | '/author/'
+    | '/research/'
     | '/admin/books/$bookId'
     | '/admin/books/new'
+    | '/admin/research/$paperId'
     | '/admin/support/$ticketId'
     | '/author/book/$bookId'
     | '/admin/books/'
+    | '/admin/research/'
     | '/admin/support/'
   fileRoutesById: FileRoutesById
 }
@@ -377,13 +497,21 @@ export interface RootRouteChildren {
   AdminRouteRoute: typeof AdminRouteRouteWithChildren
   AuthorRouteRoute: typeof AuthorRouteRouteWithChildren
   AuthRoute: typeof AuthRouteWithChildren
+  CopyrightRoute: typeof CopyrightRoute
   DashboardRoute: typeof DashboardRoute
   LegalRoute: typeof LegalRoute
   LibraryRoute: typeof LibraryRoute
+  PrivacyRoute: typeof PrivacyRoute
   ProfileRoute: typeof ProfileRoute
   SubscribeRoute: typeof SubscribeRoute
+  SupportRoute: typeof SupportRoute
+  TermsRoute: typeof TermsRoute
   BookBookIdRoute: typeof BookBookIdRoute
   ReadBookIdRoute: typeof ReadBookIdRoute
+  ResearchPaperIdRoute: typeof ResearchPaperIdRoute
+  ResearchMineRoute: typeof ResearchMineRoute
+  ResearchSubmitRoute: typeof ResearchSubmitRoute
+  ResearchIndexRoute: typeof ResearchIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -416,6 +544,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthorRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/copyright': {
+      id: '/copyright'
+      path: '/copyright'
+      fullPath: '/copyright'
+      preLoaderRoute: typeof CopyrightRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dashboard': {
       id: '/dashboard'
       path: '/dashboard'
@@ -437,6 +572,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LibraryRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/profile': {
       id: '/profile'
       path: '/profile'
@@ -449,6 +591,20 @@ declare module '@tanstack/react-router' {
       path: '/subscribe'
       fullPath: '/subscribe'
       preLoaderRoute: typeof SubscribeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/support': {
+      id: '/support'
+      path: '/support'
+      fullPath: '/support'
+      preLoaderRoute: typeof SupportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/': {
@@ -549,6 +705,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ReadBookIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/research/': {
+      id: '/research/'
+      path: '/research'
+      fullPath: '/research/'
+      preLoaderRoute: typeof ResearchIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/research/$paperId': {
+      id: '/research/$paperId'
+      path: '/research/$paperId'
+      fullPath: '/research/$paperId'
+      preLoaderRoute: typeof ResearchPaperIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/research/mine': {
+      id: '/research/mine'
+      path: '/research/mine'
+      fullPath: '/research/mine'
+      preLoaderRoute: typeof ResearchMineRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/research/submit': {
+      id: '/research/submit'
+      path: '/research/submit'
+      fullPath: '/research/submit'
+      preLoaderRoute: typeof ResearchSubmitRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/books/': {
       id: '/admin/books/'
       path: '/books'
@@ -568,6 +752,20 @@ declare module '@tanstack/react-router' {
       path: '/books/new'
       fullPath: '/admin/books/new'
       preLoaderRoute: typeof AdminBooksNewRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/research/': {
+      id: '/admin/research/'
+      path: '/research'
+      fullPath: '/admin/research/'
+      preLoaderRoute: typeof AdminResearchIndexRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/research/$paperId': {
+      id: '/admin/research/$paperId'
+      path: '/research/$paperId'
+      fullPath: '/admin/research/$paperId'
+      preLoaderRoute: typeof AdminResearchPaperIdRouteImport
       parentRoute: typeof AdminRouteRoute
     }
     '/admin/support/': {
@@ -604,8 +802,10 @@ interface AdminRouteRouteChildren {
   AdminIndexRoute: typeof AdminIndexRoute
   AdminBooksBookIdRoute: typeof AdminBooksBookIdRoute
   AdminBooksNewRoute: typeof AdminBooksNewRoute
+  AdminResearchPaperIdRoute: typeof AdminResearchPaperIdRoute
   AdminSupportTicketIdRoute: typeof AdminSupportTicketIdRoute
   AdminBooksIndexRoute: typeof AdminBooksIndexRoute
+  AdminResearchIndexRoute: typeof AdminResearchIndexRoute
   AdminSupportIndexRoute: typeof AdminSupportIndexRoute
 }
 
@@ -619,8 +819,10 @@ const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminIndexRoute: AdminIndexRoute,
   AdminBooksBookIdRoute: AdminBooksBookIdRoute,
   AdminBooksNewRoute: AdminBooksNewRoute,
+  AdminResearchPaperIdRoute: AdminResearchPaperIdRoute,
   AdminSupportTicketIdRoute: AdminSupportTicketIdRoute,
   AdminBooksIndexRoute: AdminBooksIndexRoute,
+  AdminResearchIndexRoute: AdminResearchIndexRoute,
   AdminSupportIndexRoute: AdminSupportIndexRoute,
 }
 
@@ -663,13 +865,21 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRouteRoute: AdminRouteRouteWithChildren,
   AuthorRouteRoute: AuthorRouteRouteWithChildren,
   AuthRoute: AuthRouteWithChildren,
+  CopyrightRoute: CopyrightRoute,
   DashboardRoute: DashboardRoute,
   LegalRoute: LegalRoute,
   LibraryRoute: LibraryRoute,
+  PrivacyRoute: PrivacyRoute,
   ProfileRoute: ProfileRoute,
   SubscribeRoute: SubscribeRoute,
+  SupportRoute: SupportRoute,
+  TermsRoute: TermsRoute,
   BookBookIdRoute: BookBookIdRoute,
   ReadBookIdRoute: ReadBookIdRoute,
+  ResearchPaperIdRoute: ResearchPaperIdRoute,
+  ResearchMineRoute: ResearchMineRoute,
+  ResearchSubmitRoute: ResearchSubmitRoute,
+  ResearchIndexRoute: ResearchIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

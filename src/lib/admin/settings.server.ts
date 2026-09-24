@@ -32,6 +32,7 @@ export const SETTINGS_SCHEMAS = {
     maxRequestsPerUserPerDay: z.number().int().positive(),
   }),
   monetization_enabled: z.boolean(),
+  monthly_plan_price_usd: z.number().positive(),
 } as const;
 
 export type SettingsKey = keyof typeof SETTINGS_SCHEMAS;
@@ -45,7 +46,28 @@ export const PUBLIC_SETTINGS_KEYS: SettingsKey[] = [
   "maintenance_message",
   "language_availability",
   "monetization_enabled",
+  "monthly_plan_price_usd",
 ];
+
+/** "Start with a proposed monthly plan price of $2 USD" — this is the
+ * fallback used everywhere the price is read, for as long as no admin has
+ * ever published a monthly_plan_price_usd setting yet (content_settings
+ * starts empty; nothing here seeds a row via migration, matching how
+ * every other setting in this table already works). The moment an admin
+ * publishes a real value, that value — not this constant — is what every
+ * reader and every future billing sync sees. */
+export const DEFAULT_MONTHLY_PLAN_PRICE_USD = 2;
+
+export async function getMonthlyPlanPriceUsd(): Promise<number> {
+  const db = await admin();
+  const { data } = await db
+    .from("content_settings")
+    .select("value")
+    .eq("key", "monthly_plan_price_usd")
+    .maybeSingle();
+  const value = data?.value;
+  return typeof value === "number" && value > 0 ? value : DEFAULT_MONTHLY_PLAN_PRICE_USD;
+}
 
 export async function getSetting(key: SettingsKey) {
   const db = await admin();

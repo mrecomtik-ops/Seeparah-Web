@@ -1,15 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { BookOpen, Languages, TrendingUp, Wallet } from "lucide-react";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { BarChart3, BookOpen, Languages, Wallet } from "lucide-react";
 import { AUTHOR_PAYOUT, LANGUAGES } from "@/lib/data";
 import { listMyBooks } from "@/lib/library";
 import { useAuth } from "@/lib/use-auth";
@@ -30,17 +21,9 @@ export const Route = createFileRoute("/author/analytics")({
   component: AnalyticsPage,
 });
 
-const WEEK = [
-  { day: "Mon", pages: 42 },
-  { day: "Tue", pages: 58 },
-  { day: "Wed", pages: 51 },
-  { day: "Thu", pages: 74 },
-  { day: "Fri", pages: 96 },
-  { day: "Sat", pages: 121 },
-  { day: "Sun", pages: 88 },
-];
-
-function AnalyticsPage() {
+// Exported (in addition to being wired as the route's component below) so
+// it can be rendered directly in tests without a full router harness.
+export function AnalyticsPage() {
   const { userId } = useAuth();
   const myBooksQuery = useQuery({
     queryKey: ["my-books", userId],
@@ -76,14 +59,19 @@ function AnalyticsPage() {
           {[
             { label: "Pages published", value: totalPages, icon: BookOpen },
             { label: "Language coverage", value: languageCoverage, icon: Languages },
-            { label: "Pages read this week", value: WEEK.reduce((s, d) => s + d.pages, 0), icon: TrendingUp },
-            monetizationEnabled
-              ? {
-                  label: "Your payout (est./mo)",
-                  value: `$${(monthlyRevenue * AUTHOR_PAYOUT).toFixed(2)}`,
-                  icon: Wallet,
-                }
-              : { label: "Payouts", value: "Not active yet", icon: Wallet },
+            // No payout/revenue tile at all while there's no active paid
+            // plan — not even a "Not active yet" placeholder, since that
+            // still implies payouts are a current concept. Reappears only
+            // once monetization is genuinely turned on.
+            ...(monetizationEnabled
+              ? [
+                  {
+                    label: "Your payout (est./mo)",
+                    value: `$${(monthlyRevenue * AUTHOR_PAYOUT).toFixed(2)}`,
+                    icon: Wallet,
+                  },
+                ]
+              : []),
           ].map(({ label, value, icon: Icon }) => (
             <div key={label} className="rounded-2xl border border-border bg-card p-5 card-shadow">
               <div className="flex items-center justify-between">
@@ -99,27 +87,20 @@ function AnalyticsPage() {
           <h2 className="font-display text-lg font-semibold text-foreground">
             Pages read this week
           </h2>
-          <div className="mt-4 h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={WEEK}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-                <XAxis dataKey="day" stroke="var(--color-muted-foreground)" fontSize={12} />
-                <YAxis stroke="var(--color-muted-foreground)" fontSize={12} />
-                <Tooltip
-                  contentStyle={{
-                    background: "var(--color-card)",
-                    border: "1px solid var(--color-border)",
-                    borderRadius: 12,
-                    fontSize: 13,
-                  }}
-                />
-                <Bar dataKey="pages" fill="var(--color-primary)" radius={[6, 6, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+          {/* No per-day reading-activity table exists yet to back a real
+              chart here — this used to show a hardcoded, fabricated week
+              of numbers regardless of whether anyone had actually read
+              anything. Showing that on a fresh, honest backend would be
+              actively misleading, so this is an explicit "not tracked
+              yet" state instead, matching the same pattern already used
+              below for "Book performance" on an author with no books. */}
+          <div className="mt-4 flex h-40 flex-col items-center justify-center gap-2 text-center text-sm text-muted-foreground">
+            <BarChart3 className="h-8 w-8 text-muted-foreground/50" />
+            <p>Day-by-day reading activity isn't tracked yet — nothing to show here.</p>
           </div>
         </section>
 
-        <section className="mt-8 grid gap-4 lg:grid-cols-2">
+        <section className={`mt-8 grid gap-4 ${monetizationEnabled ? "lg:grid-cols-2" : ""}`}>
           <div className="rounded-2xl border border-border bg-card p-6 card-shadow">
             <h2 className="font-display text-lg font-semibold text-foreground">
               Book performance
@@ -160,43 +141,38 @@ function AnalyticsPage() {
               </ul>
             )}
           </div>
-          <div className="rounded-2xl border border-border bg-card p-6 card-shadow">
-            <h2 className="font-display text-lg font-semibold text-foreground">
-              Revenue summary
-            </h2>
-            {monetizationEnabled ? (
-              <>
-                <dl className="mt-4 space-y-3 text-sm">
-                  <div className="flex justify-between">
-                    <dt className="text-muted-foreground">Gross subscriptions (est./mo)</dt>
-                    <dd className="font-semibold text-foreground">${monthlyRevenue.toFixed(2)}</dd>
-                  </div>
-                  <div className="flex justify-between">
-                    <dt className="text-muted-foreground">Your payout (70%)</dt>
-                    <dd className="font-semibold text-primary">
-                      ${(monthlyRevenue * AUTHOR_PAYOUT).toFixed(2)}
-                    </dd>
-                  </div>
-                  <div className="flex justify-between">
-                    <dt className="text-muted-foreground">Seeparah commission (30%)</dt>
-                    <dd className="font-semibold text-foreground">
-                      ${(monthlyRevenue * (1 - AUTHOR_PAYOUT)).toFixed(2)}
-                    </dd>
-                  </div>
-                </dl>
-                <p className="mt-4 rounded-lg bg-secondary px-3 py-2 text-xs text-secondary-foreground">
-                  Estimates assume twelve active subscribers per premium book.
-                  Payments run in Stripe test mode until launch.
-                </p>
-              </>
-            ) : (
-              <p className="mt-4 rounded-lg bg-secondary px-3 py-2 text-sm text-secondary-foreground">
-                Seeparah is free for readers and free to publish during launch — there is no
-                subscription revenue to report yet. This section will show real figures once
-                paid plans are turned on, with terms published in advance.
+          {/* Whole revenue-summary card omitted, not degraded-with-a-
+              placeholder, while there's no active paid plan — see the
+              stats-tile comment above for the same reasoning. */}
+          {monetizationEnabled && (
+            <div className="rounded-2xl border border-border bg-card p-6 card-shadow">
+              <h2 className="font-display text-lg font-semibold text-foreground">
+                Revenue summary
+              </h2>
+              <dl className="mt-4 space-y-3 text-sm">
+                <div className="flex justify-between">
+                  <dt className="text-muted-foreground">Gross subscriptions (est./mo)</dt>
+                  <dd className="font-semibold text-foreground">${monthlyRevenue.toFixed(2)}</dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-muted-foreground">Your payout (70%)</dt>
+                  <dd className="font-semibold text-primary">
+                    ${(monthlyRevenue * AUTHOR_PAYOUT).toFixed(2)}
+                  </dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-muted-foreground">Seeparah commission (30%)</dt>
+                  <dd className="font-semibold text-foreground">
+                    ${(monthlyRevenue * (1 - AUTHOR_PAYOUT)).toFixed(2)}
+                  </dd>
+                </div>
+              </dl>
+              <p className="mt-4 rounded-lg bg-secondary px-3 py-2 text-xs text-secondary-foreground">
+                Estimates assume twelve active subscribers per premium book.
+                Payments run in Stripe test mode until launch.
               </p>
-            )}
-          </div>
+            </div>
+          )}
         </section>
       </main>
     </div>

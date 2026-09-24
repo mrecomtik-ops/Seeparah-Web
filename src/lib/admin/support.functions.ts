@@ -2,9 +2,17 @@ import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import { createHash } from "node:crypto";
 import { z } from "zod";
-import { requireUserId } from "@/lib/require-user.server";
+import { requireUserId, tryResolveUserId } from "@/lib/require-user.server";
 import { requireAdmin } from "@/lib/admin/require-admin.server";
 import { recordAudit } from "@/lib/admin/audit.server";
+import {
+  hashClientIpForSupportForms,
+  isHoneypotTripped,
+  isSameOriginRequest,
+} from "@/lib/support-request-guard.server";
+import { generateReferenceCode } from "@/lib/reference-code.server";
+import { sendSupportNotificationEmail, sendTicketReplyEmail } from "@/lib/support-notification.server";
+import { SUPPORT_REQUEST_SCHEMA, COPYRIGHT_REQUEST_SCHEMA } from "@/lib/support-request-schemas";
 
 const withToken = <T extends z.ZodRawShape>(shape: T) =>
   z.object({ accessToken: z.string(), ...shape });
@@ -83,6 +91,101 @@ export const createPublicReport = createServerFn({ method: "POST" })
       category: "sign_in",
     });
     return { ok: true as const };
+  });
+
+/**
+ * The public "General support and complaint" form (/legal#support). Guest
+ * submissions are allowed; when an access token IS provided and verifies,
+ * the real signed-in user id is attached — never a client-supplied one.
+ */
+export const submitSupportRequest = createServerFn({ method: "POST" })
+  .inputValidator((data) => SUPPORT_REQUEST_SCHEMA.parse(data))
+  .handler(async ({ data }) => {
+    if (isHoneypotTripped(data.honeypot) || !isSameOriginRequest()) {
+      // Same accept-and-drop pattern as createPublicReport — see its
+      // comment. No ticket is created; the response is indistinguishable
+      // from a real success.
+      return { ok: true as const, referenceCode: generateReferenceCode() };
+    }
+    const { checkAnonymousReportRateLimit, submitTicketAndNotify } =
+      await import("@/lib/admin/support.server");
+    await checkAnonymousReportRateLimit(hashClientIpForSupportForms());
+
+    const userId = await tryResolveUserId(data.accessToken);
+
+    const { referenceCode } = await submitTicketAndNotify({
+      userId,
+      contactEmail: data.replyEmail,
+      subject: data.subject,
+      description: data.message,
+      category: data.requestType,
+      requestKind: "ticket",
+      structuredData: { fullName: data.fullName, pageUrl: data.pageUrl ?? null },
+      notify: (ref) =>
+        sendSupportNotificationEmail({
+          referenceCode: ref,
+          requestKind: "ticket",
+          category: data.requestType,
+          subject: data.subject,
+          replyEmail: data.replyEmail,
+        }),
+    });
+
+    return { ok: true as const, referenceCode };
+  });
+
+/**
+ * The public copyright infringement-notice / counter-notice form
+ * (/legal#copyright). Same guest-allowed, never-trust-client-id pattern as
+ * submitSupportRequest. All fields beyond subject/description/contact_email
+ * are structured data (structuredData), never appended into free text.
+ */
+export const submitCopyrightRequest = createServerFn({ method: "POST" })
+  .inputValidator((data) => COPYRIGHT_REQUEST_SCHEMA.parse(data))
+  .handler(async ({ data }) => {
+    if (isHoneypotTripped(data.honeypot) || !isSameOriginRequest()) {
+      return { ok: true as const, referenceCode: generateReferenceCode() };
+    }
+    const { checkAnonymousReportRateLimit, submitTicketAndNotify } =
+      await import("@/lib/admin/support.server");
+    await checkAnonymousReportRateLimit(hashClientIpForSupportForms());
+
+    const userId = await tryResolveUserId(data.accessToken);
+    const requestKind =
+      data.submissionType === "infringement" ? "copyright_notice" : "copyright_counter_notice";
+    const subject =
+      data.submissionType === "infringement"
+        ? `Copyright infringement notice: ${data.workDescription}`.slice(0, 200)
+        : `Copyright counter-notice: ${data.workDescription}`.slice(0, 200);
+
+    const { referenceCode } = await submitTicketAndNotify({
+      userId,
+      contactEmail: data.replyEmail,
+      subject,
+      description: data.detailedRequest,
+      category: "other",
+      requestKind,
+      structuredData: {
+        claimantName: data.claimantName,
+        organization: data.organization ?? null,
+        workDescription: data.workDescription,
+        contentUrl: data.contentUrl,
+        ownershipExplanation: data.ownershipExplanation,
+        goodFaithStatement: data.goodFaithStatement,
+        accuracyDeclaration: data.accuracyDeclaration,
+        signature: data.signature,
+      },
+      notify: (ref) =>
+        sendSupportNotificationEmail({
+          referenceCode: ref,
+          requestKind,
+          category: "other",
+          subject,
+          replyEmail: data.replyEmail,
+        }),
+    });
+
+    return { ok: true as const, referenceCode };
   });
 
 export const listMyTickets = createServerFn({ method: "POST" })
@@ -210,4 +313,60 @@ export const adminAddTicketNote = createServerFn({ method: "POST" })
       entityId: data.ticketId,
     });
     return note;
+  });
+
+/**
+ * "Reply to requester" — sends a real email to the ticket's own stored,
+ * validated contact_email (never a client-supplied address), records the
+ * reply as a public note with its actual delivery outcome, and never
+ * returns the requester's address or any part of the raw Resend response
+ * to the caller. Same capability as a public note reply
+ * (support.tickets.public_reply — owner/administrator/support), which
+ * already requires MFA (aal2) inside requireAdmin.
+ */
+export const adminReplyToTicket = createServerFn({ method: "POST" })
+  .inputValidator((data) =>
+    withToken({
+      ticketId: z.string(),
+      body: z.string().min(1).max(5000),
+    }).parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { userId, role } = await requireAdmin(data.accessToken, "support.tickets.public_reply");
+    const { replyToTicket } = await import("@/lib/admin/support.server");
+    let delivered: boolean;
+    try {
+      const result = await replyToTicket({
+        ticketId: data.ticketId,
+        authorId: userId,
+        body: data.body,
+        notify: (contactEmail, referenceCode, subject) =>
+          sendTicketReplyEmail({ to: contactEmail, referenceCode, subject, body: data.body }),
+      });
+      delivered = result.delivered;
+    } catch (error) {
+      await recordAudit({
+        actorId: userId,
+        actorRole: role,
+        action: "ticket.reply_failed",
+        entityType: "support_ticket",
+        entityId: data.ticketId,
+      });
+      // Generic client-facing error — never the underlying DB/validation
+      // detail, which could otherwise hint at internal state.
+      throw new Error(
+        error instanceof Error && error.message.includes("no reply email")
+          ? "This ticket has no reply email on file."
+          : "Couldn't send the reply — try again in a moment.",
+      );
+    }
+    await recordAudit({
+      actorId: userId,
+      actorRole: role,
+      action: "ticket.reply",
+      entityType: "support_ticket",
+      entityId: data.ticketId,
+      after: { delivered },
+    });
+    return { ok: true as const, delivered };
   });

@@ -502,9 +502,32 @@ export async function publishReviewedEdition(jobId: string, reviewerId: string) 
       .eq("id", job.book_id);
   }
 
+  // A book_editions row's mere existence means "this edition has been
+  // published at least once" — see migration 0011's book_chunk_readable().
+  // Insert-only (never touches an existing row's access_type): the FIRST
+  // time an edition is published it must default to 'free' ("new
+  // translations default to Free"); a later re-publish of a revised
+  // edition (same book+language, new source_version) must never silently
+  // reset an admin's earlier Free/Premium choice back to the default.
+  const { error: editionError } = await db
+    .from("book_editions")
+    .insert({ book_id: job.book_id, language: job.language })
+    .select()
+    .maybeSingle();
+  // A unique-violation here just means the row already existed (a
+  // re-publish) — expected, not an error to surface.
+  if (editionError && editionError.code !== "23505") {
+    console.error(`[translation] failed to record book_editions row for job ${jobId}`);
+  }
+
   // Flip any reader translation_requests that were separately approved
-  // "awaiting this exact edition" to granted. Never grants a request that
-  // was only ever "requested" — see grantAccessForPublishedJob's own doc.
+  // "awaiting this exact edition" to granted. This is purely informational
+  // now (see resolveReaderAccess in reader.server.ts) — it no longer gates
+  // read access, since a published edition is free-for-eligible-readers
+  // regardless of any one reader's own request status; it still lets a
+  // requester's own "my requests" view show their request as fulfilled.
+  // Never grants a request that was only ever "requested" — see
+  // grantAccessForPublishedJob's own doc.
   const { grantAccessForPublishedJob } = await import("@/lib/admin/translation-access.server");
   await grantAccessForPublishedJob(jobId);
 
@@ -590,6 +613,26 @@ export async function saveTranslationGuide(params: {
   });
   if (error) throw new Error(error.message);
   return { ok: true as const };
+}
+
+// Public, reader-facing: which languages currently have an in-progress
+// translation job for this book, so the UI can distinguish "already being
+// worked on" from "not yet requested" — never implying either is readable
+// (only a published book_editions row means that). Deliberately returns
+// only {language, inProgress}, nothing else from the job row (no ids,
+// timestamps, attempts, errors) — this is meant to be safe to call with no
+// auth, unlike getBookTranslationStatus below which is author-only.
+export async function getBookTranslationLanguageStatus(bookId: string) {
+  const db = await admin();
+  const { data: jobs, error } = await db
+    .from("book_translation_jobs")
+    .select("language, status")
+    .eq("book_id", bookId);
+  if (error) throw new Error(error.message);
+  const inProgressStatuses = new Set(["pending", "processing", "awaiting_review"]);
+  return (jobs ?? [])
+    .filter((j) => inProgressStatuses.has(j.status))
+    .map((j) => ({ language: j.language as string }));
 }
 
 export async function getBookTranslationStatus(bookId: string, requesterId: string) {

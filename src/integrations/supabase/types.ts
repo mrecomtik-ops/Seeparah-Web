@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       admin_action_events: {
@@ -139,6 +164,9 @@ export type Database = {
           job_id: string | null
           language: string
           model: string | null
+          pending_content: string | null
+          pending_content_at: string | null
+          pending_content_by: string | null
           prompt_version: string | null
           provider: string | null
           source_version: number
@@ -152,6 +180,9 @@ export type Database = {
           job_id?: string | null
           language: string
           model?: string | null
+          pending_content?: string | null
+          pending_content_at?: string | null
+          pending_content_by?: string | null
           prompt_version?: string | null
           provider?: string | null
           source_version?: number
@@ -165,6 +196,9 @@ export type Database = {
           job_id?: string | null
           language?: string
           model?: string | null
+          pending_content?: string | null
+          pending_content_at?: string | null
+          pending_content_by?: string | null
           prompt_version?: string | null
           provider?: string | null
           source_version?: number
@@ -184,6 +218,38 @@ export type Database = {
             columns: ["job_id"]
             isOneToOne: false
             referencedRelation: "book_translation_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      book_editions: {
+        Row: {
+          access_type: string
+          book_id: string
+          created_at: string
+          language: string
+          updated_at: string
+        }
+        Insert: {
+          access_type?: string
+          book_id: string
+          created_at?: string
+          language: string
+          updated_at?: string
+        }
+        Update: {
+          access_type?: string
+          book_id?: string
+          created_at?: string
+          language?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "book_editions_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
             referencedColumns: ["id"]
           },
         ]
@@ -235,7 +301,6 @@ export type Database = {
           created_at: string
           id: string
           shelf: string
-          updated_at: string
           user_id: string
         }
         Insert: {
@@ -243,7 +308,6 @@ export type Database = {
           created_at?: string
           id?: string
           shelf: string
-          updated_at?: string
           user_id: string
         }
         Update: {
@@ -251,7 +315,6 @@ export type Database = {
           created_at?: string
           id?: string
           shelf?: string
-          updated_at?: string
           user_id?: string
         }
         Relationships: [
@@ -451,7 +514,7 @@ export type Database = {
           created_at: string
           description: string
           edition_review_status: string
-          genre: string
+          genre: string | null
           id: string
           import_key: string | null
           permitted_territories: string[]
@@ -485,7 +548,7 @@ export type Database = {
           created_at?: string
           description?: string
           edition_review_status?: string
-          genre?: string
+          genre?: string | null
           id?: string
           import_key?: string | null
           permitted_territories?: string[]
@@ -497,7 +560,7 @@ export type Database = {
           rights_evidence_url?: string | null
           rights_status?: string
           source_edition_id?: string | null
-          source_language?: string
+          source_language: string
           source_url?: string | null
           source_version?: number
           status?: string
@@ -519,7 +582,7 @@ export type Database = {
           created_at?: string
           description?: string
           edition_review_status?: string
-          genre?: string
+          genre?: string | null
           id?: string
           import_key?: string | null
           permitted_territories?: string[]
@@ -540,6 +603,45 @@ export type Database = {
           total_chunks?: number
           translation_permission?: boolean
           translator?: string | null
+        }
+        Relationships: []
+      }
+      category_suggestions: {
+        Row: {
+          content_id: string
+          content_type: string
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_note: string | null
+          id: string
+          status: string
+          suggested_by: string
+          suggested_category: string
+        }
+        Insert: {
+          content_id: string
+          content_type: string
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          id?: string
+          status?: string
+          suggested_by: string
+          suggested_category: string
+        }
+        Update: {
+          content_id?: string
+          content_type?: string
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          id?: string
+          status?: string
+          suggested_by?: string
+          suggested_category?: string
         }
         Relationships: []
       }
@@ -701,6 +803,223 @@ export type Database = {
           },
         ]
       }
+      research_paper_versions: {
+        Row: {
+          abstract: string
+          acknowledgments: string | null
+          affiliation: string | null
+          ai_assistance_disclosure: string | null
+          author_name: string
+          body_text: string | null
+          citation_style: string | null
+          coauthor_names: string[]
+          conflicts_of_interest: string | null
+          funding_note: string | null
+          id: string
+          keywords: string[]
+          language: string
+          orcid: string | null
+          paper_id: string
+          paper_type: string
+          pdf_data: string | null
+          pdf_filename: string | null
+          pdf_size_bytes: number | null
+          published_at: string
+          published_by: string
+          references_text: string
+          title: string
+          topic: string | null
+          version: number
+          withdrawn: boolean
+          withdrawn_at: string | null
+          withdrawn_by: string | null
+          withdrawn_reason: string | null
+        }
+        Insert: {
+          abstract: string
+          acknowledgments?: string | null
+          affiliation?: string | null
+          ai_assistance_disclosure?: string | null
+          author_name: string
+          body_text?: string | null
+          citation_style?: string | null
+          coauthor_names?: string[]
+          conflicts_of_interest?: string | null
+          funding_note?: string | null
+          id?: string
+          keywords?: string[]
+          language: string
+          orcid?: string | null
+          paper_id: string
+          paper_type: string
+          pdf_data?: string | null
+          pdf_filename?: string | null
+          pdf_size_bytes?: number | null
+          published_at?: string
+          published_by: string
+          references_text: string
+          title: string
+          topic?: string | null
+          version: number
+          withdrawn?: boolean
+          withdrawn_at?: string | null
+          withdrawn_by?: string | null
+          withdrawn_reason?: string | null
+        }
+        Update: {
+          abstract?: string
+          acknowledgments?: string | null
+          affiliation?: string | null
+          ai_assistance_disclosure?: string | null
+          author_name?: string
+          body_text?: string | null
+          citation_style?: string | null
+          coauthor_names?: string[]
+          conflicts_of_interest?: string | null
+          funding_note?: string | null
+          id?: string
+          keywords?: string[]
+          language?: string
+          orcid?: string | null
+          paper_id?: string
+          paper_type?: string
+          pdf_data?: string | null
+          pdf_filename?: string | null
+          pdf_size_bytes?: number | null
+          published_at?: string
+          published_by?: string
+          references_text?: string
+          title?: string
+          topic?: string | null
+          version?: number
+          withdrawn?: boolean
+          withdrawn_at?: string | null
+          withdrawn_by?: string | null
+          withdrawn_reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "research_paper_versions_paper_id_fkey"
+            columns: ["paper_id"]
+            isOneToOne: false
+            referencedRelation: "research_papers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      research_papers: {
+        Row: {
+          abstract: string
+          acknowledgments: string | null
+          affiliation: string | null
+          ai_assistance_disclosure: string | null
+          author_id: string
+          author_name: string
+          body_text: string | null
+          citation_style: string | null
+          coauthor_names: string[]
+          conflicts_of_interest: string | null
+          created_at: string
+          funding_note: string | null
+          id: string
+          keywords: string[]
+          language: string
+          orcid: string | null
+          paper_type: string
+          pdf_data: string | null
+          pdf_filename: string | null
+          pdf_size_bytes: number | null
+          published_version_id: string | null
+          references_text: string
+          rejection_reason: string | null
+          review_notes: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          rights_declaration: string
+          status: string
+          third_party_rights_note: string | null
+          title: string
+          topic: string | null
+          updated_at: string
+        }
+        Insert: {
+          abstract?: string
+          acknowledgments?: string | null
+          affiliation?: string | null
+          ai_assistance_disclosure?: string | null
+          author_id: string
+          author_name?: string
+          body_text?: string | null
+          citation_style?: string | null
+          coauthor_names?: string[]
+          conflicts_of_interest?: string | null
+          created_at?: string
+          funding_note?: string | null
+          id?: string
+          keywords?: string[]
+          language: string
+          orcid?: string | null
+          paper_type: string
+          pdf_data?: string | null
+          pdf_filename?: string | null
+          pdf_size_bytes?: number | null
+          published_version_id?: string | null
+          references_text?: string
+          rejection_reason?: string | null
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          rights_declaration?: string
+          status?: string
+          third_party_rights_note?: string | null
+          title?: string
+          topic?: string | null
+          updated_at?: string
+        }
+        Update: {
+          abstract?: string
+          acknowledgments?: string | null
+          affiliation?: string | null
+          ai_assistance_disclosure?: string | null
+          author_id?: string
+          author_name?: string
+          body_text?: string | null
+          citation_style?: string | null
+          coauthor_names?: string[]
+          conflicts_of_interest?: string | null
+          created_at?: string
+          funding_note?: string | null
+          id?: string
+          keywords?: string[]
+          language?: string
+          orcid?: string | null
+          paper_type?: string
+          pdf_data?: string | null
+          pdf_filename?: string | null
+          pdf_size_bytes?: number | null
+          published_version_id?: string | null
+          references_text?: string
+          rejection_reason?: string | null
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          rights_declaration?: string
+          status?: string
+          third_party_rights_note?: string | null
+          title?: string
+          topic?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "research_papers_published_version_fkey"
+            columns: ["published_version_id"]
+            isOneToOne: false
+            referencedRelation: "research_paper_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       support_report_rate_limit: {
         Row: {
           count: number
@@ -724,6 +1043,7 @@ export type Database = {
           author_id: string | null
           body: string
           created_at: string
+          delivery_status: string
           id: string
           ticket_id: string
           visibility: string
@@ -732,6 +1052,7 @@ export type Database = {
           author_id?: string | null
           body: string
           created_at?: string
+          delivery_status?: string
           id?: string
           ticket_id: string
           visibility?: string
@@ -740,6 +1061,7 @@ export type Database = {
           author_id?: string | null
           body?: string
           created_at?: string
+          delivery_status?: string
           id?: string
           ticket_id?: string
           visibility?: string
@@ -763,12 +1085,17 @@ export type Database = {
           description: string
           id: string
           is_anonymous: boolean
+          notification_status: string
+          reference_code: string | null
           related_book_id: string | null
           related_job_id: string | null
+          related_paper_id: string | null
+          request_kind: string
           resolution: string | null
           resolved_at: string | null
           severity: string
           status: string
+          structured_data: Json | null
           subject: string
           updated_at: string
           user_id: string | null
@@ -781,12 +1108,17 @@ export type Database = {
           description: string
           id?: string
           is_anonymous?: boolean
+          notification_status?: string
+          reference_code?: string | null
           related_book_id?: string | null
           related_job_id?: string | null
+          related_paper_id?: string | null
+          request_kind?: string
           resolution?: string | null
           resolved_at?: string | null
           severity?: string
           status?: string
+          structured_data?: Json | null
           subject: string
           updated_at?: string
           user_id?: string | null
@@ -799,12 +1131,17 @@ export type Database = {
           description?: string
           id?: string
           is_anonymous?: boolean
+          notification_status?: string
+          reference_code?: string | null
           related_book_id?: string | null
           related_job_id?: string | null
+          related_paper_id?: string | null
+          request_kind?: string
           resolution?: string | null
           resolved_at?: string | null
           severity?: string
           status?: string
+          structured_data?: Json | null
           subject?: string
           updated_at?: string
           user_id?: string | null
@@ -822,6 +1159,13 @@ export type Database = {
             columns: ["related_job_id"]
             isOneToOne: false
             referencedRelation: "book_translation_jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_tickets_related_paper_id_fkey"
+            columns: ["related_paper_id"]
+            isOneToOne: false
+            referencedRelation: "research_papers"
             referencedColumns: ["id"]
           },
         ]
@@ -929,7 +1273,6 @@ export type Database = {
           book_id: string
           created_at: string
           expires_at: string | null
-          id: string
           monthly_price_usd: number
           renewed_at: string | null
           starts_at: string
@@ -940,7 +1283,6 @@ export type Database = {
           book_id: string
           created_at?: string
           expires_at?: string | null
-          id?: string
           monthly_price_usd?: number
           renewed_at?: string | null
           starts_at?: string
@@ -951,7 +1293,6 @@ export type Database = {
           book_id?: string
           created_at?: string
           expires_at?: string | null
-          id?: string
           monthly_price_usd?: number
           renewed_at?: string | null
           starts_at?: string
@@ -973,8 +1314,21 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      book_chunk_readable: {
+        Args: { p_book_id: string; p_chunk_index: number; p_language: string }
+        Returns: boolean
+      }
       current_admin_role: { Args: never; Returns: string }
+      has_active_plan_subscription: {
+        Args: { p_user_id: string }
+        Returns: boolean
+      }
       is_admin: { Args: { min_roles: string[] }; Returns: boolean }
+      is_monetization_enabled: { Args: never; Returns: boolean }
+      is_paper_version_published: {
+        Args: { p_paper_id: string; p_version_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never
@@ -1103,6 +1457,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {},
   },

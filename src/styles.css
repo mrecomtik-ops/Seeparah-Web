@@ -127,6 +127,38 @@
     background-color: var(--color-gold);
     color: var(--color-gold-foreground);
   }
+
+  /* Visible keyboard-focus feedback everywhere an interactive element can
+     be focused (nav, settings, save, highlight, and everything else) —
+     :focus-visible so it only shows for keyboard/programmatic focus, never
+     on a mouse click. Mouse/touch already gets hover states from each
+     component's own hover: classes; this is the one global rule needed so
+     none of them can be missed. */
+  a:focus-visible,
+  button:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible,
+  [tabindex]:focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+}
+
+/* Respect prefers-reduced-motion app-wide — every transition-*/animate-*
+   utility used across the app (hover lifts, progress bars, skeletons,
+   sheet slide-ins) collapses to effectively instant rather than being
+   hunted down and disabled one component at a time. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 @utility font-display {

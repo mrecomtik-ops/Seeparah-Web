@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
-import { getAccessToken } from "@/lib/admin/use-admin-session";
+import { getAccessToken, useResolvedAdminSession, can } from "@/lib/admin/use-admin-session";
 import {
   adminGetSetting,
   adminPublishSetting,
@@ -11,6 +11,11 @@ import {
   adminRollbackSetting,
   adminGetSecretsStatus,
 } from "@/lib/admin/settings.functions";
+import {
+  adminListCategorySuggestions,
+  adminDecideCategorySuggestion,
+} from "@/lib/admin/catalog.functions";
+import { AdminQueryError } from "@/components/admin/AdminQueryError";
 
 export const Route = createFileRoute("/admin/settings")({
   component: AdminSettingsPage,
@@ -18,6 +23,7 @@ export const Route = createFileRoute("/admin/settings")({
 
 const KEYS = [
   "monetization_enabled",
+  "monthly_plan_price_usd",
   "maintenance_message",
   "support_contact",
   "announcements",
@@ -28,11 +34,98 @@ const KEYS = [
   "translation_budget",
 ] as const;
 
+const DEFAULT_MONTHLY_PLAN_PRICE_USD = 2;
+
 function AdminSettingsPage() {
   const [key, setKey] = useState<(typeof KEYS)[number]>("monetization_enabled");
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
+  const [priceDraft, setPriceDraft] = useState("");
+  const [priceBusy, setPriceBusy] = useState(false);
+  const [suggestionBusy, setSuggestionBusy] = useState<string | null>(null);
   const queryClient = useQueryClient();
+  const session = useResolvedAdminSession();
+  const canManageCategories = can(session, "catalog.categories.manage");
+
+  const suggestionsQuery = useQuery({
+    queryKey: ["category-suggestions", "pending"],
+    queryFn: async () =>
+      adminListCategorySuggestions({ data: { accessToken: await getAccessToken(), status: "pending" } }),
+    enabled: canManageCategories,
+  });
+
+  async function decideSuggestion(suggestionId: string, decision: "approved" | "declined") {
+    setSuggestionBusy(suggestionId);
+    try {
+      await adminDecideCategorySuggestion({
+        data: { accessToken: await getAccessToken(), suggestionId, decision },
+      });
+      toast.success(
+        decision === "approved"
+          ? "Marked approved — add it to the categories list above if you want it live."
+          : "Declined",
+      );
+      await queryClient.invalidateQueries({ queryKey: ["category-suggestions", "pending"] });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Couldn't record this decision");
+    } finally {
+      setSuggestionBusy(null);
+    }
+  }
+
+  const planPriceQuery = useQuery({
+    queryKey: ["admin-setting", "monthly_plan_price_usd"],
+    queryFn: async () =>
+      adminGetSetting({
+        data: { accessToken: await getAccessToken(), key: "monthly_plan_price_usd" },
+      }),
+  });
+  const effectivePlanPrice =
+    typeof planPriceQuery.data?.value === "number"
+      ? planPriceQuery.data.value
+      : DEFAULT_MONTHLY_PLAN_PRICE_USD;
+
+  useEffect(() => {
+    setPriceDraft(String(effectivePlanPrice));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [planPriceQuery.data]);
+
+  async function publishPlanPrice() {
+    const parsed = Number(priceDraft);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      toast.error("Enter a price greater than $0");
+      return;
+    }
+    if (
+      !window.confirm(
+        `Set the monthly plan price to $${parsed.toFixed(2)}? This does not change what a payment ` +
+          "provider actually charges — see the note below.",
+      )
+    ) {
+      return;
+    }
+    setPriceBusy(true);
+    try {
+      await adminPublishSetting({
+        data: {
+          accessToken: await getAccessToken(),
+          key: "monthly_plan_price_usd",
+          value: parsed,
+        },
+      });
+      toast.success(`Monthly plan price set to $${parsed.toFixed(2)}`);
+      await queryClient.invalidateQueries({
+        queryKey: ["admin-setting", "monthly_plan_price_usd"],
+      });
+      if (key === "monthly_plan_price_usd") {
+        await queryClient.invalidateQueries({ queryKey: ["admin-setting-history", key] });
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Couldn't update the price");
+    } finally {
+      setPriceBusy(false);
+    }
+  }
 
   const settingQuery = useQuery({
     queryKey: ["admin-setting", key],
@@ -104,6 +197,41 @@ function AdminSettingsPage() {
         </div>
       )}
 
+      <section className="mt-6 rounded-2xl border border-border bg-card p-5 card-shadow">
+        <h2 className="font-display text-base font-semibold text-foreground">Monthly plan price</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Effective price right now:{" "}
+          <span className="font-semibold text-foreground">
+            ${effectivePlanPrice.toFixed(2)}/month
+          </span>
+          {planPriceQuery.data?.value === undefined && " (proposed default — not yet published)"}
+        </p>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <span className="text-sm text-muted-foreground">$</span>
+          <input
+            value={priceDraft}
+            onChange={(e) => setPriceDraft(e.target.value)}
+            inputMode="decimal"
+            className="w-24 rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+          />
+          <span className="text-sm text-muted-foreground">/month</span>
+          <button
+            onClick={publishPlanPrice}
+            disabled={priceBusy}
+            className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+          >
+            {priceBusy ? "Saving…" : "Save price"}
+          </button>
+        </div>
+        <p className="mt-3 rounded-lg bg-secondary px-3 py-2 text-xs text-secondary-foreground">
+          This is the database record of the intended price, versioned and audited like every
+          other setting — it is <strong>not</strong> a completed billing change. When a payment
+          provider is connected, its actual recurring price must be synchronized separately, with
+          an explicit decision on whether a change here affects existing subscribers or only new
+          ones. Nothing here ever changes what an existing subscriber is currently charged.
+        </p>
+      </section>
+
       <div className="mt-4 flex flex-wrap gap-2">
         {KEYS.map((k) => (
           <button
@@ -120,6 +248,15 @@ function AdminSettingsPage() {
         <div className="mt-8 flex justify-center">
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
         </div>
+      ) : settingQuery.isError ? (
+        <AdminQueryError
+          message={
+            settingQuery.error instanceof Error
+              ? settingQuery.error.message
+              : "Couldn't load this setting."
+          }
+          onRetry={() => settingQuery.refetch()}
+        />
       ) : (
         <div className="mt-4 space-y-3">
           <p className="text-xs text-muted-foreground">
@@ -140,6 +277,48 @@ function AdminSettingsPage() {
             Publish
           </button>
         </div>
+      )}
+
+      {canManageCategories && (suggestionsQuery.data?.length ?? 0) > 0 && (
+        <section className="mt-6">
+          <h2 className="font-display text-base font-semibold text-foreground">
+            Category suggestions
+          </h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            From authors, for their own submissions. Approving here only records your decision —
+            add the category to the list above yourself if you want it live; nothing here changes
+            the categories setting or any book automatically.
+          </p>
+          <ul className="mt-2 space-y-1.5">
+            {(suggestionsQuery.data ?? []).map((s) => (
+              <li
+                key={s.id as string}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-card px-3 py-2 text-xs"
+              >
+                <span>
+                  <strong>{s.suggested_category as string}</strong> — for {s.content_type as string}{" "}
+                  {(s.content_id as string).slice(0, 8)}…
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    disabled={suggestionBusy === s.id}
+                    onClick={() => decideSuggestion(s.id as string, "approved")}
+                    className="rounded-lg bg-primary px-3 py-1 font-semibold text-primary-foreground disabled:opacity-60"
+                  >
+                    Approve
+                  </button>
+                  <button
+                    disabled={suggestionBusy === s.id}
+                    onClick={() => decideSuggestion(s.id as string, "declined")}
+                    className="rounded-lg border border-border px-3 py-1 font-semibold hover:bg-secondary disabled:opacity-60"
+                  >
+                    Decline
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
 
       {historyQuery.data && historyQuery.data.length > 0 && (

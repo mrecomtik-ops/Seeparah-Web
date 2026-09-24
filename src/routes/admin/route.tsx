@@ -1,8 +1,10 @@
-import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
+import { toast } from "sonner";
 import { Loader2, ShieldAlert } from "lucide-react";
-import { useAuth } from "@/lib/use-auth";
-import { useAdminSession, can } from "@/lib/admin/use-admin-session";
+import { useAuth, signOut } from "@/lib/use-auth";
+import { useAdminSession, can, AdminSessionProvider } from "@/lib/admin/use-admin-session";
 import { AdminMfaGate } from "@/components/admin/AdminMfaGate";
+import { AdminQueryError } from "@/components/admin/AdminQueryError";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({ meta: [{ title: "Admin — Seeparah" }, { name: "robots", content: "noindex" }] }),
@@ -13,6 +15,7 @@ const NAV: { to: string; label: string; capability?: Parameters<typeof can>[1] }
   { to: "/admin", label: "Overview" },
   { to: "/admin/users", label: "Users", capability: "users.read" },
   { to: "/admin/books", label: "Catalog", capability: "catalog.read_unpublished" },
+  { to: "/admin/research", label: "Literature Research", capability: "research.read_unpublished" },
   {
     to: "/admin/translation-requests",
     label: "Translation requests",
@@ -29,8 +32,58 @@ function AdminLayout() {
   const { loading: authLoading, isDemo } = useAuth();
   const sessionQuery = useAdminSession();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const navigate = useNavigate();
 
-  if (authLoading || sessionQuery.isLoading) {
+  if (authLoading) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // A failed adminWhoAmI query must never look like "still loading" —
+  // data stays undefined forever on a query stuck in an error state, so
+  // the old `data === undefined` check alone spun forever on any failure
+  // (a missing/misconfigured server-side env var was the incident that
+  // surfaced this: the server function itself returned 200 at the
+  // transport layer, so there was nothing for the browser console to
+  // complain about, but the query still resolved to an error, not data).
+  // Checked before the data-presence gate below so an error is never
+  // mistaken for "just hasn't resolved yet".
+  if (sessionQuery.isError) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-4">
+        <AdminQueryError
+          message="Couldn't verify admin access. This is usually temporary — try again."
+          onRetry={() => sessionQuery.refetch()}
+        />
+        <button
+          onClick={async () => {
+            await signOut();
+            toast.success("Signed out.");
+            navigate({ to: "/auth", search: { redirect: pathname } });
+          }}
+          className="text-xs font-medium text-muted-foreground underline hover:text-foreground"
+        >
+          Sign out and sign in again
+        </button>
+      </div>
+    );
+  }
+
+  // Gates on data presence, not isLoading/isPending: React Query v5 keeps
+  // isPending (and therefore isLoading) false throughout a BACKGROUND
+  // refetch of already-successful data — status/fetchStatus are
+  // deliberately decoupled for exactly this reason — so a plain
+  // staleTime-triggered or invalidateQueries-triggered refetch was
+  // already safe under the old check too. What data === undefined adds
+  // is intent that survives a reset directly: after a genuine identity
+  // change (queryClient.resetQueries in useAdminSessionAuthSync), data
+  // really is cleared back to undefined, so this still correctly shows
+  // the spinner then — but it says so without relying on inferring that
+  // fact through isPending/isFetching's combination.
+  if (sessionQuery.data === undefined) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -105,7 +158,12 @@ function AdminLayout() {
           </nav>
         </aside>
         <main className="min-w-0 flex-1">
-          <Outlet />
+          {/* Every child admin route reads this same, already-resolved
+              session via useResolvedAdminSession() instead of mounting
+              its own useAdminSession() query observer. */}
+          <AdminSessionProvider session={session}>
+            <Outlet />
+          </AdminSessionProvider>
         </main>
       </div>
     </div>
