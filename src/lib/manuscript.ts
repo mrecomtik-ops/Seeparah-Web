@@ -193,6 +193,19 @@ export function parseManuscript(text: string): ParsedManuscript {
     ordinal += 1;
   });
 
+  // Expand each semantic node across its real chunk range. A node ends
+  // immediately before the next node at the same or shallower hierarchy;
+  // nested sections therefore stay inside their parent chapter/part range.
+  for (let i = 0; i < structure.length; i++) {
+    const node = structure[i]!;
+    const nextBoundary = structure
+      .slice(i + 1)
+      .find((candidate) => candidate.depth <= node.depth);
+    node.endChunkIndex = nextBoundary
+      ? Math.max(node.startChunkIndex, nextBoundary.startChunkIndex - 1)
+      : Math.max(node.startChunkIndex, chunks.length - 1);
+  }
+
   const count = wordCount(normalized);
   return {
     chunks: chunks.length ? chunks : [normalized],
