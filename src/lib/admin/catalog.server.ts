@@ -853,9 +853,7 @@ export async function updateBookMetadata(params: {
   const db = await admin();
   const { data: before, error: beforeError } = await db
     .from("books")
-    .select(
-      "title, author, description, genre, cover_url, edition_title, edition_year, publisher, isbn, source_scan_id, original_publication_year",
-    )
+    .select("*")
     .eq("id", params.bookId)
     .single();
   if (beforeError) throw new Error(beforeError.message);
