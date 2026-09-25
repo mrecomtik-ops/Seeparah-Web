@@ -339,6 +339,12 @@ export async function searchReaderBook(params: {
     editionAccessType,
   }).locked;
 
+  // Push the match filter into Postgres instead of loading an entire
+  // novel into the server process for every search. Escape SQL LIKE
+  // wildcards so reader input is treated as literal text.
+  const literalPattern = params.query.trim().replace(/[\\%_]/g, (char) => `\\${char}`);
+  const pattern = `%${literalPattern}%`;
+
   let query = db
     .from("book_chunks")
     .select("chunk_index, content")
@@ -346,7 +352,9 @@ export async function searchReaderBook(params: {
     .eq("language", params.language)
     .eq("status", "published")
     .eq("source_version", book.source_version ?? 1)
-    .order("chunk_index", { ascending: true });
+    .ilike("content", pattern)
+    .order("chunk_index", { ascending: true })
+    .limit(50);
   if (!fullAccess) query = query.eq("chunk_index", 0);
 
   let { data: rows, error } = await query;
@@ -356,7 +364,9 @@ export async function searchReaderBook(params: {
       .select("chunk_index, content")
       .eq("book_id", params.bookId)
       .eq("language", params.language)
-      .order("chunk_index", { ascending: true });
+      .ilike("content", pattern)
+      .order("chunk_index", { ascending: true })
+      .limit(50);
     if (!fullAccess) fallback = fallback.eq("chunk_index", 0);
     ({ data: rows, error } = await fallback);
   }
@@ -375,7 +385,6 @@ export async function searchReaderBook(params: {
       index: Number(row.chunk_index),
       snippet: `${start > 0 ? "…" : ""}${raw}${end < text.length ? "…" : ""}`,
     });
-    if (results.length >= 50) break;
   }
   return results;
 }
