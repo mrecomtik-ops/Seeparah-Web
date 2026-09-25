@@ -115,6 +115,111 @@ export function resolveReaderAccess(
   return { locked: false };
 }
 
+export interface ReaderNavigationItem {
+  index: number;
+  title: string;
+  kind: "part" | "chapter" | "section" | "front_matter" | "reading";
+  depth: number;
+}
+
+export async function getReaderNavigation(params: {
+  bookId: string;
+  language: string;
+  userId: string | null;
+}): Promise<ReaderNavigationItem[]> {
+  const db = await admin();
+  const { data: book, error: bookError } = await db
+    .from("books")
+    .select("id, status, author_id, source_language, source_version")
+    .eq("id", params.bookId)
+    .single();
+  if (bookError || !book) return [];
+
+  const isOwner = params.userId != null && book.author_id === params.userId;
+  if (book.status !== "published" && !isOwner) return [];
+
+  // Reader V2 semantic structure (migration 0017). This is optional during
+  // rollout: production can deploy the code before the migration and legacy
+  // books still receive a useful fallback TOC.
+  try {
+    const { data: nodes, error: nodesError } = await db
+      .from("book_structure_nodes")
+      .select("node_type, title, depth, start_chunk_index, ordinal")
+      .eq("book_id", params.bookId)
+      .eq("language", params.language)
+      .eq("source_version", book.source_version ?? 1)
+      .not("title", "is", null)
+      .order("ordinal", { ascending: true });
+
+    if (!nodesError && nodes && nodes.length > 0) {
+      const allowed = new Set([
+        "part",
+        "book",
+        "volume",
+        "chapter",
+        "story",
+        "section",
+        "act",
+        "scene",
+        "poem",
+        "canto",
+        "front_matter",
+      ]);
+      return nodes
+        .filter((node) => node.title && allowed.has(node.node_type))
+        .map((node) => {
+          const type = node.node_type as string;
+          const kind: ReaderNavigationItem["kind"] =
+            type === "part" || type === "book" || type === "volume"
+              ? "part"
+              : type === "chapter" ||
+                  type === "story" ||
+                  type === "act" ||
+                  type === "poem" ||
+                  type === "canto"
+                ? "chapter"
+                : type === "front_matter"
+                  ? "front_matter"
+                  : "section";
+          return {
+            index: node.start_chunk_index,
+            title: node.title as string,
+            kind,
+            depth: Math.max(0, Math.min(3, Number(node.depth ?? 0))),
+          };
+        });
+    }
+  } catch {
+    // Migration not applied yet, or an older deployment: fall through.
+  }
+
+  let { data: rows, error: rowsError } = await db
+    .from("book_chunks")
+    .select("chunk_index, content")
+    .eq("book_id", params.bookId)
+    .eq("language", params.language)
+    .eq("status", "published")
+    .order("chunk_index", { ascending: true });
+
+  if (rowsError) {
+    ({ data: rows, error: rowsError } = await db
+      .from("book_chunks")
+      .select("chunk_index, content")
+      .eq("book_id", params.bookId)
+      .eq("language", params.language)
+      .order("chunk_index", { ascending: true }));
+  }
+  if (rowsError || !rows) return [];
+
+  const { buildFallbackNavigation } = await import("@/lib/reader-structure");
+  return buildFallbackNavigation(
+    rows.map((row) => ({
+      chunk_index: Number(row.chunk_index),
+      content: String(row.content ?? ""),
+    })),
+  );
+}
+
 export async function getReaderChunk(params: {
   bookId: string;
   language: string;
