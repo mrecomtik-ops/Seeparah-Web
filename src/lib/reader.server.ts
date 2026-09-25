@@ -220,6 +220,102 @@ export async function getReaderNavigation(params: {
   );
 }
 
+export interface ReaderSearchResult {
+  index: number;
+  snippet: string;
+}
+
+export async function searchReaderBook(params: {
+  bookId: string;
+  language: string;
+  query: string;
+  userId: string | null;
+}): Promise<ReaderSearchResult[]> {
+  const needle = params.query.trim().toLocaleLowerCase();
+  if (needle.length < 2) return [];
+
+  const db = await admin();
+  const { data: book, error: bookError } = await db
+    .from("books")
+    .select("id, status, access_type, author_id, source_language")
+    .eq("id", params.bookId)
+    .single();
+  if (bookError || !book) return [];
+
+  const isOwner = params.userId != null && book.author_id === params.userId;
+  if (book.status !== "published" && !isOwner) return [];
+
+  const monetizationEnabled = await isMonetizationEnabled();
+  let hasActiveSubscription = false;
+  if (params.userId && monetizationEnabled) {
+    const { data: subs } = await db
+      .from("user_subscriptions")
+      .select("status, expires_at")
+      .eq("user_id", params.userId)
+      .eq("status", "active");
+    hasActiveSubscription = (subs ?? []).some(
+      (s) => !s.expires_at || new Date(s.expires_at) > new Date(),
+    );
+  }
+
+  const isSourceLanguage = params.language === book.source_language;
+  let editionAccessType: "free" | "paid" | undefined;
+  if (!isSourceLanguage) {
+    const { data: edition } = await db
+      .from("book_editions")
+      .select("access_type")
+      .eq("book_id", params.bookId)
+      .eq("language", params.language)
+      .maybeSingle();
+    editionAccessType = (edition?.access_type as "free" | "paid" | undefined) ?? undefined;
+  }
+
+  // Search must obey the same content gate as reading. If page 1+ is locked,
+  // search only the free opening chunk so snippets cannot leak gated text.
+  const fullAccess = !resolveReaderAccess({
+    book: {
+      status: book.status,
+      accessType: book.access_type,
+      sourceLanguage: book.source_language,
+    },
+    language: params.language,
+    chunkIndex: 1,
+    userId: params.userId,
+    isOwner,
+    monetizationEnabled,
+    hasActiveSubscription,
+    editionAccessType,
+  }).locked;
+
+  let query = db
+    .from("book_chunks")
+    .select("chunk_index, content")
+    .eq("book_id", params.bookId)
+    .eq("language", params.language)
+    .order("chunk_index", { ascending: true });
+  if (!fullAccess) query = query.eq("chunk_index", 0);
+
+  const { data: rows, error } = await query;
+  if (error || !rows) return [];
+
+  const results: ReaderSearchResult[] = [];
+  for (const row of rows) {
+    const text = String(row.content ?? "");
+    const lower = text.toLocaleLowerCase();
+    const matchAt = lower.indexOf(needle);
+    if (matchAt < 0) continue;
+    const start = Math.max(0, matchAt - 90);
+    const end = Math.min(text.length, matchAt + params.query.length + 140);
+    const raw = text.slice(start, end).replace(/\s+/g, " ").trim();
+    results.push({
+      index: Number(row.chunk_index),
+      snippet: `${start > 0 ? "…" : ""}${raw}${end < text.length ? "…" : ""}`,
+    });
+    if (results.length >= 50) break;
+  }
+  return results;
+}
+
 export async function getReaderChunk(params: {
   bookId: string;
   language: string;
