@@ -338,7 +338,7 @@ export async function getReaderChunk(params: {
   const db = await admin();
   const { data: book, error: bookError } = await db
     .from("books")
-    .select("id, status, access_type, author_id, source_language")
+    .select("id, status, access_type, author_id, source_language, source_version")
     .eq("id", params.bookId)
     .single();
   if (bookError || !book) return { content: null, locked: false, reason: "not_available" };
@@ -399,6 +399,7 @@ export async function getReaderChunk(params: {
     .eq("language", params.language)
     .eq("chunk_index", params.chunkIndex)
     .eq("status", "published")
+    .eq("source_version", book.source_version ?? 1)
     .maybeSingle();
 
   if (chunkError) {
