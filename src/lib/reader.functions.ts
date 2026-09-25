@@ -58,6 +58,36 @@ export const getReaderNavigation = createServerFn({ method: "POST" })
     return run({ bookId: data.bookId, language: data.language, userId });
   });
 
+export const searchReaderBook = createServerFn({ method: "POST" })
+  .inputValidator((data) =>
+    z
+      .object({
+        bookId: z.string(),
+        language: z.string(),
+        query: z.string().min(2).max(200),
+        accessToken: z.string().nullable().optional(),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data }) => {
+    let userId: string | null = null;
+    if (data.accessToken) {
+      try {
+        const { requireUserId } = await import("@/lib/require-user.server");
+        userId = await requireUserId(data.accessToken);
+      } catch {
+        userId = null;
+      }
+    }
+    const { searchReaderBook: run } = await import("@/lib/reader.server");
+    return run({
+      bookId: data.bookId,
+      language: data.language,
+      query: data.query,
+      userId,
+    });
+  });
+
 export const activateSubscription = createServerFn({ method: "POST" })
   .inputValidator((data) => z.object({ bookId: z.string(), accessToken: z.string() }).parse(data))
   .handler(async ({ data }) => {
