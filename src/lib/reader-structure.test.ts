@@ -15,6 +15,16 @@ describe("reader structure helpers", () => {
     expect(classifyHeading("This is an ordinary sentence in the book.")).toBeNull();
   });
 
+  it("recognizes common multilingual structural headings", () => {
+    expect(classifyHeading("Chapitre III")).toEqual({ kind: "chapter", level: 2 });
+    expect(classifyHeading("Teil Zwei")).toEqual({ kind: "part", level: 1 });
+    expect(classifyHeading("Глава 4")).toEqual({ kind: "chapter", level: 2 });
+    expect(classifyHeading("الفصل الثالث")).toEqual({ kind: "chapter", level: 2 });
+    expect(classifyHeading("باب دوم")).toEqual({ kind: "chapter", level: 2 });
+    expect(classifyHeading("अध्याय ५")).toEqual({ kind: "chapter", level: 2 });
+    expect(classifyHeading("第十二章")).toEqual({ kind: "chapter", level: 2 });
+  });
+
   it("renders headings, principles, lists, quotes, and ordinary paragraphs conservatively", () => {
     const blocks = parseReadableBlocks(
       [
