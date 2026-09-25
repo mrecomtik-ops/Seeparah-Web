@@ -651,8 +651,6 @@ export type Database = {
           translator?: string | null
           cleanup_review_status?: string
           word_count?: number | null
-          cleanup_review_status?: string
-          word_count?: number | null
         }
         Update: {
           access_type?: string
@@ -695,6 +693,8 @@ export type Database = {
           total_chunks?: number
           translation_permission?: boolean
           translator?: string | null
+          cleanup_review_status?: string
+          word_count?: number | null
         }
         Relationships: []
       }
