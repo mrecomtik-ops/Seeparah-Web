@@ -542,7 +542,11 @@ function AdminBookDetail() {
                 <Row label="ISBN / source ID" value={book.isbn ?? book.source_scan_id ?? "—"} />
                 <Row
                   label="Original publication"
-                  value={book.original_publication_year ? String(book.original_publication_year) : "—"}
+                  value={
+                    book.original_publication_year
+                      ? formatPublicationYear(book.original_publication_year)
+                      : "—"
+                  }
                 />
                 <Row
                   label="Word count"
@@ -1202,7 +1206,7 @@ function AdminBookDetail() {
                       />
                       <input
                         type="number"
-                        min={1}
+                        min={-5000}
                         max={3000}
                         value={editDraft.originalPublicationYear}
                         onChange={(e) =>
@@ -1211,7 +1215,7 @@ function AdminBookDetail() {
                             originalPublicationYear: e.target.value,
                           }))
                         }
-                        placeholder="Original publication year"
+                        placeholder="Original year (negative = BCE)"
                         className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
                       />
                     </div>
@@ -1376,6 +1380,10 @@ function AdminBookDetail() {
       )}
     </div>
   );
+}
+
+function formatPublicationYear(year: number): string {
+  return year < 0 ? `${Math.abs(year)} BCE` : String(year);
 }
 
 function Row({ label, value }: { label: string; value: string }) {
