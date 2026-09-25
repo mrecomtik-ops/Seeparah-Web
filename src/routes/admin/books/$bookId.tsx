@@ -17,6 +17,7 @@ import {
   adminSetBookAccessType,
   adminSetEditionAccessType,
   adminUpdateBookMetadata,
+  adminUpdateBookRightsProvenance,
   adminGetBookDeletionImpact,
   adminDeleteBookPermanently,
   adminGetChunkForEdit,
@@ -46,6 +47,15 @@ function AdminBookDetail() {
     description: "",
     genre: "",
     coverUrl: "",
+  });
+  const [rightsEditOpen, setRightsEditOpen] = useState(false);
+  const [rightsDraft, setRightsDraft] = useState({
+    rightsBasis: "",
+    rightsEvidenceUrl: "",
+    sourceUrl: "",
+    attribution: "",
+    translationPermission: false,
+    permittedTerritories: "",
   });
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [permDeleteOpen, setPermDeleteOpen] = useState(false);
@@ -141,6 +151,46 @@ function AdminBookDetail() {
       });
       toast.success("Saved");
       setEditOpen(false);
+    });
+  }
+
+  function openRightsEdit() {
+    setRightsDraft({
+      rightsBasis: book.rights_basis ?? "",
+      rightsEvidenceUrl: book.rights_evidence_url ?? "",
+      sourceUrl: book.source_url ?? "",
+      attribution: book.attribution ?? "",
+      translationPermission: Boolean(book.translation_permission),
+      permittedTerritories: book.permitted_territories?.join(", ") ?? "",
+    });
+    setRightsEditOpen(true);
+  }
+
+  async function saveRightsEdit() {
+    if (!rightsDraft.rightsBasis.trim()) {
+      toast.error("Rights basis can't be empty.");
+      return;
+    }
+    const permittedTerritories = rightsDraft.permittedTerritories
+      .split(/[\n,]+/)
+      .map((value) => value.trim())
+      .filter(Boolean);
+
+    await withBusy(async () => {
+      await adminUpdateBookRightsProvenance({
+        data: {
+          accessToken: await getAccessToken(),
+          bookId,
+          rightsBasis: rightsDraft.rightsBasis.trim(),
+          rightsEvidenceUrl: rightsDraft.rightsEvidenceUrl.trim() || null,
+          sourceUrl: rightsDraft.sourceUrl.trim() || null,
+          attribution: rightsDraft.attribution.trim() || null,
+          translationPermission: rightsDraft.translationPermission,
+          permittedTerritories,
+        },
+      });
+      toast.success("Rights & provenance saved — approve the rights review when the evidence is verified.");
+      setRightsEditOpen(false);
     });
   }
 
@@ -326,9 +376,32 @@ function AdminBookDetail() {
 
       <section className="mt-6 grid gap-4 lg:grid-cols-2">
         <div className="rounded-2xl border border-border bg-card p-5 card-shadow">
-          <h2 className="font-display text-base font-semibold text-foreground">
-            Rights & provenance
-          </h2>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="font-display text-base font-semibold text-foreground">
+              Rights & provenance
+            </h2>
+            {canReview && (
+              <button
+                type="button"
+                disabled={busy || book.status === "published"}
+                title={
+                  book.status === "published"
+                    ? "Unpublish the book before changing rights information."
+                    : "Edit rights and provenance"
+                }
+                onClick={openRightsEdit}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Pencil className="h-3.5 w-3.5" /> Edit rights
+              </button>
+            )}
+          </div>
+          {book.status === "published" && canReview && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              Unpublish this book before changing its rights record; any rights change must be
+              reviewed again before republishing.
+            </p>
+          )}
           <dl className="mt-3 space-y-1.5 text-sm">
             <Row label="Rights status" value={book.rights_status} />
             <Row label="Rights basis" value={book.rights_basis ?? "—"} />
@@ -348,7 +421,13 @@ function AdminBookDetail() {
               }
             />
           </dl>
-          {canReview && book.rights_status === "pending" && (
+          {canReview && book.rights_status !== "approved" && (
+            <p className="mt-3 rounded-lg bg-secondary/60 px-3 py-2 text-xs text-muted-foreground">
+              Approval requires a substantive rights basis and a real http(s) evidence URL for
+              this exact edition. Placeholder text such as “hh”, “test”, or “unknown” is rejected.
+            </p>
+          )}
+          {canReview && ["pending", "unverified", "rejected"].includes(book.rights_status) && (
             <div className="mt-4 flex gap-2">
               <button
                 disabled={busy}
@@ -863,6 +942,113 @@ function AdminBookDetail() {
             </div>
           )}
         </section>
+      )}
+
+      {rightsEditOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-xl rounded-2xl border border-border bg-card p-6 card-shadow-lg">
+            <h2 className="font-display text-lg font-semibold text-foreground">
+              Edit rights & provenance
+            </h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Record only evidence you have actually verified for this exact edition. Saving does
+              not approve the book; the rights review remains pending/unverified until you approve it
+              separately.
+            </p>
+            <div className="mt-4 space-y-3">
+              <label className="block">
+                <span className="text-xs font-medium text-muted-foreground">Rights basis *</span>
+                <textarea
+                  value={rightsDraft.rightsBasis}
+                  onChange={(e) =>
+                    setRightsDraft((d) => ({ ...d, rightsBasis: e.target.value }))
+                  }
+                  rows={4}
+                  placeholder="Explain what establishes permission for this exact edition…"
+                  className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                />
+              </label>
+              <label className="block">
+                <span className="text-xs font-medium text-muted-foreground">
+                  Rights evidence URL
+                </span>
+                <input
+                  value={rightsDraft.rightsEvidenceUrl}
+                  onChange={(e) =>
+                    setRightsDraft((d) => ({ ...d, rightsEvidenceUrl: e.target.value }))
+                  }
+                  placeholder="https://…"
+                  className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                />
+                <span className="mt-1 block text-[11px] text-muted-foreground">
+                  A valid http(s) evidence URL is required before approval.
+                </span>
+              </label>
+              <label className="block">
+                <span className="text-xs font-medium text-muted-foreground">Source URL</span>
+                <input
+                  value={rightsDraft.sourceUrl}
+                  onChange={(e) => setRightsDraft((d) => ({ ...d, sourceUrl: e.target.value }))}
+                  placeholder="https://…"
+                  className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                />
+              </label>
+              <label className="block">
+                <span className="text-xs font-medium text-muted-foreground">Attribution</span>
+                <textarea
+                  value={rightsDraft.attribution}
+                  onChange={(e) =>
+                    setRightsDraft((d) => ({ ...d, attribution: e.target.value }))
+                  }
+                  rows={2}
+                  placeholder="Required credit or attribution, if any"
+                  className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                />
+              </label>
+              <label className="block">
+                <span className="text-xs font-medium text-muted-foreground">
+                  Permitted territories
+                </span>
+                <input
+                  value={rightsDraft.permittedTerritories}
+                  onChange={(e) =>
+                    setRightsDraft((d) => ({ ...d, permittedTerritories: e.target.value }))
+                  }
+                  placeholder="Leave blank for unrestricted; otherwise comma-separated"
+                  className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                />
+              </label>
+              <label className="flex items-center gap-2 text-sm text-foreground">
+                <input
+                  type="checkbox"
+                  checked={rightsDraft.translationPermission}
+                  onChange={(e) =>
+                    setRightsDraft((d) => ({ ...d, translationPermission: e.target.checked }))
+                  }
+                />
+                Translation permission is documented
+              </label>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setRightsEditOpen(false)}
+                disabled={busy}
+                className="rounded-lg border border-border px-4 py-2 text-sm font-semibold hover:bg-secondary disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void saveRightsEdit()}
+                disabled={busy || !rightsDraft.rightsBasis.trim()}
+                className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+              >
+                {busy ? "Saving…" : "Save rights information"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {editOpen && (
