@@ -141,7 +141,16 @@ export function buildFallbackNavigation(
     });
   }
 
-  if (detected.length >= 2) return detected;
+  if (detected.length >= 2) {
+    if (detected.length <= 80) return detected;
+    const strong = detected.filter(
+      (item) => item.kind === "part" || item.kind === "chapter" || item.kind === "front_matter",
+    );
+    if (strong.length >= 2 && strong.length <= 80) return strong;
+    const source = strong.length >= 2 ? strong : detected;
+    const stride = Math.ceil(source.length / 60);
+    return source.filter((_, i) => i % stride === 0).slice(0, 60);
+  }
 
   if (sorted.length === 0) return [];
   const targetWaypoints = Math.min(20, sorted.length);
