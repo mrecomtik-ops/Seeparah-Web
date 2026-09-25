@@ -25,6 +25,7 @@ alter table public.books
   add column if not exists publisher text,
   add column if not exists isbn text,
   add column if not exists source_scan_id text,
+  -- Negative values represent BCE years (for example -400 = 400 BCE).
   add column if not exists original_publication_year integer,
   add column if not exists word_count integer,
   add column if not exists estimated_reading_minutes integer,
@@ -44,7 +45,10 @@ begin
     select 1 from pg_constraint where conname = 'books_original_publication_year_check'
   ) then
     alter table public.books add constraint books_original_publication_year_check
-      check (original_publication_year is null or original_publication_year between 1 and 3000);
+      check (
+        original_publication_year is null
+        or original_publication_year between -5000 and 3000
+      );
   end if;
 
   if not exists (
