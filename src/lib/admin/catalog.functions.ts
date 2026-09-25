@@ -446,6 +446,12 @@ export const adminUpdateBookMetadata = createServerFn({ method: "POST" })
       description: z.string().min(1).optional(),
       genre: z.string().nullable().optional(),
       coverUrl: z.string().nullable().optional(),
+      editionTitle: z.string().max(500).nullable().optional(),
+      editionYear: z.number().int().min(1).max(3000).nullable().optional(),
+      publisher: z.string().max(500).nullable().optional(),
+      isbn: z.string().max(100).nullable().optional(),
+      sourceScanId: z.string().max(500).nullable().optional(),
+      originalPublicationYear: z.number().int().min(1).max(3000).nullable().optional(),
     }).parse(data),
   )
   .handler(async ({ data }) => {
@@ -459,6 +465,12 @@ export const adminUpdateBookMetadata = createServerFn({ method: "POST" })
         description: data.description,
         genre: data.genre,
         coverUrl: data.coverUrl,
+        editionTitle: data.editionTitle,
+        editionYear: data.editionYear,
+        publisher: data.publisher,
+        isbn: data.isbn,
+        sourceScanId: data.sourceScanId,
+        originalPublicationYear: data.originalPublicationYear,
       },
     });
     await recordAudit({
