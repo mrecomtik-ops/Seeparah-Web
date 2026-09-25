@@ -25,6 +25,7 @@ import {
   addHighlight,
   getBook,
   getReaderChunk,
+  getReaderNavigation,
   listHighlights,
   listProgress,
   listSubscriptions,
@@ -44,13 +45,20 @@ import { recordReadingDay } from "@/lib/shelves";
 import {
   FONT_SIZE_RANGE,
   LINE_HEIGHT_RANGE,
+  PARAGRAPH_SPACING_RANGE,
   getPrefs,
   setPrefs,
+  type ReaderContentWidth,
+  type ReaderFontFamily,
   type ReaderTheme,
 } from "@/lib/prefs";
+import { parseReadableBlocks, type ReaderNavigationItem } from "@/lib/reader-structure";
 import { getPublicContentSettings } from "@/lib/admin/settings.functions";
 
-const searchSchema = z.object({ lang: z.string().optional() });
+const searchSchema = z.object({
+  lang: z.string().optional(),
+  page: z.coerce.number().int().min(1).optional(),
+});
 
 export const Route = createFileRoute("/read/$bookId")({
   validateSearch: searchSchema,
@@ -60,12 +68,12 @@ export const Route = createFileRoute("/read/$bookId")({
       {
         name: "description",
         content:
-          "A calm reading room: pages load one at a time in your chosen language, with highlights and progress saved as you go.",
+          "A calm reading room with structured navigation, readable typography, highlights, and saved progress.",
       },
       { property: "og:title", content: "Reading room — Seeparah" },
       {
         property: "og:description",
-        content: "Read one page at a time in your chosen language.",
+        content: "Read with structured navigation and comfortable typography in your chosen language.",
       },
       { name: "robots", content: "noindex" },
     ],
@@ -81,7 +89,7 @@ const THEME_CLASS: Record<ReaderTheme, string> = {
 
 function ReaderPage() {
   const { bookId } = Route.useParams();
-  const { lang } = Route.useSearch();
+  const { lang, page } = Route.useSearch();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { userId, isDemo } = useAuth();
@@ -108,6 +116,9 @@ function ReaderPage() {
   const [fontSize, setFontSize] = useState(prefs.fontSize);
   const [lineHeight, setLineHeight] = useState(prefs.lineHeight);
   const [theme, setTheme] = useState<ReaderTheme>(prefs.theme);
+  const [fontFamily, setFontFamily] = useState<ReaderFontFamily>(prefs.fontFamily);
+  const [contentWidth, setContentWidth] = useState<ReaderContentWidth>(prefs.contentWidth);
+  const [paragraphSpacing, setParagraphSpacing] = useState(prefs.paragraphSpacing);
 
   // Dark/sepia are scoped CSS classes (.dark/.sepia in src/styles.css) —
   // applying THEME_CLASS only to this route's own wrapper div left the
@@ -151,6 +162,12 @@ function ReaderPage() {
     queryKey: ["highlights", userId],
     queryFn: () => listHighlights(userId),
   });
+  const navigationQuery = useQuery({
+    queryKey: ["reader-navigation", bookId, language],
+    queryFn: () => getReaderNavigation(bookId, language),
+    enabled: Boolean(book),
+    staleTime: 5 * 60 * 1000,
+  });
 
   // Reader's own Hindi/Arabic translation-request status for this book, so
   // the UI can show "requested" / "declined" / "revoked" accurately instead
@@ -187,15 +204,43 @@ function ReaderPage() {
     if (!book || !progressQuery.data) return;
     if (seededBookRef.current === seedKey) return;
     const saved = progressQuery.data.find((p) => p.book_id === bookId && p.language === language);
-    setIndex(saved ? Math.min(saved.last_chunk_index, book.total_chunks - 1) : 0);
+    const requestedIndex = page ? page - 1 : null;
+    const startIndex = Math.min(
+      Math.max(0, requestedIndex ?? saved?.last_chunk_index ?? 0),
+      Math.max(0, book.total_chunks - 1),
+    );
+    setIndex(startIndex);
     seededBookRef.current = seedKey;
-  }, [book, progressQuery.data, bookId, language, seedKey]);
+    if (page !== startIndex + 1 || lang !== language) {
+      void navigate({
+        to: "/read/$bookId",
+        params: { bookId },
+        search: { lang: language, page: startIndex + 1 },
+        replace: true,
+      });
+    }
+  }, [book, progressQuery.data, bookId, language, seedKey, page, lang, navigate]);
 
   const chunkQuery = useQuery({
     queryKey: ["reader-chunk", bookId, language, index],
     queryFn: () => getReaderChunk(bookId, language, index),
     enabled: !!book && seededBookRef.current === seedKey,
   });
+
+  // Keep page-turning immediate: warm the adjacent reader sections after
+  // access has been established. The same server-side access gate still
+  // applies, so prefetching never exposes locked content.
+  useEffect(() => {
+    if (!book || seededBookRef.current !== seedKey) return;
+    for (const adjacent of [index - 1, index + 1]) {
+      if (adjacent < 0 || adjacent >= book.total_chunks) continue;
+      void queryClient.prefetchQuery({
+        queryKey: ["reader-chunk", bookId, language, adjacent],
+        queryFn: () => getReaderChunk(bookId, language, adjacent),
+        staleTime: 60_000,
+      });
+    }
+  }, [book, bookId, language, index, seedKey, queryClient]);
 
   // Autosave on every navigation and every language switch, once the
   // initial position has been seeded (so this never overwrites a just-
@@ -247,24 +292,78 @@ function ReaderPage() {
     return result;
   }
 
+  function setReaderPosition(nextIndex: number, replace = true) {
+    const next = Math.min(total - 1, Math.max(0, nextIndex));
+    setIndex(next);
+    void navigate({
+      to: "/read/$bookId",
+      params: { bookId },
+      search: { lang: language, page: next + 1 },
+      replace,
+    });
+  }
+
   function go(delta: number) {
     const next = Math.min(total - 1, Math.max(0, index + delta));
     if (next === index) return;
-    setIndex(next);
+    setReaderPosition(next);
   }
 
   function switchLanguage(l: string) {
-    navigate({ to: "/read/$bookId", params: { bookId }, search: { lang: l } });
+    void navigate({
+      to: "/read/$bookId",
+      params: { bookId },
+      search: { lang: l, page: index + 1 },
+    });
   }
 
   function applyReaderPrefs(
-    next: Partial<{ fontSize: number; lineHeight: number; theme: ReaderTheme }>,
+    next: Partial<{
+      fontSize: number;
+      lineHeight: number;
+      theme: ReaderTheme;
+      fontFamily: ReaderFontFamily;
+      contentWidth: ReaderContentWidth;
+      paragraphSpacing: number;
+    }>,
   ) {
     if (next.fontSize !== undefined) setFontSize(next.fontSize);
     if (next.lineHeight !== undefined) setLineHeight(next.lineHeight);
     if (next.theme !== undefined) setTheme(next.theme);
+    if (next.fontFamily !== undefined) setFontFamily(next.fontFamily);
+    if (next.contentWidth !== undefined) setContentWidth(next.contentWidth);
+    if (next.paragraphSpacing !== undefined) setParagraphSpacing(next.paragraphSpacing);
     setPrefs(next);
   }
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      const target = event.target as HTMLElement | null;
+      const editing =
+        target?.isContentEditable ||
+        target?.tagName === "INPUT" ||
+        target?.tagName === "TEXTAREA" ||
+        target?.tagName === "SELECT";
+      if (editing) return;
+
+      if (event.key === "Escape") {
+        setShowSettings(false);
+        setShowToc(false);
+        setShowHighlights(false);
+        return;
+      }
+      if (showSettings || showToc || showHighlights) return;
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        go(-1);
+      } else if (event.key === "ArrowRight") {
+        event.preventDefault();
+        go(1);
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [index, total, language, showSettings, showToc, showHighlights]);
 
   async function handleHighlight() {
     const selection = window.getSelection()?.toString().trim();
@@ -330,6 +429,10 @@ function ReaderPage() {
   }
 
   const content = chunkQuery.data?.content ?? null;
+  const readableBlocks = useMemo(() => (content ? parseReadableBlocks(content) : []), [content]);
+  const navigationItems = (navigationQuery.data ?? []) as ReaderNavigationItem[];
+  const currentNavigationItem =
+    [...navigationItems].reverse().find((item) => item.index <= index) ?? navigationItems[0] ?? null;
   const locked = chunkQuery.data?.locked ?? false;
   const lockReason = chunkQuery.data?.reason;
   const myRequestForLanguage = myRequestStatusByLanguage.get(language);
@@ -378,7 +481,7 @@ function ReaderPage() {
               <p className="truncate text-xs text-muted-foreground">
                 {book.author} ·{" "}
                 <span dir="ltr" className="inline-block">
-                  page {index + 1} of {total}
+                  {currentNavigationItem?.title ?? `Reading section ${index + 1}`} · {index + 1}/{total}
                 </span>
               </p>
             </Link>
@@ -417,7 +520,7 @@ function ReaderPage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-3xl px-4 pb-32 pt-6 sm:px-6">
+      <main className="mx-auto max-w-5xl px-4 pb-32 pt-6 sm:px-6">
         <div className="flex flex-wrap items-center gap-2">
           {book.available_languages.map((l) => (
             <button
@@ -594,12 +697,24 @@ function ReaderPage() {
               style={{
                 fontSize: `${isUrdu ? Math.max(fontSize, 20) : fontSize}px`,
                 lineHeight: isUrdu ? Math.max(lineHeight, 2.2) : lineHeight,
+                maxWidth:
+                  contentWidth === "narrow"
+                    ? "42rem"
+                    : contentWidth === "wide"
+                      ? "64rem"
+                      : "52rem",
+                fontFamily:
+                  fontFamily === "sans"
+                    ? "Inter, ui-sans-serif, system-ui, sans-serif"
+                    : fontFamily === "serif"
+                      ? "ui-serif, Georgia, Cambria, serif"
+                      : "Georgia, 'Times New Roman', ui-serif, serif",
               }}
-              className={`mt-8 whitespace-pre-wrap rounded-2xl border border-border bg-card p-6 text-card-foreground card-shadow sm:p-10 ${
-                isUrdu ? "urdu-reading-block" : "font-display"
+              className={`mx-auto mt-8 rounded-2xl border border-border bg-card p-6 text-card-foreground card-shadow sm:p-10 ${
+                isUrdu ? "urdu-reading-block" : ""
               }`}
             >
-              {content}
+              <ReadableChunk blocks={readableBlocks} paragraphSpacing={paragraphSpacing} />
             </article>
             <div className="mt-4 flex flex-wrap justify-center gap-4 text-xs">
               <button
@@ -686,16 +801,19 @@ function ReaderPage() {
           fontSize={fontSize}
           lineHeight={lineHeight}
           theme={theme}
+          fontFamily={fontFamily}
+          contentWidth={contentWidth}
+          paragraphSpacing={paragraphSpacing}
           onChange={applyReaderPrefs}
           onClose={() => setShowSettings(false)}
         />
       )}
       {showToc && (
         <TocSheet
-          total={total}
+          items={navigationItems}
           current={index}
           onSelect={(i) => {
-            setIndex(i);
+            setReaderPosition(i);
             setShowToc(false);
           }}
           onClose={() => setShowToc(false)}
@@ -708,7 +826,7 @@ function ReaderPage() {
           highlights={(highlightsQuery.data ?? []).filter((h) => h.book_id === bookId)}
           onJump={(chunkIndex, hlLanguage) => {
             if (hlLanguage !== language) switchLanguage(hlLanguage);
-            setIndex(chunkIndex);
+            setReaderPosition(chunkIndex);
             setShowHighlights(false);
           }}
           onChanged={() => queryClient.invalidateQueries({ queryKey: ["highlights", userId] })}
