@@ -15,6 +15,7 @@ import {
   Lock,
   LogIn,
   Save,
+  Search,
   Settings2,
   Trash2,
   X,
@@ -26,6 +27,7 @@ import {
   getBook,
   getReaderChunk,
   getReaderNavigation,
+  searchReaderBook,
   listHighlights,
   listProgress,
   listSubscriptions,
@@ -113,6 +115,7 @@ function ReaderPage() {
   const [showSettings, setShowSettings] = useState(false);
   const [showToc, setShowToc] = useState(false);
   const [showHighlights, setShowHighlights] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
   const [fontSize, setFontSize] = useState(prefs.fontSize);
   const [lineHeight, setLineHeight] = useState(prefs.lineHeight);
   const [theme, setTheme] = useState<ReaderTheme>(prefs.theme);
@@ -350,9 +353,10 @@ function ReaderPage() {
         setShowSettings(false);
         setShowToc(false);
         setShowHighlights(false);
+        setShowSearch(false);
         return;
       }
-      if (showSettings || showToc || showHighlights) return;
+      if (showSettings || showToc || showHighlights || showSearch) return;
       if (event.key === "ArrowLeft") {
         event.preventDefault();
         go(-1);
@@ -363,7 +367,7 @@ function ReaderPage() {
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [index, total, language, showSettings, showToc, showHighlights]);
+  }, [index, total, language, showSettings, showToc, showHighlights, showSearch]);
 
   async function handleHighlight() {
     const selection = window.getSelection()?.toString().trim();
@@ -492,6 +496,13 @@ function ReaderPage() {
                 className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-foreground hover:bg-secondary"
               >
                 <List className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => setShowSearch(true)}
+                aria-label="Search inside book"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-foreground hover:bg-secondary"
+              >
+                <Search className="h-4 w-4" />
               </button>
               <button
                 onClick={() => setShowSettings(true)}
@@ -817,6 +828,17 @@ function ReaderPage() {
             setShowToc(false);
           }}
           onClose={() => setShowToc(false)}
+        />
+      )}
+      {showSearch && (
+        <BookSearchSheet
+          bookId={bookId}
+          language={language}
+          onSelect={(chunkIndex) => {
+            setReaderPosition(chunkIndex);
+            setShowSearch(false);
+          }}
+          onClose={() => setShowSearch(false)}
         />
       )}
       {showHighlights && (
@@ -1194,6 +1216,66 @@ function TocSheet({
             );
           })}
         </div>
+      )}
+    </SheetShell>
+  );
+}
+
+function BookSearchSheet({
+  bookId,
+  language,
+  onSelect,
+  onClose,
+}: {
+  bookId: string;
+  language: string;
+  onSelect: (chunkIndex: number) => void;
+  onClose: () => void;
+}) {
+  const [query, setQuery] = useState("");
+  const trimmed = query.trim();
+  const resultsQuery = useQuery({
+    queryKey: ["reader-book-search", bookId, language, trimmed],
+    queryFn: () => searchReaderBook(bookId, language, trimmed),
+    enabled: trimmed.length >= 2,
+    staleTime: 60_000,
+  });
+
+  return (
+    <SheetShell title="Search inside book" onClose={onClose}>
+      <input
+        autoFocus
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Search a word, name, or phrase…"
+        className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      />
+      {trimmed.length < 2 ? (
+        <p className="mt-3 text-xs text-muted-foreground">Type at least 2 characters.</p>
+      ) : resultsQuery.isLoading ? (
+        <div className="mt-4 flex justify-center py-4">
+          <Loader2 className="h-5 w-5 animate-spin text-primary" />
+        </div>
+      ) : (resultsQuery.data ?? []).length === 0 ? (
+        <p className="mt-3 text-sm text-muted-foreground">No matches found in this edition.</p>
+      ) : (
+        <ul className="mt-3 space-y-2">
+          {(resultsQuery.data ?? []).map((result, i) => (
+            <li key={`${result.index}:${i}`}>
+              <button
+                onClick={() => onSelect(result.index)}
+                className="w-full rounded-xl border border-border bg-background px-3 py-3 text-left hover:bg-secondary"
+              >
+                <span className="block text-xs font-semibold text-primary">
+                  Reading section {result.index + 1}
+                </span>
+                <span className="mt-1 block text-sm leading-relaxed text-foreground">
+                  {result.snippet}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
       )}
     </SheetShell>
   );
