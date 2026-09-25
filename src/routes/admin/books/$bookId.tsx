@@ -476,17 +476,38 @@ function AdminBookDetail() {
       )}
 
       <section className="mt-6 rounded-2xl border border-border bg-card p-5 card-shadow">
-        <h2 className="font-display text-base font-semibold text-foreground">Publish</h2>
+        <h2 className="font-display text-base font-semibold text-foreground">
+          Publishing checklist
+        </h2>
+        <div className="mt-3 space-y-2 text-sm">
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-background px-3 py-2">
+            <span className="text-foreground">Rights review</span>
+            <span className={book.rights_status === "approved" ? "font-semibold text-emerald-600" : "font-semibold text-amber-600"}>
+              {book.rights_status === "approved" ? "✓ Approved" : "○ Approval required"}
+            </span>
+          </div>
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-background px-3 py-2">
+            <span className="text-foreground">Edition quality review</span>
+            <span className={book.edition_review_status === "approved" ? "font-semibold text-emerald-600" : "font-semibold text-amber-600"}>
+              {book.edition_review_status === "approved" ? "✓ Approved" : "○ Approval required"}
+            </span>
+          </div>
+        </div>
         {gate.canPublish ? (
-          <p className="mt-2 text-sm text-emerald-600">
-            Ready to publish — rights and edition quality are both approved.
+          <p className="mt-3 text-sm font-medium text-emerald-600">
+            Ready to publish — all required checks are complete.
           </p>
         ) : (
-          <ul className="mt-2 list-disc pl-5 text-sm text-muted-foreground">
-            {gate.reasons.map((r) => (
-              <li key={r}>{r}</li>
-            ))}
-          </ul>
+          <div className="mt-3 rounded-xl bg-amber-500/10 px-3 py-2">
+            <p className="text-xs font-semibold text-amber-700 dark:text-amber-300">
+              Complete the required reviews above to unlock publishing.
+            </p>
+            <ul className="mt-1 list-disc pl-5 text-xs text-muted-foreground">
+              {gate.reasons.map((r) => (
+                <li key={r}>{r}</li>
+              ))}
+            </ul>
+          </div>
         )}
         {gate.pendingTranslations.length > 0 && (
           <div className="mt-3 rounded-xl bg-secondary/60 px-3 py-2">
@@ -521,9 +542,10 @@ function AdminBookDetail() {
           </div>
         )}
         <div className="mt-4 flex flex-wrap gap-2">
-          {canPublish && gate.canPublish && book.status !== "published" && (
+          {canPublish && book.status !== "published" && (
             <button
-              disabled={busy}
+              disabled={busy || !gate.canPublish}
+              title={!gate.canPublish ? gate.reasons.join(" • ") : "Publish this book to the public catalog"}
               onClick={() =>
                 withBusy(async () => {
                   await adminPublishCatalogBook({
@@ -532,9 +554,9 @@ function AdminBookDetail() {
                   toast.success("Published");
                 })
               }
-              className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+              className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Publish
+              {gate.canPublish ? "Publish book" : "Publish book — complete checklist first"}
             </button>
           )}
           {canPublish && book.status === "published" && (
