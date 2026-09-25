@@ -825,8 +825,16 @@ function ReaderPage() {
           bookId={bookId}
           highlights={(highlightsQuery.data ?? []).filter((h) => h.book_id === bookId)}
           onJump={(chunkIndex, hlLanguage) => {
-            if (hlLanguage !== language) switchLanguage(hlLanguage);
-            setReaderPosition(chunkIndex);
+            if (hlLanguage !== language) {
+              setIndex(chunkIndex);
+              void navigate({
+                to: "/read/$bookId",
+                params: { bookId },
+                search: { lang: hlLanguage, page: chunkIndex + 1 },
+              });
+            } else {
+              setReaderPosition(chunkIndex);
+            }
             setShowHighlights(false);
           }}
           onChanged={() => queryClient.invalidateQueries({ queryKey: ["highlights", userId] })}
