@@ -327,6 +327,68 @@ export type Database = {
           },
         ]
       }
+      book_structure_nodes: {
+        Row: {
+          book_id: string
+          created_at: string
+          depth: number
+          end_chunk_index: number
+          id: string
+          language: string
+          metadata: Json
+          node_key: string
+          node_type: string
+          ordinal: number
+          parent_node_key: string | null
+          source_version: number
+          start_chunk_index: number
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          book_id: string
+          created_at?: string
+          depth?: number
+          end_chunk_index: number
+          id?: string
+          language: string
+          metadata?: Json
+          node_key: string
+          node_type: string
+          ordinal: number
+          parent_node_key?: string | null
+          source_version?: number
+          start_chunk_index: number
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          book_id?: string
+          created_at?: string
+          depth?: number
+          end_chunk_index?: number
+          id?: string
+          language?: string
+          metadata?: Json
+          node_key?: string
+          node_type?: string
+          ordinal?: number
+          parent_node_key?: string | null
+          source_version?: number
+          start_chunk_index?: number
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "book_structure_nodes_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       book_translation_guides: {
         Row: {
           book_id: string
@@ -514,10 +576,16 @@ export type Database = {
           created_at: string
           description: string
           edition_review_status: string
+          edition_title: string | null
+          edition_year: number | null
+          estimated_reading_minutes: number | null
           genre: string | null
+          isbn: string | null
           id: string
           import_key: string | null
+          original_publication_year: number | null
           permitted_territories: string[]
+          publisher: string | null
           rejection_reason: string | null
           review_notes: string | null
           reviewed_at: string | null
@@ -527,14 +595,18 @@ export type Database = {
           rights_status: string
           source_edition_id: string | null
           source_language: string
+          source_scan_id: string | null
           source_url: string | null
           source_version: number
           status: string
+          structure_review_status: string
           subscription_price_usd: number | null
           title: string
           total_chunks: number
           translation_permission: boolean
           translator: string | null
+          cleanup_review_status: string
+          word_count: number | null
         }
         Insert: {
           access_type?: string
@@ -548,10 +620,16 @@ export type Database = {
           created_at?: string
           description?: string
           edition_review_status?: string
+          edition_title?: string | null
+          edition_year?: number | null
+          estimated_reading_minutes?: number | null
           genre?: string | null
+          isbn?: string | null
           id?: string
           import_key?: string | null
+          original_publication_year?: number | null
           permitted_territories?: string[]
+          publisher?: string | null
           rejection_reason?: string | null
           review_notes?: string | null
           reviewed_at?: string | null
@@ -561,14 +639,20 @@ export type Database = {
           rights_status?: string
           source_edition_id?: string | null
           source_language: string
+          source_scan_id?: string | null
           source_url?: string | null
           source_version?: number
           status?: string
+          structure_review_status?: string
           subscription_price_usd?: number | null
           title: string
           total_chunks?: number
           translation_permission?: boolean
           translator?: string | null
+          cleanup_review_status?: string
+          word_count?: number | null
+          cleanup_review_status?: string
+          word_count?: number | null
         }
         Update: {
           access_type?: string
@@ -582,10 +666,16 @@ export type Database = {
           created_at?: string
           description?: string
           edition_review_status?: string
+          edition_title?: string | null
+          edition_year?: number | null
+          estimated_reading_minutes?: number | null
           genre?: string | null
+          isbn?: string | null
           id?: string
           import_key?: string | null
+          original_publication_year?: number | null
           permitted_territories?: string[]
+          publisher?: string | null
           rejection_reason?: string | null
           review_notes?: string | null
           reviewed_at?: string | null
@@ -595,9 +685,11 @@ export type Database = {
           rights_status?: string
           source_edition_id?: string | null
           source_language?: string
+          source_scan_id?: string | null
           source_url?: string | null
           source_version?: number
           status?: string
+          structure_review_status?: string
           subscription_price_usd?: number | null
           title?: string
           total_chunks?: number
