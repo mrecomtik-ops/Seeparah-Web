@@ -51,7 +51,7 @@ vi.mock("@/integrations/supabase/client.server", () => ({
   },
 }));
 
-const { reviewRights, isPlaceholderRightsText } = await import("@/lib/admin/catalog.server");
+const { reviewRights, isPlaceholderRightsText, updateBookRightsProvenance } = await import("@/lib/admin/catalog.server");
 
 describe("isPlaceholderRightsText", () => {
   it("flags the exact placeholder that slipped through review ('hh')", () => {
@@ -160,5 +160,107 @@ describe("reviewRights — approval gate refuses placeholder evidence", () => {
       notes: "Not enough evidence",
     });
     expect(result.after.rights_status).toBe("rejected");
+  });
+});
+
+
+describe("updateBookRightsProvenance", () => {
+  it("keeps never-reviewed books pending while saving real provenance fields", async () => {
+    mock = makeMockSupabase([
+      {
+        data: {
+          status: "in_review",
+          rights_status: "pending",
+          rights_basis: "Old basis",
+          rights_evidence_url: null,
+          source_url: null,
+          attribution: null,
+          translation_permission: false,
+          permitted_territories: [],
+        },
+        error: null,
+      },
+    ]);
+    const result = await updateBookRightsProvenance({
+      bookId: "book-1",
+      patch: {
+        rightsBasis: "Permission is documented for this exact edition.",
+        rightsEvidenceUrl: "https://example.org/rights",
+        sourceUrl: "https://example.org/source",
+        attribution: "Example attribution",
+        translationPermission: true,
+        permittedTerritories: ["US", "AE"],
+      },
+    });
+    expect(result.after.rights_status).toBe("pending");
+    expect(mock.updateSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        rights_status: "pending",
+        rights_basis: "Permission is documented for this exact edition.",
+        rights_evidence_url: "https://example.org/rights",
+      }),
+    );
+  });
+
+  it("invalidates a previous decision when provenance is edited", async () => {
+    mock = makeMockSupabase([
+      {
+        data: {
+          status: "unpublished",
+          rights_status: "approved",
+          rights_basis: "Previously approved basis",
+          rights_evidence_url: "https://example.org/old",
+          source_url: null,
+          attribution: null,
+          translation_permission: false,
+          permitted_territories: [],
+        },
+        error: null,
+      },
+    ]);
+    const result = await updateBookRightsProvenance({
+      bookId: "book-1",
+      patch: {
+        rightsBasis: "Updated evidence for the exact edition.",
+        rightsEvidenceUrl: "https://example.org/new",
+        sourceUrl: null,
+        attribution: null,
+        translationPermission: false,
+        permittedTerritories: [],
+      },
+    });
+    expect(result.after.rights_status).toBe("unverified");
+  });
+
+  it("refuses to change provenance while a book is published", async () => {
+    mock = makeMockSupabase([
+      {
+        data: {
+          status: "published",
+          rights_status: "approved",
+          rights_basis: "Approved basis",
+          rights_evidence_url: "https://example.org/rights",
+          source_url: null,
+          attribution: null,
+          translation_permission: false,
+          permitted_territories: [],
+        },
+        error: null,
+      },
+    ]);
+    await expect(
+      updateBookRightsProvenance({
+        bookId: "book-1",
+        patch: {
+          rightsBasis: "Changed basis",
+          rightsEvidenceUrl: "https://example.org/new",
+          sourceUrl: null,
+          attribution: null,
+          translationPermission: false,
+          permittedTerritories: [],
+        },
+      }),
+    ).rejects.toThrow(/unpublish/i);
+    expect(mock.updateSpy).not.toHaveBeenCalled();
   });
 });
