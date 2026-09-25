@@ -14,9 +14,31 @@ export interface ReaderNavigationItem {
   depth: number;
 }
 
-const STRUCTURAL_HEADING =
-  /^(?:part|book|volume|chapter|section|act|scene|story|poem|canto|stave|preface|foreword|introduction|dedication|prologue|epilogue|appendix|conclusion|contents)\b/i;
-const PRINCIPLE_HEADING = /^(?:principle|rule|key idea|lesson)\b/i;
+const TERM_BOUNDARY = "(?=$|[\\s:.\\-—–0-9IVXLCDM])";
+
+const PART_HEADING = new RegExp(
+  `^(?:part|book|volume|partie|livre|parte|libro|teil|buch|часть|книга|الجزء|الكتاب|حصہ|کتاب|भाग|पुस्तक)${TERM_BOUNDARY}`,
+  "iu",
+);
+const CHAPTER_HEADING = new RegExp(
+  `^(?:chapter|act|story|poem|canto|stave|chapitre|acte|histoire|poème|chant|capítulo|acto|cuento|poema|capitolo|atto|racconto|poesia|kapitel|akt|geschichte|gedicht|глава|акт|рассказ|стихотворение|الفصل|الباب|القصة|فصل|باب|کہانی|نظم|अध्याय|अंक|कथा|कविता)${TERM_BOUNDARY}`,
+  "iu",
+);
+const SECTION_HEADING = new RegExp(
+  `^(?:section|scene|appendix|scène|appendice|sección|escena|apéndice|sezione|scena|abschnitt|szene|anhang|раздел|сцена|приложение|القسم|المشهد|الملحق|قسم|منظر|ضمیمہ|खंड|अनुभाग|दृश्य|परिशिष्ट)${TERM_BOUNDARY}`,
+  "iu",
+);
+const FRONT_MATTER_HEADING = new RegExp(
+  `^(?:preface|foreword|introduction|dedication|prologue|contents|préface|avant-propos|dédicace|table des matières|prefacio|prólogo|introducción|dedicatoria|índice|prefazione|introduzione|dedica|prologo|indice|vorwort|einleitung|widmung|inhalt|предисловие|введение|посвящение|содержание|المقدمة|الإهداء|الفهرس|مقدمہ|دیباچہ|انتساب|فہرست|प्रस्तावना|भूमिका|समर्पण|विषय-सूची)${TERM_BOUNDARY}`,
+  "iu",
+);
+const OTHER_STRUCTURAL_HEADING = new RegExp(
+  `^(?:epilogue|conclusion|afterword|notes|footnotes|endnotes|épilogue|conclusion|notes|epílogo|conclusión|notas|epilogo|conclusione|note|nachwort|schluss|anmerkungen|эпилог|заключение|примечания|الخاتمة|الحواشي|خاتمہ|حواشی|उपसंहार|टिप्पणियाँ)${TERM_BOUNDARY}`,
+  "iu",
+);
+const CJK_PART_HEADING = /^第\s*[一二三四五六七八九十百千0-9]+\s*(?:部|卷)/u;
+const CJK_CHAPTER_HEADING = /^第\s*[一二三四五六七八九十百千0-9]+\s*章/u;
+const PRINCIPLE_HEADING = /^(?:principle|rule|key idea|lesson)(?=$|[\s:.\-—–0-9IVXLCDM])/iu;
 
 function cleanLine(value: string): string {
   return value.replace(/\s+/g, " ").trim();
@@ -34,15 +56,17 @@ export function classifyHeading(value: string): {
 } | null {
   const line = cleanLine(value);
   if (!line || line.length > 140) return null;
-  if (/^(?:part|book|volume)\b/i.test(line)) return { kind: "part", level: 1 };
-  if (/^(?:chapter|act|story|poem|canto|stave)\b/i.test(line)) {
+  if (PART_HEADING.test(line) || CJK_PART_HEADING.test(line)) {
+    return { kind: "part", level: 1 };
+  }
+  if (CHAPTER_HEADING.test(line) || CJK_CHAPTER_HEADING.test(line)) {
     return { kind: "chapter", level: 2 };
   }
-  if (/^(?:section|scene|appendix)\b/i.test(line)) return { kind: "section", level: 3 };
-  if (/^(?:preface|foreword|introduction|dedication|prologue|contents)\b/i.test(line)) {
+  if (SECTION_HEADING.test(line)) return { kind: "section", level: 3 };
+  if (FRONT_MATTER_HEADING.test(line)) {
     return { kind: "front_matter", level: 2 };
   }
-  if (STRUCTURAL_HEADING.test(line) || isAllCapsHeading(line)) {
+  if (OTHER_STRUCTURAL_HEADING.test(line) || isAllCapsHeading(line)) {
     return { kind: "section", level: 3 };
   }
   return null;
