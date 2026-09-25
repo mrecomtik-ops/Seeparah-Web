@@ -2,6 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   getReaderChunk as fetchReaderChunk,
   getReaderNavigation as fetchReaderNavigation,
+  searchReaderBook as fetchReaderBookSearch,
   activateSubscription,
 } from "@/lib/reader.functions";
 import { splitManuscript } from "@/lib/manuscript";
@@ -169,6 +170,18 @@ export async function getReaderNavigation(bookId: string, language: string) {
   try {
     return await fetchReaderNavigation({
       data: { bookId, language, accessToken: token },
+    });
+  } catch {
+    return [];
+  }
+}
+
+export async function searchReaderBook(bookId: string, language: string, query: string) {
+  const token = await accessToken();
+  if (query.trim().length < 2) return [];
+  try {
+    return await fetchReaderBookSearch({
+      data: { bookId, language, query: query.trim(), accessToken: token },
     });
   } catch {
     return [];
