@@ -77,6 +77,72 @@ export function computePublishGate(
   return { canPublish: reasons.length === 0, reasons, pendingTranslations };
 }
 
+export interface RightsRiskSignal {
+  chunkIndex: number;
+  label: string;
+  snippet: string;
+}
+
+/**
+ * Conservative text scan for edition-level rights clues. This is a review
+ * aid, never a legal conclusion: it only surfaces phrases an admin should
+ * compare against the exact edition evidence before approving rights.
+ */
+export async function scanBookRightsSignals(bookId: string): Promise<RightsRiskSignal[]> {
+  const db = await admin();
+  const { data: book } = await db
+    .from("books")
+    .select("source_language, source_version")
+    .eq("id", bookId)
+    .maybeSingle();
+  if (!book) return [];
+
+  let { data: rows, error } = await db
+    .from("book_chunks")
+    .select("chunk_index, content")
+    .eq("book_id", bookId)
+    .eq("language", book.source_language)
+    .eq("source_version", book.source_version ?? 1)
+    .order("chunk_index", { ascending: true })
+    .limit(30);
+  if (error) {
+    ({ data: rows, error } = await db
+      .from("book_chunks")
+      .select("chunk_index, content")
+      .eq("book_id", bookId)
+      .eq("language", book.source_language)
+      .order("chunk_index", { ascending: true })
+      .limit(30));
+  }
+  if (error || !rows) return [];
+
+  const patterns: Array<{ label: string; regex: RegExp }> = [
+    { label: "Copyright notice", regex: /(?:copyright|©|\(c\))/i },
+    { label: "Rights reservation", regex: /all rights reserved/i },
+    { label: "Revised edition", regex: /revised edition/i },
+    { label: "Renewal notice", regex: /copyright.{0,80}renew|renewed.{0,80}copyright/i },
+    { label: "Edition notice", regex: /(?:first|second|third|new|revised) edition/i },
+  ];
+
+  const signals: RightsRiskSignal[] = [];
+  for (const row of rows) {
+    const text = String(row.content ?? "");
+    for (const pattern of patterns) {
+      const match = pattern.regex.exec(text);
+      if (!match) continue;
+      const start = Math.max(0, match.index - 80);
+      const end = Math.min(text.length, match.index + match[0].length + 140);
+      signals.push({
+        chunkIndex: Number(row.chunk_index),
+        label: pattern.label,
+        snippet: text.slice(start, end).replace(/\s+/g, " ").trim(),
+      });
+      if (signals.length >= 8) return signals;
+    }
+  }
+  return signals;
+}
+
 /** Mirrors the DB trigger's gate so the admin UI can show a specific,
  * actionable reason before the update is even attempted. */
 export async function evaluatePublishGate(
