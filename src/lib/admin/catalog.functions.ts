@@ -42,15 +42,19 @@ export const adminGetCatalogBook = createServerFn({ method: "POST" })
   .inputValidator((data) => withToken({ bookId: z.string() }).parse(data))
   .handler(async ({ data }) => {
     await requireAdmin(data.accessToken, "catalog.read_unpublished");
-    const { adminGetBook, evaluatePublishGate, listBookEditions } = await import(
-      "@/lib/admin/catalog.server"
-    );
-    const [detail, gate, editions] = await Promise.all([
+    const {
+      adminGetBook,
+      evaluatePublishGate,
+      listBookEditions,
+      scanBookRightsSignals,
+    } = await import("@/lib/admin/catalog.server");
+    const [detail, gate, editions, rightsSignals] = await Promise.all([
       adminGetBook(data.bookId),
       evaluatePublishGate(data.bookId),
       listBookEditions(data.bookId),
+      scanBookRightsSignals(data.bookId),
     ]);
-    return { ...detail, gate, editions };
+    return { ...detail, gate, editions, rightsSignals };
   });
 
 export const adminReviewBookRights = createServerFn({ method: "POST" })
