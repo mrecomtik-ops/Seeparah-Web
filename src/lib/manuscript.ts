@@ -29,10 +29,12 @@ function headingTitle(block: string): string {
     .filter(Boolean);
   const first = lines[0] ?? "";
   const second = lines[1] ?? "";
+  const firstHeading = classifyHeading(first);
   if (
     second &&
     second.length <= 100 &&
-    /^(?:part|book|volume|chapter|section|act|scene|story|poem|canto|stave)\b/i.test(first) &&
+    firstHeading &&
+    firstHeading.kind !== "front_matter" &&
     !classifyHeading(second)
   ) {
     return `${first} — ${second}`;
