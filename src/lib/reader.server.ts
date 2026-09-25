@@ -130,7 +130,7 @@ export async function getReaderNavigation(params: {
   const db = await admin();
   const { data: book, error: bookError } = await db
     .from("books")
-    .select("id, status, author_id, source_language, source_version")
+    .select("id, status, access_type, author_id, source_language, source_version")
     .eq("id", params.bookId)
     .single();
   if (bookError || !book) return [];
@@ -138,62 +138,109 @@ export async function getReaderNavigation(params: {
   const isOwner = params.userId != null && book.author_id === params.userId;
   if (book.status !== "published" && !isOwner) return [];
 
-  // Reader V2 semantic structure (migration 0017). This is optional during
-  // rollout: production can deploy the code before the migration and legacy
-  // books still receive a useful fallback TOC.
-  try {
-    const { data: nodes, error: nodesError } = await db
-      .from("book_structure_nodes")
-      .select("node_type, title, depth, start_chunk_index, ordinal")
-      .eq("book_id", params.bookId)
-      .eq("language", params.language)
-      .eq("source_version", book.source_version ?? 1)
-      .not("title", "is", null)
-      .order("ordinal", { ascending: true });
-
-    if (!nodesError && nodes && nodes.length > 0) {
-      const allowed = new Set([
-        "part",
-        "book",
-        "volume",
-        "chapter",
-        "story",
-        "section",
-        "act",
-        "scene",
-        "poem",
-        "canto",
-        "front_matter",
-      ]);
-      return nodes
-        .filter((node) => node.title && allowed.has(node.node_type))
-        .map((node) => {
-          const type = node.node_type as string;
-          const kind: ReaderNavigationItem["kind"] =
-            type === "part" || type === "book" || type === "volume"
-              ? "part"
-              : type === "chapter" ||
-                  type === "story" ||
-                  type === "act" ||
-                  type === "poem" ||
-                  type === "canto"
-                ? "chapter"
-                : type === "front_matter"
-                  ? "front_matter"
-                  : "section";
-          return {
-            index: node.start_chunk_index,
-            title: node.title as string,
-            kind,
-            depth: Math.max(0, Math.min(3, Number(node.depth ?? 0))),
-          };
-        });
-    }
-  } catch {
-    // Migration not applied yet, or an older deployment: fall through.
+  // Navigation must obey the exact same content gate as the reader. A TOC
+  // is still content: returning chapter/story titles for an unavailable or
+  // premium edition would leak information even if the page body remained
+  // locked. Evaluate access against a post-preview chunk and, when locked,
+  // expose only navigation derivable from the free opening chunk.
+  const monetizationEnabled = await isMonetizationEnabled();
+  let hasActiveSubscription = false;
+  if (params.userId && monetizationEnabled) {
+    const { data: subs } = await db
+      .from("user_subscriptions")
+      .select("status, expires_at")
+      .eq("user_id", params.userId)
+      .eq("status", "active");
+    hasActiveSubscription = (subs ?? []).some(
+      (s) => !s.expires_at || new Date(s.expires_at) > new Date(),
+    );
   }
 
-  let { data: rows, error: rowsError } = await db
+  const isSourceLanguage = params.language === book.source_language;
+  let editionAccessType: "free" | "paid" | undefined;
+  if (!isSourceLanguage) {
+    const { data: edition } = await db
+      .from("book_editions")
+      .select("access_type")
+      .eq("book_id", params.bookId)
+      .eq("language", params.language)
+      .maybeSingle();
+    editionAccessType = (edition?.access_type as "free" | "paid" | undefined) ?? undefined;
+  }
+
+  const fullAccess = !resolveReaderAccess({
+    book: {
+      status: book.status,
+      accessType: book.access_type,
+      sourceLanguage: book.source_language,
+    },
+    language: params.language,
+    chunkIndex: 1,
+    userId: params.userId,
+    isOwner,
+    monetizationEnabled,
+    hasActiveSubscription,
+    editionAccessType,
+  }).locked;
+
+  // Reader V2 semantic structure (migration 0017). During rollout the table
+  // may not exist yet; legacy books keep working through the fallback below.
+  // Only full-access readers receive the complete semantic hierarchy.
+  if (fullAccess) {
+    try {
+      const { data: nodes, error: nodesError } = await db
+        .from("book_structure_nodes")
+        .select("node_type, title, depth, start_chunk_index, ordinal")
+        .eq("book_id", params.bookId)
+        .eq("language", params.language)
+        .eq("source_version", book.source_version ?? 1)
+        .not("title", "is", null)
+        .order("ordinal", { ascending: true });
+
+      if (!nodesError && nodes && nodes.length > 0) {
+        const allowed = new Set([
+          "part",
+          "book",
+          "volume",
+          "chapter",
+          "story",
+          "section",
+          "act",
+          "scene",
+          "poem",
+          "canto",
+          "front_matter",
+        ]);
+        return nodes
+          .filter((node) => node.title && allowed.has(node.node_type))
+          .map((node) => {
+            const type = node.node_type as string;
+            const kind: ReaderNavigationItem["kind"] =
+              type === "part" || type === "book" || type === "volume"
+                ? "part"
+                : type === "chapter" ||
+                    type === "story" ||
+                    type === "act" ||
+                    type === "poem" ||
+                    type === "canto"
+                  ? "chapter"
+                  : type === "front_matter"
+                    ? "front_matter"
+                    : "section";
+            return {
+              index: node.start_chunk_index,
+              title: node.title as string,
+              kind,
+              depth: Math.max(0, Math.min(3, Number(node.depth ?? 0))),
+            };
+          });
+      }
+    } catch {
+      // Migration not applied yet, or an older deployment: fall through.
+    }
+  }
+
+  let query = db
     .from("book_chunks")
     .select("chunk_index, content")
     .eq("book_id", params.bookId)
@@ -201,14 +248,18 @@ export async function getReaderNavigation(params: {
     .eq("status", "published")
     .eq("source_version", book.source_version ?? 1)
     .order("chunk_index", { ascending: true });
+  if (!fullAccess) query = query.eq("chunk_index", 0);
 
+  let { data: rows, error: rowsError } = await query;
   if (rowsError) {
-    ({ data: rows, error: rowsError } = await db
+    let fallback = db
       .from("book_chunks")
       .select("chunk_index, content")
       .eq("book_id", params.bookId)
       .eq("language", params.language)
-      .order("chunk_index", { ascending: true }));
+      .order("chunk_index", { ascending: true });
+    if (!fullAccess) fallback = fallback.eq("chunk_index", 0);
+    ({ data: rows, error: rowsError } = await fallback);
   }
   if (rowsError || !rows) return [];
 
