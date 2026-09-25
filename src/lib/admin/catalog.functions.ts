@@ -451,7 +451,7 @@ export const adminUpdateBookMetadata = createServerFn({ method: "POST" })
       publisher: z.string().max(500).nullable().optional(),
       isbn: z.string().max(100).nullable().optional(),
       sourceScanId: z.string().max(500).nullable().optional(),
-      originalPublicationYear: z.number().int().min(1).max(3000).nullable().optional(),
+      originalPublicationYear: z.number().int().min(-5000).max(3000).nullable().optional(),
     }).parse(data),
   )
   .handler(async ({ data }) => {
