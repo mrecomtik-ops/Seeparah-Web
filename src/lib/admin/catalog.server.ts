@@ -653,6 +653,60 @@ export async function extractEpubToManuscriptText(
 }
 
 // ============================================================================
+// Rights & provenance editing (admin)
+//
+// Rights evidence is deliberately editable separately from ordinary metadata.
+// Any substantive change invalidates a previous rights approval unless the
+// book was never reviewed ("pending"). Published books must be unpublished
+// before their legal/provenance record can be changed, so we never leave a
+// publicly visible book carrying newly-unverified rights data.
+// ============================================================================
+export interface BookRightsProvenancePatch {
+  rightsBasis: string;
+  rightsEvidenceUrl: string | null;
+  sourceUrl: string | null;
+  attribution: string | null;
+  translationPermission: boolean;
+  permittedTerritories: string[];
+}
+
+export async function updateBookRightsProvenance(params: {
+  bookId: string;
+  patch: BookRightsProvenancePatch;
+}): Promise<{ before: Record<string, unknown> | null; after: Record<string, unknown> }> {
+  const db = await admin();
+  const { data: before, error: beforeError } = await db
+    .from("books")
+    .select(
+      "status, rights_status, rights_basis, rights_evidence_url, source_url, attribution, translation_permission, permitted_territories",
+    )
+    .eq("id", params.bookId)
+    .single();
+  if (beforeError) throw new Error(beforeError.message);
+  if (!before) throw new Error("Book not found");
+  if (before.status === "published") {
+    throw new Error(
+      "Unpublish this book before editing rights & provenance. Rights changes must be re-reviewed before the book can go public again.",
+    );
+  }
+
+  const nextRightsStatus = before.rights_status === "pending" ? "pending" : "unverified";
+  const payload = {
+    rights_basis: params.patch.rightsBasis.trim(),
+    rights_evidence_url: params.patch.rightsEvidenceUrl,
+    source_url: params.patch.sourceUrl,
+    attribution: params.patch.attribution,
+    translation_permission: params.patch.translationPermission,
+    permitted_territories: params.patch.permittedTerritories,
+    rights_status: nextRightsStatus,
+  };
+
+  const { error } = await db.from("books").update(payload).eq("id", params.bookId);
+  if (error) throw new Error(error.message);
+  return { before, after: payload };
+}
+
+// ============================================================================
 // Book metadata editing (admin) — title/author/description/genre/cover only.
 // Never touches status, access_type, subscription_price_usd, or any rights/
 // review column — those all go through the dedicated review/access
