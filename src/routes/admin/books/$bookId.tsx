@@ -421,6 +421,32 @@ function AdminBookDetail() {
               }
             />
           </dl>
+          {rightsSignals.length > 0 && (
+            <div className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-3">
+              <p className="text-xs font-semibold text-amber-800 dark:text-amber-200">
+                Edition text contains rights-review clues
+              </p>
+              <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+                These are automated text signals, not a legal conclusion. Compare them with the
+                exact edition/source evidence before approving rights.
+              </p>
+              <ul className="mt-2 space-y-2">
+                {rightsSignals.map((signal, i) => (
+                  <li
+                    key={`${signal.chunkIndex}:${signal.label}:${i}`}
+                    className="rounded-lg bg-background/70 px-2.5 py-2 text-xs"
+                  >
+                    <span className="font-semibold text-foreground">
+                      {signal.label} · section {signal.chunkIndex + 1}
+                    </span>
+                    <p className="mt-1 leading-relaxed text-muted-foreground">
+                      {signal.snippet}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           {canReview && book.rights_status !== "approved" && (
             <p className="mt-3 rounded-lg bg-secondary/60 px-3 py-2 text-xs text-muted-foreground">
               Approval requires a substantive rights basis and a real http(s) evidence URL for
