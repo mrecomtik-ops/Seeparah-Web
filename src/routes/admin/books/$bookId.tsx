@@ -47,6 +47,12 @@ function AdminBookDetail() {
     description: "",
     genre: "",
     coverUrl: "",
+    editionTitle: "",
+    editionYear: "",
+    publisher: "",
+    isbn: "",
+    sourceScanId: "",
+    originalPublicationYear: "",
   });
   const [rightsEditOpen, setRightsEditOpen] = useState(false);
   const [rightsDraft, setRightsDraft] = useState({
@@ -118,6 +124,7 @@ function AdminBookDetail() {
   const canPublish = can(session, "catalog.publish");
   const canManageTranslations = can(session, "translation.jobs.manage");
   const canDeletePermanently = can(session, "catalog.delete_permanent");
+  const readerV2SchemaAvailable = book.structure_review_status !== undefined;
 
   const allLanguages = [book.source_language, ...book.available_languages.filter((l) => l !== book.source_language)];
 
@@ -128,6 +135,14 @@ function AdminBookDetail() {
       description: book.description,
       genre: book.genre ?? "",
       coverUrl: book.cover_url ?? "",
+      editionTitle: book.edition_title ?? "",
+      editionYear: book.edition_year ? String(book.edition_year) : "",
+      publisher: book.publisher ?? "",
+      isbn: book.isbn ?? "",
+      sourceScanId: book.source_scan_id ?? "",
+      originalPublicationYear: book.original_publication_year
+        ? String(book.original_publication_year)
+        : "",
     });
     setEditOpen(true);
   }
@@ -147,6 +162,20 @@ function AdminBookDetail() {
           description: editDraft.description.trim(),
           genre: editDraft.genre.trim() || null,
           coverUrl: editDraft.coverUrl.trim() || null,
+          ...(readerV2SchemaAvailable
+            ? {
+                editionTitle: editDraft.editionTitle.trim() || null,
+                editionYear: editDraft.editionYear.trim()
+                  ? Number(editDraft.editionYear)
+                  : null,
+                publisher: editDraft.publisher.trim() || null,
+                isbn: editDraft.isbn.trim() || null,
+                sourceScanId: editDraft.sourceScanId.trim() || null,
+                originalPublicationYear: editDraft.originalPublicationYear.trim()
+                  ? Number(editDraft.originalPublicationYear)
+                  : null,
+              }
+            : {}),
         },
       });
       toast.success("Saved");
@@ -505,6 +534,32 @@ function AdminBookDetail() {
             <Row label="Edition review status" value={book.edition_review_status} />
             <Row label="Total chunks" value={String(book.total_chunks)} />
             <Row label="Available languages" value={book.available_languages.join(", ")} />
+            {readerV2SchemaAvailable && (
+              <>
+                <Row label="Edition" value={book.edition_title ?? "—"} />
+                <Row label="Edition year" value={book.edition_year ? String(book.edition_year) : "—"} />
+                <Row label="Publisher" value={book.publisher ?? "—"} />
+                <Row label="ISBN / source ID" value={book.isbn ?? book.source_scan_id ?? "—"} />
+                <Row
+                  label="Original publication"
+                  value={book.original_publication_year ? String(book.original_publication_year) : "—"}
+                />
+                <Row
+                  label="Word count"
+                  value={book.word_count ? book.word_count.toLocaleString() : "—"}
+                />
+                <Row
+                  label="Estimated reading time"
+                  value={
+                    book.estimated_reading_minutes
+                      ? `${book.estimated_reading_minutes} min`
+                      : "—"
+                  }
+                />
+                <Row label="Structure review" value={book.structure_review_status ?? "—"} />
+                <Row label="Text cleanup review" value={book.cleanup_review_status ?? "—"} />
+              </>
+            )}
             <Row label="Review notes" value={book.review_notes ?? "—"} />
           </dl>
           {canReview && book.edition_review_status !== "approved" && (
@@ -1119,6 +1174,74 @@ function AdminBookDetail() {
                 placeholder="Cover image URL (optional)"
                 className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
+              {readerV2SchemaAvailable && (
+                <div className="rounded-xl border border-border bg-secondary/30 p-3">
+                  <p className="mb-2 text-xs font-semibold text-foreground">
+                    Exact edition & discovery metadata
+                  </p>
+                  <div className="space-y-2">
+                    <input
+                      value={editDraft.editionTitle}
+                      onChange={(e) =>
+                        setEditDraft((d) => ({ ...d, editionTitle: e.target.value }))
+                      }
+                      placeholder="Edition title (e.g. Revised edition)"
+                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                    />
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="number"
+                        min={1}
+                        max={3000}
+                        value={editDraft.editionYear}
+                        onChange={(e) =>
+                          setEditDraft((d) => ({ ...d, editionYear: e.target.value }))
+                        }
+                        placeholder="Edition year"
+                        className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                      />
+                      <input
+                        type="number"
+                        min={1}
+                        max={3000}
+                        value={editDraft.originalPublicationYear}
+                        onChange={(e) =>
+                          setEditDraft((d) => ({
+                            ...d,
+                            originalPublicationYear: e.target.value,
+                          }))
+                        }
+                        placeholder="Original publication year"
+                        className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                      />
+                    </div>
+                    <input
+                      value={editDraft.publisher}
+                      onChange={(e) =>
+                        setEditDraft((d) => ({ ...d, publisher: e.target.value }))
+                      }
+                      placeholder="Publisher"
+                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                    />
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        value={editDraft.isbn}
+                        onChange={(e) => setEditDraft((d) => ({ ...d, isbn: e.target.value }))}
+                        placeholder="ISBN"
+                        className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                      />
+                      <input
+                        value={editDraft.sourceScanId}
+                        onChange={(e) =>
+                          setEditDraft((d) => ({ ...d, sourceScanId: e.target.value }))
+                        }
+                        placeholder="Source scan / edition ID"
+                        className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
             <p className="mt-2 text-[11px] text-muted-foreground">
               Rights, access, and pricing fields aren't edited here — this stays admin-published
