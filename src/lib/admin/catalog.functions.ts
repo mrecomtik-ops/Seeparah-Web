@@ -390,6 +390,47 @@ export const adminQueueTranslationJob = createServerFn({ method: "POST" })
   });
 
 // ============================================================================
+// Rights & provenance editing (admin)
+// ============================================================================
+export const adminUpdateBookRightsProvenance = createServerFn({ method: "POST" })
+  .inputValidator((data) =>
+    withToken({
+      bookId: z.string(),
+      rightsBasis: z.string().min(1).max(4000),
+      rightsEvidenceUrl: z.string().max(2000).nullable(),
+      sourceUrl: z.string().max(2000).nullable(),
+      attribution: z.string().max(2000).nullable(),
+      translationPermission: z.boolean(),
+      permittedTerritories: z.array(z.string().min(1).max(120)).max(100),
+    }).parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { userId, role } = await requireAdmin(data.accessToken, "catalog.review");
+    const { updateBookRightsProvenance } = await import("@/lib/admin/catalog.server");
+    const diff = await updateBookRightsProvenance({
+      bookId: data.bookId,
+      patch: {
+        rightsBasis: data.rightsBasis,
+        rightsEvidenceUrl: data.rightsEvidenceUrl,
+        sourceUrl: data.sourceUrl,
+        attribution: data.attribution,
+        translationPermission: data.translationPermission,
+        permittedTerritories: data.permittedTerritories,
+      },
+    });
+    await recordAudit({
+      actorId: userId,
+      actorRole: role,
+      action: "catalog.update_rights_provenance",
+      entityType: "book",
+      entityId: data.bookId,
+      before: diff.before,
+      after: diff.after,
+    });
+    return { ok: true as const };
+  });
+
+// ============================================================================
 // Book metadata editing (admin)
 // ============================================================================
 export const adminUpdateBookMetadata = createServerFn({ method: "POST" })
