@@ -332,7 +332,7 @@ function AdminBooksList() {
                         params={{ bookId: b.id }}
                         className="text-primary hover:underline"
                       >
-                        Edit
+                        {b.status === "published" ? "Manage" : "Review / Publish"}
                       </Link>
                       {canPublish && b.status !== "archived" && (
                         <button
