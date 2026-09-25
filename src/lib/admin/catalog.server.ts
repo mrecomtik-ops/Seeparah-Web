@@ -8,7 +8,7 @@
 // translation is informational only and never blocks publishing — see
 // computePublishGate below).
 import { createHash } from "node:crypto";
-import { splitManuscript } from "@/lib/manuscript";
+import { parseManuscript } from "@/lib/manuscript";
 import { parseEpub, EpubValidationError } from "@/lib/admin/epub.server";
 
 async function admin() {
@@ -473,7 +473,9 @@ export async function adminCreateBook(
     };
   }
 
-  const chunks = splitManuscript(input.manuscriptText);
+  const parsed = parseManuscript(input.manuscriptText);
+  const chunks = parsed.chunks;
+  const warnings: string[] = [];
   const { data: book, error } = await db
     .from("books")
     .insert({
@@ -518,7 +520,55 @@ export async function adminCreateBook(
   if (chunkError)
     throw new Error(`Book created, but manuscript text failed to save: ${chunkError.message}`);
 
-  return { bookId: book.id, created: true, chapterCount: chunks.length, warnings: [] };
+  // Reader V2 is additive. Once migration 0017 is present we persist the
+  // semantic navigation overlay generated from the manuscript; before that
+  // the book remains usable through the reader's legacy fallback TOC.
+  if (parsed.structure.length > 0) {
+    const { error: structureError } = await db.from("book_structure_nodes").insert(
+      parsed.structure.map((node) => ({
+        book_id: book.id,
+        language: input.sourceLanguage,
+        source_version: 1,
+        node_key: node.nodeKey,
+        parent_node_key: node.parentNodeKey,
+        node_type: node.nodeType,
+        title: node.title,
+        ordinal: node.ordinal,
+        depth: node.depth,
+        start_chunk_index: node.startChunkIndex,
+        end_chunk_index: node.endChunkIndex,
+      })),
+    );
+    if (structureError) {
+      warnings.push(
+        structureError.code === "42P01" || /book_structure_nodes/i.test(structureError.message)
+          ? "Reader V2 semantic structure was not stored because migration 0017 is not applied yet."
+          : `Semantic structure needs review: ${structureError.message}`,
+      );
+    }
+  }
+
+  const { error: readerMetadataError } = await db
+    .from("books")
+    .update({
+      word_count: parsed.wordCount,
+      estimated_reading_minutes: parsed.estimatedReadingMinutes,
+      structure_review_status: parsed.structure.length > 0 ? "pending" : "changes_requested",
+      cleanup_review_status: "pending",
+    })
+    .eq("id", book.id);
+  if (readerMetadataError) {
+    if (
+      readerMetadataError.code !== "42703" &&
+      !/word_count|estimated_reading_minutes|structure_review_status|cleanup_review_status/i.test(
+        readerMetadataError.message,
+      )
+    ) {
+      warnings.push(`Reader quality metadata needs review: ${readerMetadataError.message}`);
+    }
+  }
+
+  return { bookId: book.id, created: true, chapterCount: chunks.length, warnings };
 }
 
 export interface CsvRow {
