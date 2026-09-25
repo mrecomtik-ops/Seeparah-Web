@@ -199,6 +199,7 @@ export async function getReaderNavigation(params: {
     .eq("book_id", params.bookId)
     .eq("language", params.language)
     .eq("status", "published")
+    .eq("source_version", book.source_version ?? 1)
     .order("chunk_index", { ascending: true });
 
   if (rowsError) {
@@ -237,7 +238,7 @@ export async function searchReaderBook(params: {
   const db = await admin();
   const { data: book, error: bookError } = await db
     .from("books")
-    .select("id, status, access_type, author_id, source_language")
+    .select("id, status, access_type, author_id, source_language, source_version")
     .eq("id", params.bookId)
     .single();
   if (bookError || !book) return [];
@@ -292,10 +293,22 @@ export async function searchReaderBook(params: {
     .select("chunk_index, content")
     .eq("book_id", params.bookId)
     .eq("language", params.language)
+    .eq("status", "published")
+    .eq("source_version", book.source_version ?? 1)
     .order("chunk_index", { ascending: true });
   if (!fullAccess) query = query.eq("chunk_index", 0);
 
-  const { data: rows, error } = await query;
+  let { data: rows, error } = await query;
+  if (error) {
+    let fallback = db
+      .from("book_chunks")
+      .select("chunk_index, content")
+      .eq("book_id", params.bookId)
+      .eq("language", params.language)
+      .order("chunk_index", { ascending: true });
+    if (!fullAccess) fallback = fallback.eq("chunk_index", 0);
+    ({ data: rows, error } = await fallback);
+  }
   if (error || !rows) return [];
 
   const results: ReaderSearchResult[] = [];
