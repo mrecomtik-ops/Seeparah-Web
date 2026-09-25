@@ -113,7 +113,7 @@ function AdminBookDetail() {
     return <p className="text-sm text-destructive">Couldn't load this book.</p>;
   }
 
-  const { book, jobs, gate, editions } = detailQuery.data;
+  const { book, jobs, gate, editions, rightsSignals } = detailQuery.data;
   const canReview = can(session, "catalog.review");
   const canPublish = can(session, "catalog.publish");
   const canManageTranslations = can(session, "translation.jobs.manage");
