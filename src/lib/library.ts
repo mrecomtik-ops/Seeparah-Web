@@ -1,5 +1,9 @@
 import { supabase } from "@/integrations/supabase/client";
-import { getReaderChunk as fetchReaderChunk, activateSubscription } from "@/lib/reader.functions";
+import {
+  getReaderChunk as fetchReaderChunk,
+  getReaderNavigation as fetchReaderNavigation,
+  activateSubscription,
+} from "@/lib/reader.functions";
 import { splitManuscript } from "@/lib/manuscript";
 import {
   DEMO_CHUNKS,
@@ -160,6 +164,17 @@ function findDemoChunk(bookId: string, language: string, chunkIndex: number): Ch
  * permissive. A server failure must never be the reason premium content
  * becomes readable.
  */
+export async function getReaderNavigation(bookId: string, language: string) {
+  const token = await accessToken();
+  try {
+    return await fetchReaderNavigation({
+      data: { bookId, language, accessToken: token },
+    });
+  } catch {
+    return [];
+  }
+}
+
 export async function getReaderChunk(
   bookId: string,
   language: string,
