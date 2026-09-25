@@ -838,6 +838,12 @@ export interface BookMetadataPatch {
   description?: string | undefined;
   genre?: string | null | undefined;
   coverUrl?: string | null | undefined;
+  editionTitle?: string | null | undefined;
+  editionYear?: number | null | undefined;
+  publisher?: string | null | undefined;
+  isbn?: string | null | undefined;
+  sourceScanId?: string | null | undefined;
+  originalPublicationYear?: number | null | undefined;
 }
 
 export async function updateBookMetadata(params: {
@@ -847,7 +853,9 @@ export async function updateBookMetadata(params: {
   const db = await admin();
   const { data: before, error: beforeError } = await db
     .from("books")
-    .select("title, author, description, genre, cover_url")
+    .select(
+      "title, author, description, genre, cover_url, edition_title, edition_year, publisher, isbn, source_scan_id, original_publication_year",
+    )
     .eq("id", params.bookId)
     .single();
   if (beforeError) throw new Error(beforeError.message);
@@ -857,12 +865,26 @@ export async function updateBookMetadata(params: {
     description?: string;
     genre?: string | null;
     cover_url?: string | null;
+    edition_title?: string | null;
+    edition_year?: number | null;
+    publisher?: string | null;
+    isbn?: string | null;
+    source_scan_id?: string | null;
+    original_publication_year?: number | null;
   } = {
     ...(params.patch.title !== undefined ? { title: params.patch.title } : {}),
     ...(params.patch.author !== undefined ? { author: params.patch.author } : {}),
     ...(params.patch.description !== undefined ? { description: params.patch.description } : {}),
     ...(params.patch.genre !== undefined ? { genre: params.patch.genre } : {}),
     ...(params.patch.coverUrl !== undefined ? { cover_url: params.patch.coverUrl } : {}),
+    ...(params.patch.editionTitle !== undefined ? { edition_title: params.patch.editionTitle } : {}),
+    ...(params.patch.editionYear !== undefined ? { edition_year: params.patch.editionYear } : {}),
+    ...(params.patch.publisher !== undefined ? { publisher: params.patch.publisher } : {}),
+    ...(params.patch.isbn !== undefined ? { isbn: params.patch.isbn } : {}),
+    ...(params.patch.sourceScanId !== undefined ? { source_scan_id: params.patch.sourceScanId } : {}),
+    ...(params.patch.originalPublicationYear !== undefined
+      ? { original_publication_year: params.patch.originalPublicationYear }
+      : {}),
   };
   if (Object.keys(payload).length === 0) {
     throw new Error("No metadata fields were provided to update.");
