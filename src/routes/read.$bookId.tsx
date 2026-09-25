@@ -881,17 +881,118 @@ function SheetShell({
   );
 }
 
+function ReadableChunk({
+  blocks,
+  paragraphSpacing,
+}: {
+  blocks: ReturnType<typeof parseReadableBlocks>;
+  paragraphSpacing: number;
+}) {
+  if (blocks.length === 0) return null;
+  return (
+    <div>
+      {blocks.map((block, i) => {
+        const spacing = i === 0 ? undefined : { marginTop: `${paragraphSpacing}rem` };
+        if (block.kind === "heading") {
+          if (block.level === 1) {
+            return (
+              <h2
+                key={i}
+                style={spacing}
+                className="font-display text-3xl font-semibold leading-tight tracking-tight text-foreground"
+              >
+                {block.text}
+              </h2>
+            );
+          }
+          if (block.level === 2) {
+            return (
+              <h3
+                key={i}
+                style={spacing}
+                className="font-display text-2xl font-semibold leading-snug text-foreground"
+              >
+                {block.text}
+              </h3>
+            );
+          }
+          return (
+            <h4
+              key={i}
+              style={spacing}
+              className="font-display text-xl font-semibold leading-snug text-foreground"
+            >
+              {block.text}
+            </h4>
+          );
+        }
+        if (block.kind === "principle") {
+          return (
+            <aside
+              key={i}
+              style={spacing}
+              className="rounded-xl border border-primary/20 bg-primary/5 px-5 py-4 font-semibold leading-relaxed text-foreground"
+            >
+              {block.text}
+            </aside>
+          );
+        }
+        if (block.kind === "quote") {
+          return (
+            <blockquote
+              key={i}
+              style={spacing}
+              className="border-l-4 border-primary/40 pl-5 italic text-muted-foreground"
+            >
+              {block.text}
+            </blockquote>
+          );
+        }
+        if (block.kind === "list") {
+          return (
+            <ul key={i} style={spacing} className="list-disc space-y-2 pl-6">
+              {(block.items ?? []).map((item, itemIndex) => (
+                <li key={itemIndex}>{item}</li>
+              ))}
+            </ul>
+          );
+        }
+        return (
+          <p key={i} style={spacing} className="leading-inherit">
+            {block.text}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
+
 function ReaderSettingsSheet({
   fontSize,
   lineHeight,
   theme,
+  fontFamily,
+  contentWidth,
+  paragraphSpacing,
   onChange,
   onClose,
 }: {
   fontSize: number;
   lineHeight: number;
   theme: ReaderTheme;
-  onChange: (next: Partial<{ fontSize: number; lineHeight: number; theme: ReaderTheme }>) => void;
+  fontFamily: ReaderFontFamily;
+  contentWidth: ReaderContentWidth;
+  paragraphSpacing: number;
+  onChange: (
+    next: Partial<{
+      fontSize: number;
+      lineHeight: number;
+      theme: ReaderTheme;
+      fontFamily: ReaderFontFamily;
+      contentWidth: ReaderContentWidth;
+      paragraphSpacing: number;
+    }>,
+  ) => void;
   onClose: () => void;
 }) {
   return (
@@ -918,6 +1019,55 @@ function ReaderSettingsSheet({
             ))}
           </div>
         </div>
+
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Typeface
+          </p>
+          <div className="mt-2 grid grid-cols-3 gap-2">
+            {([
+              ["literary", "Literary"],
+              ["serif", "Serif"],
+              ["sans", "Sans"],
+            ] as const).map(([value, label]) => (
+              <button
+                key={value}
+                onClick={() => onChange({ fontFamily: value })}
+                aria-pressed={fontFamily === value}
+                className={`rounded-xl border px-3 py-2.5 text-sm font-semibold ${
+                  fontFamily === value
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border bg-background text-foreground hover:bg-secondary"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Reading width
+          </p>
+          <div className="mt-2 grid grid-cols-3 gap-2">
+            {(["narrow", "medium", "wide"] as const).map((value) => (
+              <button
+                key={value}
+                onClick={() => onChange({ contentWidth: value })}
+                aria-pressed={contentWidth === value}
+                className={`rounded-xl border px-3 py-2.5 text-sm font-semibold capitalize ${
+                  contentWidth === value
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border bg-background text-foreground hover:bg-secondary"
+                }`}
+              >
+                {value}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div>
           <div className="flex items-center justify-between">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -936,6 +1086,7 @@ function ReaderSettingsSheet({
             aria-label="Font size"
           />
         </div>
+
         <div>
           <div className="flex items-center justify-between">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -954,40 +1105,88 @@ function ReaderSettingsSheet({
             aria-label="Line spacing"
           />
         </div>
+
+        <div>
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Paragraph spacing
+            </p>
+            <span className="text-xs text-muted-foreground">
+              {paragraphSpacing.toFixed(1)}rem
+            </span>
+          </div>
+          <input
+            type="range"
+            min={PARAGRAPH_SPACING_RANGE.min}
+            max={PARAGRAPH_SPACING_RANGE.max}
+            step={PARAGRAPH_SPACING_RANGE.step}
+            value={paragraphSpacing}
+            onChange={(e) => onChange({ paragraphSpacing: Number(e.target.value) })}
+            className="mt-2 w-full"
+            aria-label="Paragraph spacing"
+          />
+        </div>
+
+        <p className="rounded-xl bg-secondary/60 px-3 py-2 text-xs text-muted-foreground">
+          Keyboard: ← / → move between reading sections. Esc closes reader panels.
+        </p>
       </div>
     </SheetShell>
   );
 }
 
 function TocSheet({
-  total,
+  items,
   current,
   onSelect,
   onClose,
 }: {
-  total: number;
+  items: ReaderNavigationItem[];
   current: number;
   onSelect: (index: number) => void;
   onClose: () => void;
 }) {
+  const currentItemIndex = items.findIndex((item, i) => {
+    const next = items[i + 1];
+    return item.index <= current && (!next || next.index > current);
+  });
+
   return (
     <SheetShell title="Table of contents" onClose={onClose}>
-      <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
-        {Array.from({ length: total }, (_, i) => (
-          <button
-            key={i}
-            onClick={() => onSelect(i)}
-            aria-current={i === current}
-            className={`rounded-lg border px-2 py-2.5 text-sm font-semibold ${
-              i === current
-                ? "border-primary bg-primary text-primary-foreground"
-                : "border-border bg-background text-foreground hover:bg-secondary"
-            }`}
-          >
-            {i + 1}
-          </button>
-        ))}
-      </div>
+      {items.length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          This edition does not have reliable chapter metadata yet.
+        </p>
+      ) : (
+        <div className="space-y-1">
+          {items.map((item, i) => {
+            const active = i === currentItemIndex;
+            return (
+              <button
+                key={`${item.index}:${item.title}:${i}`}
+                onClick={() => onSelect(item.index)}
+                aria-current={active ? "location" : undefined}
+                className={`block w-full rounded-lg border px-3 py-2.5 text-left text-sm ${
+                  active
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border bg-background text-foreground hover:bg-secondary"
+                }`}
+                style={{ paddingInlineStart: `${0.75 + item.depth * 0.9}rem` }}
+              >
+                <span className="block font-semibold">{item.title}</span>
+                <span
+                  className={`mt-0.5 block text-[11px] ${
+                    active ? "text-primary-foreground/80" : "text-muted-foreground"
+                  }`}
+                >
+                  {item.kind === "reading" ? "Reading waypoint" : item.kind.replace("_", " ")}
+                  {" · "}section {item.index + 1}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
     </SheetShell>
   );
 }
