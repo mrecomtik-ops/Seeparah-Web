@@ -24,6 +24,18 @@ export interface Book {
   edition_review_status?: string;
   rejection_reason?: string | null;
   review_notes?: string | null;
+  // Reader V2 / exact-edition metadata (migration 0017). Optional while the
+  // forward migration rolls out and for local/demo records.
+  edition_title?: string | null;
+  edition_year?: number | null;
+  publisher?: string | null;
+  isbn?: string | null;
+  source_scan_id?: string | null;
+  original_publication_year?: number | null;
+  word_count?: number | null;
+  estimated_reading_minutes?: number | null;
+  structure_review_status?: string;
+  cleanup_review_status?: string;
 }
 
 export interface Chunk {
