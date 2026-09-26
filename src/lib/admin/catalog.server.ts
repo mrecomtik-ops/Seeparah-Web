@@ -1470,10 +1470,15 @@ export async function setBookCategories(params: {
   const db = await admin();
   const { data: before, error: beforeError } = await db
     .from("books")
-    .select("categories")
+    .select("categories, content_classification")
     .eq("id", params.bookId)
     .single();
   if (beforeError) throw new Error(beforeError.message);
+  if (before?.content_classification === "religious" && !deduped.includes("Religious")) {
+    throw new Error(
+      'The protected "Religious" category cannot be removed directly. Use the owner-only content-policy downgrade workflow.',
+    );
+  }
   const { error } = await db.from("books").update({ categories: deduped }).eq("id", params.bookId);
   if (error) throw new Error(error.message);
   return { before: (before?.categories as string[] | null) ?? [], after: deduped };
