@@ -194,12 +194,12 @@ function ReaderPage() {
     queryFn: () => getPublicContentSettings(),
   });
   // "One subscription unlocks all Premium books and translations" — this is
-  // the single plan price, not per-book pricing; same $2 default as
+  // the single plan price, not per-book pricing; same $2.99 default as
   // settings.server.ts's DEFAULT_MONTHLY_PLAN_PRICE_USD.
   const planPrice =
     typeof settingsQuery.data?.["monthly_plan_price_usd"] === "number"
       ? (settingsQuery.data["monthly_plan_price_usd"] as number)
-      : 2;
+      : 2.99;
   const highlightsQuery = useQuery({
     queryKey: ["highlights", userId],
     queryFn: () => listHighlights(userId),
