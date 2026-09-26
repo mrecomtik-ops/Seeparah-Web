@@ -462,6 +462,9 @@ export async function setBookAccessType(params: {
   bookId: string;
   accessType: EditionAccessType;
 }): Promise<{ before: Record<string, unknown> | null; after: Record<string, unknown> }> {
+  if (params.accessType !== "free") {
+    throw new Error("Original-language editions are always free on Seeparah.");
+  }
   const db = await admin();
   const { data: before } = await db
     .from("books")
@@ -498,6 +501,14 @@ export async function setEditionAccessType(params: {
     throw new Error(
       `No published ${params.language} edition exists yet for this book — nothing to set.`,
     );
+  }
+  const { data: parentBook } = await db
+    .from("books")
+    .select("content_classification")
+    .eq("id", params.bookId)
+    .single();
+  if (parentBook?.content_classification === "religious" && params.accessType === "paid") {
+    throw new Error("Religious books and every verified translated edition are always free.");
   }
   const { error } = await db
     .from("book_editions")
@@ -562,6 +573,9 @@ export interface BookEditionRow {
   book_id: string;
   language: string;
   access_type: EditionAccessType;
+  provenance_type: "ai_assisted" | "human_translation" | "licensed_translation" | "public_domain_translation";
+  typography_profile: string;
+  authenticity_notes: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -578,6 +592,54 @@ export async function listBookEditions(bookId: string): Promise<BookEditionRow[]
   // Postgres enum, so generated types widen it to `string` — narrowed here
   // since the constraint guarantees only 'free' | 'paid' ever lands in it.
   return (data ?? []) as BookEditionRow[];
+}
+
+export type BookTypographyProfile =
+  | "standard"
+  | "scripture_arabic"
+  | "scripture_urdu"
+  | "scripture_hebrew"
+  | "scripture_indic"
+  | "facsimile_preserving";
+
+export async function setBookContentPolicy(params: {
+  bookId: string;
+  classification: "general" | "religious";
+  typographyProfile: BookTypographyProfile;
+  authenticityNotes?: string | null;
+}) {
+  const db = await admin();
+  const { data: before, error: beforeError } = await db
+    .from("books")
+    .select("content_classification, translation_generation_policy, typography_profile, authenticity_notes, categories, access_type")
+    .eq("id", params.bookId)
+    .single();
+  if (beforeError || !before) throw new Error(beforeError?.message ?? "Book not found");
+
+  const categories = [...(before.categories ?? [])].filter((c) => c !== "Religious");
+  if (params.classification === "religious") categories.push("Religious");
+
+  const after = {
+    content_classification: params.classification,
+    translation_generation_policy:
+      params.classification === "religious" ? "source_only" : "ai_allowed",
+    typography_profile: params.typographyProfile,
+    authenticity_notes: params.authenticityNotes?.trim() || null,
+    categories,
+    access_type: "free" as const,
+  };
+
+  const { error } = await db.from("books").update(after).eq("id", params.bookId);
+  if (error) throw new Error(error.message);
+
+  if (params.classification === "religious") {
+    await db
+      .from("book_editions")
+      .update({ access_type: "free", updated_at: new Date().toISOString() })
+      .eq("book_id", params.bookId);
+  }
+
+  return { before, after };
 }
 
 // ---------------------------------------------------------------------------
