@@ -523,11 +523,11 @@ function ReaderPage() {
 
   const content = chunkQuery.data?.content ?? null;
   const readableBlocks = useMemo(() => (content ? parseReadableBlocks(content) : []), [content]);
-  const pageHighlights = (highlightsQuery.data ?? []).filter(
-    (highlight) =>
-      highlight.book_id === bookId &&
-      highlight.language === language &&
-      highlight.chunk_index === index,
+  const bookHighlights = (highlightsQuery.data ?? []).filter(
+    (highlight) => highlight.book_id === bookId,
+  );
+  const pageHighlights = bookHighlights.filter(
+    (highlight) => highlight.language === language && highlight.chunk_index === index,
   );
   const navigationItems = (navigationQuery.data ?? []) as ReaderNavigationItem[];
   const currentNavigationItem =
@@ -908,7 +908,7 @@ function ReaderPage() {
             >
               <AlignLeft className="h-4 w-4" />
               <span className="hidden sm:inline">
-                Highlights{highlightsQuery.data?.length ? ` (${highlightsQuery.data.length})` : ""}
+                Highlights{bookHighlights.length ? ` (${bookHighlights.length})` : ""}
               </span>
             </button>
             <button
@@ -973,7 +973,7 @@ function ReaderPage() {
         <HighlightsSheet
           userId={userId}
           bookId={bookId}
-          highlights={(highlightsQuery.data ?? []).filter((h) => h.book_id === bookId)}
+          highlights={bookHighlights}
           onJump={(chunkIndex, hlLanguage) => {
             if (hlLanguage !== language) {
               setIndex(chunkIndex);
