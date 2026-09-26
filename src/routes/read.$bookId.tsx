@@ -173,7 +173,13 @@ function ReaderPage() {
     [],
   );
 
-  const seededBookRef = useRef<string | null>(null);
+  // State (not a ref) is intentional: when the resolved starting page is 0,
+  // setIndex(0) is a no-op. A ref-only seed flag would not trigger a render,
+  // so the real page-0 query could remain disabled while adjacent prefetch
+  // ran first. Keeping seed completion in state guarantees the current page
+  // query activates after progress/URL seeding, even when the numeric index
+  // does not change.
+  const [seededKeyState, setSeededKeyState] = useState<string | null>(null);
 
   const progressQuery = useQuery({
     queryKey: ["progress", userId],
@@ -238,7 +244,7 @@ function ReaderPage() {
   const seedKey = `${bookId}:${userId}`;
   useEffect(() => {
     if (!book || !progressQuery.data) return;
-    if (seededBookRef.current === seedKey) return;
+    if (seededKeyState === seedKey) return;
     const saved = progressQuery.data.find((p) => p.book_id === bookId && p.language === language);
     const requestedIndex = page ? page - 1 : null;
     const startIndex = Math.min(
@@ -246,7 +252,7 @@ function ReaderPage() {
       Math.max(0, book.total_chunks - 1),
     );
     setIndex(startIndex);
-    seededBookRef.current = seedKey;
+    setSeededKeyState(seedKey);
     if (page !== startIndex + 1 || lang !== language) {
       void navigate({
         to: "/read/$bookId",
@@ -255,19 +261,36 @@ function ReaderPage() {
         replace: true,
       });
     }
-  }, [book, progressQuery.data, bookId, language, seedKey, page, lang, navigate]);
+  }, [
+    book,
+    progressQuery.data,
+    bookId,
+    language,
+    seedKey,
+    seededKeyState,
+    page,
+    lang,
+    navigate,
+  ]);
 
   const chunkQuery = useQuery({
     queryKey: ["reader-chunk", bookId, language, index],
     queryFn: () => getReaderChunk(bookId, language, index),
-    enabled: !!book && seededBookRef.current === seedKey,
+    enabled: !!book && seededKeyState === seedKey,
   });
 
   // Keep page-turning immediate: warm the adjacent reader sections after
   // access has been established. The same server-side access gate still
   // applies, so prefetching never exposes locked content.
   useEffect(() => {
-    if (!book || seededBookRef.current !== seedKey) return;
+    if (
+      !book ||
+      seededKeyState !== seedKey ||
+      !chunkQuery.data ||
+      chunkQuery.isFetching
+    ) {
+      return;
+    }
     for (const adjacent of [index - 1, index + 1]) {
       if (adjacent < 0 || adjacent >= book.total_chunks) continue;
       void queryClient.prefetchQuery({
@@ -276,16 +299,26 @@ function ReaderPage() {
         staleTime: 60_000,
       });
     }
-  }, [book, bookId, language, index, seedKey, queryClient]);
+  }, [
+    book,
+    bookId,
+    language,
+    index,
+    seedKey,
+    seededKeyState,
+    chunkQuery.data,
+    chunkQuery.isFetching,
+    queryClient,
+  ]);
 
   // Autosave on every navigation and every language switch, once the
   // initial position has been seeded (so this never overwrites a just-
   // loaded saved position with the default page).
   useEffect(() => {
-    if (seededBookRef.current !== seedKey) return;
+    if (seededKeyState !== seedKey) return;
     void persist(index, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [index, language, seedKey]);
+  }, [index, language, seedKey, seededKeyState]);
 
   const rtl = RTL_LANGUAGES.has(language);
   const isUrdu = language === "Urdu";
