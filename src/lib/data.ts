@@ -66,6 +66,10 @@ export interface Highlight {
   language: string;
   chunk_index: number;
   highlight_text: string;
+  /** Character offsets in Reader V2's rendered reading-text coordinate space.
+   * Nullable for legacy highlights created before migration 0020. */
+  start_offset?: number | null;
+  end_offset?: number | null;
   created_at: string;
   note: string | null;
 }
