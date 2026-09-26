@@ -85,7 +85,7 @@ export function ShelfButtons({ bookId }: { bookId: string }) {
               mutation.mutate({ shelf, on: !active });
               toast.success(active ? confirmedOff : confirmedOn);
             }}
-            className={`inline-flex h-8 w-8 items-center justify-center rounded-full border transition-colors ${
+            className={`inline-flex h-11 w-11 items-center justify-center rounded-full border transition-colors sm:h-8 sm:w-8 ${
               active
                 ? "border-primary bg-primary text-primary-foreground"
                 : "border-border bg-card/90 text-muted-foreground backdrop-blur hover:text-foreground"
