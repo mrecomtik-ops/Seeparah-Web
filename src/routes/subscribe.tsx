@@ -65,10 +65,11 @@ function SubscribePage() {
               Nothing to subscribe to yet
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
-              No payment provider is live yet, so there is nothing to buy today. The product rule
-              is already set: original-language editions stay free forever; reviewed general
-              translations become monthly-plan content when billing is activated; Religious books
-              and verified Religious translations always stay free.
+              No payment provider is live yet, so there is nothing to buy today. Planned launch
+              pricing is $2.99/month, monthly only — no yearly plan. It will be one account-wide
+              subscription for reviewed general translated editions, not a separate per-book or
+              per-translation purchase. Original-language editions stay free forever; Religious
+              books and verified Religious translations always stay free.
             </p>
             <button
               onClick={() => navigate({ to: "/library" })}
