@@ -42,7 +42,18 @@ describe("computePublishGate", () => {
   const approved = {
     rights_status: "approved",
     edition_review_status: "approved",
+    structure_review_status: "approved",
+    cleanup_review_status: "approved",
     source_language: "French",
+    edition_title: "Reviewed test edition",
+    edition_year: 1900,
+    publisher: "Test Publisher",
+    isbn: "TEST-ISBN-001",
+    source_scan_id: null,
+    original_publication_year: 1890,
+    word_count: 50_000,
+    estimated_reading_minutes: 223,
+    rights_risk_acknowledged_at: null,
   };
 
   it("allows publishing an approved original-language edition with NO translations at all", () => {
@@ -83,5 +94,42 @@ describe("computePublishGate", () => {
     );
     expect(result.canPublish).toBe(false);
     expect(result.reasons.some((r) => /edition|quality/i.test(r))).toBe(true);
+  });
+
+  it("blocks publishing until structure and cleanup reviews are approved", () => {
+    const structure = computePublishGate(
+      { ...approved, structure_review_status: "pending" },
+      new Set(),
+    );
+    const cleanup = computePublishGate(
+      { ...approved, cleanup_review_status: "changes_requested" },
+      new Set(),
+    );
+    expect(structure.canPublish).toBe(false);
+    expect(structure.reasons.join(" ")).toMatch(/structure/i);
+    expect(cleanup.canPublish).toBe(false);
+    expect(cleanup.reasons.join(" ")).toMatch(/cleanup/i);
+  });
+
+  it("blocks publishing when exact-edition metadata is incomplete", () => {
+    const result = computePublishGate(
+      { ...approved, edition_title: null, isbn: null, source_scan_id: null },
+      new Set(),
+    );
+    expect(result.canPublish).toBe(false);
+    expect(result.reasons.join(" ")).toMatch(/metadata/i);
+  });
+
+  it("requires acknowledgment when the manuscript contains rights-risk clues", () => {
+    const blocked = computePublishGate(approved, new Set(), true);
+    expect(blocked.canPublish).toBe(false);
+    expect(blocked.reasons.join(" ")).toMatch(/rights-risk|acknowledged/i);
+
+    const allowed = computePublishGate(
+      { ...approved, rights_risk_acknowledged_at: "2026-09-26T00:00:00Z" },
+      new Set(),
+      true,
+    );
+    expect(allowed.canPublish).toBe(true);
   });
 });
