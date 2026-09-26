@@ -74,17 +74,17 @@ function AdminOverview() {
       <p className="mt-1 text-sm text-muted-foreground">
         Gemini:{" "}
         {h.geminiConfigured
-          ? "configured"
-          : "not configured — translation jobs will fail until GEMINI_API_KEY is set"}
+          ? "API key present (provider connectivity is checked only when a translation runs)"
+          : "API key missing — translation jobs cannot run until GEMINI_API_KEY is configured"}
       </p>
 
       <section className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {[
+        {([
           { to: "/admin/books", label: "Catalog", hint: "Review, publish, categories", icon: BookOpen },
           { to: "/admin/translation-requests", label: "Translations", hint: "Approve requests & monitor jobs", icon: Languages },
           { to: "/admin/users", label: "Users", hint: "Accounts and support actions", icon: Users },
           { to: "/admin/settings", label: "Settings", hint: "Plan, categories, content rules", icon: Settings },
-        ].map(({ to, label, hint, icon: Icon }) => (
+        ] as const).map(({ to, label, hint, icon: Icon }) => (
           <Link
             key={to}
             to={to}
