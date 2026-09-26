@@ -1557,6 +1557,11 @@ export async function bulkPatchBookCategory(params: {
   category: string;
   action: "add" | "remove";
 }): Promise<BulkCategoryResult[]> {
+  if (params.action === "remove" && params.category === "Religious") {
+    throw new Error(
+      'The protected "Religious" category cannot be removed in bulk. Change a Religious book classification only through the owner-only content-policy workflow.',
+    );
+  }
   const master = await getMasterCategories();
   if (params.action === "add") {
     validateCategoriesAgainstMasterList([params.category], master);
