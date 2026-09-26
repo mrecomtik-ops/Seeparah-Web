@@ -218,3 +218,65 @@
   );
   background-size: 22px 22px;
 }
+
+/* Reader V2 book-page presentation. The page is intentionally not given a
+   fixed height: real chapters/sections vary in length, so a rigid A5/A4 box
+   would either clip text or manufacture awkward blank pages. Instead this
+   keeps the familiar physical-book proportions through width, minimum
+   height, inner margins, a subtle binding shadow, and paper grain while
+   allowing the source text to flow naturally. */
+@utility book-page-surface {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 0.45rem;
+  background-color: var(--color-card);
+  background-image:
+    linear-gradient(
+      90deg,
+      oklch(0.25 0.02 90 / 0.07) 0,
+      transparent 1.15rem
+    ),
+    radial-gradient(oklch(0.5 0.03 100 / 0.035) 0.7px, transparent 0.8px);
+  background-size:
+    100% 100%,
+    18px 18px;
+  box-shadow:
+    0 1px 1px oklch(0.25 0.02 90 / 0.08),
+    0 8px 20px -8px oklch(0.25 0.02 90 / 0.18),
+    0 24px 56px -22px oklch(0.25 0.02 90 / 0.22);
+}
+
+[dir="rtl"].book-page-surface {
+  background-image:
+    linear-gradient(
+      270deg,
+      oklch(0.25 0.02 90 / 0.07) 0,
+      transparent 1.15rem
+    ),
+    radial-gradient(oklch(0.5 0.03 100 / 0.035) 0.7px, transparent 0.8px);
+}
+
+@keyframes reader-page-enter {
+  from {
+    opacity: 0.72;
+    transform: translateX(8px) scale(0.997);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@utility reader-page-enter {
+  animation: reader-page-enter 180ms ease-out both;
+}
+
+@media (max-width: 639px) {
+  .book-page-surface {
+    border-radius: 0.25rem;
+    box-shadow:
+      0 1px 1px oklch(0.25 0.02 90 / 0.06),
+      0 12px 30px -18px oklch(0.25 0.02 90 / 0.2);
+  }
+}
