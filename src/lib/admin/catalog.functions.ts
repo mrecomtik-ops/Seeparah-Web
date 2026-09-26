@@ -518,6 +518,7 @@ export const adminSetBookContentPolicy = createServerFn({ method: "POST" })
         "facsimile_preserving",
       ]),
       authenticityNotes: z.string().max(5000).nullable().optional(),
+      downgradeReason: z.string().max(2000).nullable().optional(),
     }).parse(data),
   )
   .handler(async ({ data }) => {
@@ -527,8 +528,12 @@ export const adminSetBookContentPolicy = createServerFn({ method: "POST" })
       bookId: data.bookId,
       classification: data.classification,
       typographyProfile: data.typographyProfile,
+      actorRole: role,
       ...(data.authenticityNotes !== undefined
         ? { authenticityNotes: data.authenticityNotes }
+        : {}),
+      ...(data.downgradeReason !== undefined
+        ? { downgradeReason: data.downgradeReason }
         : {}),
     });
     await recordAudit({
