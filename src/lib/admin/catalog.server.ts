@@ -51,22 +51,67 @@ export async function adminGetBook(bookId: string) {
 
 /**
  * Pure publish-gate decision, directly unit-testable. Publishing the
- * ORIGINAL-language edition only ever requires rights + editorial approval
- * — a missing English/Urdu translation is informational ("pending"), never
- * blocking, per product rules: readers can always reach the original once
- * it's approved, and standard-language translations catch up asynchronously.
- * This mirrors (and must stay in sync with) the DB trigger
- * `check_book_publish_gate` in migration 0005, which is the unbypassable
- * backstop against a direct SQL/REST update skipping this function.
+ * ORIGINAL-language edition requires the legal, editorial, structure and
+ * cleanup checks to be complete. English/Urdu translations remain
+ * informational and never block the approved original-language edition.
+ *
+ * This must stay aligned with the DB trigger introduced/updated by the
+ * latest forward migration so direct SQL cannot bypass the same safeguards.
  */
+export interface PublishGateBook {
+  rights_status: string;
+  edition_review_status: string;
+  structure_review_status?: string | null;
+  cleanup_review_status?: string | null;
+  source_language: string;
+  edition_title?: string | null;
+  edition_year?: number | null;
+  publisher?: string | null;
+  isbn?: string | null;
+  source_scan_id?: string | null;
+  original_publication_year?: number | null;
+  word_count?: number | null;
+  estimated_reading_minutes?: number | null;
+  rights_risk_acknowledged_at?: string | null;
+}
+
 export function computePublishGate(
-  book: { rights_status: string; edition_review_status: string; source_language: string },
+  book: PublishGateBook,
   reviewedLanguages: Set<string>,
+  hasRightsRiskSignals = false,
 ): { canPublish: boolean; reasons: string[]; pendingTranslations: string[] } {
   const reasons: string[] = [];
   if (book.rights_status !== "approved") reasons.push("Rights review is not yet approved");
   if (book.edition_review_status !== "approved") {
     reasons.push("Edition quality review is not yet approved");
+  }
+  if (book.structure_review_status !== "approved") {
+    reasons.push("Book structure review is not yet approved");
+  }
+  if (book.cleanup_review_status !== "approved") {
+    reasons.push("Text cleanup review is not yet approved");
+  }
+
+  const missingEditionMetadata: string[] = [];
+  if (!book.edition_title?.trim()) missingEditionMetadata.push("edition title");
+  if (!book.edition_year) missingEditionMetadata.push("edition year");
+  if (!book.publisher?.trim()) missingEditionMetadata.push("publisher");
+  if (!book.isbn?.trim() && !book.source_scan_id?.trim()) {
+    missingEditionMetadata.push("ISBN or source edition ID");
+  }
+  if (book.original_publication_year == null) {
+    missingEditionMetadata.push("original publication year");
+  }
+  if (!book.word_count || book.word_count <= 0) missingEditionMetadata.push("word count");
+  if (!book.estimated_reading_minutes || book.estimated_reading_minutes <= 0) {
+    missingEditionMetadata.push("estimated reading time");
+  }
+  if (missingEditionMetadata.length > 0) {
+    reasons.push(`Exact-edition metadata is incomplete: ${missingEditionMetadata.join(", ")}`);
+  }
+
+  if (hasRightsRiskSignals && !book.rights_risk_acknowledged_at) {
+    reasons.push("Rights-risk clues in the manuscript have not been reviewed and acknowledged");
   }
 
   const STANDARD_TRANSLATION_TARGETS = ["English", "Urdu"];
@@ -152,16 +197,19 @@ export async function evaluatePublishGate(
   const { data: book, error } = await db.from("books").select("*").eq("id", bookId).single();
   if (error || !book) throw new Error("Book not found");
 
-  const { data: jobs } = await db
-    .from("book_translation_jobs")
-    .select("language, status, human_reviewed")
-    .eq("book_id", bookId)
-    .eq("source_version", book.source_version)
-    .eq("status", "published")
-    .eq("human_reviewed", true);
+  const [{ data: jobs }, rightsSignals] = await Promise.all([
+    db
+      .from("book_translation_jobs")
+      .select("language, status, human_reviewed")
+      .eq("book_id", bookId)
+      .eq("source_version", book.source_version)
+      .eq("status", "published")
+      .eq("human_reviewed", true),
+    scanBookRightsSignals(bookId),
+  ]);
   const reviewedLanguages = new Set((jobs ?? []).map((j) => j.language));
 
-  return computePublishGate(book, reviewedLanguages);
+  return computePublishGate(book, reviewedLanguages, rightsSignals.length > 0);
 }
 
 const PLACEHOLDER_RIGHTS_TEXT = new Set([
@@ -193,6 +241,9 @@ export function isPlaceholderRightsText(value: string | null | undefined): boole
   if (/^(.)\1*$/.test(trimmed)) return true;
   if (PLACEHOLDER_RIGHTS_TEXT.has(trimmed.toLowerCase())) return true;
   if (/lorem ipsum/i.test(trimmed)) return true;
+  if (/\b(?:pending|do\s+not\s+approve|not\s+verified|awaiting\s+rights|rights\s+unknown)\b/i.test(trimmed)) {
+    return true;
+  }
   return false;
 }
 
@@ -216,7 +267,9 @@ export async function reviewRights(params: {
   const db = await admin();
   const { data: before } = await db
     .from("books")
-    .select("rights_status, edition_review_status, status, rights_basis, rights_evidence_url")
+    .select(
+      "rights_status, edition_review_status, status, rights_basis, rights_evidence_url, rights_risk_acknowledged_at",
+    )
     .eq("id", params.bookId)
     .single();
   if (params.decision === "approved") {
@@ -228,6 +281,12 @@ export async function reviewRights(params: {
     if (!isPlausibleEvidenceUrl(before?.rights_evidence_url)) {
       throw new Error(
         "Rights evidence URL is missing or not a real link — approval requires a link to the actual documentation, not just a basis statement.",
+      );
+    }
+    const rightsSignals = await scanBookRightsSignals(params.bookId);
+    if (rightsSignals.length > 0 && !before?.rights_risk_acknowledged_at) {
+      throw new Error(
+        "This manuscript contains copyright/revision/rights clues. Review the highlighted clues and acknowledge that review before approving rights.",
       );
     }
   }
@@ -251,6 +310,64 @@ export async function reviewRights(params: {
     .eq("id", params.bookId);
   if (error) throw new Error(error.message);
   return { before, after: { rights_status: params.decision, ...statusPatch } };
+}
+
+export async function acknowledgeRightsRiskSignals(params: {
+  bookId: string;
+  reviewerId: string;
+}) {
+  const signals = await scanBookRightsSignals(params.bookId);
+  if (signals.length === 0) {
+    throw new Error("No rights-risk clues were detected for this manuscript.");
+  }
+  const db = await admin();
+  const { data: before, error: beforeError } = await db
+    .from("books")
+    .select("rights_risk_acknowledged_at, rights_risk_acknowledged_by")
+    .eq("id", params.bookId)
+    .single();
+  if (beforeError) throw new Error(beforeError.message);
+
+  const after = {
+    rights_risk_acknowledged_at: new Date().toISOString(),
+    rights_risk_acknowledged_by: params.reviewerId,
+  };
+  const { error } = await db.from("books").update(after).eq("id", params.bookId);
+  if (error) throw new Error(error.message);
+  return { before, after };
+}
+
+export async function reviewReaderQuality(params: {
+  bookId: string;
+  target: "structure" | "cleanup";
+  decision: "approved" | "changes_requested" | "rejected";
+  reviewerId: string;
+  notes?: string | undefined;
+}) {
+  const db = await admin();
+  const column =
+    params.target === "structure" ? "structure_review_status" : "cleanup_review_status";
+  const { data: before, error: beforeError } = await db
+    .from("books")
+    .select("status, structure_review_status, cleanup_review_status")
+    .eq("id", params.bookId)
+    .single();
+  if (beforeError || !before) throw new Error(beforeError?.message ?? "Book not found");
+
+  const nextStatus =
+    params.decision === "approved" ? "approved" : params.decision;
+  const patch: Record<string, unknown> = {
+    [column]: nextStatus,
+    review_notes: params.notes ?? null,
+    reviewed_by: params.reviewerId,
+    reviewed_at: new Date().toISOString(),
+  };
+  if (params.decision !== "approved" && before.status === "approved") {
+    patch["status"] = "changes_requested";
+  }
+  const { error } = await db.from("books").update(patch).eq("id", params.bookId);
+  if (error) throw new Error(error.message);
+  return { before, after: patch };
 }
 
 /** Only move `status` to 'approved' automatically from a state that's still
@@ -815,6 +932,8 @@ export async function updateBookRightsProvenance(params: {
     translation_permission: params.patch.translationPermission,
     permitted_territories: params.patch.permittedTerritories,
     rights_status: nextRightsStatus,
+    rights_risk_acknowledged_at: null,
+    rights_risk_acknowledged_by: null,
   };
 
   const { error } = await db.from("books").update(payload).eq("id", params.bookId);
