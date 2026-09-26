@@ -199,6 +199,22 @@
 
 /* Persistent, account-scoped reader highlights. <mark> inherits the text
    color so it stays readable across light, sepia and dark Reader V2 themes. */
+/* Religious/scripture editions preserve the catalog-selected script conventions. */
+.religious-reading-block {
+  font-variant-ligatures: common-ligatures contextual;
+  font-kerning: normal;
+  text-rendering: optimizeLegibility;
+}
+
+.religious-reading-block :is(h2, h3, h4, blockquote, aside, li, p) {
+  font-family: inherit;
+  text-transform: none;
+}
+
+.source-lineation-preserving [data-reader-text-start] {
+  white-space: pre-wrap;
+}
+
 .reader-highlight {
   color: inherit;
   background-color: color-mix(in oklab, var(--gold) 48%, transparent);
