@@ -452,8 +452,8 @@ function ReaderPage() {
       return;
     }
 
-    const startBase = Number(startAnchor.dataset.readerTextStart);
-    const endBase = Number(endAnchor.dataset.readerTextStart);
+    const startBase = Number(startAnchor.dataset["readerTextStart"]);
+    const endBase = Number(endAnchor.dataset["readerTextStart"]);
     if (!Number.isFinite(startBase) || !Number.isFinite(endBase)) {
       toast.error("Couldn't anchor that highlight.");
       return;
