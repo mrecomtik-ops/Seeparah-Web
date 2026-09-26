@@ -296,7 +296,7 @@ function AdminSettingsPage() {
                   aria-label={`Remove ${category}`}
                   disabled={categoryBusy}
                   onClick={() => void saveCategories(categories.filter((c) => c !== category))}
-                  className="text-muted-foreground hover:text-destructive"
+                  className="flex h-8 w-8 items-center justify-center rounded-full text-base text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                 >
                   ×
                 </button>
@@ -334,7 +334,7 @@ function AdminSettingsPage() {
           <button
             key={k}
             onClick={() => setKey(k)}
-            className={`rounded-full px-3 py-1 text-xs font-semibold ${key === k ? "bg-primary text-primary-foreground" : "border border-border"}`}
+            className={`min-h-10 rounded-full px-3 py-2 text-xs font-semibold ${key === k ? "bg-primary text-primary-foreground" : "border border-border"}`}
           >
             {k}
           </button>
@@ -439,7 +439,7 @@ function AdminSettingsPage() {
                 </span>
                 <button
                   onClick={() => rollback(h.version)}
-                  className="text-primary hover:underline"
+                  className="min-h-10 rounded-lg px-2 text-primary hover:bg-secondary hover:underline"
                 >
                   Roll back to this
                 </button>
