@@ -12,7 +12,6 @@ import {
   REQUESTABLE_TRANSLATION_LANGUAGES,
   isReligiousBook,
 } from "@/lib/data";
-import { getPublicContentSettings } from "@/lib/admin/settings.functions";
 import { getBookTranslationLanguageStatus } from "@/lib/translation.functions";
 
 export const Route = createFileRoute("/book/$bookId")({
@@ -28,15 +27,10 @@ export const Route = createFileRoute("/book/$bookId")({
 function BookDetailPage() {
   const { bookId } = Route.useParams();
   const bookQuery = useQuery({ queryKey: ["book", bookId], queryFn: () => getBook(bookId) });
-  const settingsQuery = useQuery({
-    queryKey: ["public-content-settings"],
-    queryFn: () => getPublicContentSettings(),
-  });
   const translationStatusQuery = useQuery({
     queryKey: ["translation-language-status", bookId],
     queryFn: () => getBookTranslationLanguageStatus({ data: { bookId } }),
   });
-  const monetizationEnabled = settingsQuery.data?.["monetization_enabled"] === true;
   const book = bookQuery.data;
   const prefs = getPrefs();
 
