@@ -126,6 +126,19 @@ export async function approveTranslationRequest(params: {
     throw new Error(`Request is not in a decidable state (status: ${request.status})`);
   }
 
+  const { data: rightsBook, error: rightsBookError } = await db
+    .from("books")
+    .select("rights_status, translation_permission")
+    .eq("id", request.book_id)
+    .single();
+  if (rightsBookError || !rightsBook) throw new Error("Book not found");
+  if (rightsBook.rights_status !== "approved") {
+    throw new Error("Approve the book's rights review before approving a translation request");
+  }
+  if (!rightsBook.translation_permission) {
+    throw new Error("This book's rights record does not currently permit translation");
+  }
+
   const reviewedJob = await findReviewedEditionJob(request.book_id, request.language);
   if (reviewedJob) {
     const { data: updated, error: updateError } = await db
