@@ -26,10 +26,16 @@ export async function requestTranslationAccess(params: {
   const db = await admin();
   const { data: book } = await db
     .from("books")
-    .select("id, source_language, content_classification, translation_generation_policy")
+    .select("id, status, source_language, rights_status, translation_permission, content_classification, translation_generation_policy")
     .eq("id", params.bookId)
     .single();
   if (!book) throw new Error("Book not found");
+  if (book.status !== "published") {
+    throw new Error("Translation requests are only available for published books");
+  }
+  if (book.rights_status !== "approved" || !book.translation_permission) {
+    throw new Error("This book is not currently approved for translated editions");
+  }
   if (book.source_language === params.language) {
     throw new Error("This is the book's original language — it's already free to read");
   }
