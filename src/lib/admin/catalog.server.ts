@@ -644,6 +644,15 @@ export async function setBookContentPolicy(params: {
     });
     if (error) throw new Error(error.message);
 
+    const { error: metadataError } = await db
+      .from("books")
+      .update({
+        typography_profile: params.typographyProfile,
+        authenticity_notes: params.authenticityNotes?.trim() || null,
+      })
+      .eq("id", params.bookId);
+    if (metadataError) throw new Error(metadataError.message);
+
     return {
       before,
       after: {
