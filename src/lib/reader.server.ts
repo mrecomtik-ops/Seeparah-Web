@@ -40,6 +40,7 @@ interface ReaderAccessBookState {
   status: string;
   accessType: string;
   sourceLanguage: string;
+  contentClassification?: "general" | "religious" | null;
 }
 
 interface ReaderAccessInput {
@@ -97,11 +98,23 @@ export function resolveReaderAccess(
     };
   }
 
+  // Every book's original/source-language edition is permanently free.
+  if (isSourceLanguage) {
+    return { locked: false };
+  }
+
+  // Religious books and every verified/imported translation of them are
+  // permanently free. Seeparah never puts Religious content behind a plan.
+  if (book.contentClassification === "religious") {
+    return { locked: false };
+  }
+
+  // General translated editions keep an opening-page preview.
   if (input.isOwner || input.chunkIndex === 0) {
     return { locked: false };
   }
 
-  const effectiveAccessType = isSourceLanguage ? book.accessType : input.editionAccessType;
+  const effectiveAccessType = input.editionAccessType;
   const requiresSubscription =
     input.monetizationEnabled && effectiveAccessType === "paid";
   if (requiresSubscription) {
@@ -127,7 +140,7 @@ export async function getReaderNavigation(params: {
   const db = await admin();
   const { data: book, error: bookError } = await db
     .from("books")
-    .select("id, status, access_type, author_id, source_language, source_version")
+    .select("id, status, access_type, author_id, source_language, source_version, content_classification")
     .eq("id", params.bookId)
     .single();
   if (bookError || !book) return [];
@@ -170,6 +183,7 @@ export async function getReaderNavigation(params: {
       status: book.status,
       accessType: book.access_type,
       sourceLanguage: book.source_language,
+      contentClassification: book.content_classification as "general" | "religious" | null,
     },
     language: params.language,
     chunkIndex: 1,
@@ -286,7 +300,7 @@ export async function searchReaderBook(params: {
   const db = await admin();
   const { data: book, error: bookError } = await db
     .from("books")
-    .select("id, status, access_type, author_id, source_language, source_version")
+    .select("id, status, access_type, author_id, source_language, source_version, content_classification")
     .eq("id", params.bookId)
     .single();
   if (bookError || !book) return [];
@@ -326,6 +340,7 @@ export async function searchReaderBook(params: {
       status: book.status,
       accessType: book.access_type,
       sourceLanguage: book.source_language,
+      contentClassification: book.content_classification as "general" | "religious" | null,
     },
     language: params.language,
     chunkIndex: 1,
@@ -395,7 +410,7 @@ export async function getReaderChunk(params: {
   const db = await admin();
   const { data: book, error: bookError } = await db
     .from("books")
-    .select("id, status, access_type, author_id, source_language, source_version")
+    .select("id, status, access_type, author_id, source_language, source_version, content_classification")
     .eq("id", params.bookId)
     .single();
   if (bookError || !book) return { content: null, locked: false, reason: "not_available" };
@@ -438,6 +453,7 @@ export async function getReaderChunk(params: {
       status: book.status,
       accessType: book.access_type,
       sourceLanguage: book.source_language,
+      contentClassification: book.content_classification as "general" | "religious" | null,
     },
     language: params.language,
     chunkIndex: params.chunkIndex,
