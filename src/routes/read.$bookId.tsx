@@ -24,6 +24,7 @@ import { z } from "zod";
 import {
   RTL_LANGUAGES,
   REQUESTABLE_TRANSLATION_LANGUAGES,
+  isReligiousBook,
   type Highlight,
   type Progress,
 } from "@/lib/data";
@@ -94,6 +95,21 @@ const THEME_CLASS: Record<ReaderTheme, string> = {
   sepia: "reader-sepia",
   dark: "dark",
 };
+
+function religiousTypographyFont(profile: string | null | undefined): string | undefined {
+  switch (profile) {
+    case "scripture_arabic":
+      return "\'Noto Naskh Arabic\', Amiri, \'Scheherazade New\', serif";
+    case "scripture_urdu":
+      return "\'Noto Nastaliq Urdu\', \'Jameel Noori Nastaleeq\', serif";
+    case "scripture_hebrew":
+      return "\'Noto Serif Hebrew\', \'David Libre\', serif";
+    case "scripture_indic":
+      return "\'Noto Serif Devanagari\', \'Noto Serif Bengali\', \'Noto Serif Tamil\', serif";
+    default:
+      return undefined;
+  }
+}
 
 function ReaderPage() {
   const { bookId } = Route.useParams();
@@ -273,6 +289,9 @@ function ReaderPage() {
 
   const rtl = RTL_LANGUAGES.has(language);
   const isUrdu = language === "Urdu";
+  const religious = book ? isReligiousBook(book) : false;
+  const typographyProfile = book?.typography_profile ?? "standard";
+  const protectedFontFamily = religiousTypographyFont(typographyProfile);
   const total = book?.total_chunks ?? 1;
   const pct = Math.round(((index + 1) / total) * 100);
   // A language counts as "available" for the purpose of NOT showing the
@@ -284,9 +303,11 @@ function ReaderPage() {
   // could never discover or trigger a translation request for a language
   // that doesn't have so much as a first page yet, since the request UI
   // below only ever renders once this check lets the page get there.
-  const isRequestableLanguage = REQUESTABLE_TRANSLATION_LANGUAGES.includes(
-    language as (typeof REQUESTABLE_TRANSLATION_LANGUAGES)[number],
-  );
+  const isRequestableLanguage =
+    !religious &&
+    REQUESTABLE_TRANSLATION_LANGUAGES.includes(
+      language as (typeof REQUESTABLE_TRANSLATION_LANGUAGES)[number],
+    );
   const languageAvailable =
     (book?.available_languages.includes(language) ?? true) || isRequestableLanguage;
 
@@ -294,11 +315,12 @@ function ReaderPage() {
   // don't already have a reviewed edition, and aren't the book's own
   // source language (requesting the source language is meaningless — it's
   // already free to read, and the server rejects that request outright).
-  const requestableLanguagesForBook = book
-    ? REQUESTABLE_TRANSLATION_LANGUAGES.filter(
-        (l) => !book.available_languages.includes(l) && l !== book.source_language,
-      )
-    : [];
+  const requestableLanguagesForBook =
+    book && !religious
+      ? REQUESTABLE_TRANSLATION_LANGUAGES.filter(
+          (l) => !book.available_languages.includes(l) && l !== book.source_language,
+        )
+      : [];
 
   async function persist(next: number, quiet = true) {
     recordReadingDay();
@@ -819,17 +841,24 @@ function ReaderPage() {
                         ? "60rem"
                         : "48rem",
                 fontFamily:
-                  fontFamily === "sans"
+                  protectedFontFamily ??
+                  (fontFamily === "sans"
                     ? "Inter, ui-sans-serif, system-ui, sans-serif"
                     : fontFamily === "serif"
                       ? "ui-serif, Georgia, Cambria, serif"
-                      : "Georgia, 'Times New Roman', ui-serif, serif",
+                      : "Georgia, 'Times New Roman', ui-serif, serif"),
               }}
               className={`mx-auto mt-8 text-card-foreground ${
                 presentation === "book"
                   ? "book-page-surface reader-page-enter px-4 py-8 sm:px-14 sm:py-14 md:px-16"
                   : "rounded-2xl border border-border bg-card p-6 card-shadow sm:p-10"
-              } ${isUrdu ? "urdu-reading-block" : ""}`}
+              } ${isUrdu ? "urdu-reading-block" : ""} ${
+                religious ? "religious-reading-block" : ""
+              } ${
+                typographyProfile === "facsimile_preserving"
+                  ? "source-lineation-preserving"
+                  : ""
+              }`}
             >
               {presentation === "book" && (
                 <div className="mb-8 flex items-center justify-between gap-4 border-b border-border/60 pb-3 text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
