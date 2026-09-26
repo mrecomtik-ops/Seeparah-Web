@@ -9,6 +9,7 @@ import {
   listPublicBooks as fetchPublicBooks,
   getPublicBook as fetchPublicBook,
   searchPublicBooks as fetchPublicBookSearch,
+  listPublicBooksByAuthorId as fetchPublicBooksByAuthorId,
 } from "@/lib/public-catalog.functions";
 import { splitManuscript } from "@/lib/manuscript";
 import {
@@ -980,14 +981,8 @@ export async function saveAuthorProfile(
 
 export async function listBooksByAuthorId(authorId: string): Promise<Book[]> {
   try {
-    const { data, error } = await supabase
-      .from("books")
-      .select("*")
-      .eq("author_id", authorId)
-      .eq("status", "published");
-    if (!error) return (data as Book[]) ?? [];
+    return await fetchPublicBooksByAuthorId({ data: { authorId } });
   } catch {
-    // fall through
+    return [];
   }
-  return [];
 }
