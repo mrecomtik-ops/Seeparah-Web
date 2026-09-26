@@ -311,7 +311,7 @@ function LibraryPage() {
               <button
                 onClick={() => updateSearch({ q: undefined })}
                 aria-label="Clear search"
-                className="absolute right-4 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground"
+                className="absolute right-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -331,7 +331,7 @@ function LibraryPage() {
               onChange={(v) => updateSearch({ author: v ?? undefined })}
             />
             <Select
-              label="Topic"
+              label="Genre / theme"
               value={genre}
               options={genresInUse.length ? genresInUse : [...GENRES]}
               onChange={(v) => updateSearch({ genre: v ?? undefined })}
@@ -355,7 +355,7 @@ function LibraryPage() {
                   category: undefined,
                 })
               }
-              className="self-start text-xs font-semibold text-primary hover:underline"
+              className="min-h-10 self-start rounded-lg px-2 text-xs font-semibold text-primary hover:bg-secondary hover:underline"
             >
               Reset all filters
             </button>
@@ -372,7 +372,7 @@ function LibraryPage() {
                 <button
                   key={c}
                   onClick={() => updateSearch({ category: c })}
-                  className="rounded-full border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary"
+                  className="min-h-10 rounded-full border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary"
                 >
                   {c}
                   {c === "Religious" && (
@@ -401,6 +401,17 @@ function LibraryPage() {
               {[0, 1, 2, 3].map((i) => (
                 <div key={i} className="aspect-[2/3] animate-pulse rounded-2xl bg-secondary" />
               ))}
+            </div>
+          ) : books.length === 0 && tab === "all" && !hasActiveFilters ? (
+            <div className="mt-6 rounded-2xl border border-dashed border-border bg-card p-8 text-center card-shadow sm:p-12">
+              <BookOpen className="mx-auto h-10 w-10 text-muted-foreground/50" />
+              <p className="mt-3 font-display text-lg font-semibold text-foreground">
+                No books are published yet
+              </p>
+              <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
+                The catalog is intentionally empty until a cleared, reviewed edition is published.
+                Search and category browsing will populate automatically as books go live.
+              </p>
             </div>
           ) : filtered.length === 0 && isEmptyShelf ? (
             <div className="mt-6 rounded-2xl border border-dashed border-border bg-card p-12 text-center card-shadow">
