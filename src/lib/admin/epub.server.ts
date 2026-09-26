@@ -17,26 +17,77 @@ export interface ParsedEpub {
 
 export class EpubValidationError extends Error {}
 
+const NAMED_ENTITIES: Record<string, string> = {
+  nbsp: " ",
+  amp: "&",
+  lt: "<",
+  gt: ">",
+  quot: '"',
+  apos: "'",
+  ndash: "–",
+  mdash: "—",
+  hellip: "…",
+  laquo: "«",
+  raquo: "»",
+  lsquo: "‘",
+  rsquo: "’",
+  ldquo: "“",
+  rdquo: "”",
+  bull: "•",
+};
+
+function decodeHtmlEntities(text: string): string {
+  return text.replace(
+    /&(#x[0-9a-f]+|#\d+|[a-z][a-z0-9]+);/gi,
+    (full, body: string) => {
+      if (body[0] === "#") {
+        const hex = body[1]?.toLowerCase() === "x";
+        const raw = body.slice(hex ? 2 : 1);
+        const codePoint = Number.parseInt(raw, hex ? 16 : 10);
+        if (
+          Number.isFinite(codePoint) &&
+          codePoint >= 0 &&
+          codePoint <= 0x10ffff &&
+          !(codePoint >= 0xd800 && codePoint <= 0xdfff)
+        ) {
+          return String.fromCodePoint(codePoint);
+        }
+        return full;
+      }
+      return NAMED_ENTITIES[body.toLowerCase()] ?? full;
+    },
+  );
+}
+
 function stripTagsToText(xhtml: string): string {
-  return (
+  return decodeHtmlEntities(
     xhtml
       // Drop entire script/style elements including their content — never
-      // execute or even retain script text, whether or not anything renders it.
+      // execute or retain script text.
       .replace(/<script[\s\S]*?<\/script>/gi, "")
       .replace(/<style[\s\S]*?<\/style>/gi, "")
+      // Preserve explicit line breaks and common EPUB verse/line spans.
       .replace(/<br\s*\/?>/gi, "\n")
-      .replace(/<\/p>/gi, "\n\n")
-      .replace(/<\/(h1|h2|h3|h4|h5|h6|div|li)>/gi, "\n")
+      .replace(
+        /<span\b[^>]*(?:class\s*=\s*["'][^"']*(?:verse|line|stanza|poetry)[^"']*["']|epub:type\s*=\s*["'][^"']*(?:verse|poem)[^"']*["'])[^>]*>/gi,
+        "\n",
+      )
+      .replace(
+        /<\/span>/gi,
+        (match, offset, whole) => {
+          const before = whole.slice(Math.max(0, offset - 220), offset);
+          return /<span\b[^>]*(?:verse|line|stanza|poetry|epub:type)/i.test(before)
+            ? "\n"
+            : "";
+        },
+      )
+      // Headings and structural blocks must remain separate paragraphs.
+      .replace(/<\/(h1|h2|h3|h4|h5|h6|p|div|section|article|blockquote|pre)>/gi, "\n\n")
+      .replace(/<\/li>/gi, "\n")
       .replace(/<[^>]+>/g, "")
-      .replace(/&nbsp;/gi, " ")
-      .replace(/&amp;/gi, "&")
-      .replace(/&lt;/gi, "<")
-      .replace(/&gt;/gi, ">")
-      .replace(/&quot;/gi, '"')
-      .replace(/&#39;/gi, "'")
       .replace(/[ \t]+\n/g, "\n")
       .replace(/\n{3,}/g, "\n\n")
-      .trim()
+      .trim(),
   );
 }
 
