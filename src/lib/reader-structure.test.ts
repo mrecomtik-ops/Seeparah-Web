@@ -86,7 +86,7 @@ describe("printed contents and wrapped headings", () => {
       expect.objectContaining({
         kind: "heading",
         level: 2,
-        text: "CHAPTER I — IF YOU WANT TO GATHER HONEY, DON'T KICK OVER",
+        text: "CHAPTER I — IF YOU WANT TO GATHER HONEY, DON'T KICK OVER — THE BEEHIVE.",
       }),
     );
   });
