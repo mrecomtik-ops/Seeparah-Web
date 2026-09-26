@@ -122,6 +122,7 @@ export async function searchBooks(query: string): Promise<Book[]> {
 export interface ReaderChunkResult {
   content: string | null;
   locked: boolean;
+  typographyProfile?: string;
   reason?: "sign_in_required" | "subscription_required" | "translation_access_required" | "not_available";
 }
 
