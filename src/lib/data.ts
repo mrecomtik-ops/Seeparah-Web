@@ -150,7 +150,7 @@ export const LANGUAGES = [
 
 export type SupportedLanguage = (typeof LANGUAGES)[number];
 
-export const RTL_LANGUAGES = new Set<SupportedLanguage>([
+export const RTL_LANGUAGES = new Set<string>([
   "Urdu",
   "Arabic",
   "Pashto",
