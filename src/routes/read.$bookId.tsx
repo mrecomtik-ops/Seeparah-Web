@@ -21,7 +21,7 @@ import {
   X,
 } from "lucide-react";
 import { z } from "zod";
-import { RTL_LANGUAGES, REQUESTABLE_TRANSLATION_LANGUAGES } from "@/lib/data";
+import { RTL_LANGUAGES, REQUESTABLE_TRANSLATION_LANGUAGES, type Progress } from "@/lib/data";
 import {
   addHighlight,
   getBook,
@@ -288,7 +288,23 @@ function ReaderPage() {
   async function persist(next: number, quiet = true) {
     recordReadingDay();
     const result = await saveProgress(userId, bookId, language, next);
-    queryClient.invalidateQueries({ queryKey: ["progress", userId] });
+    const updatedAt = new Date().toISOString();
+    queryClient.setQueryData<Progress[]>(["progress", userId], (rows = []) => {
+      const row: Progress = {
+        user_id: userId,
+        book_id: bookId,
+        language,
+        last_chunk_index: next,
+        updated_at: updatedAt,
+      };
+      const existing = rows.findIndex(
+        (item) => item.book_id === bookId && item.language === language,
+      );
+      if (existing < 0) return [...rows, row];
+      const copy = [...rows];
+      copy[existing] = row;
+      return copy;
+    });
     if (!quiet) {
       toast.success(
         result.synced ? "Progress saved to your account" : "Saved on this device (not signed in)",
