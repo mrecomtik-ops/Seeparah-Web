@@ -153,6 +153,11 @@ interface ProcessResult {
   done: number;
   failed: number;
   jobStatus: string;
+  errors: string[];
+}
+
+function isNonRetryableProviderError(message: string): boolean {
+  return /PERMISSION_DENIED|project has been denied access/i.test(message);
 }
 
 /** Configurable bound on how many sections one call processes — keeps each
@@ -211,7 +216,7 @@ export async function processTranslationJobBatch(
     .single();
   if (jobError || !job) throw new Error("Translation job not found");
   if (!["pending", "processing", "failed"].includes(job.status)) {
-    return { jobId, processed: 0, done: 0, failed: 0, jobStatus: job.status };
+    return { jobId, processed: 0, done: 0, failed: 0, jobStatus: job.status, errors: [] };
   }
   if (!isGeminiConfigured()) {
     // Configuration problem, not a translation problem — leave sections
@@ -256,6 +261,8 @@ export async function processTranslationJobBatch(
   let failedCount = 0;
   let batchPromptTokens = 0;
   let batchOutputTokens = 0;
+  const batchErrors: string[] = [];
+  let fatalProviderError: string | null = null;
 
   for (const section of sections) {
     await db
@@ -351,21 +358,26 @@ export async function processTranslationJobBatch(
       batchPromptTokens += result.promptTokens ?? 0;
       batchOutputTokens += result.outputTokens ?? 0;
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
       const attempts = section.attempts + 1;
-      const permanentlyFailed = attempts >= MAX_SECTION_ATTEMPTS;
+      const providerFatal = isNonRetryableProviderError(message);
+      const permanentlyFailed = providerFatal || attempts >= MAX_SECTION_ATTEMPTS;
       await db
         .from("book_translation_sections")
         .update({
           status: "failed",
           attempts,
-          last_error: error instanceof Error ? error.message : String(error),
+          last_error: message,
           next_attempt_at: permanentlyFailed
             ? null
             : new Date(Date.now() + retryDelayMs(attempts)).toISOString(),
           updated_at: new Date().toISOString(),
         })
         .eq("id", section.id);
+      if (!batchErrors.includes(message)) batchErrors.push(message);
+      if (providerFatal && !fatalProviderError) fatalProviderError = message;
       failedCount += 1;
+      if (providerFatal) break;
     }
   }
 
@@ -375,13 +387,16 @@ export async function processTranslationJobBatch(
     .eq("job_id", jobId);
   const rows = allSections ?? [];
   const completed = rows.filter((r) => r.status === "done").length;
+  const failedRows = rows.filter((r) => r.status === "failed").length;
   const permanentlyFailed = rows.filter(
     (r) => r.status === "failed" && r.attempts >= MAX_SECTION_ATTEMPTS,
   ).length;
   const stillPending = rows.length - completed - permanentlyFailed;
 
   let nextJobStatus = job.status === "pending" ? "processing" : job.status;
-  if (completed === rows.length && rows.length > 0) {
+  if (fatalProviderError) {
+    nextJobStatus = "failed";
+  } else if (completed === rows.length && rows.length > 0) {
     nextJobStatus = "awaiting_review";
   } else if (stillPending === 0 && permanentlyFailed > 0) {
     nextJobStatus = "failed";
@@ -393,14 +408,15 @@ export async function processTranslationJobBatch(
     .from("book_translation_jobs")
     .update({
       completed_sections: completed,
-      failed_sections: permanentlyFailed,
+      failed_sections: failedRows,
       status: nextJobStatus,
       total_prompt_tokens: job.total_prompt_tokens + batchPromptTokens,
       total_output_tokens: job.total_output_tokens + batchOutputTokens,
       last_error:
-        permanentlyFailed > 0
+        fatalProviderError ??
+        (permanentlyFailed > 0
           ? `${permanentlyFailed} section(s) failed after ${MAX_SECTION_ATTEMPTS} attempts`
-          : null,
+          : null),
       updated_at: new Date().toISOString(),
     })
     .eq("id", jobId);
@@ -411,6 +427,7 @@ export async function processTranslationJobBatch(
     done: doneCount,
     failed: failedCount,
     jobStatus: nextJobStatus,
+    errors: batchErrors,
   };
 }
 
@@ -422,7 +439,7 @@ export async function processDueJobs(maxJobs = 5, sectionsPerJob = 3) {
   const { data: jobs } = await db
     .from("book_translation_jobs")
     .select("id")
-    .in("status", ["pending", "processing", "failed"])
+    .in("status", ["pending", "processing"])
     .lte("next_attempt_at", nowIso)
     .limit(maxJobs);
 
@@ -431,7 +448,7 @@ export async function processDueJobs(maxJobs = 5, sectionsPerJob = 3) {
   const { data: neverAttempted } = await db
     .from("book_translation_jobs")
     .select("id")
-    .in("status", ["pending", "processing", "failed"])
+    .in("status", ["pending", "processing"])
     .is("next_attempt_at", null)
     .limit(maxJobs);
 
