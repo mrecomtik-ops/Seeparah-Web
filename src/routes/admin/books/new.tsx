@@ -167,10 +167,10 @@ function AdminUploadBook() {
   }
 
   const inputCls =
-    "w-full rounded-xl border border-border bg-card px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring";
+    "w-full max-w-full rounded-xl border border-border bg-card px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring";
 
   return (
-    <div className="max-w-2xl">
+    <div className="min-w-0 max-w-2xl overflow-x-hidden">
       <h1 className="font-display text-2xl font-semibold text-foreground">Upload a book</h1>
       <p className="mt-1 text-sm text-muted-foreground">
         Creates a draft awaiting review — nothing here publishes automatically. UTF-8 text and EPUB
@@ -180,13 +180,13 @@ function AdminUploadBook() {
       <div className="mt-4 flex gap-2">
         <button
           onClick={() => setMode("single")}
-          className={`rounded-full px-3 py-1 text-xs font-semibold ${mode === "single" ? "bg-primary text-primary-foreground" : "border border-border"}`}
+          className={`min-h-10 rounded-full px-3 py-2 text-xs font-semibold ${mode === "single" ? "bg-primary text-primary-foreground" : "border border-border"}`}
         >
           Single book
         </button>
         <button
           onClick={() => setMode("batch")}
-          className={`rounded-full px-3 py-1 text-xs font-semibold ${mode === "batch" ? "bg-primary text-primary-foreground" : "border border-border"}`}
+          className={`min-h-10 rounded-full px-3 py-2 text-xs font-semibold ${mode === "batch" ? "bg-primary text-primary-foreground" : "border border-border"}`}
         >
           CSV batch import
         </button>
@@ -268,7 +268,7 @@ function AdminUploadBook() {
                     type="button"
                     aria-pressed={active}
                     onClick={() => toggleCategory(category)}
-                    className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                    className={`min-h-10 max-w-full break-words rounded-full px-3 py-2 text-xs font-semibold transition-colors ${
                       active
                         ? "bg-primary text-primary-foreground"
                         : "border border-border bg-background text-foreground hover:bg-secondary"
