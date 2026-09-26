@@ -543,6 +543,65 @@ export const adminSetBookContentPolicy = createServerFn({ method: "POST" })
     return { ok: true as const };
   });
 
+export const adminImportVerifiedSourcedEdition = createServerFn({ method: "POST" })
+  .inputValidator((data) =>
+    withToken({
+      bookId: z.string(),
+      language: z.string().min(1),
+      provenanceType: z.enum([
+        "human_translation",
+        "licensed_translation",
+        "public_domain_translation",
+      ]),
+      typographyProfile: z.enum([
+        "standard",
+        "scripture_arabic",
+        "scripture_urdu",
+        "scripture_hebrew",
+        "scripture_indic",
+        "facsimile_preserving",
+      ]),
+      editionTitle: z.string().max(500).nullable().optional(),
+      translator: z.string().max(500).nullable().optional(),
+      sourceUrl: z.string().min(1).max(2000),
+      sourceEditionId: z.string().max(500).nullable().optional(),
+      rightsBasis: z.string().min(20).max(4000),
+      rightsEvidenceUrl: z.string().min(1).max(2000),
+      authenticityNotes: z.string().max(5000).nullable().optional(),
+      manuscriptText: z.string().min(1),
+    }).parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { userId, role } = await requireAdmin(data.accessToken, "translation.jobs.manage");
+    const { importVerifiedSourcedEdition } = await import("@/lib/admin/catalog.server");
+    const result = await importVerifiedSourcedEdition({
+      bookId: data.bookId,
+      language: data.language,
+      provenanceType: data.provenanceType,
+      typographyProfile: data.typographyProfile,
+      sourceUrl: data.sourceUrl,
+      rightsBasis: data.rightsBasis,
+      rightsEvidenceUrl: data.rightsEvidenceUrl,
+      manuscriptText: data.manuscriptText,
+      ...(data.editionTitle !== undefined ? { editionTitle: data.editionTitle } : {}),
+      ...(data.translator !== undefined ? { translator: data.translator } : {}),
+      ...(data.sourceEditionId !== undefined ? { sourceEditionId: data.sourceEditionId } : {}),
+      ...(data.authenticityNotes !== undefined
+        ? { authenticityNotes: data.authenticityNotes }
+        : {}),
+    });
+    await recordAudit({
+      actorId: userId,
+      actorRole: role,
+      action: "translation.import_verified_sourced_edition",
+      entityType: "book",
+      entityId: data.bookId,
+      reason: "Verified sourced Religious translation imported and published free",
+      after: result as unknown as Record<string, unknown>,
+    });
+    return result;
+  });
+
 // ============================================================================
 // Book metadata editing (admin)
 // ============================================================================
