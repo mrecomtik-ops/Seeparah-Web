@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { BookOpen, Check, Crown, Feather, Loader2, ShieldCheck } from "lucide-react";
 import { Link } from "@tanstack/react-router";
-import { AUTHOR_PAYOUT, PLATFORM_COMMISSION, TRANSLATION_EXPLAINER_SHORT } from "@/lib/data";
+import { TRANSLATION_EXPLAINER_SHORT } from "@/lib/data";
 import { getBook, listSubscriptions, subscribeToBook } from "@/lib/library";
 import { useAuth } from "@/lib/use-auth";
 import { getPublicContentSettings } from "@/lib/admin/settings.functions";
@@ -19,10 +19,10 @@ export const Route = createFileRoute("/subscribe")({
       { title: "Plans & subscriptions — Seeparah" },
       {
         name: "description",
-        content: "Seeparah is completely free during launch — every book, no checkout, no premium locks.",
+        content: "Original-language books are always free. A monthly Seeparah plan will unlock reviewed translated editions, while Religious books and their verified translations remain free.",
       },
       { property: "og:title", content: "Plans & subscriptions — Seeparah" },
-      { property: "og:description", content: "Free during launch — every book, no checkout." },
+      { property: "og:description", content: "Original editions are free; reviewed translations use one monthly plan." },
     ],
   }),
   component: SubscribePage,
@@ -91,13 +91,13 @@ function SubscribePage() {
           <p className="text-sm font-medium text-muted-foreground">Plans</p>
           <h1 className="mt-1 font-display text-4xl font-semibold tracking-tight text-foreground">
             {monetizationEnabled
-              ? "Reading for everyone, revenue for authors"
-              : "Free for everyone, right now"}
+              ? "Original books free. Translations with one monthly plan."
+              : "Original books stay free — paid translations are being prepared"}
           </h1>
           <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground">
             {monetizationEnabled
-              ? `Every book on Seeparah starts with a free opening page. One subscription — $${price.toFixed(2)}/month — unlocks every Premium book and translation, with no separate per-book or per-translation charge.`
-              : "Seeparah is completely free during launch — every book, every language, no checkout and no premium locks."}
+              ? `Every book's original-language edition stays free. One subscription — ${price.toFixed(2)}/month — unlocks all reviewed paid translated editions. Religious books and their verified sourced translations remain free.`
+              : "Billing is not live yet. Original-language editions are permanently free, and translated editions remain accessible during this pre-billing phase. Religious books and verified Religious translations will always be free."}
           </p>
         </div>
 
@@ -108,8 +108,10 @@ function SubscribePage() {
               Nothing to subscribe to yet
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
-              All books are free to read in full while Seeparah is in launch. Subscriptions will
-              return here when that changes — nothing to set up now.
+              No payment provider is live yet, so there is nothing to buy today. The product rule
+              is already set: original-language editions stay free forever; reviewed general
+              translations become monthly-plan content when billing is activated; Religious books
+              and verified Religious translations always stay free.
             </p>
             <button
               onClick={() => navigate({ to: "/library" })}
@@ -132,10 +134,10 @@ function SubscribePage() {
               </p>
               <ul className="mt-5 space-y-2.5 text-sm text-foreground">
                 {[
-                  "Every free book in the library",
-                  "English/Urdu standard; Hindi/Arabic on request",
+                  "Every original-language edition, in full",
+                  "Every Religious book and verified Religious translation",
                   "Highlights and reading progress saved",
-                  "Opening page of every premium book",
+                  "Opening preview of paid translated editions",
                 ].map((f) => (
                   <li key={f} className="flex items-start gap-2">
                     <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
@@ -167,11 +169,10 @@ function SubscribePage() {
               </p>
               <ul className="mt-5 space-y-2.5 text-sm text-foreground">
                 {[
-                  book
-                    ? `The whole of “${book.title}”, page by page`
-                    : "Every Premium book, page by page",
-                  "Every Premium book and translated edition on Seeparah — one plan, no separate per-book charge",
-                  "Cancel anytime — access runs to the end of the month",
+                  "All reviewed general translated editions",
+                  "One account-wide monthly plan — no separate charge for each translated book",
+                  "New translation requests remain review-gated; translated once and saved",
+                  "Religious books are excluded from paid translation and remain free",
                 ].map((f) => (
                   <li key={f} className="flex items-start gap-2">
                     <Check className="mt-0.5 h-4 w-4 shrink-0 text-gold" />
@@ -232,7 +233,7 @@ function SubscribePage() {
             Free to publish
             <span className="text-base font-normal text-muted-foreground">
               {" "}
-              {monetizationEnabled ? "· 70% of every subscription" : "· free to read during launch"}
+              · originals stay free
             </span>
           </p>
           <ul className="mt-5 grid gap-2.5 text-sm text-foreground sm:grid-cols-2">
@@ -240,9 +241,7 @@ function SubscribePage() {
               "Publish a manuscript in minutes",
               "An administrator reviews rights and quality before publishing",
               "Reader analytics",
-              monetizationEnabled
-                ? "Monthly payouts, cancel or unpublish anytime"
-                : "Unpublish anytime",
+              "Unpublish anytime",
             ].map((f) => (
               <li key={f} className="flex items-start gap-2">
                 <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
@@ -269,29 +268,6 @@ function SubscribePage() {
           </div>
         </section>
 
-        {monetizationEnabled && (
-          <section className="mt-6 rounded-2xl border border-border bg-secondary p-7">
-            <h2 className="font-display text-xl font-semibold text-foreground">
-              How the 70/30 split works
-            </h2>
-            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-              Every subscription is one plan covering every Premium book and translation, with no
-              hidden fees: {Math.round(AUTHOR_PAYOUT * 100)}% of plan revenue is set aside for
-              authors, and {Math.round(PLATFORM_COMMISSION * 100)}% stays with Seeparah to pay for
-              translation, hosting and payments. The exact method for dividing the author share
-              across the books readers actually read will be published here before real billing
-              goes live — this isn't active yet.
-            </p>
-            <div className="mt-5 flex h-4 w-full overflow-hidden rounded-full">
-              <div className="flex h-full w-[70%] items-center justify-center bg-primary text-[10px] font-bold text-primary-foreground">
-                70% AUTHOR
-              </div>
-              <div className="flex h-full w-[30%] items-center justify-center bg-gold text-[10px] font-bold text-gold-foreground">
-                30% PLATFORM
-              </div>
-            </div>
-          </section>
-        )}
       </main>
     </div>
   );
