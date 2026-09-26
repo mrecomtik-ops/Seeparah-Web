@@ -189,7 +189,7 @@ function ReaderPage() {
     staleTime: 5 * 60 * 1000,
   });
 
-  // Reader's own Hindi/Arabic translation-request status for this book, so
+  // Reader's own supported languages translation-request status for this book, so
   // the UI can show "requested" / "declined" / "revoked" accurately instead
   // of a generic "Request this translation" button that ignores whether one
   // already exists. Demo (signed-out) readers have no requests to show —
@@ -278,7 +278,7 @@ function ReaderPage() {
   // A language counts as "available" for the purpose of NOT showing the
   // generic "pick another language" dead-end if either a reviewed edition
   // already exists, OR it's one of the languages a reader can actually
-  // request (Hindi/Arabic) — in that second case there is real content to
+  // request (supported languages) — in that second case there is real content to
   // navigate to (the request prompt, driven by the server's own locked/
   // lockReason), just not a finished edition yet. Without this, a reader
   // could never discover or trigger a translation request for a language
@@ -290,7 +290,7 @@ function ReaderPage() {
   const languageAvailable =
     (book?.available_languages.includes(language) ?? true) || isRequestableLanguage;
 
-  // Languages shown as "request a translation" pills: Hindi/Arabic that
+  // Languages shown as "request a translation" pills: supported languages that
   // don't already have a reviewed edition, and aren't the book's own
   // source language (requesting the source language is meaningless — it's
   // already free to read, and the server rejects that request outright).
@@ -644,33 +644,35 @@ function ReaderPage() {
         </div>
 
         {requestableLanguagesForBook.length > 0 && (
-          <div className="mt-2 flex items-center gap-2 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible">
-            <span className="text-xs text-muted-foreground">Also on request:</span>
-            {requestableLanguagesForBook.map((l) => {
-              const myRequest = myRequestStatusByLanguage.get(l);
-              const status = myRequest?.status as string | undefined;
-              const label =
-                status === "requested" || status === "approved_awaiting_edition"
-                  ? `${l} · requested`
-                  : status === "declined"
-                    ? `${l} · declined`
-                    : status === "revoked"
-                      ? `${l} · revoked`
-                      : `${l} · request`;
-              return (
-                <button
-                  key={l}
-                  onClick={() => switchLanguage(l)}
-                  className={`rounded-full border border-dashed px-3 py-1.5 text-xs font-semibold transition-colors ${
-                    l === language
-                      ? "border-primary text-primary"
-                      : "border-border text-muted-foreground hover:border-foreground hover:text-foreground"
-                  }`}
-                >
-                  {label}
-                </button>
-              );
-            })}
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <span className="text-xs text-muted-foreground">Request translation:</span>
+            <select
+              value={requestableLanguagesForBook.includes(language as (typeof requestableLanguagesForBook)[number]) ? language : ""}
+              onChange={(e) => {
+                if (e.target.value) switchLanguage(e.target.value);
+              }}
+              aria-label="Choose a language to request"
+              className="max-w-full rounded-lg border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <option value="">Choose language…</option>
+              {requestableLanguagesForBook.map((l) => {
+                const myRequest = myRequestStatusByLanguage.get(l);
+                const status = myRequest?.status as string | undefined;
+                const suffix =
+                  status === "requested" || status === "approved_awaiting_edition"
+                    ? " — requested"
+                    : status === "declined"
+                      ? " — declined"
+                      : status === "revoked"
+                        ? " — revoked"
+                        : "";
+                return (
+                  <option key={l} value={l}>
+                    {l}{suffix}
+                  </option>
+                );
+              })}
+            </select>
           </div>
         )}
 
