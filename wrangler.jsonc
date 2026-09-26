@@ -52,6 +52,14 @@
   // should stay available for manual/temporary QA, this has to be
   // explicit.
   "workers_dev": true,
+
+  // Translation production worker. Each scheduled invocation processes a
+  // small bounded batch only; jobs remain review-gated and never publish
+  // automatically. One-minute cadence keeps reader-requested editions moving
+  // without a long-running request or duplicate full-book translation.
+  "triggers": {
+    "crons": ["* * * * *"],
+  },
   // Without this, `wrangler deploy` treats this file as the sole source of
   // truth for the Worker's environment and DELETES any plaintext `vars`
   // configured through the Cloudflare dashboard that aren't also listed
