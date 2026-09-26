@@ -83,6 +83,38 @@ export function classifyHeading(value: string): {
   return null;
 }
 
+function collectWrappedHeadingTitle(
+  blocks: string[],
+  startIndex: number,
+  base: string,
+  kind: ReaderNavigationItem["kind"],
+): { title: string; consumed: number } {
+  if (kind !== "chapter" && kind !== "part") return { title: base, consumed: 0 };
+  const pieces = [base];
+  let consumed = 0;
+  for (let offset = 1; offset <= 2; offset++) {
+    const next = blocks[startIndex + offset];
+    if (!next || looksLikePrintedContentsLine(next)) break;
+    const lines = next.split("\n").map(cleanLine).filter(Boolean);
+    if (lines.length !== 1) break;
+    const nextFirst = lines[0] ?? "";
+    if (
+      !nextFirst ||
+      nextFirst.length > 120 ||
+      !isAllCapsHeading(nextFirst) ||
+      PART_HEADING.test(nextFirst) ||
+      CHAPTER_HEADING.test(nextFirst) ||
+      SECTION_HEADING.test(nextFirst) ||
+      FRONT_MATTER_HEADING.test(nextFirst)
+    ) {
+      break;
+    }
+    pieces.push(nextFirst);
+    consumed += 1;
+  }
+  return { title: pieces.join(" — "), consumed };
+}
+
 /**
  * Turns one legacy text chunk into display blocks without changing the text.
  * This is deliberately conservative: only strong source-shaped signals become
@@ -108,30 +140,13 @@ export function parseReadableBlocks(content: string): ReaderBlock[] {
 
     const heading = classifyHeading(first);
     if (lines.length === 1 && heading) {
-      const next = rawBlocks[i + 1];
-      const nextFirst = next ? cleanLine(next.split("\n")[0] ?? "") : "";
-      const nextIsWrappedTitle =
-        next &&
-        !looksLikePrintedContentsLine(next) &&
-        next.split("\n").filter((line) => line.trim()).length === 1 &&
-        nextFirst.length <= 120 &&
-        isAllCapsHeading(nextFirst) &&
-        !PART_HEADING.test(nextFirst) &&
-        !CHAPTER_HEADING.test(nextFirst) &&
-        !SECTION_HEADING.test(nextFirst) &&
-        !FRONT_MATTER_HEADING.test(nextFirst) &&
-        (heading.kind === "chapter" || heading.kind === "part");
-
-      if (nextIsWrappedTitle) {
-        result.push({
-          kind: "heading",
-          text: `${first} — ${nextFirst}`,
-          level: heading.level,
-        });
-        i += 1;
-      } else {
-        result.push({ kind: "heading", text: first, level: heading.level });
-      }
+      const wrapped = collectWrappedHeadingTitle(rawBlocks, i, first, heading.kind);
+      result.push({
+        kind: "heading",
+        text: wrapped.title,
+        level: heading.level,
+      });
+      i += wrapped.consumed;
       continue;
     }
 
@@ -176,22 +191,8 @@ function bestHeadingFromChunk(content: string): {
     const match = classifyHeading(first);
     if (!match) continue;
 
-    let title = first;
-    const next = blocks[i + 1];
-    const nextFirst = next ? cleanLine(next.split("\n")[0] ?? "") : "";
-    if (
-      next &&
-      !looksLikePrintedContentsLine(next) &&
-      nextFirst.length <= 120 &&
-      isAllCapsHeading(nextFirst) &&
-      !PART_HEADING.test(nextFirst) &&
-      !CHAPTER_HEADING.test(nextFirst) &&
-      !SECTION_HEADING.test(nextFirst) &&
-      (match.kind === "chapter" || match.kind === "part")
-    ) {
-      title = `${first} — ${nextFirst}`;
-    }
-    return { title, kind: match.kind, depth: match.level - 1 };
+    const wrapped = collectWrappedHeadingTitle(blocks, i, first, match.kind);
+    return { title: wrapped.title, kind: match.kind, depth: match.level - 1 };
   }
   return null;
 }
