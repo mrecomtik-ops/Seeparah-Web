@@ -12,7 +12,10 @@ import {
   REQUESTABLE_TRANSLATION_LANGUAGES,
   isReligiousBook,
 } from "@/lib/data";
-import { getBookTranslationLanguageStatus } from "@/lib/translation.functions";
+import {
+  getBookTranslationLanguageStatus,
+  getPublicBookEditions,
+} from "@/lib/translation.functions";
 
 export const Route = createFileRoute("/book/$bookId")({
   head: () => ({
@@ -30,6 +33,10 @@ function BookDetailPage() {
   const translationStatusQuery = useQuery({
     queryKey: ["translation-language-status", bookId],
     queryFn: () => getBookTranslationLanguageStatus({ data: { bookId } }),
+  });
+  const editionInfoQuery = useQuery({
+    queryKey: ["public-book-editions", bookId],
+    queryFn: () => getPublicBookEditions({ data: { bookId } }),
   });
   const book = bookQuery.data;
   const prefs = getPrefs();
@@ -124,6 +131,14 @@ function BookDetailPage() {
                   {book.genre}
                 </span>
               )}
+              {(book.categories ?? []).map((category) => (
+                <span
+                  key={category}
+                  className="rounded-full border border-border bg-background px-2.5 py-1 text-[11px] font-semibold text-foreground"
+                >
+                  {category}
+                </span>
+              ))}
               <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-1 text-[11px] font-semibold text-secondary-foreground">
                 <Globe2 className="h-3 w-3" /> Original: {book.source_language}
               </span>
@@ -139,6 +154,65 @@ function BookDetailPage() {
                 {book.total_chunks === 1 ? "page" : "pages"}, not the complete work.
               </p>
             )}
+
+            <section className="mt-6 rounded-2xl border border-border bg-card p-4">
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Book & edition details
+              </h2>
+              <dl className="mt-3 grid gap-x-5 gap-y-3 text-sm sm:grid-cols-2">
+                <div>
+                  <dt className="text-xs text-muted-foreground">Original language</dt>
+                  <dd className="mt-0.5 font-medium text-foreground">{book.source_language}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-muted-foreground">Original publication</dt>
+                  <dd className="mt-0.5 font-medium text-foreground">
+                    {book.original_publication_year
+                      ? book.original_publication_year < 0
+                        ? `${Math.abs(book.original_publication_year)} BCE`
+                        : book.original_publication_year
+                      : "—"}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-muted-foreground">Edition</dt>
+                  <dd className="mt-0.5 font-medium text-foreground">
+                    {book.edition_title || "—"}
+                    {book.edition_year ? ` · ${book.edition_year}` : ""}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-muted-foreground">Publisher</dt>
+                  <dd className="mt-0.5 font-medium text-foreground">
+                    {book.publisher || "—"}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-muted-foreground">Length</dt>
+                  <dd className="mt-0.5 font-medium text-foreground">
+                    {book.word_count
+                      ? `${book.word_count.toLocaleString()} words`
+                      : `${book.total_chunks} reading ${book.total_chunks === 1 ? "section" : "sections"}`}
+                    {book.estimated_reading_minutes
+                      ? ` · about ${book.estimated_reading_minutes} min`
+                      : ""}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-muted-foreground">Reader typography</dt>
+                  <dd className="mt-0.5 font-medium text-foreground">
+                    {book.typography_profile === "facsimile_preserving"
+                      ? "Source-preserving"
+                      : book.typography_profile?.replaceAll("_", " ") || "Standard"}
+                  </dd>
+                </div>
+              </dl>
+              {book.authenticity_notes && (
+                <p className="mt-3 rounded-xl bg-secondary px-3 py-2 text-xs leading-relaxed text-secondary-foreground">
+                  <strong>Authenticity notes:</strong> {book.authenticity_notes}
+                </p>
+              )}
+            </section>
 
             <div className="mt-6">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -185,6 +259,49 @@ function BookDetailPage() {
                   languages are added only from verified sourced editions, with script, diacritics,
                   numbering and typography preserved as closely as the digital format allows.
                 </p>
+              )}
+              {(editionInfoQuery.data ?? []).length > 0 && (
+                <div className="mt-4 space-y-2">
+                  {(editionInfoQuery.data ?? []).map((edition) => (
+                    <article
+                      key={edition.language}
+                      className="rounded-xl border border-border bg-background px-3 py-3 text-xs"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <strong className="text-foreground">{edition.language} edition</strong>
+                        <span className="rounded-full bg-secondary px-2 py-0.5 font-semibold text-secondary-foreground">
+                          {edition.provenanceType === "ai_assisted"
+                            ? "Reviewed AI-assisted translation"
+                            : edition.provenanceType === "human_translation"
+                              ? "Verified human translation"
+                              : edition.provenanceType === "licensed_translation"
+                                ? "Licensed translation"
+                                : "Public-domain translation"}
+                        </span>
+                      </div>
+                      <div className="mt-2 space-y-1 text-muted-foreground">
+                        {edition.editionTitle && <p>Edition: {edition.editionTitle}</p>}
+                        {edition.translator && <p>Translator/editor: {edition.translator}</p>}
+                        {edition.sourceEditionId && <p>Source edition ID: {edition.sourceEditionId}</p>}
+                        {edition.authenticityNotes && (
+                          <p>Text/typography notes: {edition.authenticityNotes}</p>
+                        )}
+                        {edition.sourceUrl && (
+                          <p>
+                            <a
+                              href={edition.sourceUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="font-semibold text-primary hover:underline"
+                            >
+                              View the sourced edition
+                            </a>
+                          </p>
+                        )}
+                      </div>
+                    </article>
+                  ))}
+                </div>
               )}
             </div>
 
