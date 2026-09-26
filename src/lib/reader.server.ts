@@ -10,6 +10,9 @@ async function admin() {
 export interface ReaderChunkResult {
   content: string | null;
   locked: boolean;
+  /** Edition-specific typography profile. Religious sourced translations
+   * may intentionally use a different script stack from the original. */
+  typographyProfile?: string;
   reason?:
     "sign_in_required" | "subscription_required" | "translation_access_required" | "not_available";
 }
@@ -410,7 +413,7 @@ export async function getReaderChunk(params: {
   const db = await admin();
   const { data: book, error: bookError } = await db
     .from("books")
-    .select("id, status, access_type, author_id, source_language, source_version, content_classification")
+    .select("id, status, access_type, author_id, source_language, source_version, content_classification, typography_profile")
     .eq("id", params.bookId)
     .single();
   if (bookError || !book) return { content: null, locked: false, reason: "not_available" };
@@ -436,16 +439,18 @@ export async function getReaderChunk(params: {
 
   const isSourceLanguage = params.language === book.source_language;
   let editionAccessType: "free" | "paid" | undefined;
+  let editionTypographyProfile: string | undefined;
   if (isSourceLanguage) {
     editionAccessType = undefined; // unused — resolveReaderAccess uses book.accessType instead
   } else {
     const { data: edition } = await db
       .from("book_editions")
-      .select("access_type")
+      .select("access_type, typography_profile")
       .eq("book_id", params.bookId)
       .eq("language", params.language)
       .maybeSingle();
     editionAccessType = (edition?.access_type as "free" | "paid" | undefined) ?? undefined;
+    editionTypographyProfile = edition?.typography_profile ?? undefined;
   }
 
   const access = resolveReaderAccess({
@@ -498,7 +503,13 @@ export async function getReaderChunk(params: {
       .maybeSingle());
   }
 
-  return { content: chunk?.content ?? null, locked: false };
+  return {
+    content: chunk?.content ?? null,
+    locked: false,
+    typographyProfile: isSourceLanguage
+      ? book.typography_profile ?? "standard"
+      : editionTypographyProfile ?? "standard",
+  };
 }
 
 /**
