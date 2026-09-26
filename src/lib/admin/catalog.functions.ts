@@ -117,6 +117,59 @@ export const adminReviewBookEdition = createServerFn({ method: "POST" })
     return { ok: true as const };
   });
 
+export const adminAcknowledgeBookRightsSignals = createServerFn({ method: "POST" })
+  .inputValidator((data) => withToken({ bookId: z.string() }).parse(data))
+  .handler(async ({ data }) => {
+    const { userId, role } = await requireAdmin(data.accessToken, "catalog.review");
+    const { acknowledgeRightsRiskSignals } = await import("@/lib/admin/catalog.server");
+    const diff = await acknowledgeRightsRiskSignals({
+      bookId: data.bookId,
+      reviewerId: userId,
+    });
+    await recordAudit({
+      actorId: userId,
+      actorRole: role,
+      action: "catalog.rights_risk_acknowledged",
+      entityType: "book",
+      entityId: data.bookId,
+      before: diff.before,
+      after: diff.after,
+    });
+    return { ok: true as const };
+  });
+
+export const adminReviewBookReaderQuality = createServerFn({ method: "POST" })
+  .inputValidator((data) =>
+    withToken({
+      bookId: z.string(),
+      target: z.enum(["structure", "cleanup"]),
+      decision: z.enum(["approved", "changes_requested", "rejected"]),
+      notes: z.string().optional(),
+    }).parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { userId, role } = await requireAdmin(data.accessToken, "catalog.review");
+    const { reviewReaderQuality } = await import("@/lib/admin/catalog.server");
+    const diff = await reviewReaderQuality({
+      bookId: data.bookId,
+      target: data.target,
+      decision: data.decision,
+      reviewerId: userId,
+      notes: data.notes,
+    });
+    await recordAudit({
+      actorId: userId,
+      actorRole: role,
+      action: `catalog.${data.target}_review`,
+      entityType: "book",
+      entityId: data.bookId,
+      reason: data.notes,
+      before: diff.before,
+      after: diff.after,
+    });
+    return { ok: true as const };
+  });
+
 export const adminPublishCatalogBook = createServerFn({ method: "POST" })
   .inputValidator((data) => withToken({ bookId: z.string() }).parse(data))
   .handler(async ({ data }) => {
