@@ -189,6 +189,33 @@ function AdminBookDetail() {
   ];
 
   async function saveContentPolicy() {
+    let downgradeReason: string | null = null;
+    const isReligiousDowngrade =
+      book.content_classification === "religious" &&
+      contentPolicyDraft.classification === "general";
+
+    if (isReligiousDowngrade) {
+      if (session.role !== "owner") {
+        toast.error("Only the owner can change a Religious book back to General.");
+        return;
+      }
+      downgradeReason = window.prompt(
+        "Religious protection is being removed. Enter the reason (at least 20 characters). Existing verified sourced editions must be resolved first.",
+      );
+      if (downgradeReason === null) return;
+      if (downgradeReason.trim().length < 20) {
+        toast.error("Enter a substantive reason of at least 20 characters.");
+        return;
+      }
+      if (
+        !window.confirm(
+          "Confirm downgrade from Religious to General? This re-enables the normal AI translation policy only after the server and database safeguards accept the change.",
+        )
+      ) {
+        return;
+      }
+    }
+
     setContentPolicyBusy(true);
     try {
       await adminSetBookContentPolicy({
@@ -204,6 +231,7 @@ function AdminBookDetail() {
             | "scripture_indic"
             | "facsimile_preserving",
           authenticityNotes: contentPolicyDraft.authenticityNotes.trim() || null,
+          downgradeReason,
         },
       });
       toast.success(
@@ -1125,9 +1153,20 @@ function AdminBookDetail() {
                 }
                 className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
               >
-                <option value="general">General book</option>
+                <option
+                  value="general"
+                  disabled={book.content_classification === "religious" && session.role !== "owner"}
+                >
+                  General book
+                </option>
                 <option value="religious">Religious — always free, sourced translations only</option>
               </select>
+              {book.content_classification === "religious" && (
+                <span className="mt-1 block text-[11px] leading-relaxed text-muted-foreground">
+                  Religious → General is an owner-only protected action and requires an explicit
+                  reason. Verified sourced Religious editions must be resolved first.
+                </span>
+              )}
             </label>
             <label className="block">
               <span className="text-xs font-medium text-muted-foreground">Typography profile</span>
