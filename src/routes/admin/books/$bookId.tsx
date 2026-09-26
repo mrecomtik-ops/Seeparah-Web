@@ -1066,10 +1066,22 @@ function AdminBookDetail() {
               key={j.id}
               className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-background px-4 py-2 text-sm"
             >
-              <span>
-                {j.language} — {j.status} ({j.completed_sections}/{j.total_sections},{" "}
-                {j.human_reviewed ? "reviewed" : "not yet reviewed"})
-              </span>
+              <div className="min-w-0">
+                <span>
+                  {j.language} — {j.status} ({j.completed_sections}/{j.total_sections},{" "}
+                  {j.human_reviewed ? "reviewed" : "not yet reviewed"})
+                </span>
+                {j.failed_sections > 0 && (
+                  <p className="mt-1 text-xs font-semibold text-destructive">
+                    {j.failed_sections} section{j.failed_sections === 1 ? "" : "s"} currently failed
+                  </p>
+                )}
+                {j.last_error && (
+                  <p className="mt-1 max-w-2xl break-words text-xs text-destructive">
+                    {j.last_error}
+                  </p>
+                )}
+              </div>
               <div className="flex flex-wrap items-center gap-2">
                 {canManageTranslations &&
                   ["pending", "processing", "failed"].includes(j.status) && (
@@ -1080,11 +1092,19 @@ function AdminBookDetail() {
                           const result = await adminProcessTranslationJobBatch({
                             data: { accessToken: await getAccessToken(), jobId: j.id },
                           });
-                          toast.success(
-                            result.jobStatus === "awaiting_review"
-                              ? `${j.language} translation is ready for review`
-                              : `Processed ${result.processed} section(s); status: ${result.jobStatus}`,
-                          );
+                          if (result.failed > 0) {
+                            toast.error(
+                              result.errors[0] ??
+                                `${result.failed} translation section(s) failed`,
+                              { duration: 9000 },
+                            );
+                          } else {
+                            toast.success(
+                              result.jobStatus === "awaiting_review"
+                                ? `${j.language} translation is ready for review`
+                                : `Processed ${result.processed} section(s); status: ${result.jobStatus}`,
+                            );
+                          }
                         })
                       }
                       className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary disabled:opacity-60"
