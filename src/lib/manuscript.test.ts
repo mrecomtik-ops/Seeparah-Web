@@ -56,3 +56,23 @@ describe("splitManuscript", () => {
     expect(splitManuscript("Just one line, no blank lines at all.")).toHaveLength(1);
   });
 });
+
+
+describe("parseManuscript preservation mode", () => {
+  it("preserves intentional lineation for religious/scripture source editions", () => {
+    const source =
+      "SECTION ONE\n\nLine one with diacritics: اَلْحَمْدُ\nLine two remains separate\nLine three remains separate";
+    const parsed = parseManuscript(source, { preserveLineation: true });
+    expect(parsed.chunks.join("\n\n")).toContain(
+      "Line one with diacritics: اَلْحَمْدُ\nLine two remains separate\nLine three remains separate",
+    );
+  });
+
+  it("still reflows hard-wrapped prose in normal mode", () => {
+    const source = "A sentence that was wrapped\nacross several source lines\nby a PDF extractor.";
+    const parsed = parseManuscript(source);
+    expect(parsed.chunks[0]).toContain(
+      "A sentence that was wrapped across several source lines by a PDF extractor.",
+    );
+  });
+});
