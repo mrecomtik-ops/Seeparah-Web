@@ -730,6 +730,56 @@ export async function saveTranslationGuide(params: {
 // only {language, inProgress}, nothing else from the job row (no ids,
 // timestamps, attempts, errors) — this is meant to be safe to call with no
 // auth, unlike getBookTranslationStatus below which is author-only.
+export interface PublicBookEditionInfo {
+  language: string;
+  accessType: "free" | "paid";
+  provenanceType:
+    | "ai_assisted"
+    | "human_translation"
+    | "licensed_translation"
+    | "public_domain_translation";
+  typographyProfile: string;
+  editionTitle: string | null;
+  translator: string | null;
+  sourceUrl: string | null;
+  sourceEditionId: string | null;
+  authenticityNotes: string | null;
+}
+
+/** Public metadata for already-published translated editions. This exposes
+ * bibliographic/provenance details readers need to understand an edition,
+ * but deliberately excludes internal rights-review notes and evidence. */
+export async function getPublicBookEditions(bookId: string): Promise<PublicBookEditionInfo[]> {
+  const db = await admin();
+  const { data: book, error: bookError } = await db
+    .from("books")
+    .select("status")
+    .eq("id", bookId)
+    .single();
+  if (bookError || !book || book.status !== "published") return [];
+
+  const { data, error } = await db
+    .from("book_editions")
+    .select(
+      "language,access_type,provenance_type,typography_profile,edition_title,translator,source_url,source_edition_id,authenticity_notes",
+    )
+    .eq("book_id", bookId)
+    .order("language");
+  if (error) throw new Error(error.message);
+
+  return (data ?? []).map((row) => ({
+    language: row.language,
+    accessType: row.access_type as "free" | "paid",
+    provenanceType: row.provenance_type as PublicBookEditionInfo["provenanceType"],
+    typographyProfile: row.typography_profile,
+    editionTitle: row.edition_title,
+    translator: row.translator,
+    sourceUrl: row.source_url,
+    sourceEditionId: row.source_edition_id,
+    authenticityNotes: row.authenticity_notes,
+  }));
+}
+
 export async function getBookTranslationLanguageStatus(bookId: string) {
   const db = await admin();
   const { data: jobs, error } = await db
