@@ -721,7 +721,10 @@ export async function adminCreateBook(
     };
   }
 
-  const parsed = parseManuscript(input.manuscriptText);
+  const religious = (input.categories ?? []).includes("Religious");
+  const parsed = parseManuscript(input.manuscriptText, {
+    preserveLineation: religious,
+  });
   const chunks = parsed.chunks;
   const warnings: string[] = [];
   const { data: book, error } = await db
@@ -736,6 +739,9 @@ export async function adminCreateBook(
       description: input.description,
       genre: input.genre ?? "",
       categories: input.categories ?? [],
+      content_classification: religious ? "religious" : "general",
+      translation_generation_policy: religious ? "source_only" : "ai_allowed",
+      typography_profile: religious ? "facsimile_preserving" : "standard",
       translator: input.translator ?? null,
       cover_url: input.coverUrl ?? null,
       source_url: input.sourceUrl ?? null,
