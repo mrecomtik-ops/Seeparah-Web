@@ -354,17 +354,20 @@ export async function reviewReaderQuality(params: {
     .single();
   if (beforeError || !before) throw new Error(beforeError?.message ?? "Book not found");
 
-  const nextStatus =
-    params.decision === "approved" ? "approved" : params.decision;
-  const patch: Record<string, unknown> = {
-    [column]: nextStatus,
+  const nextStatus = params.decision;
+  const common = {
     review_notes: params.notes ?? null,
     reviewed_by: params.reviewerId,
     reviewed_at: new Date().toISOString(),
+    ...(params.decision !== "approved" && before.status === "approved"
+      ? { status: "changes_requested" }
+      : {}),
   };
-  if (params.decision !== "approved" && before.status === "approved") {
-    patch["status"] = "changes_requested";
-  }
+  const patch =
+    params.target === "structure"
+      ? { structure_review_status: nextStatus, ...common }
+      : { cleanup_review_status: nextStatus, ...common };
+
   const { error } = await db.from("books").update(patch).eq("id", params.bookId);
   if (error) throw new Error(error.message);
   return { before, after: patch };
