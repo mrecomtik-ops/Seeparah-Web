@@ -56,12 +56,12 @@ export const Route = createFileRoute("/library")({
       {
         name: "description",
         content:
-          "Browse classics and new voices, free during launch. Search, filter by language, author and topic, and pick up your saved, favorite and want-to-read books.",
+          "Browse free original-language books and reviewed translations. Search by title or author and filter by language, topic, author, or category — including the always-free Religious collection.",
       },
       { property: "og:title", content: "Library — Seeparah" },
       {
         property: "og:description",
-        content: "Browse classics and new voices, free during launch.",
+        content: "Search and browse books by language and category, including the always-free Religious collection.",
       },
     ],
   }),
@@ -120,10 +120,6 @@ function LibraryPage() {
     () => [...new Set(books.map((b) => b.genre).filter(Boolean) as string[])],
     [books],
   );
-  // Counts drive both the category filter dropdown's option list and the
-  // "Browse by category" chip cloud below — a category with zero published
-  // books never appears in either, so the UI never advertises an empty
-  // browse target.
   const categoryCounts = useMemo(() => {
     const counts = new Map<string, number>();
     for (const b of books) {
@@ -133,10 +129,17 @@ function LibraryPage() {
     }
     return counts;
   }, [books]);
-  const categoriesInUse = useMemo(
-    () => [...categoryCounts.keys()].sort((a, b) => a.localeCompare(b)),
-    [categoryCounts],
-  );
+  const configuredCategories = Array.isArray(settingsQuery.data?.["categories"])
+    ? (settingsQuery.data?.["categories"] as string[])
+    : [];
+  const categoriesInUse = useMemo(() => {
+    const names = new Set([...configuredCategories, ...categoryCounts.keys()]);
+    return [...names].sort((a, b) => {
+      if (a === "Religious") return -1;
+      if (b === "Religious") return 1;
+      return a.localeCompare(b);
+    });
+  }, [configuredCategories, categoryCounts]);
 
   const shelfIds = (kind: string) =>
     new Set(shelves.filter((s) => s.shelf === kind).map((s) => s.book_id));
@@ -371,7 +374,11 @@ function LibraryPage() {
                   onClick={() => updateSearch({ category: c })}
                   className="rounded-full border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary"
                 >
-                  {c} <span className="text-muted-foreground">({categoryCounts.get(c)})</span>
+                  {c}
+                  {c === "Religious" && (
+                    <span className="ml-1 text-primary">· always free</span>
+                  )}
+                  <span className="text-muted-foreground">({categoryCounts.get(c) ?? 0})</span>
                 </button>
               ))}
             </div>
