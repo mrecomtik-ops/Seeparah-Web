@@ -96,32 +96,70 @@ export interface ShelfRow {
   created_at: string;
 }
 
+/**
+ * Major languages Seeparah currently supports as source languages and as
+ * reader-requestable translation targets. A language being listed here
+ * means "the platform can accept/request an edition in this language" —
+ * never "an edition already exists". available_languages remains the source
+ * of truth for what is actually readable for a specific book.
+ */
 export const LANGUAGES = [
   "English",
   "Urdu",
   "Hindi",
-  "Pashto",
   "Arabic",
+  "Chinese",
+  "Spanish",
   "French",
   "German",
   "Russian",
-  "Chinese",
-  "Spanish",
+  "Portuguese",
+  "Bengali",
+  "Japanese",
+  "Korean",
+  "Indonesian",
+  "Turkish",
+  "Persian",
+  "Punjabi",
+  "Italian",
+  "Dutch",
+  "Polish",
+  "Ukrainian",
+  "Vietnamese",
+  "Thai",
+  "Swahili",
+  "Pashto",
+  "Malay",
+  "Hebrew",
+  "Tamil",
+  "Telugu",
+  "Marathi",
+  "Gujarati",
+  "Filipino",
 ] as const;
 
-export const RTL_LANGUAGES = new Set(["Urdu", "Arabic", "Pashto"]);
+export type SupportedLanguage = (typeof LANGUAGES)[number];
 
-/** English/Urdu: every book gets these as its standard translation
- * targets (see computePublishGate's pendingTranslations in
- * src/lib/admin/catalog.server.ts). Hindi/Arabic: only produced after a
- * signed-in reader requests them and an admin approves
- * (REQUEST_GATED_LANGUAGES in src/lib/reader.server.ts,
- * REQUESTABLE_LANGUAGES in src/lib/admin/translation-access.server.ts).
- * The other six entries in LANGUAGES are valid as a manuscript's own
- * source language, but have no defined path to an additional translated
- * edition today — don't imply otherwise in author- or reader-facing copy. */
+export const RTL_LANGUAGES = new Set<SupportedLanguage>([
+  "Urdu",
+  "Arabic",
+  "Pashto",
+  "Persian",
+  "Hebrew",
+]);
+
+/** English and Urdu remain Seeparah's standard translation targets for the
+ * editorial dashboard, but they are no longer special-cased as the only
+ * languages a reader can ask for. Any supported language below can be
+ * requested when that edition is missing. */
 export const STANDARD_TRANSLATION_LANGUAGES = ["English", "Urdu"] as const;
-export const REQUESTABLE_TRANSLATION_LANGUAGES = ["Hindi", "Arabic"] as const;
+export const REQUESTABLE_TRANSLATION_LANGUAGES = LANGUAGES;
+
+export function isRequestableTranslationLanguage(
+  language: string,
+): language is SupportedLanguage {
+  return (REQUESTABLE_TRANSLATION_LANGUAGES as readonly string[]).includes(language);
+}
 
 export const GENRES = [
   "Classic Romance",
@@ -145,11 +183,11 @@ export const AUTHOR_PAYOUT = 0.7;
  * sentence, everywhere this needs saying. No "automatic," no "ten
  * languages," no per-page live translation — reviewed editions only. */
 export const TRANSLATION_EXPLAINER =
-  "Read available editions free during launch. Translations are prepared once, reviewed, and saved. English and Urdu are the standard targets for every book; readers can request Hindi or Arabic for administrator review.";
+  "Read available editions free during launch. Translations are prepared once, reviewed, and saved. English and Urdu are the standard editorial targets; readers can request any supported major language for administrator review.";
 
 /** Short form for tight spaces (badges, stat labels). */
 export const TRANSLATION_EXPLAINER_SHORT =
-  "Editions are reviewed before publishing. English/Urdu are standard; Hindi/Arabic are available on request.";
+  "Editions are reviewed before publishing. English/Urdu are standard editorial targets; other supported major languages are available on request.";
 
 /** The one sentence describing what publishing costs/pays right now — no
  * revenue split, no payout promise, while monetization is off. */
