@@ -228,8 +228,14 @@ export type Database = {
           authenticity_notes: string | null
           book_id: string
           created_at: string
+          edition_title: string | null
           language: string
           provenance_type: string
+          rights_basis: string | null
+          rights_evidence_url: string | null
+          source_edition_id: string | null
+          source_url: string | null
+          translator: string | null
           typography_profile: string
           updated_at: string
         }
@@ -238,8 +244,14 @@ export type Database = {
           authenticity_notes?: string | null
           book_id: string
           created_at?: string
+          edition_title?: string | null
           language: string
           provenance_type?: string
+          rights_basis?: string | null
+          rights_evidence_url?: string | null
+          source_edition_id?: string | null
+          source_url?: string | null
+          translator?: string | null
           typography_profile?: string
           updated_at?: string
         }
@@ -248,8 +260,14 @@ export type Database = {
           authenticity_notes?: string | null
           book_id?: string
           created_at?: string
+          edition_title?: string | null
           language?: string
           provenance_type?: string
+          rights_basis?: string | null
+          rights_evidence_url?: string | null
+          source_edition_id?: string | null
+          source_url?: string | null
+          translator?: string | null
           typography_profile?: string
           updated_at?: string
         }
