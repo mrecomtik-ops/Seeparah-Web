@@ -11,6 +11,7 @@ import {
   adminMarkErrorResolved,
 } from "@/lib/admin/health.functions";
 import { AdminQueryError } from "@/components/admin/AdminQueryError";
+import { friendlyTranslationError } from "@/lib/translation-error";
 
 export const Route = createFileRoute("/admin/health")({
   component: AdminHealthPage,
@@ -33,11 +34,19 @@ function AdminHealthPage() {
     await queryClient.invalidateQueries({ queryKey: ["admin-health-full"] });
   }
 
-  async function retryJob(jobId: string) {
+  async function retryJob(jobId: string, lastError: string | null) {
+    const friendly = friendlyTranslationError(lastError);
+    if (
+      !window.confirm(
+        `Retry failed translation sections only after the underlying provider/configuration issue has been fixed.\n\nCurrent error: ${friendly ?? "Unknown"}\n\nContinue?`,
+      )
+    ) {
+      return;
+    }
     setBusyId(jobId);
     try {
       await adminRecoverRetryJob({ data: { accessToken: await getAccessToken(), jobId } });
-      toast.success("Failed sections queued for retry");
+      toast.success("Failed sections reset for retry");
       await refresh();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Retry failed");
@@ -154,16 +163,24 @@ function AdminHealthPage() {
               key={j.id}
               className="flex items-center justify-between rounded-xl border border-border bg-card p-3 text-sm"
             >
-              <span>
-                {j.language} · {j.failedSections} failed section(s)
-              </span>
+              <div className="min-w-0 flex-1">
+                <p className="font-semibold text-foreground">{j.bookTitle}</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {j.language} · {j.failedSections} failed section(s)
+                </p>
+                {j.lastError && (
+                  <p className="mt-2 break-words rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                    {friendlyTranslationError(j.lastError)}
+                  </p>
+                )}
+              </div>
               {canRecover && (
                 <button
                   disabled={busyId === j.id}
-                  onClick={() => retryJob(j.id)}
-                  className="rounded-lg border border-border px-2 py-1 text-xs hover:bg-secondary disabled:opacity-60"
+                  onClick={() => retryJob(j.id, j.lastError)}
+                  className="min-h-11 shrink-0 rounded-lg border border-border px-3 py-2 text-xs font-semibold hover:bg-secondary disabled:opacity-60"
                 >
-                  Retry
+                  Retry after fix…
                 </button>
               )}
             </div>
