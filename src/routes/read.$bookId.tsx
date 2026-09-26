@@ -86,7 +86,7 @@ export const Route = createFileRoute("/read/$bookId")({
 
 const THEME_CLASS: Record<ReaderTheme, string> = {
   light: "",
-  sepia: "sepia",
+  sepia: "reader-sepia",
   dark: "dark",
 };
 
@@ -125,7 +125,7 @@ function ReaderPage() {
   const [paragraphSpacing, setParagraphSpacing] = useState(prefs.paragraphSpacing);
   const [presentation, setPresentation] = useState<ReaderPresentation>(prefs.presentation);
 
-  // Dark/sepia are scoped CSS classes (.dark/.sepia in src/styles.css) —
+  // Dark/sepia are scoped CSS classes (.dark/.reader-sepia in src/styles.css) —
   // applying THEME_CLASS only to this route's own wrapper div left the
   // real page canvas (document.body, painted behind/around that div —
   // visible at overscroll edges and anywhere the wrapper doesn't fully
@@ -471,7 +471,7 @@ function ReaderPage() {
     <div className={`min-h-screen paper-texture ${THEME_CLASS[theme]}`}>
       <header className="sticky top-0 z-30 border-b border-border/70 bg-background/90 backdrop-blur">
         <div className="mx-auto max-w-3xl px-4 py-3 sm:px-6">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-2 sm:flex-nowrap sm:gap-3">
             <Link
               to="/library"
               className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
@@ -481,7 +481,7 @@ function ReaderPage() {
             <Link
               to="/book/$bookId"
               params={{ bookId }}
-              className="min-w-0 flex-1 text-center hover:opacity-80"
+              className="order-3 w-full min-w-0 text-center hover:opacity-80 sm:order-none sm:w-auto sm:flex-1"
             >
               <p className="truncate font-display text-sm font-semibold text-foreground">
                 {book.title}
@@ -493,25 +493,25 @@ function ReaderPage() {
                 </span>
               </p>
             </Link>
-            <div className="flex items-center gap-1.5">
+            <div className="order-2 ml-auto flex items-center gap-1.5 sm:order-none sm:ml-0">
               <button
                 onClick={() => setShowToc(true)}
                 aria-label="Table of contents"
-                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-foreground hover:bg-secondary"
+                className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-border bg-card text-foreground hover:bg-secondary sm:h-8 sm:w-8"
               >
                 <List className="h-4 w-4" />
               </button>
               <button
                 onClick={() => setShowSearch(true)}
                 aria-label="Search inside book"
-                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-foreground hover:bg-secondary"
+                className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-border bg-card text-foreground hover:bg-secondary sm:h-8 sm:w-8"
               >
                 <Search className="h-4 w-4" />
               </button>
               <button
                 onClick={() => setShowSettings(true)}
                 aria-label="Reading settings"
-                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-foreground hover:bg-secondary"
+                className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-border bg-card text-foreground hover:bg-secondary sm:h-8 sm:w-8"
               >
                 <Settings2 className="h-4 w-4" />
               </button>
@@ -519,7 +519,7 @@ function ReaderPage() {
               <button
                 onClick={() => void persist(index, false)}
                 aria-label="Save progress now"
-                className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary"
+                className="inline-flex h-11 w-11 items-center justify-center gap-1.5 rounded-lg border border-border bg-card p-0 text-xs font-semibold text-foreground hover:bg-secondary sm:h-auto sm:w-auto sm:px-3 sm:py-1.5"
               >
                 <Save className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">Save</span>
@@ -536,7 +536,7 @@ function ReaderPage() {
       </header>
 
       <main className="mx-auto max-w-5xl px-4 pb-32 pt-6 sm:px-6">
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="-mx-1 flex items-center gap-2 overflow-x-auto px-1 pb-1 sm:flex-wrap sm:overflow-visible">
           {book.available_languages.map((l) => (
             <button
               key={l}
@@ -553,7 +553,7 @@ function ReaderPage() {
         </div>
 
         {requestableLanguagesForBook.length > 0 && (
-          <div className="mt-2 flex flex-wrap items-center gap-2">
+          <div className="mt-2 flex items-center gap-2 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible">
             <span className="text-xs text-muted-foreground">Also on request:</span>
             {requestableLanguagesForBook.map((l) => {
               const myRequest = myRequestStatusByLanguage.get(l);
@@ -714,11 +714,17 @@ function ReaderPage() {
                 fontSize: `${isUrdu ? Math.max(fontSize, 20) : fontSize}px`,
                 lineHeight: isUrdu ? Math.max(lineHeight, 2.2) : lineHeight,
                 maxWidth:
-                  contentWidth === "narrow"
-                    ? "42rem"
-                    : contentWidth === "wide"
-                      ? "60rem"
-                      : "48rem",
+                  presentation === "continuous"
+                    ? contentWidth === "narrow"
+                      ? "55ch"
+                      : contentWidth === "wide"
+                        ? "72ch"
+                        : "65ch"
+                    : contentWidth === "narrow"
+                      ? "42rem"
+                      : contentWidth === "wide"
+                        ? "60rem"
+                        : "48rem",
                 fontFamily:
                   fontFamily === "sans"
                     ? "Inter, ui-sans-serif, system-ui, sans-serif"
@@ -728,7 +734,7 @@ function ReaderPage() {
               }}
               className={`mx-auto mt-8 text-card-foreground ${
                 presentation === "book"
-                  ? "book-page-surface reader-page-enter min-h-[72vh] px-7 py-10 sm:min-h-[46rem] sm:px-14 sm:py-14 md:px-16"
+                  ? "book-page-surface reader-page-enter px-4 py-8 sm:px-14 sm:py-14 md:px-16"
                   : "rounded-2xl border border-border bg-card p-6 card-shadow sm:p-10"
               } ${isUrdu ? "urdu-reading-block" : ""}`}
             >
