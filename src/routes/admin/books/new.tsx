@@ -1,9 +1,11 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
-import { LANGUAGES } from "@/lib/data";
+import { LANGUAGES, RELIGIOUS_CATEGORY } from "@/lib/data";
 import { getAccessToken } from "@/lib/admin/use-admin-session";
+import { getPublicContentSettings } from "@/lib/admin/settings.functions";
 import {
   adminUploadPlainTextBook,
   adminUploadEpubBook,
@@ -40,9 +42,30 @@ function AdminUploadBook() {
   const [rightsEvidenceUrl, setRightsEvidenceUrl] = useState("");
   const [attribution, setAttribution] = useState("");
   const [translationPermission, setTranslationPermission] = useState(false);
+  const [categories, setCategories] = useState<string[]>([]);
   const [manuscriptText, setManuscriptText] = useState("");
   const [epubFile, setEpubFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
+
+  const settingsQuery = useQuery({
+    queryKey: ["public-content-settings"],
+    queryFn: () => getPublicContentSettings(),
+  });
+  const configuredCategories = Array.isArray(settingsQuery.data?.["categories"])
+    ? (settingsQuery.data?.["categories"] as string[])
+    : [];
+  const religious = categories.includes(RELIGIOUS_CATEGORY);
+
+  function toggleCategory(category: string) {
+    setCategories((current) =>
+      current.includes(category)
+        ? current.filter((value) => value !== category)
+        : [...current, category],
+    );
+    if (category === RELIGIOUS_CATEGORY && !religious) {
+      setTranslationPermission(false);
+    }
+  }
 
   const [csvText, setCsvText] = useState("");
   const [csvPreview, setCsvPreview] = useState<{ rowNumber: number; errors: string[] }[] | null>(
@@ -79,7 +102,8 @@ function AdminUploadBook() {
         rightsBasis: rightsBasis.trim(),
         rightsEvidenceUrl: rightsEvidenceUrl.trim() || undefined,
         attribution: attribution.trim() || undefined,
-        translationPermission,
+        categories,
+        translationPermission: religious ? false : translationPermission,
       };
       const result = epubFile
         ? await adminUploadEpubBook({
@@ -218,13 +242,66 @@ function AdminUploadBook() {
             value={attribution}
             onChange={(e) => setAttribution(e.target.value)}
           />
-          <label className="flex items-center gap-2 text-sm text-foreground">
+          <div className="rounded-xl border border-border bg-card p-4">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <p className="text-sm font-semibold text-foreground">Categories</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Choose categories now so the Library can organize the book correctly from import.
+                </p>
+              </div>
+              {religious && (
+                <span className="rounded-full bg-accent px-2.5 py-1 text-[11px] font-semibold text-accent-foreground">
+                  Religious protection on
+                </span>
+              )}
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {(configuredCategories.length
+                ? configuredCategories
+                : [RELIGIOUS_CATEGORY]
+              ).map((category) => {
+                const active = categories.includes(category);
+                return (
+                  <button
+                    key={category}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => toggleCategory(category)}
+                    className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                      active
+                        ? "bg-primary text-primary-foreground"
+                        : "border border-border bg-background text-foreground hover:bg-secondary"
+                    }`}
+                  >
+                    {category}
+                  </button>
+                );
+              })}
+            </div>
+            {religious && (
+              <p className="mt-3 rounded-lg bg-accent/50 px-3 py-2 text-xs leading-relaxed text-accent-foreground">
+                Religious mode preserves source line breaks and small textual marks, keeps the
+                original and all verified sourced translations free, and disables Seeparah AI
+                translation generation for this title.
+              </p>
+            )}
+          </div>
+
+          <label
+            className={`flex items-center gap-2 text-sm ${
+              religious ? "text-muted-foreground" : "text-foreground"
+            }`}
+          >
             <input
               type="checkbox"
-              checked={translationPermission}
+              checked={religious ? false : translationPermission}
+              disabled={religious}
               onChange={(e) => setTranslationPermission(e.target.checked)}
             />
-            Translation permission confirmed
+            {religious
+              ? "AI translation disabled for Religious books"
+              : "Translation permission confirmed"}
           </label>
 
           <div className="rounded-xl border border-dashed border-border p-4">
@@ -265,7 +342,8 @@ function AdminUploadBook() {
             description, rights_basis, manuscript_text, rights_evidence_url, attribution,
             translation_permission (true/false), genre, categories (pipe-separated), translator,
             cover_url, source_url, source_edition_id, permitted_territories (pipe-separated),
-            import_key.
+            import_key. Put Religious in the pipe-separated categories field to preserve source
+            lineation and automatically disable AI translation generation for that book.
           </p>
           <textarea
             className={`${inputCls} font-mono text-xs`}
