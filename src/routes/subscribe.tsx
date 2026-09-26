@@ -34,13 +34,13 @@ function SubscribePage() {
   const monetizationEnabled = settingsQuery.data?.["monetization_enabled"] === true;
 
   // ONE plan price, not a per-book price — "there are no per-book or
-  // per-translation charges." Same $2 default as
+  // per-translation charges." Same $2.99 default as
   // settings.server.ts's DEFAULT_MONTHLY_PLAN_PRICE_USD for as long as no
   // admin has published a real value yet.
   const price =
     typeof settingsQuery.data?.["monthly_plan_price_usd"] === "number"
       ? (settingsQuery.data["monthly_plan_price_usd"] as number)
-      : 2;
+      : 2.99;
   return (
     <div className="min-h-screen bg-background">
       <main className="mx-auto max-w-4xl px-4 pb-20 pt-10 sm:px-6">
