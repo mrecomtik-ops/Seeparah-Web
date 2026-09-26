@@ -84,24 +84,21 @@ export function resolveReaderAccess(
     return { locked: true, reason: "not_available" };
   }
 
-  if (input.isOwner || input.chunkIndex === 0) {
-    return { locked: false };
-  }
-
   const isSourceLanguage = input.language === book.sourceLanguage;
 
   // A translated edition that has never been published (no book_editions
-  // row) isn't a premium lock — there's nothing to unlock. This is the
-  // "go request it" case; a reviewed, published edition in ANY language is
-  // governed by the exact same free/premium rule as the original below —
-  // never by whether THIS reader personally has an approved request for
-  // it (that per-reader gate is gone: "a reader must not need individual
-  // approval merely to read an existing published translation").
+  // row) has no preview page to show. Surface the request flow immediately,
+  // including at chunk 0 and for the owning author, instead of returning an
+  // unlocked-but-empty page.
   if (!isSourceLanguage && input.editionAccessType === undefined) {
     return {
       locked: true,
       reason: "translation_access_required",
     };
+  }
+
+  if (input.isOwner || input.chunkIndex === 0) {
+    return { locked: false };
   }
 
   const effectiveAccessType = isSourceLanguage ? book.accessType : input.editionAccessType;
