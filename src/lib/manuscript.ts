@@ -46,6 +46,35 @@ function firstLine(block: string): string {
   return block.split("\n")[0]?.replace(/\s+/g, " ").trim() ?? "";
 }
 
+function reflowHardWrappedBlock(block: string): string {
+  const rawLines = block.split("\n").filter((line) => line.trim().length > 0);
+  if (rawLines.length <= 1) return block.trim();
+
+  const trimmed = rawLines.map((line) => line.trim());
+  const first = trimmed[0] ?? "";
+  if (classifyHeading(first)) return trimmed.join("\n");
+  if (trimmed.every((line) => /^(?:[-•*]|\d+[.)]|[A-Za-z][.)])\s+/u.test(line))) {
+    return trimmed.join("\n");
+  }
+
+  // Preserve likely verse / intentionally indented material rather than
+  // flattening it as prose. EPUB imports already arrive paragraph-separated,
+  // while this primarily repairs PDF/plain-text hard wraps.
+  const indentedLines = rawLines.filter((line) => /^\s{2,}\S/u.test(line)).length;
+  if (indentedLines >= Math.ceil(rawLines.length / 2)) return rawLines.join("\n").trim();
+
+  let out = trimmed[0] ?? "";
+  for (let i = 1; i < trimmed.length; i++) {
+    const next = trimmed[i]!;
+    if (/\p{L}-$/u.test(out) && /^\p{Ll}/u.test(next)) {
+      out = out.slice(0, -1) + next;
+    } else {
+      out += ` ${next}`;
+    }
+  }
+  return out.replace(/\s+/g, " ").trim();
+}
+
 function fallbackGroups(blocks: string[]): Array<{ start: number; end: number }> {
   const groups: Array<{ start: number; end: number }> = [];
   let start = 0;
@@ -126,7 +155,7 @@ export function parseManuscript(text: string): ParsedManuscript {
 
   const blocks = normalized
     .split(/\n\s*\n/)
-    .map((block) => block.trim())
+    .map((block) => reflowHardWrappedBlock(block))
     .filter(Boolean);
 
   if (blocks.length === 0) {
