@@ -576,6 +576,12 @@ export interface BookEditionRow {
   provenance_type: "ai_assisted" | "human_translation" | "licensed_translation" | "public_domain_translation";
   typography_profile: string;
   authenticity_notes: string | null;
+  edition_title: string | null;
+  translator: string | null;
+  source_url: string | null;
+  source_edition_id: string | null;
+  rights_basis: string | null;
+  rights_evidence_url: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -640,6 +646,168 @@ export async function setBookContentPolicy(params: {
   }
 
   return { before, after };
+}
+
+export type SourcedEditionProvenance =
+  | "human_translation"
+  | "licensed_translation"
+  | "public_domain_translation";
+
+export async function importVerifiedSourcedEdition(params: {
+  bookId: string;
+  language: string;
+  provenanceType: SourcedEditionProvenance;
+  typographyProfile: BookTypographyProfile;
+  editionTitle?: string | null;
+  translator?: string | null;
+  sourceUrl: string;
+  sourceEditionId?: string | null;
+  rightsBasis: string;
+  rightsEvidenceUrl: string;
+  authenticityNotes?: string | null;
+  manuscriptText: string;
+}) {
+  const db = await admin();
+  const { data: book, error: bookError } = await db
+    .from("books")
+    .select(
+      "id,title,status,source_language,source_version,total_chunks,available_languages,content_classification,translation_generation_policy",
+    )
+    .eq("id", params.bookId)
+    .single();
+  if (bookError || !book) throw new Error(bookError?.message ?? "Book not found");
+  if (
+    book.content_classification !== "religious" ||
+    book.translation_generation_policy !== "source_only"
+  ) {
+    throw new Error(
+      "Verified sourced-edition import is reserved for Religious/source-only books.",
+    );
+  }
+  if (book.status !== "published") {
+    throw new Error("Publish the verified original book before adding sourced translated editions.");
+  }
+  if (params.language === book.source_language) {
+    throw new Error("The sourced edition language must differ from the book's original language.");
+  }
+  if (!params.rightsBasis.trim() || params.rightsBasis.trim().length < 20) {
+    throw new Error("Enter a substantive rights basis for this exact sourced edition.");
+  }
+  if (!isPlausibleEvidenceUrl(params.rightsEvidenceUrl)) {
+    throw new Error("A valid rights evidence URL is required for this exact sourced edition.");
+  }
+  if (!isPlausibleEvidenceUrl(params.sourceUrl)) {
+    throw new Error("A valid source URL is required for the sourced translated edition.");
+  }
+
+  const divider = /\n\s*===SEEPARAH_SECTION===\s*\n/giu;
+  const sections = params.manuscriptText
+    .replace(/\r\n/g, "\n")
+    .split(divider)
+    .map((section) => section.replace(/[ \t]+$/gm, "").trim())
+    .filter(Boolean);
+
+  if (sections.length !== book.total_chunks) {
+    throw new Error(
+      `This book has ${book.total_chunks} aligned reading sections. The sourced edition contains ${sections.length}. Separate the verified text into exactly ${book.total_chunks} sections using ===SEEPARAH_SECTION=== so highlights, navigation and cross-language positions stay aligned.`,
+    );
+  }
+
+  const { data: existingEdition } = await db
+    .from("book_editions")
+    .select("language")
+    .eq("book_id", params.bookId)
+    .eq("language", params.language)
+    .maybeSingle();
+  if (existingEdition) {
+    throw new Error(
+      `A published ${params.language} edition already exists. Edit/review that edition instead of importing a duplicate.`,
+    );
+  }
+
+  const { count: existingChunks } = await db
+    .from("book_chunks")
+    .select("chunk_index", { count: "exact", head: true })
+    .eq("book_id", params.bookId)
+    .eq("language", params.language)
+    .eq("source_version", book.source_version ?? 1);
+  if ((existingChunks ?? 0) > 0) {
+    throw new Error(
+      `${params.language} content rows already exist for the current source version. Resolve those rows before importing a sourced edition.`,
+    );
+  }
+
+  const chunkRows = sections.map((content, chunkIndex) => ({
+    book_id: params.bookId,
+    language: params.language,
+    chunk_index: chunkIndex,
+    content,
+    status: "published",
+    source_version: book.source_version ?? 1,
+    provider: "sourced",
+    model: null,
+    prompt_version: null,
+    job_id: null,
+  }));
+
+  const { error: chunkError } = await db.from("book_chunks").insert(chunkRows);
+  if (chunkError) throw new Error(chunkError.message);
+
+  const editionRow = {
+    book_id: params.bookId,
+    language: params.language,
+    access_type: "free",
+    provenance_type: params.provenanceType,
+    typography_profile: params.typographyProfile,
+    authenticity_notes: params.authenticityNotes?.trim() || null,
+    edition_title: params.editionTitle?.trim() || null,
+    translator: params.translator?.trim() || null,
+    source_url: params.sourceUrl.trim(),
+    source_edition_id: params.sourceEditionId?.trim() || null,
+    rights_basis: params.rightsBasis.trim(),
+    rights_evidence_url: params.rightsEvidenceUrl.trim(),
+  };
+
+  const { error: editionError } = await db.from("book_editions").insert(editionRow);
+  if (editionError) {
+    await db
+      .from("book_chunks")
+      .delete()
+      .eq("book_id", params.bookId)
+      .eq("language", params.language)
+      .eq("source_version", book.source_version ?? 1);
+    throw new Error(editionError.message);
+  }
+
+  const availableLanguages = Array.from(
+    new Set([...(book.available_languages ?? []), params.language]),
+  );
+  const { error: bookUpdateError } = await db
+    .from("books")
+    .update({ available_languages: availableLanguages })
+    .eq("id", params.bookId);
+  if (bookUpdateError) {
+    await db
+      .from("book_editions")
+      .delete()
+      .eq("book_id", params.bookId)
+      .eq("language", params.language);
+    await db
+      .from("book_chunks")
+      .delete()
+      .eq("book_id", params.bookId)
+      .eq("language", params.language)
+      .eq("source_version", book.source_version ?? 1);
+    throw new Error(bookUpdateError.message);
+  }
+
+  return {
+    bookId: params.bookId,
+    language: params.language,
+    sectionCount: sections.length,
+    provenanceType: params.provenanceType,
+    accessType: "free" as const,
+  };
 }
 
 // ---------------------------------------------------------------------------
