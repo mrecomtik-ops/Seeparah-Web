@@ -7,6 +7,22 @@ type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
 };
 
+type ScheduledContext = {
+  waitUntil(promise: Promise<unknown>): void;
+};
+
+async function runScheduledTranslationWork() {
+  try {
+    const { processDueJobs } = await import("./lib/translation.server");
+    const results = await processDueJobs(3, 3);
+    if (results.length > 0) {
+      console.log("[translation-cron]", JSON.stringify(results));
+    }
+  } catch (error) {
+    console.error("[translation-cron] scheduled processing failed", error);
+  }
+}
+
 let serverEntryPromise: Promise<ServerEntry> | undefined;
 
 async function getServerEntry(): Promise<ServerEntry> {
@@ -57,5 +73,9 @@ export default {
         headers: { "content-type": "text/html; charset=utf-8" },
       });
     }
+  },
+
+  scheduled(_event: unknown, _env: unknown, ctx: ScheduledContext) {
+    ctx.waitUntil(runScheduledTranslationWork());
   },
 };
