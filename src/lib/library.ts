@@ -5,6 +5,11 @@ import {
   searchReaderBook as fetchReaderBookSearch,
   activateSubscription,
 } from "@/lib/reader.functions";
+import {
+  listPublicBooks as fetchPublicBooks,
+  getPublicBook as fetchPublicBook,
+  searchPublicBooks as fetchPublicBookSearch,
+} from "@/lib/public-catalog.functions";
 import { splitManuscript } from "@/lib/manuscript";
 import {
   DEMO_CHUNKS,
@@ -50,28 +55,30 @@ export async function currentUser() {
  * placeholders."
  */
 export async function listBooks(): Promise<Book[]> {
-  const { data, error } = await supabase
-    .from("books")
-    .select("*")
-    .eq("status", "published")
-    .order("created_at", { ascending: true });
-  if (error) {
-    console.error("[listBooks] real catalog query failed:", error.message);
+  try {
+    return await fetchPublicBooks();
+  } catch (error) {
+    console.error(
+      "[listBooks] real catalog query failed:",
+      error instanceof Error ? error.message : String(error),
+    );
     return [];
   }
-  return (data as Book[]) ?? [];
 }
 
 /** Same honesty guarantee as listBooks(): a real book id that doesn't
  * exist (or a real query error) returns null, never a demo placeholder
  * substituted in by coincidentally matching a seed book's fixed id. */
 export async function getBook(id: string): Promise<Book | null> {
-  const { data, error } = await supabase.from("books").select("*").eq("id", id).maybeSingle();
-  if (error) {
-    console.error("[getBook] real query failed:", error.message);
+  try {
+    return await fetchPublicBook({ data: { bookId: id } });
+  } catch (error) {
+    console.error(
+      "[getBook] real query failed:",
+      error instanceof Error ? error.message : String(error),
+    );
     return null;
   }
-  return (data as Book | null) ?? null;
 }
 
 /**
@@ -106,17 +113,15 @@ export function matchesBookSearch(book: Pick<Book, "title" | "author">, query: s
 export async function searchBooks(query: string): Promise<Book[]> {
   const q = query.trim();
   if (!q) return [];
-  const escaped = q.replace(/[%_]/g, (c) => `\\${c}`);
-  const { data, error } = await supabase
-    .from("books")
-    .select("*")
-    .or(`title.ilike.%${escaped}%,author.ilike.%${escaped}%`)
-    .order("created_at", { ascending: true });
-  if (error) {
-    console.error("[searchBooks] real query failed:", error.message);
+  try {
+    return await fetchPublicBookSearch({ data: { query: q } });
+  } catch (error) {
+    console.error(
+      "[searchBooks] real query failed:",
+      error instanceof Error ? error.message : String(error),
+    );
     return [];
   }
-  return (data as Book[]) ?? [];
 }
 
 export interface ReaderChunkResult {
