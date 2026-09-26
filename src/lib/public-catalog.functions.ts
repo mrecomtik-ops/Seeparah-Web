@@ -19,3 +19,11 @@ export const searchPublicBooks = createServerFn({ method: "GET" })
     const { searchPublicBooks: run } = await import("@/lib/public-catalog.server");
     return run(data.query);
   });
+
+
+export const listPublicBooksByAuthorId = createServerFn({ method: "GET" })
+  .inputValidator((data) => z.object({ authorId: z.string().uuid() }).parse(data))
+  .handler(async ({ data }) => {
+    const { listPublicBooksByAuthorId: run } = await import("@/lib/public-catalog.server");
+    return run(data.authorId);
+  });
