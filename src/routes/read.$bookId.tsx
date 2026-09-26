@@ -1029,23 +1029,24 @@ function mergeHighlightRanges(
   const ranges: Array<{ start: number; end: number }> = [];
 
   for (const highlight of highlights) {
-    if (
-      highlight.start_offset != null &&
-      highlight.end_offset != null &&
-      highlight.end_offset > absoluteStart &&
-      highlight.start_offset < absoluteEnd
-    ) {
-      ranges.push({
-        start: Math.max(0, highlight.start_offset - absoluteStart),
-        end: Math.min(text.length, highlight.end_offset - absoluteStart),
-      });
+    // New Reader V2 highlights have an exact saved range. Once a highlight
+    // has offsets, NEVER fall back to text matching on other anchors: doing
+    // that would mark every repeated occurrence of a word such as "should".
+    if (highlight.start_offset != null && highlight.end_offset != null) {
+      if (
+        highlight.end_offset > absoluteStart &&
+        highlight.start_offset < absoluteEnd
+      ) {
+        ranges.push({
+          start: Math.max(0, highlight.start_offset - absoluteStart),
+          end: Math.min(text.length, highlight.end_offset - absoluteStart),
+        });
+      }
       continue;
     }
 
-    // Backward compatibility for highlights created before migration 0020.
-    // If the saved passage is wholly inside this rendered text anchor, mark
-    // the exact occurrence. If an old multi-block highlight wholly contains
-    // this anchor, mark the anchor instead of silently losing it.
+    // Backward compatibility only for highlights created before migration
+    // 0020, which genuinely have no positional offsets.
     const legacyText = highlight.highlight_text.trim();
     if (!legacyText) continue;
     const exact = text.indexOf(legacyText);
