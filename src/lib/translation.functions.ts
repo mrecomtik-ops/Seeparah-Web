@@ -58,6 +58,13 @@ export const cancelTranslationJob = createServerFn({ method: "POST" })
  * pages to show "translation in progress" instead of a flat "not
  * available" for a language that already has an active job, without ever
  * implying it's readable yet. */
+export const getPublicBookEditions = createServerFn({ method: "GET" })
+  .inputValidator((data) => z.object({ bookId: z.string() }).parse(data))
+  .handler(async ({ data }) => {
+    const { getPublicBookEditions: run } = await import("@/lib/translation.server");
+    return run(data.bookId);
+  });
+
 export const getBookTranslationLanguageStatus = createServerFn({ method: "GET" })
   .inputValidator((data) => z.object({ bookId: z.string() }).parse(data))
   .handler(async ({ data }) => {
