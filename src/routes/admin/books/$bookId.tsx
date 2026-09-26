@@ -568,7 +568,7 @@ function AdminBookDetail() {
   }
 
   return (
-    <div>
+    <div className="min-w-0 overflow-x-hidden">
       <Link
         to="/admin/books"
         className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
@@ -586,14 +586,14 @@ function AdminBookDetail() {
           <div className="flex flex-wrap gap-2">
             <button
               onClick={openEdit}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary"
+              className="inline-flex items-center gap-1.5 min-h-10 rounded-lg border border-border px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary"
             >
               <Pencil className="h-3.5 w-3.5" /> Edit
             </button>
             {book.status !== "archived" && (
               <button
                 onClick={() => setDeleteOpen(true)}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-destructive/40 px-3 py-1.5 text-xs font-semibold text-destructive hover:bg-destructive/10"
+                className="inline-flex items-center gap-1.5 min-h-10 rounded-lg border border-destructive/40 px-3 py-2 text-xs font-semibold text-destructive hover:bg-destructive/10"
               >
                 <Trash2 className="h-3.5 w-3.5" /> Delete
               </button>
@@ -601,7 +601,7 @@ function AdminBookDetail() {
             {canDeletePermanently && (
               <button
                 onClick={() => void openPermDelete()}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-destructive px-3 py-1.5 text-xs font-semibold text-destructive-foreground hover:opacity-90"
+                className="inline-flex items-center gap-1.5 min-h-10 rounded-lg bg-destructive px-3 py-2 text-xs font-semibold text-destructive-foreground hover:opacity-90"
               >
                 <Trash2 className="h-3.5 w-3.5" /> Delete permanently
               </button>
@@ -626,7 +626,7 @@ function AdminBookDetail() {
                     : "Edit rights and provenance"
                 }
                 onClick={openRightsEdit}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 min-h-10 rounded-lg border border-border px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Pencil className="h-3.5 w-3.5" /> Edit rights
               </button>
@@ -752,7 +752,7 @@ function AdminBookDetail() {
                     toast.success("Rights rejected");
                   })
                 }
-                className="rounded-lg border border-destructive/40 px-3 py-1.5 text-xs font-semibold text-destructive disabled:opacity-60"
+                className="min-h-10 rounded-lg border border-destructive/40 px-3 py-2 text-xs font-semibold text-destructive disabled:opacity-60"
               >
                 Reject rights
               </button>
@@ -836,7 +836,7 @@ function AdminBookDetail() {
                     toast.success("Changes requested");
                   })
                 }
-                className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary disabled:opacity-60"
+                className="min-h-10 rounded-lg border border-border px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary disabled:opacity-60"
               >
                 Request changes
               </button>
@@ -855,7 +855,7 @@ function AdminBookDetail() {
                     toast.success("Edition rejected");
                   })
                 }
-                className="rounded-lg border border-destructive/40 px-3 py-1.5 text-xs font-semibold text-destructive disabled:opacity-60"
+                className="min-h-10 rounded-lg border border-destructive/40 px-3 py-2 text-xs font-semibold text-destructive disabled:opacity-60"
               >
                 Reject
               </button>
@@ -914,7 +914,7 @@ function AdminBookDetail() {
                               toast.success(`${label}: changes requested`);
                             })
                           }
-                          className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary disabled:opacity-60"
+                          className="min-h-10 rounded-lg border border-border px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary disabled:opacity-60"
                         >
                           Request changes
                         </button>
@@ -934,7 +934,7 @@ function AdminBookDetail() {
                               toast.success(`${label} rejected`);
                             })
                           }
-                          className="rounded-lg border border-destructive/40 px-3 py-1.5 text-xs font-semibold text-destructive disabled:opacity-60"
+                          className="min-h-10 rounded-lg border border-destructive/40 px-3 py-2 text-xs font-semibold text-destructive disabled:opacity-60"
                         >
                           Reject
                         </button>
@@ -1037,7 +1037,7 @@ function AdminBookDetail() {
                           toast.success(`${lang} translation queued`);
                         })
                       }
-                      className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary disabled:opacity-60"
+                      className="min-h-10 rounded-lg border border-border px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary disabled:opacity-60"
                     >
                       Start {lang} translation
                     </button>
@@ -1376,7 +1376,7 @@ function AdminBookDetail() {
                           }
                         })
                       }
-                      className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary disabled:opacity-60"
+                      className="min-h-10 rounded-lg border border-border px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary disabled:opacity-60"
                     >
                       Process next batch
                     </button>
@@ -1703,7 +1703,7 @@ function AdminBookDetail() {
                 <button
                   disabled={busy || editorDraft === editorContent}
                   onClick={() => void stageEdit()}
-                  className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary disabled:opacity-60"
+                  className="min-h-10 rounded-lg border border-border px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary disabled:opacity-60"
                 >
                   Stage edit
                 </button>
@@ -1719,7 +1719,7 @@ function AdminBookDetail() {
                     <button
                       disabled={busy}
                       onClick={() => void discardEdit()}
-                      className="rounded-lg border border-destructive/40 px-3 py-1.5 text-xs font-semibold text-destructive disabled:opacity-60"
+                      className="min-h-10 rounded-lg border border-destructive/40 px-3 py-2 text-xs font-semibold text-destructive disabled:opacity-60"
                     >
                       Discard staged edit
                     </button>
@@ -2090,9 +2090,11 @@ function formatPublicationYear(year: number): string {
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex justify-between gap-4">
-      <dt className="shrink-0 text-muted-foreground">{label}</dt>
-      <dd className="truncate text-right font-medium text-foreground">{value}</dd>
+    <div className="grid min-w-0 grid-cols-[minmax(7rem,auto)_minmax(0,1fr)] gap-3">
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className="min-w-0 break-words text-right font-medium text-foreground [overflow-wrap:anywhere]">
+        {value}
+      </dd>
     </div>
   );
 }
