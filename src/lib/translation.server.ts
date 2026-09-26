@@ -1,3 +1,4 @@
+import { isRequestableTranslationLanguage } from "@/lib/data";
 // Server-only. Background translation job processing: claims a bounded
 // batch of sections, calls the AI gateway with full book context, validates
 // output, and never flips a chunk to "published" until the whole edition is
@@ -63,6 +64,9 @@ export async function ensureTranslationJob(params: {
     .eq("id", params.bookId)
     .single();
   if (bookError || !book) throw new Error("Book not found");
+  if (!isRequestableTranslationLanguage(params.language)) {
+    throw new Error(`${params.language} is not a supported Seeparah translation language`);
+  }
   if (params.language === book.source_language) {
     throw new Error("Target language matches the source language");
   }
