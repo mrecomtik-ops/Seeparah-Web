@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, BookOpen, Crown, FlaskConical, Globe2, Loader2 } from "lucide-react";
+import { ArrowLeft, BookOpen, FlaskConical, Globe2, Loader2 } from "lucide-react";
 import { getBook } from "@/lib/library";
 import { coverFor } from "@/lib/covers";
 import { getPrefs } from "@/lib/prefs";
@@ -10,6 +10,7 @@ import {
   DEMO_MANUSCRIPT_BOOK_IDS,
   TRANSLATION_EXPLAINER_SHORT,
   REQUESTABLE_TRANSLATION_LANGUAGES,
+  isReligiousBook,
 } from "@/lib/data";
 import { getPublicContentSettings } from "@/lib/admin/settings.functions";
 import { getBookTranslationLanguageStatus } from "@/lib/translation.functions";
@@ -64,7 +65,8 @@ function BookDetailPage() {
   const cover = coverFor(book.id, book.cover_url);
   const isSample = SAMPLE_EXCERPT_BOOK_IDS.has(book.id);
   const isDemoManuscript = DEMO_MANUSCRIPT_BOOK_IDS.has(book.id);
-  const offersDistinctSample = monetizationEnabled && book.access_type === "paid";
+  const isReligious = isReligiousBook(book);
+  const offersDistinctSample = false;
 
   return (
     <div className="min-h-screen bg-background">
@@ -110,13 +112,12 @@ function BookDetailPage() {
             </div>
 
             <div className="mt-3 flex flex-wrap items-center gap-2">
-              {monetizationEnabled && book.access_type === "paid" ? (
-                <span className="inline-flex items-center gap-1 rounded-full bg-gold px-2.5 py-1 text-[11px] font-semibold text-gold-foreground">
-                  <Crown className="h-3 w-3" /> Premium
-                </span>
-              ) : (
-                <span className="rounded-full bg-secondary px-2.5 py-1 text-[11px] font-semibold text-secondary-foreground">
-                  Free to read
+              <span className="rounded-full bg-secondary px-2.5 py-1 text-[11px] font-semibold text-secondary-foreground">
+                Original edition · Free
+              </span>
+              {isReligious && (
+                <span className="rounded-full bg-accent px-2.5 py-1 text-[11px] font-semibold text-accent-foreground">
+                  Religious · Always free
                 </span>
               )}
               {(isSample || isDemoManuscript) && (
@@ -168,7 +169,8 @@ function BookDetailPage() {
                       {s.language} · translation in progress
                     </span>
                   ))}
-                {REQUESTABLE_TRANSLATION_LANGUAGES.filter(
+                {!isReligious &&
+                  REQUESTABLE_TRANSLATION_LANGUAGES.filter(
                   (l) =>
                     !book.available_languages.includes(l) &&
                     l !== book.source_language &&
@@ -183,6 +185,13 @@ function BookDetailPage() {
                 ))}
               </div>
               <p className="mt-2 text-xs text-muted-foreground">{TRANSLATION_EXPLAINER_SHORT}</p>
+              {isReligious && (
+                <p className="mt-2 rounded-lg bg-accent/50 px-3 py-2 text-xs leading-relaxed text-accent-foreground">
+                  Seeparah does not generate machine translations for Religious books. Additional
+                  languages are added only from verified sourced editions, with script, diacritics,
+                  numbering and typography preserved as closely as the digital format allows.
+                </p>
+              )}
             </div>
 
             <div className="mt-8 flex flex-wrap gap-3">
