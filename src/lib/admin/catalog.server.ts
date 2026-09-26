@@ -10,6 +10,7 @@
 import { createHash } from "node:crypto";
 import { parseManuscript } from "@/lib/manuscript";
 import { parseEpub, EpubValidationError } from "@/lib/admin/epub.server";
+import { isRequestableTranslationLanguage } from "@/lib/data";
 
 async function admin() {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -613,6 +614,8 @@ export async function setBookContentPolicy(params: {
   classification: "general" | "religious";
   typographyProfile: BookTypographyProfile;
   authenticityNotes?: string | null;
+  actorRole: string;
+  downgradeReason?: string | null;
 }) {
   const db = await admin();
   const { data: before, error: beforeError } = await db
@@ -622,7 +625,39 @@ export async function setBookContentPolicy(params: {
     .single();
   if (beforeError || !before) throw new Error(beforeError?.message ?? "Book not found");
 
-  const categories = [...(before.categories ?? [])].filter((c) => c !== "Religious");
+  const isReligiousDowngrade =
+    before.content_classification === "religious" && params.classification === "general";
+
+  if (isReligiousDowngrade) {
+    if (params.actorRole !== "owner") {
+      throw new Error("Only the owner can change a Religious book back to General.");
+    }
+    const reason = params.downgradeReason?.trim() ?? "";
+    if (reason.length < 20) {
+      throw new Error(
+        "Changing a Religious book to General requires a substantive reason of at least 20 characters.",
+      );
+    }
+    const { error } = await db.rpc("owner_downgrade_religious_book", {
+      p_book_id: params.bookId,
+      p_reason: reason,
+    });
+    if (error) throw new Error(error.message);
+
+    return {
+      before,
+      after: {
+        content_classification: "general",
+        translation_generation_policy: "ai_allowed",
+        typography_profile: params.typographyProfile,
+        authenticity_notes: params.authenticityNotes?.trim() || null,
+        categories: (before.categories ?? []).filter((category) => category !== "Religious"),
+        access_type: "free",
+      },
+    };
+  }
+
+  const categories = [...(before.categories ?? [])].filter((category) => category !== "Religious");
   if (params.classification === "religious") categories.push("Religious");
 
   const after = {
@@ -667,28 +702,8 @@ export async function importVerifiedSourcedEdition(params: {
   authenticityNotes?: string | null;
   manuscriptText: string;
 }) {
-  const db = await admin();
-  const { data: book, error: bookError } = await db
-    .from("books")
-    .select(
-      "id,title,status,source_language,source_version,total_chunks,available_languages,content_classification,translation_generation_policy",
-    )
-    .eq("id", params.bookId)
-    .single();
-  if (bookError || !book) throw new Error(bookError?.message ?? "Book not found");
-  if (
-    book.content_classification !== "religious" ||
-    book.translation_generation_policy !== "source_only"
-  ) {
-    throw new Error(
-      "Verified sourced-edition import is reserved for Religious/source-only books.",
-    );
-  }
-  if (book.status !== "published") {
-    throw new Error("Publish the verified original book before adding sourced translated editions.");
-  }
-  if (params.language === book.source_language) {
-    throw new Error("The sourced edition language must differ from the book's original language.");
+  if (!isRequestableTranslationLanguage(params.language)) {
+    throw new Error(`${params.language} is not a supported Seeparah language`);
   }
   if (!params.rightsBasis.trim() || params.rightsBasis.trim().length < 20) {
     throw new Error("Enter a substantive rights basis for this exact sourced edition.");
@@ -700,111 +715,33 @@ export async function importVerifiedSourcedEdition(params: {
     throw new Error("A valid source URL is required for the sourced translated edition.");
   }
 
-  const divider = /\n\s*===SEEPARAH_SECTION===\s*\n/giu;
   const sections = params.manuscriptText
     .replace(/\r\n/g, "\n")
-    .split(divider)
+    .split(/\n\s*===SEEPARAH_SECTION===\s*\n/giu)
     .map((section) => section.replace(/[ \t]+$/gm, "").trim())
     .filter(Boolean);
 
-  if (sections.length !== book.total_chunks) {
-    throw new Error(
-      `This book has ${book.total_chunks} aligned reading sections. The sourced edition contains ${sections.length}. Separate the verified text into exactly ${book.total_chunks} sections using ===SEEPARAH_SECTION=== so highlights, navigation and cross-language positions stay aligned.`,
-    );
-  }
-
-  const { data: existingEdition } = await db
-    .from("book_editions")
-    .select("language")
-    .eq("book_id", params.bookId)
-    .eq("language", params.language)
-    .maybeSingle();
-  if (existingEdition) {
-    throw new Error(
-      `A published ${params.language} edition already exists. Edit/review that edition instead of importing a duplicate.`,
-    );
-  }
-
-  const { count: existingChunks } = await db
-    .from("book_chunks")
-    .select("chunk_index", { count: "exact", head: true })
-    .eq("book_id", params.bookId)
-    .eq("language", params.language)
-    .eq("source_version", book.source_version ?? 1);
-  if ((existingChunks ?? 0) > 0) {
-    throw new Error(
-      `${params.language} content rows already exist for the current source version. Resolve those rows before importing a sourced edition.`,
-    );
-  }
-
-  const chunkRows = sections.map((content, chunkIndex) => ({
-    book_id: params.bookId,
-    language: params.language,
-    chunk_index: chunkIndex,
-    content,
-    status: "published",
-    source_version: book.source_version ?? 1,
-    provider: "sourced",
-    model: null,
-    prompt_version: null,
-    job_id: null,
-  }));
-
-  const { error: chunkError } = await db.from("book_chunks").insert(chunkRows);
-  if (chunkError) throw new Error(chunkError.message);
-
-  const editionRow = {
-    book_id: params.bookId,
-    language: params.language,
-    access_type: "free",
-    provenance_type: params.provenanceType,
-    typography_profile: params.typographyProfile,
-    authenticity_notes: params.authenticityNotes?.trim() || null,
-    edition_title: params.editionTitle?.trim() || null,
-    translator: params.translator?.trim() || null,
-    source_url: params.sourceUrl.trim(),
-    source_edition_id: params.sourceEditionId?.trim() || null,
-    rights_basis: params.rightsBasis.trim(),
-    rights_evidence_url: params.rightsEvidenceUrl.trim(),
-  };
-
-  const { error: editionError } = await db.from("book_editions").insert(editionRow);
-  if (editionError) {
-    await db
-      .from("book_chunks")
-      .delete()
-      .eq("book_id", params.bookId)
-      .eq("language", params.language)
-      .eq("source_version", book.source_version ?? 1);
-    throw new Error(editionError.message);
-  }
-
-  const availableLanguages = Array.from(
-    new Set([...(book.available_languages ?? []), params.language]),
-  );
-  const { error: bookUpdateError } = await db
-    .from("books")
-    .update({ available_languages: availableLanguages })
-    .eq("id", params.bookId);
-  if (bookUpdateError) {
-    await db
-      .from("book_editions")
-      .delete()
-      .eq("book_id", params.bookId)
-      .eq("language", params.language);
-    await db
-      .from("book_chunks")
-      .delete()
-      .eq("book_id", params.bookId)
-      .eq("language", params.language)
-      .eq("source_version", book.source_version ?? 1);
-    throw new Error(bookUpdateError.message);
-  }
+  const db = await admin();
+  const { data: sectionCount, error } = await db.rpc("import_verified_sourced_edition", {
+    p_book_id: params.bookId,
+    p_language: params.language,
+    p_provenance_type: params.provenanceType,
+    p_typography_profile: params.typographyProfile,
+    p_edition_title: params.editionTitle?.trim() || null,
+    p_translator: params.translator?.trim() || null,
+    p_source_url: params.sourceUrl.trim(),
+    p_source_edition_id: params.sourceEditionId?.trim() || null,
+    p_rights_basis: params.rightsBasis.trim(),
+    p_rights_evidence_url: params.rightsEvidenceUrl.trim(),
+    p_authenticity_notes: params.authenticityNotes?.trim() || null,
+    p_sections: sections,
+  });
+  if (error) throw new Error(error.message);
 
   return {
     bookId: params.bookId,
     language: params.language,
-    sectionCount: sections.length,
+    sectionCount: sectionCount ?? sections.length,
     provenanceType: params.provenanceType,
     accessType: "free" as const,
   };
