@@ -15,6 +15,7 @@ import {
   adminPublishCatalogBook,
   adminSetBookLifecycle,
   adminReviewAndPublishTranslationEdition,
+  adminProcessTranslationJobBatch,
   adminQueueTranslationJob,
   adminSetBookAccessType,
   adminSetEditionAccessType,
@@ -138,7 +139,13 @@ function AdminBookDetail() {
     Boolean(book.word_count && book.word_count > 0) &&
     Boolean(book.estimated_reading_minutes && book.estimated_reading_minutes > 0);
 
-  const allLanguages = [book.source_language, ...book.available_languages.filter((l) => l !== book.source_language)];
+  const allLanguages = [
+    ...new Set([
+      book.source_language,
+      ...book.available_languages,
+      ...jobs.map((job) => job.language),
+    ]),
+  ];
 
   function openEdit() {
     setEditDraft({
@@ -1048,6 +1055,11 @@ function AdminBookDetail() {
         <h2 className="font-display text-base font-semibold text-foreground">
           Translation editions
         </h2>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Approved jobs are processed automatically by the translation worker. “Process next batch”
+          is a manual fallback. Before publishing an awaiting-review edition, inspect every translated
+          section below in Edit page content.
+        </p>
         <ul className="mt-3 space-y-2">
           {jobs.map((j) => (
             <li
@@ -1058,22 +1070,52 @@ function AdminBookDetail() {
                 {j.language} — {j.status} ({j.completed_sections}/{j.total_sections},{" "}
                 {j.human_reviewed ? "reviewed" : "not yet reviewed"})
               </span>
-              {canManageTranslations && j.status === "awaiting_review" && (
-                <button
-                  disabled={busy}
-                  onClick={() =>
-                    withBusy(async () => {
-                      await adminReviewAndPublishTranslationEdition({
-                        data: { accessToken: await getAccessToken(), jobId: j.id },
-                      });
-                      toast.success(`${j.language} edition published`);
-                    })
-                  }
-                  className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-60"
-                >
-                  Review & publish
-                </button>
-              )}
+              <div className="flex flex-wrap items-center gap-2">
+                {canManageTranslations &&
+                  ["pending", "processing", "failed"].includes(j.status) && (
+                    <button
+                      disabled={busy}
+                      onClick={() =>
+                        withBusy(async () => {
+                          const result = await adminProcessTranslationJobBatch({
+                            data: { accessToken: await getAccessToken(), jobId: j.id },
+                          });
+                          toast.success(
+                            result.jobStatus === "awaiting_review"
+                              ? `${j.language} translation is ready for review`
+                              : `Processed ${result.processed} section(s); status: ${result.jobStatus}`,
+                          );
+                        })
+                      }
+                      className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary disabled:opacity-60"
+                    >
+                      Process next batch
+                    </button>
+                  )}
+                {canManageTranslations && j.status === "awaiting_review" && (
+                  <button
+                    disabled={busy}
+                    onClick={() =>
+                      withBusy(async () => {
+                        if (
+                          !window.confirm(
+                            `Publish the ${j.language} edition? Confirm only after reviewing every translated section in “Edit page content”.`,
+                          )
+                        ) {
+                          return;
+                        }
+                        await adminReviewAndPublishTranslationEdition({
+                          data: { accessToken: await getAccessToken(), jobId: j.id },
+                        });
+                        toast.success(`${j.language} edition published`);
+                      })
+                    }
+                    className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-60"
+                  >
+                    Review & publish
+                  </button>
+                )}
+              </div>
             </li>
           ))}
           {jobs.length === 0 && (
