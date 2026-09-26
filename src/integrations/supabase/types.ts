@@ -225,6 +225,9 @@ export type Database = {
       book_editions: {
         Row: {
           access_type: string
+          provenance_type: string
+          typography_profile: string
+          authenticity_notes: string | null
           book_id: string
           created_at: string
           language: string
@@ -232,6 +235,12 @@ export type Database = {
         }
         Insert: {
           access_type?: string
+          provenance_type?: string
+          typography_profile?: string
+          authenticity_notes?: string | null
+          provenance_type?: string
+          typography_profile?: string
+          authenticity_notes?: string | null
           book_id: string
           created_at?: string
           language: string
@@ -614,6 +623,10 @@ export type Database = {
           translation_permission: boolean
           translator: string | null
           cleanup_review_status: string
+          content_classification: string
+          translation_generation_policy: string
+          typography_profile: string
+          authenticity_notes: string | null
           word_count: number | null
         }
         Insert: {
@@ -660,6 +673,10 @@ export type Database = {
           translation_permission?: boolean
           translator?: string | null
           cleanup_review_status?: string
+          content_classification?: string
+          translation_generation_policy?: string
+          typography_profile?: string
+          authenticity_notes?: string | null
           word_count?: number | null
         }
         Update: {
@@ -706,6 +723,10 @@ export type Database = {
           translation_permission?: boolean
           translator?: string | null
           cleanup_review_status?: string
+          content_classification?: string
+          translation_generation_policy?: string
+          typography_profile?: string
+          authenticity_notes?: string | null
           word_count?: number | null
         }
         Relationships: []
