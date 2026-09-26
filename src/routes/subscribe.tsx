@@ -1,13 +1,13 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
-import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
+
+
 import { z } from "zod";
-import { BookOpen, Check, Crown, Feather, Loader2, ShieldCheck } from "lucide-react";
+import { BookOpen, Check, Crown, Feather, ShieldCheck } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { TRANSLATION_EXPLAINER_SHORT } from "@/lib/data";
-import { getBook, listSubscriptions, subscribeToBook } from "@/lib/library";
-import { useAuth } from "@/lib/use-auth";
+import { getBook } from "@/lib/library";
+
 import { getPublicContentSettings } from "@/lib/admin/settings.functions";
 
 const searchSchema = z.object({ book: z.string().optional() });
@@ -30,19 +30,15 @@ export const Route = createFileRoute("/subscribe")({
 
 function SubscribePage() {
   const { book: bookId } = Route.useSearch();
-  const { userId } = useAuth();
+
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const [busy, setBusy] = useState(false);
+
+
 
   const bookQuery = useQuery({
     queryKey: ["book", bookId],
     queryFn: () => getBook(bookId!),
     enabled: !!bookId,
-  });
-  const subsQuery = useQuery({
-    queryKey: ["subscriptions", userId],
-    queryFn: () => listSubscriptions(userId),
   });
   const settingsQuery = useQuery({
     queryKey: ["public-content-settings"],
@@ -61,29 +57,6 @@ function SubscribePage() {
     typeof settingsQuery.data?.["monthly_plan_price_usd"] === "number"
       ? (settingsQuery.data["monthly_plan_price_usd"] as number)
       : 2;
-  // "One subscription unlocks all Premium books and translations" — any
-  // active subscription counts, not one tied to this specific book.
-  const alreadySubscribed = (subsQuery.data ?? []).some((s) => s.status === "active");
-
-  async function activate() {
-    if (!book) return;
-    setBusy(true);
-    try {
-      await subscribeToBook(userId, book);
-      queryClient.invalidateQueries({ queryKey: ["subscriptions", userId] });
-      toast.success(`Subscribed to “${book.title}” (test mode — no charge)`);
-      navigate({
-        to: "/read/$bookId",
-        params: { bookId: book.id },
-        search: { lang: book.source_language },
-      });
-    } catch {
-      toast.error("Couldn't activate the subscription. Try again.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
   return (
     <div className="min-h-screen bg-background">
       <main className="mx-auto max-w-4xl px-4 pb-20 pt-10 sm:px-6">
@@ -181,44 +154,18 @@ function SubscribePage() {
                 ))}
               </ul>
 
-              {book ? (
-                alreadySubscribed ? (
-                  <button
-                    onClick={() =>
-                      navigate({
-                        to: "/read/$bookId",
-                        params: { bookId: book.id },
-                        search: { lang: book.source_language },
-                      })
-                    }
-                    className="mt-6 w-full rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground"
-                  >
-                    You're subscribed — keep reading
-                  </button>
-                ) : (
-                  <button
-                    onClick={activate}
-                    disabled={busy}
-                    className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-gold py-3 text-sm font-semibold text-gold-foreground disabled:opacity-60"
-                  >
-                    {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-                    Activate subscription
-                  </button>
-                )
-              ) : (
-                <button
-                  onClick={() => navigate({ to: "/library" })}
-                  className="mt-6 w-full rounded-xl bg-gold py-3 text-sm font-semibold text-gold-foreground"
-                >
-                  Pick a premium book
-                </button>
-              )}
+              <button
+                type="button"
+                disabled
+                className="mt-6 w-full rounded-xl bg-gold py-3 text-sm font-semibold text-gold-foreground opacity-60"
+              >
+                Billing connection required before activation
+              </button>
 
               <p className="mt-4 flex items-start gap-1.5 rounded-lg bg-secondary px-3 py-2 text-xs text-secondary-foreground">
                 <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                Stripe runs in test mode — no card is charged. Of ${price.toFixed(2)}, the author
-                receives ${(price * AUTHOR_PAYOUT).toFixed(2)} and Seeparah keeps $
-                {(price * PLATFORM_COMMISSION).toFixed(2)} for translation and hosting.
+                This is the intended entitlement model, not a live checkout. A real recurring
+                payment provider must be connected and verified before monetization can be enabled.
               </p>
             </div>
           </div>
