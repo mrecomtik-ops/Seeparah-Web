@@ -113,11 +113,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           crossOrigin: "anonymous",
         },
         {
-          // One combined request for the product fonts plus script-specific
-          // reader families. Browser font matching keeps the script assets
-          // from painting unless the edition actually uses them.
+          // Product fonts only. Script-specific reading fonts are loaded on demand
+          // inside Reader V2 so ordinary/admin/library pages do not pay for them.
           rel: "stylesheet",
-          href: "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Outfit:wght@400;500;600;700&family=Noto+Nastaliq+Urdu:wght@400..700&family=Noto+Naskh+Arabic:wght@400..700&family=Noto+Serif+Hebrew:wght@400..700&family=Noto+Serif+Devanagari:wght@400..700&family=Noto+Serif+Bengali:wght@400..700&family=Noto+Serif+Tamil:wght@400..700&display=swap",
+          href: "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Outfit:wght@400;500;600;700&display=swap",
         },
       ],
     }),
