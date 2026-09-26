@@ -68,3 +68,31 @@ describe("reader structure helpers", () => {
     expect(nav[0]?.title).toBe("Reading section 1");
   });
 });
+
+
+describe("printed contents and wrapped headings", () => {
+  it("rejects printed-contents dot leaders as navigation headings", async () => {
+    const { classifyHeading, looksLikePrintedContentsLine } = await import("@/lib/reader-structure");
+    expect(looksLikePrintedContentsLine("Preface To Revised Edition........ 4")).toBe(true);
+    expect(classifyHeading("Preface To Revised Edition........ 4")).toBeNull();
+    expect(classifyHeading("PART TWO ........ 133")).toBeNull();
+  });
+
+  it("joins a wrapped chapter title into one semantic heading", () => {
+    const blocks = parseReadableBlocks(
+      "CHAPTER I\n\nIF YOU WANT TO GATHER HONEY, DON'T KICK OVER\n\nTHE BEEHIVE."
+    );
+    expect(blocks[0]).toEqual(
+      expect.objectContaining({
+        kind: "heading",
+        level: 2,
+        text: "CHAPTER I — IF YOU WANT TO GATHER HONEY, DON'T KICK OVER",
+      }),
+    );
+  });
+
+  it("recognizes lettered lists", () => {
+    const blocks = parseReadableBlocks("a. First point\nb. Second point\nc. Third point");
+    expect(blocks[0]?.kind).toBe("list");
+  });
+});
