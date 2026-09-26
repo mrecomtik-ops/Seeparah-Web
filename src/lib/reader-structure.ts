@@ -44,6 +44,17 @@ function cleanLine(value: string): string {
   return value.replace(/\s+/g, " ").trim();
 }
 
+export function looksLikePrintedContentsLine(value: string): boolean {
+  const raw = value.trim();
+  if (!raw) return false;
+  // Printed TOCs commonly use dot leaders / ellipses plus a terminal page
+  // number or roman numeral. They are navigation text, not real headings in
+  // the reading flow, and must never become Reader V2 structure nodes.
+  if (/(?:\.{3,}|…{2,}|·{3,})\s*(?:\d+|[ivxlcdm]+)\.?$/iu.test(raw)) return true;
+  if (/\s{3,}(?:\d+|[ivxlcdm]+)\.?$/iu.test(raw)) return true;
+  return false;
+}
+
 function isAllCapsHeading(value: string): boolean {
   const letters = value.replace(/[^\p{L}]/gu, "");
   if (letters.length < 4 || value.length > 100) return false;
@@ -55,7 +66,7 @@ export function classifyHeading(value: string): {
   level: 1 | 2 | 3;
 } | null {
   const line = cleanLine(value);
-  if (!line || line.length > 140) return null;
+  if (!line || line.length > 140 || looksLikePrintedContentsLine(value)) return null;
   if (PART_HEADING.test(line) || CJK_PART_HEADING.test(line)) {
     return { kind: "part", level: 1 };
   }
@@ -84,24 +95,52 @@ export function parseReadableBlocks(content: string): ReaderBlock[] {
     .map((block) => block.trim())
     .filter(Boolean);
 
-  return rawBlocks.map((text) => {
+  const result: ReaderBlock[] = [];
+  for (let i = 0; i < rawBlocks.length; i++) {
+    const text = rawBlocks[i]!;
     const lines = text.split("\n").map(cleanLine).filter(Boolean);
     const first = lines[0] ?? "";
 
     if (PRINCIPLE_HEADING.test(first) && text.length <= 500) {
-      return { kind: "principle", text };
+      result.push({ kind: "principle", text });
+      continue;
     }
 
     const heading = classifyHeading(first);
     if (lines.length === 1 && heading) {
-      return { kind: "heading", text: first, level: heading.level };
+      const next = rawBlocks[i + 1];
+      const nextFirst = next ? cleanLine(next.split("\n")[0] ?? "") : "";
+      const nextIsWrappedTitle =
+        next &&
+        !looksLikePrintedContentsLine(next) &&
+        next.split("\n").filter((line) => line.trim()).length === 1 &&
+        nextFirst.length <= 120 &&
+        isAllCapsHeading(nextFirst) &&
+        !PART_HEADING.test(nextFirst) &&
+        !CHAPTER_HEADING.test(nextFirst) &&
+        !SECTION_HEADING.test(nextFirst) &&
+        !FRONT_MATTER_HEADING.test(nextFirst) &&
+        (heading.kind === "chapter" || heading.kind === "part");
+
+      if (nextIsWrappedTitle) {
+        result.push({
+          kind: "heading",
+          text: `${first} — ${nextFirst}`,
+          level: heading.level,
+        });
+        i += 1;
+      } else {
+        result.push({ kind: "heading", text: first, level: heading.level });
+      }
+      continue;
     }
 
     const listItems = lines
-      .map((line) => line.match(/^(?:[-•*]|\d+[.)])\s+(.+)$/)?.[1]?.trim())
+      .map((line) => line.match(/^(?:[-•*]|\d+[.)]|[A-Za-z][.)])\s+(.+)$/u)?.[1]?.trim())
       .filter((item): item is string => Boolean(item));
     if (lines.length >= 2 && listItems.length === lines.length) {
-      return { kind: "list", text, items: listItems };
+      result.push({ kind: "list", text, items: listItems });
+      continue;
     }
 
     if (
@@ -109,11 +148,14 @@ export function parseReadableBlocks(content: string): ReaderBlock[] {
       (/^[“"]/u.test(first) || /^['‘]/u.test(first)) &&
       (/[”"]$/u.test(text) || /[’']$/u.test(text))
     ) {
-      return { kind: "quote", text };
+      result.push({ kind: "quote", text });
+      continue;
     }
 
-    return { kind: "paragraph", text };
-  });
+    result.push({ kind: "paragraph", text });
+  }
+
+  return result;
 }
 
 function bestHeadingFromChunk(content: string): {
@@ -128,12 +170,28 @@ function bestHeadingFromChunk(content: string): {
     .filter(Boolean)
     .slice(0, 6);
 
-  for (const block of blocks) {
+  for (let i = 0; i < blocks.length; i++) {
+    const block = blocks[i]!;
     const first = cleanLine(block.split("\n")[0] ?? "");
     const match = classifyHeading(first);
-    if (match) {
-      return { title: first, kind: match.kind, depth: match.level - 1 };
+    if (!match) continue;
+
+    let title = first;
+    const next = blocks[i + 1];
+    const nextFirst = next ? cleanLine(next.split("\n")[0] ?? "") : "";
+    if (
+      next &&
+      !looksLikePrintedContentsLine(next) &&
+      nextFirst.length <= 120 &&
+      isAllCapsHeading(nextFirst) &&
+      !PART_HEADING.test(nextFirst) &&
+      !CHAPTER_HEADING.test(nextFirst) &&
+      !SECTION_HEADING.test(nextFirst) &&
+      (match.kind === "chapter" || match.kind === "part")
+    ) {
+      title = `${first} — ${nextFirst}`;
     }
+    return { title, kind: match.kind, depth: match.level - 1 };
   }
   return null;
 }
