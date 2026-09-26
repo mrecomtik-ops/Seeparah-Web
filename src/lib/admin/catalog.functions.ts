@@ -400,6 +400,23 @@ export const adminRunBatchImport = createServerFn({ method: "POST" })
     return results;
   });
 
+export const adminProcessTranslationJobBatch = createServerFn({ method: "POST" })
+  .inputValidator((data) => withToken({ jobId: z.string() }).parse(data))
+  .handler(async ({ data }) => {
+    const { userId, role } = await requireAdmin(data.accessToken, "translation.jobs.manage");
+    const { processTranslationJobBatch } = await import("@/lib/translation.server");
+    const result = await processTranslationJobBatch(data.jobId, 3);
+    await recordAudit({
+      actorId: userId,
+      actorRole: role,
+      action: "translation.process_batch",
+      entityType: "translation_job",
+      entityId: data.jobId,
+      after: result,
+    });
+    return result;
+  });
+
 export const adminReviewAndPublishTranslationEdition = createServerFn({ method: "POST" })
   .inputValidator((data) => withToken({ jobId: z.string() }).parse(data))
   .handler(async ({ data }) => {
