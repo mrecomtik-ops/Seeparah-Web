@@ -864,7 +864,7 @@ export async function adminCreateBook(
       rights_evidence_url: input.rightsEvidenceUrl ?? null,
       attribution: input.attribution ?? null,
       permitted_territories: input.permittedTerritories ?? [],
-      translation_permission: input.translationPermission,
+      translation_permission: religious ? false : input.translationPermission,
       import_key: input.importKey ?? null,
       checksum,
       status: "in_review",
