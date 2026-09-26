@@ -290,7 +290,8 @@ function ReaderPage() {
   const rtl = RTL_LANGUAGES.has(language);
   const isUrdu = language === "Urdu";
   const religious = book ? isReligiousBook(book) : false;
-  const typographyProfile = book?.typography_profile ?? "standard";
+  const typographyProfile =
+    chunkQuery.data?.typographyProfile ?? book?.typography_profile ?? "standard";
   const protectedFontFamily = religiousTypographyFont(typographyProfile);
   const total = book?.total_chunks ?? 1;
   const pct = Math.round(((index + 1) / total) * 100);
