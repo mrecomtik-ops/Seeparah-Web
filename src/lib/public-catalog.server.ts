@@ -78,3 +78,16 @@ export async function searchPublicBooks(query: string): Promise<Book[]> {
   if (error) throw new Error(error.message);
   return (data ?? []).map(asPublicBook);
 }
+
+
+export async function listPublicBooksByAuthorId(authorId: string): Promise<Book[]> {
+  const db = await admin();
+  const { data, error } = await db
+    .from("books")
+    .select(PUBLIC_BOOK_COLUMNS)
+    .eq("author_id", authorId)
+    .eq("status", "published")
+    .order("created_at", { ascending: false });
+  if (error) throw new Error(error.message);
+  return (data ?? []).map(asPublicBook);
+}
