@@ -7,7 +7,7 @@ import { recordAudit } from "@/lib/admin/audit.server";
 const withToken = <T extends z.ZodRawShape>(shape: T) =>
   z.object({ accessToken: z.string(), ...shape });
 
-/** Reader-facing: request access to a Hindi/Arabic edition. Any signed-in
+/** Reader-facing: request access to any supported missing-language edition. Any signed-in
  * reader can call this for themselves — it only ever records "I'd like
  * access", never grants anything by itself. */
 export const requestBookTranslationAccess = createServerFn({ method: "POST" })
