@@ -144,6 +144,30 @@
     outline-offset: 2px;
     border-radius: var(--radius-sm);
   }
+
+  /* Every clickable button gives visible pointer/touch feedback. Individual
+     components can still supply their own hover colors; these rules add the
+     shared physical "this was pressed" cue the product was missing. */
+  button:not(:disabled) {
+    transition:
+      transform 110ms ease,
+      filter 140ms ease,
+      background-color 140ms ease,
+      border-color 140ms ease,
+      color 140ms ease,
+      box-shadow 140ms ease;
+  }
+
+  @media (hover: hover) {
+    button:not(:disabled):hover {
+      filter: brightness(0.97);
+    }
+  }
+
+  button:not(:disabled):active {
+    transform: translateY(1px) scale(0.98);
+    filter: brightness(0.93);
+  }
 }
 
 /* Respect prefers-reduced-motion app-wide — every transition-*/animate-*
@@ -171,6 +195,26 @@
   line-height: 1.85;
   letter-spacing: 0.002em;
   white-space: pre-wrap;
+}
+
+/* Persistent, account-scoped reader highlights. <mark> inherits the text
+   color so it stays readable across light, sepia and dark Reader V2 themes. */
+.reader-highlight {
+  color: inherit;
+  background-color: color-mix(in oklab, var(--gold) 48%, transparent);
+  border-radius: 0.18em;
+  padding-inline: 0.06em;
+  margin-inline: -0.06em;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+.dark .reader-highlight {
+  background-color: color-mix(in oklab, var(--gold) 42%, transparent);
+}
+
+.reader-sepia .reader-highlight {
+  background-color: color-mix(in oklab, var(--gold) 52%, transparent);
 }
 
 /* Urdu typography — Nastaliq's diagonal, stacked letterforms need
