@@ -75,3 +75,32 @@ describe("parseEpub", () => {
     await expect(parseEpub(bytes)).rejects.toThrow(/OCR/);
   });
 });
+
+
+describe("EPUB text fidelity", () => {
+  it("decodes numeric entities and common named punctuation entities", async () => {
+    const bytes = await buildEpub({
+      ch1: "<html><body><h1>باب</h1><p>&#x0627;&#x064E; &mdash; test &hellip;</p></body></html>",
+    });
+    const result = await parseEpub(bytes);
+    expect(result.chapters[0]?.text).toContain("اَ — test …");
+    expect(result.chapters[0]?.text).not.toContain("&#x");
+    expect(result.chapters[0]?.text).not.toContain("&mdash;");
+  });
+
+  it("keeps a heading as a separate block from following prose", async () => {
+    const bytes = await buildEpub({
+      ch1: "<html><body><h1>Chapter One</h1><p>Opening paragraph.</p></body></html>",
+    });
+    const result = await parseEpub(bytes);
+    expect(result.chapters[0]?.text).toContain("Chapter One\n\nOpening paragraph.");
+  });
+
+  it("preserves line-like verse spans as separate lines", async () => {
+    const bytes = await buildEpub({
+      ch1: '<html><body><p><span class="verse-line">First line</span><span class="verse-line">Second line</span></p></body></html>',
+    });
+    const result = await parseEpub(bytes);
+    expect(result.chapters[0]?.text).toContain("First line\nSecond line");
+  });
+});
