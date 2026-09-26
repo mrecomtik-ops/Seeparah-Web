@@ -52,6 +52,7 @@ import {
   setPrefs,
   type ReaderContentWidth,
   type ReaderFontFamily,
+  type ReaderPresentation,
   type ReaderTheme,
 } from "@/lib/prefs";
 import { parseReadableBlocks, type ReaderNavigationItem } from "@/lib/reader-structure";
@@ -122,6 +123,7 @@ function ReaderPage() {
   const [fontFamily, setFontFamily] = useState<ReaderFontFamily>(prefs.fontFamily);
   const [contentWidth, setContentWidth] = useState<ReaderContentWidth>(prefs.contentWidth);
   const [paragraphSpacing, setParagraphSpacing] = useState(prefs.paragraphSpacing);
+  const [presentation, setPresentation] = useState<ReaderPresentation>(prefs.presentation);
 
   // Dark/sepia are scoped CSS classes (.dark/.sepia in src/styles.css) —
   // applying THEME_CLASS only to this route's own wrapper div left the
@@ -328,6 +330,7 @@ function ReaderPage() {
       fontFamily: ReaderFontFamily;
       contentWidth: ReaderContentWidth;
       paragraphSpacing: number;
+      presentation: ReaderPresentation;
     }>,
   ) {
     if (next.fontSize !== undefined) setFontSize(next.fontSize);
@@ -336,6 +339,7 @@ function ReaderPage() {
     if (next.fontFamily !== undefined) setFontFamily(next.fontFamily);
     if (next.contentWidth !== undefined) setContentWidth(next.contentWidth);
     if (next.paragraphSpacing !== undefined) setParagraphSpacing(next.paragraphSpacing);
+    if (next.presentation !== undefined) setPresentation(next.presentation);
     setPrefs(next);
   }
 
@@ -703,6 +707,7 @@ function ReaderPage() {
         ) : content ? (
           <>
             <article
+              key={`${language}:${index}:${presentation}`}
               dir={rtl ? "rtl" : "ltr"}
               lang={languageToBcp47(language)}
               style={{
@@ -712,8 +717,8 @@ function ReaderPage() {
                   contentWidth === "narrow"
                     ? "42rem"
                     : contentWidth === "wide"
-                      ? "64rem"
-                      : "52rem",
+                      ? "60rem"
+                      : "48rem",
                 fontFamily:
                   fontFamily === "sans"
                     ? "Inter, ui-sans-serif, system-ui, sans-serif"
@@ -721,11 +726,26 @@ function ReaderPage() {
                       ? "ui-serif, Georgia, Cambria, serif"
                       : "Georgia, 'Times New Roman', ui-serif, serif",
               }}
-              className={`mx-auto mt-8 rounded-2xl border border-border bg-card p-6 text-card-foreground card-shadow sm:p-10 ${
-                isUrdu ? "urdu-reading-block" : ""
-              }`}
+              className={`mx-auto mt-8 text-card-foreground ${
+                presentation === "book"
+                  ? "book-page-surface reader-page-enter min-h-[72vh] px-7 py-10 sm:min-h-[46rem] sm:px-14 sm:py-14 md:px-16"
+                  : "rounded-2xl border border-border bg-card p-6 card-shadow sm:p-10"
+              } ${isUrdu ? "urdu-reading-block" : ""}`}
             >
+              {presentation === "book" && (
+                <div className="mb-8 flex items-center justify-between gap-4 border-b border-border/60 pb-3 text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                  <span className="truncate">{currentNavigationItem?.title ?? book.title}</span>
+                  <span className="shrink-0">{book.author}</span>
+                </div>
+              )}
               <ReadableChunk blocks={readableBlocks} paragraphSpacing={paragraphSpacing} />
+              {presentation === "book" && (
+                <footer className="mt-12 border-t border-border/50 pt-4 text-center text-xs text-muted-foreground">
+                  <span aria-label={`Reading section ${index + 1} of ${total}`}>
+                    {index + 1}
+                  </span>
+                </footer>
+              )}
             </article>
             <div className="mt-4 flex flex-wrap justify-center gap-4 text-xs">
               <button
@@ -815,6 +835,7 @@ function ReaderPage() {
           fontFamily={fontFamily}
           contentWidth={contentWidth}
           paragraphSpacing={paragraphSpacing}
+          presentation={presentation}
           onChange={applyReaderPrefs}
           onClose={() => setShowSettings(false)}
         />
@@ -1004,6 +1025,7 @@ function ReaderSettingsSheet({
   fontFamily,
   contentWidth,
   paragraphSpacing,
+  presentation,
   onChange,
   onClose,
 }: {
@@ -1013,6 +1035,7 @@ function ReaderSettingsSheet({
   fontFamily: ReaderFontFamily;
   contentWidth: ReaderContentWidth;
   paragraphSpacing: number;
+  presentation: ReaderPresentation;
   onChange: (
     next: Partial<{
       fontSize: number;
@@ -1021,6 +1044,7 @@ function ReaderSettingsSheet({
       fontFamily: ReaderFontFamily;
       contentWidth: ReaderContentWidth;
       paragraphSpacing: number;
+      presentation: ReaderPresentation;
     }>,
   ) => void;
   onClose: () => void;
@@ -1048,6 +1072,34 @@ function ReaderSettingsSheet({
               </button>
             ))}
           </div>
+        </div>
+
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Reading style
+          </p>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            {([
+              ["book", "Book page"],
+              ["continuous", "Continuous"],
+            ] as const).map(([value, label]) => (
+              <button
+                key={value}
+                onClick={() => onChange({ presentation: value })}
+                aria-pressed={presentation === value}
+                className={`rounded-xl border px-3 py-2.5 text-sm font-semibold ${
+                  presentation === value
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border bg-background text-foreground hover:bg-secondary"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
+            Book page gives each reading section a paper-page shape with generous inner margins and a page number.
+          </p>
         </div>
 
         <div>
