@@ -116,7 +116,7 @@ describe("resolveReaderAccess — an edition that has never been published (no b
     expect(result).toEqual({ locked: true, reason: "translation_access_required" });
   });
 
-  it("never blocks the book's own author this way", () => {
+  it("still shows the request state to the book owner because the edition does not exist yet", () => {
     const result = resolveReaderAccess({
       ...BASE,
       language: "Arabic",
@@ -124,10 +124,10 @@ describe("resolveReaderAccess — an edition that has never been published (no b
       book,
       editionAccessType: undefined,
     });
-    expect(result.locked).toBe(false);
+    expect(result).toEqual({ locked: true, reason: "translation_access_required" });
   });
 
-  it("is irrelevant for the free-preview page (chunkIndex 0) — always open regardless", () => {
+  it("shows the request state even on chunkIndex 0 because a missing edition has no preview text", () => {
     const result = resolveReaderAccess({
       ...BASE,
       chunkIndex: 0,
@@ -135,7 +135,7 @@ describe("resolveReaderAccess — an edition that has never been published (no b
       book,
       editionAccessType: undefined,
     });
-    expect(result.locked).toBe(false);
+    expect(result).toEqual({ locked: true, reason: "translation_access_required" });
   });
 });
 
