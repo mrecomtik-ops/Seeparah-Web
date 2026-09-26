@@ -60,12 +60,20 @@ export async function ensureTranslationJob(params: {
   const db = await admin();
   const { data: book, error: bookError } = await db
     .from("books")
-    .select("id, source_language, total_chunks, source_version, translation_permission, rights_status")
+    .select("id, source_language, total_chunks, source_version, translation_permission, rights_status, content_classification, translation_generation_policy")
     .eq("id", params.bookId)
     .single();
   if (bookError || !book) throw new Error("Book not found");
   if (book.rights_status !== "approved") {
     throw new Error("Translation cannot be queued until the book's rights review is approved");
+  }
+  if (
+    book.content_classification === "religious" ||
+    book.translation_generation_policy === "source_only"
+  ) {
+    throw new Error(
+      "Religious/source-only books do not use Seeparah's AI translation pipeline. Import a verified sourced translation instead.",
+    );
   }
   if (!book.translation_permission) {
     throw new Error("Translation is not permitted by this book's current rights record");
@@ -229,12 +237,18 @@ export async function processTranslationJobBatch(
 
   const { data: book } = await db
     .from("books")
-    .select("id, title, source_language, total_chunks, translation_permission, rights_status")
+    .select("id, title, source_language, total_chunks, translation_permission, rights_status, content_classification, translation_generation_policy")
     .eq("id", job.book_id)
     .single();
   if (!book) throw new Error("Book not found for job");
   if (book.rights_status !== "approved") {
     throw new Error("Translation processing is blocked because the book's rights review is not approved");
+  }
+  if (
+    book.content_classification === "religious" ||
+    book.translation_generation_policy === "source_only"
+  ) {
+    throw new Error("Translation processing is blocked for Religious/source-only books");
   }
   if (!book.translation_permission) {
     throw new Error("Translation processing is blocked because the current rights record does not permit translation");
@@ -525,12 +539,20 @@ export async function publishReviewedEdition(jobId: string, reviewerId: string) 
 
   const { data: rightsBook, error: rightsBookError } = await db
     .from("books")
-    .select("rights_status, translation_permission")
+    .select("rights_status, translation_permission, content_classification, translation_generation_policy")
     .eq("id", job.book_id)
     .single();
   if (rightsBookError || !rightsBook) throw new Error("Book not found for translation review");
   if (rightsBook.rights_status !== "approved") {
     throw new Error("Translation cannot be published until the book's rights review is approved");
+  }
+  if (
+    rightsBook.content_classification === "religious" ||
+    rightsBook.translation_generation_policy === "source_only"
+  ) {
+    throw new Error(
+      "AI-generated translations cannot be published for Religious/source-only books. Import a verified sourced edition instead.",
+    );
   }
   if (!rightsBook.translation_permission) {
     throw new Error("Translation cannot be published because the current rights record does not permit translation");
@@ -576,7 +598,12 @@ export async function publishReviewedEdition(jobId: string, reviewerId: string) 
   // reset an admin's earlier Free/Premium choice back to the default.
   const { error: editionError } = await db
     .from("book_editions")
-    .insert({ book_id: job.book_id, language: job.language })
+    .insert({
+      book_id: job.book_id,
+      language: job.language,
+      access_type: "paid",
+      provenance_type: "ai_assisted",
+    })
     .select()
     .maybeSingle();
   // A unique-violation here just means the row already existed (a
