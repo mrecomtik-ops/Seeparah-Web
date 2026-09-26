@@ -60,7 +60,7 @@ function AdminOverview() {
     { label: "Active readers · 7 days", value: a?.readers.active7d ?? "—" },
     { label: "Active readers · 30 days", value: a?.readers.active30d ?? "—" },
     { label: "Highlights saved", value: a?.readers.highlights ?? "—" },
-    { label: "Translation requests", value: a?.translations.requested ?? h.pendingTranslationRequests },
+    { label: "New translation requests", value: a?.translations.requested ?? h.pendingTranslationRequests },
     { label: "Awaiting translation review", value: a?.translations.awaitingReviewJobs ?? "—" },
     { label: "Failed translation jobs", value: a?.translations.failedJobs ?? h.failedJobs.length },
     { label: "Active subscriptions", value: a?.subscriptions.active ?? "—" },
