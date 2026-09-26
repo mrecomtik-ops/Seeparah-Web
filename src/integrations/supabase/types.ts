@@ -592,6 +592,8 @@ export type Database = {
           reviewed_by: string | null
           rights_basis: string | null
           rights_evidence_url: string | null
+          rights_risk_acknowledged_at: string | null
+          rights_risk_acknowledged_by: string | null
           rights_status: string
           source_edition_id: string | null
           source_language: string
@@ -636,6 +638,8 @@ export type Database = {
           reviewed_by?: string | null
           rights_basis?: string | null
           rights_evidence_url?: string | null
+          rights_risk_acknowledged_at?: string | null
+          rights_risk_acknowledged_by?: string | null
           rights_status?: string
           source_edition_id?: string | null
           source_language: string
@@ -680,6 +684,8 @@ export type Database = {
           reviewed_by?: string | null
           rights_basis?: string | null
           rights_evidence_url?: string | null
+          rights_risk_acknowledged_at?: string | null
+          rights_risk_acknowledged_by?: string | null
           rights_status?: string
           source_edition_id?: string | null
           source_language?: string
