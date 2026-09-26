@@ -1,7 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
 
-// Same minimal chainable-query-builder mock pattern as
-// src/lib/library.publishBook.test.ts — see that file's own comment.
 interface ScriptEntry {
   data?: unknown;
   error?: { code?: string; message: string } | null;
@@ -68,52 +66,71 @@ const { setBookAccessType, setEditionAccessType, bulkSetAccessType } = await imp
   "@/lib/admin/catalog.server"
 );
 
-describe("setBookAccessType — the original edition", () => {
-  it("updates books.access_type and reports a real before/after diff", async () => {
+describe("setBookAccessType — original editions are always free", () => {
+  it("refuses to put an original-language edition behind a paywall", async () => {
+    mock = makeMockSupabase([]);
+    await expect(
+      setBookAccessType({ bookId: "book-1", accessType: "paid" }),
+    ).rejects.toThrow(/always free/i);
+    expect(mock.fromSpy).not.toHaveBeenCalled();
+  });
+
+  it("allows an admin to normalize a legacy original back to free", async () => {
     mock = makeMockSupabase([
-      { data: { access_type: "free" }, error: null }, // select before
-      { data: null, error: null }, // update
+      { data: { access_type: "paid" }, error: null },
+      { data: null, error: null },
     ]);
-    const result = await setBookAccessType({ bookId: "book-1", accessType: "paid" });
-    expect(result.before).toEqual({ access_type: "free" });
-    expect(result.after).toEqual({ access_type: "paid" });
-    expect(mock.updateSpy).toHaveBeenCalledWith({ access_type: "paid" });
-    expect(mock.fromSpy).toHaveBeenCalledWith("books");
+    const result = await setBookAccessType({ bookId: "book-1", accessType: "free" });
+    expect(result.before).toEqual({ access_type: "paid" });
+    expect(result.after).toEqual({ access_type: "free" });
+    expect(mock.updateSpy).toHaveBeenCalledWith({ access_type: "free" });
   });
 });
 
-describe("setEditionAccessType — a translated edition", () => {
-  it("updates book_editions.access_type when the edition already exists", async () => {
+describe("setEditionAccessType — translated editions", () => {
+  it("allows a general translated edition to use monthly-plan access", async () => {
     mock = makeMockSupabase([
-      { data: { access_type: "free" }, error: null }, // select before
-      { data: null, error: null }, // update
+      { data: { access_type: "free" }, error: null },
+      { data: { content_classification: "general" }, error: null },
+      { data: null, error: null },
     ]);
     const result = await setEditionAccessType({
       bookId: "book-1",
       language: "Hindi",
       accessType: "paid",
     });
-    expect(result.before).toEqual({ access_type: "free" });
     expect(result.after).toEqual({ access_type: "paid" });
-    expect(mock.fromSpy).toHaveBeenCalledWith("book_editions");
   });
 
-  it("refuses — does not attempt any write — when no edition has been published yet", async () => {
-    mock = makeMockSupabase([{ data: null, error: null }]); // select before: no row
+  it("refuses to put a Religious translated edition behind a paywall", async () => {
+    mock = makeMockSupabase([
+      { data: { access_type: "free" }, error: null },
+      { data: { content_classification: "religious" }, error: null },
+    ]);
+    await expect(
+      setEditionAccessType({
+        bookId: "book-1",
+        language: "Urdu",
+        accessType: "paid",
+      }),
+    ).rejects.toThrow(/religious.*always free/i);
+    expect(mock.updateSpy).not.toHaveBeenCalled();
+  });
+
+  it("refuses when the translated edition has never been published", async () => {
+    mock = makeMockSupabase([{ data: null, error: null }]);
     await expect(
       setEditionAccessType({ bookId: "book-1", language: "Hindi", accessType: "paid" }),
     ).rejects.toThrow(/no published Hindi edition/i);
-    expect(mock.updateSpy).not.toHaveBeenCalled();
   });
 });
 
 describe("bulkSetAccessType", () => {
-  it("applies to a mix of original (language: null) and translated-edition targets, reporting per-target success", async () => {
+  it("reports a paid original as rejected while still updating a general translation", async () => {
     mock = makeMockSupabase([
-      { data: { access_type: "free" }, error: null }, // book-1 select
-      { data: null, error: null }, // book-1 update
-      { data: { access_type: "free" }, error: null }, // book-2 edition select
-      { data: null, error: null }, // book-2 edition update
+      { data: { access_type: "free" }, error: null },
+      { data: { content_classification: "general" }, error: null },
+      { data: null, error: null },
     ]);
     const results = await bulkSetAccessType({
       targets: [
@@ -122,27 +139,8 @@ describe("bulkSetAccessType", () => {
       ],
       accessType: "paid",
     });
-    expect(results).toEqual([
-      { target: { bookId: "book-1", language: null }, ok: true },
-      { target: { bookId: "book-2", language: "Hindi" }, ok: true },
-    ]);
-  });
-
-  it("a single bad target (edition never published) does not abort the rest of the batch", async () => {
-    mock = makeMockSupabase([
-      { data: null, error: null }, // book-1 edition select: no row → throws
-      { data: { access_type: "free" }, error: null }, // book-2 select
-      { data: null, error: null }, // book-2 update
-    ]);
-    const results = await bulkSetAccessType({
-      targets: [
-        { bookId: "book-1", language: "Hindi" },
-        { bookId: "book-2", language: null },
-      ],
-      accessType: "paid",
-    });
     expect(results[0]?.ok).toBe(false);
-    expect(results[0]?.error).toMatch(/no published Hindi edition/i);
+    expect(results[0]?.error).toMatch(/always free/i);
     expect(results[1]?.ok).toBe(true);
   });
 });
