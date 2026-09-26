@@ -60,10 +60,16 @@ export async function ensureTranslationJob(params: {
   const db = await admin();
   const { data: book, error: bookError } = await db
     .from("books")
-    .select("id, source_language, total_chunks, source_version")
+    .select("id, source_language, total_chunks, source_version, translation_permission, rights_status")
     .eq("id", params.bookId)
     .single();
   if (bookError || !book) throw new Error("Book not found");
+  if (book.rights_status !== "approved") {
+    throw new Error("Translation cannot be queued until the book's rights review is approved");
+  }
+  if (!book.translation_permission) {
+    throw new Error("Translation is not permitted by this book's current rights record");
+  }
   if (!isRequestableTranslationLanguage(params.language)) {
     throw new Error(`${params.language} is not a supported Seeparah translation language`);
   }
@@ -174,6 +180,25 @@ export function defaultBatchSize(): number {
  * cost an extra Gemini call. MAX_SECTION_ATTEMPTS bounds how many times
  * this can happen per section.
  */
+export async function processTranslationJobBatchForAuthor(
+  jobId: string,
+  requesterId: string,
+  limit = defaultBatchSize(),
+): Promise<ProcessResult> {
+  const db = await admin();
+  const { data: job } = await db
+    .from("book_translation_jobs")
+    .select("id, books!inner(author_id)")
+    .eq("id", jobId)
+    .single();
+  if (!job) throw new Error("Translation job not found");
+  const authorId = (job as unknown as { books: { author_id: string | null } }).books.author_id;
+  if (authorId !== requesterId) {
+    throw new Error("Only the book's author can manually process this translation job");
+  }
+  return processTranslationJobBatch(jobId, limit);
+}
+
 export async function processTranslationJobBatch(
   jobId: string,
   limit = defaultBatchSize(),
@@ -199,10 +224,16 @@ export async function processTranslationJobBatch(
 
   const { data: book } = await db
     .from("books")
-    .select("id, title, source_language, total_chunks")
+    .select("id, title, source_language, total_chunks, translation_permission, rights_status")
     .eq("id", job.book_id)
     .single();
   if (!book) throw new Error("Book not found for job");
+  if (book.rights_status !== "approved") {
+    throw new Error("Translation processing is blocked because the book's rights review is not approved");
+  }
+  if (!book.translation_permission) {
+    throw new Error("Translation processing is blocked because the current rights record does not permit translation");
+  }
 
   if (job.status === "pending") {
     await db.from("book_translation_jobs").update({ status: "processing" }).eq("id", jobId);
@@ -473,6 +504,19 @@ export async function publishReviewedEdition(jobId: string, reviewerId: string) 
   if (jobError || !job) throw new Error("Translation job not found");
   if (job.status !== "awaiting_review") {
     throw new Error(`Job is not awaiting review (status: ${job.status})`);
+  }
+
+  const { data: rightsBook, error: rightsBookError } = await db
+    .from("books")
+    .select("rights_status, translation_permission")
+    .eq("id", job.book_id)
+    .single();
+  if (rightsBookError || !rightsBook) throw new Error("Book not found for translation review");
+  if (rightsBook.rights_status !== "approved") {
+    throw new Error("Translation cannot be published until the book's rights review is approved");
+  }
+  if (!rightsBook.translation_permission) {
+    throw new Error("Translation cannot be published because the current rights record does not permit translation");
   }
 
   const { error: publishError } = await db
