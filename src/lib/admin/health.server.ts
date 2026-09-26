@@ -23,6 +23,7 @@ export interface HealthSnapshot {
     language: string;
     failedSections: number;
     lastError: string | null;
+    bookTitle: string;
   }[];
   pendingRightsReview: number;
   pendingEditionReview: number;
@@ -59,7 +60,7 @@ export async function getHealthSnapshot(): Promise<HealthSnapshot> {
       .limit(50),
     db
       .from("book_translation_jobs")
-      .select("id, book_id, language, failed_sections, last_error")
+      .select("id, book_id, language, failed_sections, last_error, books!inner(title)")
       .eq("status", "failed")
       .limit(50),
     db
@@ -104,6 +105,8 @@ export async function getHealthSnapshot(): Promise<HealthSnapshot> {
       language: j.language,
       failedSections: j.failed_sections,
       lastError: j.last_error,
+      bookTitle:
+        (j.books as unknown as { title?: string } | null)?.title ?? "Unknown book",
     })),
     pendingRightsReview: pendingRights ?? 0,
     pendingEditionReview: pendingEdition ?? 0,
