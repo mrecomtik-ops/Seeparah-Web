@@ -1,4 +1,5 @@
-// Server-only. Reader-requested Hindi/Arabic translation access:
+import { REQUESTABLE_TRANSLATION_LANGUAGES } from "@/lib/data";
+// Server-only. Reader-requested translation access for Seeparah's supported major languages:
 // requesting is separate from production, and production is separate from
 // the per-reader grant. Approving a request for an edition that's already
 // reviewed and published grants access immediately with no AI call at all.
@@ -12,7 +13,7 @@ async function admin() {
   return supabaseAdmin;
 }
 
-const REQUESTABLE_LANGUAGES = new Set(["Hindi", "Arabic"]);
+const REQUESTABLE_LANGUAGES = new Set<string>(REQUESTABLE_TRANSLATION_LANGUAGES);
 
 export async function requestTranslationAccess(params: {
   bookId: string;
