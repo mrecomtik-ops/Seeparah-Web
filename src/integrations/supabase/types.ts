@@ -1468,6 +1468,27 @@ export type Database = {
       }
       is_admin: { Args: { min_roles: string[] }; Returns: boolean }
       is_monetization_enabled: { Args: never; Returns: boolean }
+      owner_downgrade_religious_book: {
+        Args: { p_book_id: string; p_reason: string }
+        Returns: undefined
+      }
+      import_verified_sourced_edition: {
+        Args: {
+          p_authenticity_notes: string | null
+          p_book_id: string
+          p_edition_title: string | null
+          p_language: string
+          p_provenance_type: string
+          p_rights_basis: string
+          p_rights_evidence_url: string
+          p_sections: string[]
+          p_source_edition_id: string | null
+          p_source_url: string
+          p_translator: string | null
+          p_typography_profile: string
+        }
+        Returns: number
+      }
       is_paper_version_published: {
         Args: { p_paper_id: string; p_version_id: string }
         Returns: boolean
