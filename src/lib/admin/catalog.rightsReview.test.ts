@@ -7,11 +7,14 @@ interface ScriptEntry {
   error?: { code?: string; message: string } | null;
 }
 
-interface MockChain {
+interface MockChain extends PromiseLike<ScriptEntry> {
   update(payload: unknown): MockChain;
   select(...args: unknown[]): MockChain;
   eq(...args: unknown[]): MockChain;
+  order(...args: unknown[]): MockChain;
+  limit(...args: unknown[]): MockChain;
   single(): Promise<ScriptEntry>;
+  maybeSingle(): Promise<ScriptEntry>;
 }
 
 function makeMockSupabase(script: ScriptEntry[]) {
@@ -25,14 +28,24 @@ function makeMockSupabase(script: ScriptEntry[]) {
   const updateSpy = vi.fn();
 
   function chain(): MockChain {
+    let isUpdate = false;
     const builder: MockChain = {
       update: (payload: unknown) => {
+        isUpdate = true;
         updateSpy(payload);
         return builder;
       },
       select: () => builder,
       eq: () => builder,
+      order: () => builder,
+      limit: () => builder,
       single: async () => next(),
+      maybeSingle: async () => next(),
+      then: (onfulfilled, onrejected) =>
+        Promise.resolve(isUpdate ? { data: null, error: null } : next()).then(
+          onfulfilled ?? undefined,
+          onrejected ?? undefined,
+        ),
     };
     return builder;
   }
@@ -66,6 +79,11 @@ describe("isPlaceholderRightsText", () => {
     expect(isPlaceholderRightsText("TBD")).toBe(true);
     expect(isPlaceholderRightsText("n/a")).toBe(true);
     expect(isPlaceholderRightsText("Lorem ipsum dolor sit amet")).toBe(true);
+    expect(
+      isPlaceholderRightsText(
+        "PENDING — do not approve until the exact edition and its rights evidence are verified.",
+      ),
+    ).toBe(true);
   });
 
   it("accepts a real, substantive rights statement", () => {
@@ -125,10 +143,15 @@ describe("reviewRights — approval gate refuses placeholder evidence", () => {
           status: "in_review",
           rights_basis: "Public domain per the publisher's own 1960 renewal filing, confirmed against the Copyright Office database.",
           rights_evidence_url: "https://example.gov/copyright-records/12345",
+          rights_risk_acknowledged_at: null,
         },
         error: null,
       },
-      { data: null, error: null },
+      {
+        data: { source_language: "English", source_version: 1 },
+        error: null,
+      },
+      { data: [], error: null },
     ]);
     const result = await reviewRights({
       bookId: "book-1",
