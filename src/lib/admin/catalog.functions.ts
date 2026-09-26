@@ -542,6 +542,7 @@ export const adminSetBookContentPolicy = createServerFn({ method: "POST" })
       action: "catalog.set_content_policy",
       entityType: "book",
       entityId: data.bookId,
+      ...(data.downgradeReason ? { reason: data.downgradeReason } : {}),
       before: diff.before,
       after: diff.after,
     });
