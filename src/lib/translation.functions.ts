@@ -24,9 +24,9 @@ export const requestTranslationJob = createServerFn({ method: "POST" })
 export const processTranslationBatch = createServerFn({ method: "POST" })
   .inputValidator((data) => withToken({ jobId: z.string() }).parse(data))
   .handler(async ({ data }) => {
-    await requireUserId(data.accessToken);
-    const { processTranslationJobBatch } = await import("@/lib/translation.server");
-    return processTranslationJobBatch(data.jobId, 3);
+    const userId = await requireUserId(data.accessToken);
+    const { processTranslationJobBatchForAuthor } = await import("@/lib/translation.server");
+    return processTranslationJobBatchForAuthor(data.jobId, userId, 3);
   });
 
 export const reviewAndPublishTranslation = createServerFn({ method: "POST" })
