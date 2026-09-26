@@ -504,6 +504,43 @@ export const adminUpdateBookRightsProvenance = createServerFn({ method: "POST" }
     return { ok: true as const };
   });
 
+export const adminSetBookContentPolicy = createServerFn({ method: "POST" })
+  .inputValidator((data) =>
+    withToken({
+      bookId: z.string(),
+      classification: z.enum(["general", "religious"]),
+      typographyProfile: z.enum([
+        "standard",
+        "scripture_arabic",
+        "scripture_urdu",
+        "scripture_hebrew",
+        "scripture_indic",
+        "facsimile_preserving",
+      ]),
+      authenticityNotes: z.string().max(5000).nullable().optional(),
+    }).parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { userId, role } = await requireAdmin(data.accessToken, "catalog.publish");
+    const { setBookContentPolicy } = await import("@/lib/admin/catalog.server");
+    const diff = await setBookContentPolicy({
+      bookId: data.bookId,
+      classification: data.classification,
+      typographyProfile: data.typographyProfile,
+      authenticityNotes: data.authenticityNotes,
+    });
+    await recordAudit({
+      actorId: userId,
+      actorRole: role,
+      action: "catalog.set_content_policy",
+      entityType: "book",
+      entityId: data.bookId,
+      before: diff.before,
+      after: diff.after,
+    });
+    return { ok: true as const };
+  });
+
 // ============================================================================
 // Book metadata editing (admin)
 // ============================================================================
