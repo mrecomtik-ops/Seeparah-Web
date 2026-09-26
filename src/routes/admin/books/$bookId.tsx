@@ -10,6 +10,8 @@ import {
   adminGetCatalogBook,
   adminReviewBookRights,
   adminReviewBookEdition,
+  adminAcknowledgeBookRightsSignals,
+  adminReviewBookReaderQuality,
   adminPublishCatalogBook,
   adminSetBookLifecycle,
   adminReviewAndPublishTranslationEdition,
@@ -125,6 +127,16 @@ function AdminBookDetail() {
   const canManageTranslations = can(session, "translation.jobs.manage");
   const canDeletePermanently = can(session, "catalog.delete_permanent");
   const readerV2SchemaAvailable = book.structure_review_status !== undefined;
+  const rightsRiskReviewed =
+    rightsSignals.length === 0 || Boolean(book.rights_risk_acknowledged_at);
+  const editionMetadataComplete =
+    Boolean(book.edition_title?.trim()) &&
+    Boolean(book.edition_year) &&
+    Boolean(book.publisher?.trim()) &&
+    Boolean(book.isbn?.trim() || book.source_scan_id?.trim()) &&
+    book.original_publication_year != null &&
+    Boolean(book.word_count && book.word_count > 0) &&
+    Boolean(book.estimated_reading_minutes && book.estimated_reading_minutes > 0);
 
   const allLanguages = [book.source_language, ...book.available_languages.filter((l) => l !== book.source_language)];
 
@@ -474,18 +486,45 @@ function AdminBookDetail() {
                   </li>
                 ))}
               </ul>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                {book.rights_risk_acknowledged_at ? (
+                  <span className="rounded-full bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">
+                    ✓ Reviewed {new Date(book.rights_risk_acknowledged_at).toLocaleString()}
+                  </span>
+                ) : canReview ? (
+                  <button
+                    disabled={busy}
+                    onClick={() =>
+                      withBusy(async () => {
+                        await adminAcknowledgeBookRightsSignals({
+                          data: { accessToken: await getAccessToken(), bookId },
+                        });
+                        toast.success("Rights-risk clues acknowledged");
+                      })
+                    }
+                    className="rounded-lg border border-amber-500/40 bg-background px-3 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-500/10 disabled:opacity-60 dark:text-amber-200"
+                  >
+                    I reviewed these clues
+                  </button>
+                ) : null}
+              </div>
             </div>
           )}
           {canReview && book.rights_status !== "approved" && (
             <p className="mt-3 rounded-lg bg-secondary/60 px-3 py-2 text-xs text-muted-foreground">
               Approval requires a substantive rights basis and a real http(s) evidence URL for
-              this exact edition. Placeholder text such as “hh”, “test”, or “unknown” is rejected.
+              this exact edition. Placeholder or unresolved text such as “hh”, “test”, “unknown”, “PENDING”, or “do not approve” is rejected.
             </p>
           )}
           {canReview && ["pending", "unverified", "rejected"].includes(book.rights_status) && (
             <div className="mt-4 flex gap-2">
               <button
-                disabled={busy}
+                disabled={busy || !rightsRiskReviewed}
+                title={
+                  !rightsRiskReviewed
+                    ? "Review and acknowledge the manuscript rights clues first."
+                    : "Approve rights"
+                }
                 onClick={() =>
                   withBusy(async () => {
                     await adminReviewBookRights({
@@ -627,6 +666,90 @@ function AdminBookDetail() {
               </button>
             </div>
           )}
+
+          {readerV2SchemaAvailable && canReview && (
+            <div className="mt-5 space-y-3 border-t border-border pt-4">
+              {(["structure", "cleanup"] as const).map((target) => {
+                const status =
+                  target === "structure"
+                    ? book.structure_review_status
+                    : book.cleanup_review_status;
+                const label = target === "structure" ? "Structure review" : "Text cleanup review";
+                return (
+                  <div key={target} className="rounded-xl border border-border bg-background p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-xs font-semibold text-foreground">{label}</span>
+                      <span className="text-xs text-muted-foreground">{status ?? "pending"}</span>
+                    </div>
+                    {status !== "approved" && (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <button
+                          disabled={busy}
+                          onClick={() =>
+                            withBusy(async () => {
+                              await adminReviewBookReaderQuality({
+                                data: {
+                                  accessToken: await getAccessToken(),
+                                  bookId,
+                                  target,
+                                  decision: "approved",
+                                  notes,
+                                },
+                              });
+                              toast.success(`${label} approved`);
+                            })
+                          }
+                          className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-60"
+                        >
+                          Approve
+                        </button>
+                        <button
+                          disabled={busy}
+                          onClick={() =>
+                            withBusy(async () => {
+                              await adminReviewBookReaderQuality({
+                                data: {
+                                  accessToken: await getAccessToken(),
+                                  bookId,
+                                  target,
+                                  decision: "changes_requested",
+                                  notes,
+                                },
+                              });
+                              toast.success(`${label}: changes requested`);
+                            })
+                          }
+                          className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary disabled:opacity-60"
+                        >
+                          Request changes
+                        </button>
+                        <button
+                          disabled={busy}
+                          onClick={() =>
+                            withBusy(async () => {
+                              await adminReviewBookReaderQuality({
+                                data: {
+                                  accessToken: await getAccessToken(),
+                                  bookId,
+                                  target,
+                                  decision: "rejected",
+                                  notes,
+                                },
+                              });
+                              toast.success(`${label} rejected`);
+                            })
+                          }
+                          className="rounded-lg border border-destructive/40 px-3 py-1.5 text-xs font-semibold text-destructive disabled:opacity-60"
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </section>
 
@@ -654,6 +777,30 @@ function AdminBookDetail() {
             <span className="text-foreground">Edition quality review</span>
             <span className={book.edition_review_status === "approved" ? "font-semibold text-emerald-600" : "font-semibold text-amber-600"}>
               {book.edition_review_status === "approved" ? "✓ Approved" : "○ Approval required"}
+            </span>
+          </div>
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-background px-3 py-2">
+            <span className="text-foreground">Structure review</span>
+            <span className={book.structure_review_status === "approved" ? "font-semibold text-emerald-600" : "font-semibold text-amber-600"}>
+              {book.structure_review_status === "approved" ? "✓ Approved" : "○ Approval required"}
+            </span>
+          </div>
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-background px-3 py-2">
+            <span className="text-foreground">Text cleanup review</span>
+            <span className={book.cleanup_review_status === "approved" ? "font-semibold text-emerald-600" : "font-semibold text-amber-600"}>
+              {book.cleanup_review_status === "approved" ? "✓ Approved" : "○ Approval required"}
+            </span>
+          </div>
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-background px-3 py-2">
+            <span className="text-foreground">Exact-edition metadata</span>
+            <span className={editionMetadataComplete ? "font-semibold text-emerald-600" : "font-semibold text-amber-600"}>
+              {editionMetadataComplete ? "✓ Complete" : "○ Complete metadata required"}
+            </span>
+          </div>
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-background px-3 py-2">
+            <span className="text-foreground">Rights-risk clues</span>
+            <span className={rightsRiskReviewed ? "font-semibold text-emerald-600" : "font-semibold text-amber-600"}>
+              {rightsRiskReviewed ? "✓ Reviewed / none detected" : "○ Review acknowledgment required"}
             </span>
           </div>
         </div>
