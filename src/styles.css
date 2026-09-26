@@ -168,6 +168,16 @@
     transform: translateY(1px) scale(0.98);
     filter: brightness(0.93);
   }
+
+  /* Touch devices need a real finger-sized target even for visually compact
+     chips/icon buttons. Desktop density is unchanged. */
+  @media (pointer: coarse) {
+    button {
+      min-width: 2.5rem;
+      min-height: 2.5rem;
+      touch-action: manipulation;
+    }
+  }
 }
 
 /* Respect prefers-reduced-motion app-wide — every transition-*/animate-*
