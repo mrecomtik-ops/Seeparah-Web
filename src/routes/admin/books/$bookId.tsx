@@ -31,6 +31,8 @@ import {
   adminSetBookCategories,
 } from "@/lib/admin/catalog.functions";
 import type { BookDeletionImpact } from "@/lib/admin/catalog.server";
+import { friendlyTranslationError } from "@/lib/translation-error";
+
 
 export const Route = createFileRoute("/admin/books/$bookId")({
   component: AdminBookDetail,
@@ -1344,14 +1346,14 @@ function AdminBookDetail() {
                   </p>
                 )}
                 {j.last_error && (
-                  <p className="mt-1 max-w-2xl break-words text-xs text-destructive">
-                    {j.last_error}
+                  <p className="mt-1 max-w-2xl break-words rounded-lg bg-destructive/10 px-2.5 py-2 text-xs text-destructive">
+                    {friendlyTranslationError(j.last_error)}
                   </p>
                 )}
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 {canManageTranslations &&
-                  ["pending", "processing", "failed"].includes(j.status) && (
+                  ["pending", "processing"].includes(j.status) && (
                     <button
                       disabled={busy}
                       onClick={() =>
