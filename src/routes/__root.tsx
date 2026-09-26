@@ -92,7 +92,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         {
           name: "description",
           content:
-            "Seeparah is a multilingual reading platform: world classics and new authors, translated page by page with AI, with reading progress and highlights saved as you go.",
+            "Seeparah is a multilingual reading platform for original-language books and reviewed translated editions, with reading progress, highlights, categories, and source-preserving Religious editions.",
         },
         { property: "og:title", content: "Seeparah — Read world classics in your language" },
         {
@@ -113,12 +113,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           crossOrigin: "anonymous",
         },
         {
-          // One combined request (same Google Fonts origin already
-          // preconnected above) — Noto Nastaliq Urdu only downloads on
-          // pages that actually render it, since font-display:swap defers
-          // the fetch until matching text is painted.
+          // One combined request for the product fonts plus script-specific
+          // reader families. Browser font matching keeps the script assets
+          // from painting unless the edition actually uses them.
           rel: "stylesheet",
-          href: "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Outfit:wght@400;500;600;700&family=Noto+Nastaliq+Urdu:wght@400..700&display=swap",
+          href: "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Outfit:wght@400;500;600;700&family=Noto+Nastaliq+Urdu:wght@400..700&family=Noto+Naskh+Arabic:wght@400..700&family=Noto+Serif+Hebrew:wght@400..700&family=Noto+Serif+Devanagari:wght@400..700&family=Noto+Serif+Bengali:wght@400..700&family=Noto+Serif+Tamil:wght@400..700&display=swap",
         },
       ],
     }),
