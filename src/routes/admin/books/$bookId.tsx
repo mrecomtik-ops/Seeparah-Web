@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ArrowLeft, Loader2, Pencil, Trash2 } from "lucide-react";
-import { GENRES } from "@/lib/data";
+import { GENRES, LANGUAGES } from "@/lib/data";
 import { getAccessToken, useResolvedAdminSession, can } from "@/lib/admin/use-admin-session";
 import { getPublicContentSettings } from "@/lib/admin/settings.functions";
 import {
@@ -19,6 +19,7 @@ import {
   adminQueueTranslationJob,
   adminSetEditionAccessType,
   adminSetBookContentPolicy,
+  adminImportVerifiedSourcedEdition,
   adminUpdateBookMetadata,
   adminUpdateBookRightsProvenance,
   adminGetBookDeletionImpact,
@@ -88,6 +89,24 @@ function AdminBookDetail() {
     classification: "general" as "general" | "religious",
     typographyProfile: "standard",
     authenticityNotes: "",
+  });
+  const [sourcedEditionOpen, setSourcedEditionOpen] = useState(false);
+  const [sourcedEditionBusy, setSourcedEditionBusy] = useState(false);
+  const [sourcedEditionDraft, setSourcedEditionDraft] = useState({
+    language: "",
+    provenanceType: "human_translation" as
+      | "human_translation"
+      | "licensed_translation"
+      | "public_domain_translation",
+    typographyProfile: "facsimile_preserving",
+    editionTitle: "",
+    translator: "",
+    sourceUrl: "",
+    sourceEditionId: "",
+    rightsBasis: "",
+    rightsEvidenceUrl: "",
+    authenticityNotes: "",
+    manuscriptText: "",
   });
   const masterCategoriesQuery = useQuery({
     queryKey: ["public-content-settings"],
@@ -197,6 +216,92 @@ function AdminBookDetail() {
       toast.error(error instanceof Error ? error.message : "Couldn't save content policy");
     } finally {
       setContentPolicyBusy(false);
+    }
+  }
+
+  async function importSourcedEdition() {
+    if (!sourcedEditionDraft.language) {
+      toast.error("Choose the sourced edition language.");
+      return;
+    }
+    if (
+      !sourcedEditionDraft.sourceUrl.trim() ||
+      !sourcedEditionDraft.rightsEvidenceUrl.trim() ||
+      !sourcedEditionDraft.rightsBasis.trim() ||
+      !sourcedEditionDraft.manuscriptText.trim()
+    ) {
+      toast.error("Source URL, rights basis/evidence, and sourced text are required.");
+      return;
+    }
+
+    const sectionCount = sourcedEditionDraft.manuscriptText
+      .replace(/\r\n/g, "\n")
+      .split(/\n\s*===SEEPARAH_SECTION===\s*\n/giu)
+      .map((section) => section.trim())
+      .filter(Boolean).length;
+
+    if (sectionCount !== book.total_chunks) {
+      toast.error(
+        `This sourced edition has ${sectionCount} section(s); align it to exactly ${book.total_chunks} with ===SEEPARAH_SECTION=== dividers first.`,
+      );
+      return;
+    }
+
+    if (
+      !window.confirm(
+        `Import and immediately publish the verified ${sourcedEditionDraft.language} sourced edition for free? Confirm only after checking the exact source, rights evidence, text, diacritics/marks, section alignment, and typography requirements.`,
+      )
+    ) {
+      return;
+    }
+
+    setSourcedEditionBusy(true);
+    try {
+      const result = await adminImportVerifiedSourcedEdition({
+        data: {
+          accessToken: await getAccessToken(),
+          bookId,
+          language: sourcedEditionDraft.language,
+          provenanceType: sourcedEditionDraft.provenanceType,
+          typographyProfile: sourcedEditionDraft.typographyProfile as
+            | "standard"
+            | "scripture_arabic"
+            | "scripture_urdu"
+            | "scripture_hebrew"
+            | "scripture_indic"
+            | "facsimile_preserving",
+          editionTitle: sourcedEditionDraft.editionTitle.trim() || null,
+          translator: sourcedEditionDraft.translator.trim() || null,
+          sourceUrl: sourcedEditionDraft.sourceUrl.trim(),
+          sourceEditionId: sourcedEditionDraft.sourceEditionId.trim() || null,
+          rightsBasis: sourcedEditionDraft.rightsBasis.trim(),
+          rightsEvidenceUrl: sourcedEditionDraft.rightsEvidenceUrl.trim(),
+          authenticityNotes: sourcedEditionDraft.authenticityNotes.trim() || null,
+          manuscriptText: sourcedEditionDraft.manuscriptText,
+        },
+      });
+      toast.success(
+        `${result.language} verified sourced edition published free (${result.sectionCount} sections)`,
+      );
+      setSourcedEditionOpen(false);
+      setSourcedEditionDraft({
+        language: "",
+        provenanceType: "human_translation",
+        typographyProfile: "facsimile_preserving",
+        editionTitle: "",
+        translator: "",
+        sourceUrl: "",
+        sourceEditionId: "",
+        rightsBasis: "",
+        rightsEvidenceUrl: "",
+        authenticityNotes: "",
+        manuscriptText: "",
+      });
+      await refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Sourced edition import failed");
+    } finally {
+      setSourcedEditionBusy(false);
     }
   }
 
@@ -1266,6 +1371,230 @@ function AdminBookDetail() {
           )}
         </ul>
       </section>
+
+      {book.content_classification === "religious" && canManageTranslations && (
+        <section className="mt-6 rounded-2xl border border-accent/60 bg-card p-5 card-shadow">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="font-display text-base font-semibold text-foreground">
+                Verified sourced Religious translation
+              </h2>
+              <p className="mt-1 max-w-2xl text-xs leading-relaxed text-muted-foreground">
+                Religious books never use Seeparah AI translation. Add an existing human, licensed,
+                or public-domain translation only after verifying the exact edition and its rights.
+                It publishes free and preserves the supplied lineation and small textual marks.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSourcedEditionOpen((value) => !value)}
+              className="rounded-xl border border-border px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary"
+            >
+              {sourcedEditionOpen ? "Close importer" : "Add sourced translation"}
+            </button>
+          </div>
+
+          {sourcedEditionOpen && (
+            <div className="mt-4 grid gap-3 md:grid-cols-2">
+              <label className="block">
+                <span className="text-xs font-medium text-muted-foreground">Language *</span>
+                <select
+                  value={sourcedEditionDraft.language}
+                  onChange={(e) =>
+                    setSourcedEditionDraft((d) => ({ ...d, language: e.target.value }))
+                  }
+                  className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+                >
+                  <option value="">Choose language…</option>
+                  {LANGUAGES.filter(
+                    (language) =>
+                      language !== book.source_language &&
+                      !editions.some((edition) => edition.language === language),
+                  ).map((language) => (
+                    <option key={language} value={language}>
+                      {language}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="block">
+                <span className="text-xs font-medium text-muted-foreground">Provenance *</span>
+                <select
+                  value={sourcedEditionDraft.provenanceType}
+                  onChange={(e) =>
+                    setSourcedEditionDraft((d) => ({
+                      ...d,
+                      provenanceType: e.target.value as
+                        | "human_translation"
+                        | "licensed_translation"
+                        | "public_domain_translation",
+                    }))
+                  }
+                  className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+                >
+                  <option value="human_translation">Verified human translation</option>
+                  <option value="licensed_translation">Licensed translation</option>
+                  <option value="public_domain_translation">Public-domain translation</option>
+                </select>
+              </label>
+
+              <label className="block">
+                <span className="text-xs font-medium text-muted-foreground">Edition title</span>
+                <input
+                  value={sourcedEditionDraft.editionTitle}
+                  onChange={(e) =>
+                    setSourcedEditionDraft((d) => ({ ...d, editionTitle: e.target.value }))
+                  }
+                  className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+                  placeholder="Exact published edition title"
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-xs font-medium text-muted-foreground">
+                  Translator / editor
+                </span>
+                <input
+                  value={sourcedEditionDraft.translator}
+                  onChange={(e) =>
+                    setSourcedEditionDraft((d) => ({ ...d, translator: e.target.value }))
+                  }
+                  className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+                  placeholder="As credited by the source edition"
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-xs font-medium text-muted-foreground">Source URL *</span>
+                <input
+                  value={sourcedEditionDraft.sourceUrl}
+                  onChange={(e) =>
+                    setSourcedEditionDraft((d) => ({ ...d, sourceUrl: e.target.value }))
+                  }
+                  className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+                  placeholder="https://… exact sourced edition"
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-xs font-medium text-muted-foreground">Source edition ID</span>
+                <input
+                  value={sourcedEditionDraft.sourceEditionId}
+                  onChange={(e) =>
+                    setSourcedEditionDraft((d) => ({ ...d, sourceEditionId: e.target.value }))
+                  }
+                  className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+                  placeholder="Archive/edition/catalogue identifier"
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-xs font-medium text-muted-foreground">
+                  Typography profile *
+                </span>
+                <select
+                  value={sourcedEditionDraft.typographyProfile}
+                  onChange={(e) =>
+                    setSourcedEditionDraft((d) => ({
+                      ...d,
+                      typographyProfile: e.target.value,
+                    }))
+                  }
+                  className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+                >
+                  <option value="facsimile_preserving">Preserve source/facsimile styling</option>
+                  <option value="scripture_arabic">Arabic scripture / Naskh-style stack</option>
+                  <option value="scripture_urdu">Urdu scripture / Nastaliq-style stack</option>
+                  <option value="scripture_hebrew">Hebrew scripture-style stack</option>
+                  <option value="scripture_indic">Indic scripture-style stack</option>
+                  <option value="standard">Standard reader</option>
+                </select>
+              </label>
+
+              <label className="block">
+                <span className="text-xs font-medium text-muted-foreground">
+                  Rights evidence URL *
+                </span>
+                <input
+                  value={sourcedEditionDraft.rightsEvidenceUrl}
+                  onChange={(e) =>
+                    setSourcedEditionDraft((d) => ({
+                      ...d,
+                      rightsEvidenceUrl: e.target.value,
+                    }))
+                  }
+                  className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+                  placeholder="https://… evidence for this exact translation"
+                />
+              </label>
+
+              <label className="block md:col-span-2">
+                <span className="text-xs font-medium text-muted-foreground">
+                  Rights basis for this exact translation *
+                </span>
+                <textarea
+                  rows={3}
+                  value={sourcedEditionDraft.rightsBasis}
+                  onChange={(e) =>
+                    setSourcedEditionDraft((d) => ({ ...d, rightsBasis: e.target.value }))
+                  }
+                  className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+                  placeholder="Explain why Seeparah may reproduce this exact translated edition…"
+                />
+              </label>
+
+              <label className="block md:col-span-2">
+                <span className="text-xs font-medium text-muted-foreground">
+                  Authenticity / text-preservation notes
+                </span>
+                <textarea
+                  rows={3}
+                  value={sourcedEditionDraft.authenticityNotes}
+                  onChange={(e) =>
+                    setSourcedEditionDraft((d) => ({
+                      ...d,
+                      authenticityNotes: e.target.value,
+                    }))
+                  }
+                  className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+                  placeholder="Script, diacritics, cantillation/recitation marks, verse numbering, lineation, headings, punctuation, special glyphs…"
+                />
+              </label>
+
+              <label className="block md:col-span-2">
+                <span className="text-xs font-medium text-muted-foreground">
+                  Verified sourced text *
+                </span>
+                <textarea
+                  rows={12}
+                  value={sourcedEditionDraft.manuscriptText}
+                  onChange={(e) =>
+                    setSourcedEditionDraft((d) => ({ ...d, manuscriptText: e.target.value }))
+                  }
+                  className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 font-mono text-sm"
+                  placeholder={`Paste the verified text. Separate the ${book.total_chunks} aligned reading sections with a line containing exactly:\n\n===SEEPARAH_SECTION===\n\nInternal line breaks and textual marks are preserved.`}
+                />
+                <span className="mt-1 block text-[11px] text-muted-foreground">
+                  Required alignment: exactly {book.total_chunks} reading sections. This keeps
+                  cross-language page positions stable without altering the sourced text inside each
+                  section.
+                </span>
+              </label>
+
+              <div className="md:col-span-2">
+                <button
+                  disabled={sourcedEditionBusy}
+                  onClick={() => void importSourcedEdition()}
+                  className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+                >
+                  {sourcedEditionBusy ? "Importing…" : "Verify & publish free sourced edition"}
+                </button>
+              </div>
+            </div>
+          )}
+        </section>
+      )}
 
       {canReview && (
         <section className="mt-6 rounded-2xl border border-border bg-card p-5 card-shadow">
