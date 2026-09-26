@@ -260,6 +260,8 @@ export type Database = {
           chunk_index: number
           created_at: string
           highlight_text: string
+          start_offset: number | null
+          end_offset: number | null
           id: string
           language: string
           note: string | null
@@ -270,6 +272,8 @@ export type Database = {
           chunk_index: number
           created_at?: string
           highlight_text: string
+          start_offset?: number | null
+          end_offset?: number | null
           id?: string
           language: string
           note?: string | null
@@ -280,6 +284,8 @@ export type Database = {
           chunk_index?: number
           created_at?: string
           highlight_text?: string
+          start_offset?: number | null
+          end_offset?: number | null
           id?: string
           language?: string
           note?: string | null
