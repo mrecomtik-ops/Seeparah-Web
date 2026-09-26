@@ -49,14 +49,14 @@ export const PUBLIC_SETTINGS_KEYS: SettingsKey[] = [
   "monthly_plan_price_usd",
 ];
 
-/** "Start with a proposed monthly plan price of $2 USD" — this is the
+/** Default monthly translated-edition plan price: $2.99 USD. This is the
  * fallback used everywhere the price is read, for as long as no admin has
  * ever published a monthly_plan_price_usd setting yet (content_settings
  * starts empty; nothing here seeds a row via migration, matching how
  * every other setting in this table already works). The moment an admin
  * publishes a real value, that value — not this constant — is what every
  * reader and every future billing sync sees. */
-export const DEFAULT_MONTHLY_PLAN_PRICE_USD = 2;
+export const DEFAULT_MONTHLY_PLAN_PRICE_USD = 2.99;
 
 export async function getMonthlyPlanPriceUsd(): Promise<number> {
   const db = await admin();
