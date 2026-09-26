@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ArrowLeft, Loader2, Pencil, Trash2 } from "lucide-react";
 import { GENRES } from "@/lib/data";
@@ -17,8 +17,8 @@ import {
   adminReviewAndPublishTranslationEdition,
   adminProcessTranslationJobBatch,
   adminQueueTranslationJob,
-  adminSetBookAccessType,
   adminSetEditionAccessType,
+  adminSetBookContentPolicy,
   adminUpdateBookMetadata,
   adminUpdateBookRightsProvenance,
   adminGetBookDeletionImpact,
@@ -83,6 +83,12 @@ function AdminBookDetail() {
   const [editorLoading, setEditorLoading] = useState(false);
 
   const [categoriesBusy, setCategoriesBusy] = useState(false);
+  const [contentPolicyBusy, setContentPolicyBusy] = useState(false);
+  const [contentPolicyDraft, setContentPolicyDraft] = useState({
+    classification: "general" as "general" | "religious",
+    typographyProfile: "standard",
+    authenticityNotes: "",
+  });
   const masterCategoriesQuery = useQuery({
     queryKey: ["public-content-settings"],
     queryFn: () => getPublicContentSettings(),
@@ -94,6 +100,22 @@ function AdminBookDetail() {
     queryFn: async () =>
       adminGetCatalogBook({ data: { accessToken: await getAccessToken(), bookId } }),
   });
+
+  useEffect(() => {
+    const loaded = detailQuery.data?.book;
+    if (!loaded) return;
+    setContentPolicyDraft({
+      classification:
+        loaded.content_classification === "religious" ? "religious" : "general",
+      typographyProfile: loaded.typography_profile ?? "standard",
+      authenticityNotes: loaded.authenticity_notes ?? "",
+    });
+  }, [
+    detailQuery.data?.book?.id,
+    detailQuery.data?.book?.content_classification,
+    detailQuery.data?.book?.typography_profile,
+    detailQuery.data?.book?.authenticity_notes,
+  ]);
 
   async function refresh() {
     await queryClient.invalidateQueries({ queryKey: ["admin-book", bookId] });
@@ -146,6 +168,37 @@ function AdminBookDetail() {
       ...jobs.map((job) => job.language),
     ]),
   ];
+
+  async function saveContentPolicy() {
+    setContentPolicyBusy(true);
+    try {
+      await adminSetBookContentPolicy({
+        data: {
+          accessToken: await getAccessToken(),
+          bookId,
+          classification: contentPolicyDraft.classification,
+          typographyProfile: contentPolicyDraft.typographyProfile as
+            | "standard"
+            | "scripture_arabic"
+            | "scripture_urdu"
+            | "scripture_hebrew"
+            | "scripture_indic"
+            | "facsimile_preserving",
+          authenticityNotes: contentPolicyDraft.authenticityNotes.trim() || null,
+        },
+      });
+      toast.success(
+        contentPolicyDraft.classification === "religious"
+          ? "Religious policy saved — original and verified editions stay free; AI translation is disabled."
+          : "General book policy saved.",
+      );
+      await refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Couldn't save content policy");
+    } finally {
+      setContentPolicyBusy(false);
+    }
+  }
 
   function openEdit() {
     setEditDraft({
@@ -927,41 +980,109 @@ function AdminBookDetail() {
       </section>
 
       <section className="mt-6 rounded-2xl border border-border bg-card p-5 card-shadow">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="font-display text-base font-semibold text-foreground">
+              Content policy & typography
+            </h2>
+            <p className="mt-1 max-w-2xl text-xs leading-relaxed text-muted-foreground">
+              Religious books are permanently free, never sent to the AI translation pipeline,
+              and should use verified sourced editions. Typography and authenticity notes travel
+              with the catalog record so the reader can preserve the edition's script conventions.
+            </p>
+          </div>
+          <span
+            className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+              book.content_classification === "religious"
+                ? "bg-accent text-accent-foreground"
+                : "bg-secondary text-secondary-foreground"
+            }`}
+          >
+            {book.content_classification === "religious" ? "Religious" : "General"}
+          </span>
+        </div>
+
+        {canPublish && (
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            <label className="block">
+              <span className="text-xs font-medium text-muted-foreground">Classification</span>
+              <select
+                value={contentPolicyDraft.classification}
+                onChange={(e) =>
+                  setContentPolicyDraft((d) => ({
+                    ...d,
+                    classification: e.target.value as "general" | "religious",
+                    typographyProfile:
+                      e.target.value === "religious" && d.typographyProfile === "standard"
+                        ? "facsimile_preserving"
+                        : d.typographyProfile,
+                  }))
+                }
+                className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+              >
+                <option value="general">General book</option>
+                <option value="religious">Religious — always free, sourced translations only</option>
+              </select>
+            </label>
+            <label className="block">
+              <span className="text-xs font-medium text-muted-foreground">Typography profile</span>
+              <select
+                value={contentPolicyDraft.typographyProfile}
+                onChange={(e) =>
+                  setContentPolicyDraft((d) => ({ ...d, typographyProfile: e.target.value }))
+                }
+                className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+              >
+                <option value="standard">Standard reader</option>
+                <option value="facsimile_preserving">Preserve source/facsimile styling</option>
+                <option value="scripture_arabic">Arabic scripture / Naskh-style stack</option>
+                <option value="scripture_urdu">Urdu scripture / Nastaliq-style stack</option>
+                <option value="scripture_hebrew">Hebrew scripture-style stack</option>
+                <option value="scripture_indic">Indic scripture-style stack</option>
+              </select>
+            </label>
+            <label className="block md:col-span-2">
+              <span className="text-xs font-medium text-muted-foreground">
+                Authenticity notes
+              </span>
+              <textarea
+                rows={3}
+                value={contentPolicyDraft.authenticityNotes}
+                onChange={(e) =>
+                  setContentPolicyDraft((d) => ({ ...d, authenticityNotes: e.target.value }))
+                }
+                placeholder="Record source edition, script, diacritics, verse numbering, line-break or layout requirements…"
+                className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+              />
+            </label>
+            <div className="md:col-span-2">
+              <button
+                disabled={contentPolicyBusy}
+                onClick={() => void saveContentPolicy()}
+                className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+              >
+                {contentPolicyBusy ? "Saving…" : "Save content policy"}
+              </button>
+            </div>
+          </div>
+        )}
+      </section>
+
+      <section className="mt-6 rounded-2xl border border-border bg-card p-5 card-shadow">
         <h2 className="font-display text-base font-semibold text-foreground">Access</h2>
         <p className="mt-1 text-xs text-muted-foreground">
-          Free/Premium is set independently per edition. While monetization is off (Admin
-          Settings), every edition stays free to read regardless of this setting — switching it
-          now cannot lock a reader out at launch.
+          Every original-language edition is permanently free. General translated editions are
+          monthly-plan content when monetization is active. Religious books and all of their
+          verified sourced editions are permanently free.
         </p>
 
         <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-background px-4 py-2.5 text-sm">
           <span className="font-medium text-foreground">
             Original edition ({book.source_language})
           </span>
-          <div className="flex items-center gap-2">
-            <span
-              className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${book.access_type === "paid" ? "bg-gold/20 text-gold-foreground" : "bg-accent text-accent-foreground"}`}
-            >
-              {book.access_type === "paid" ? "Premium" : "Free"}
-            </span>
-            {canPublish && (
-              <button
-                disabled={busy}
-                onClick={() =>
-                  withBusy(async () => {
-                    const next = book.access_type === "paid" ? "free" : "paid";
-                    await adminSetBookAccessType({
-                      data: { accessToken: await getAccessToken(), bookId, accessType: next },
-                    });
-                    toast.success(`Original edition set to ${next === "paid" ? "Premium" : "Free"}`);
-                  })
-                }
-                className="rounded-lg border border-border px-3 py-1 text-xs font-semibold text-foreground hover:bg-secondary disabled:opacity-60"
-              >
-                Switch to {book.access_type === "paid" ? "Free" : "Premium"}
-              </button>
-            )}
-          </div>
+          <span className="rounded-full bg-accent px-2 py-0.5 text-[11px] font-semibold text-accent-foreground">
+            Always free
+          </span>
         </div>
 
         {editions.length > 0 && (
@@ -978,7 +1099,9 @@ function AdminBookDetail() {
                   >
                     {ed.access_type === "paid" ? "Premium" : "Free"}
                   </span>
-                  {canPublish && (
+                  {book.content_classification === "religious" ? (
+                    <span className="text-[11px] text-muted-foreground">Always free</span>
+                  ) : canPublish ? (
                     <button
                       disabled={busy}
                       onClick={() =>
@@ -1001,7 +1124,7 @@ function AdminBookDetail() {
                     >
                       Switch to {ed.access_type === "paid" ? "Free" : "Premium"}
                     </button>
-                  )}
+                  ) : null}
                 </div>
               </li>
             ))}
