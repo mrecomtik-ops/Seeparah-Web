@@ -147,7 +147,17 @@ function structuredGroups(
  * into substantially larger reading sections than the old fixed four-
  * paragraph pages, which reduces page-turn churn without inventing chapters.
  */
-export function parseManuscript(text: string): ParsedManuscript {
+export interface ParseManuscriptOptions {
+  /** Preserve intentional lineation inside blocks. Use for verified
+   * Religious/scripture editions where verse line breaks and small textual
+   * marks are content, not extraction noise. */
+  preserveLineation?: boolean;
+}
+
+export function parseManuscript(
+  text: string,
+  options: ParseManuscriptOptions = {},
+): ParsedManuscript {
   const normalized = text.replace(/\r\n/g, "\n").trim();
   if (!normalized) {
     return { chunks: [""], structure: [], wordCount: 0, estimatedReadingMinutes: 0 };
@@ -155,7 +165,11 @@ export function parseManuscript(text: string): ParsedManuscript {
 
   const blocks = normalized
     .split(/\n\s*\n/)
-    .map((block) => reflowHardWrappedBlock(block))
+    .map((block) =>
+      options.preserveLineation
+        ? block.replace(/[ \t]+$/gm, "").trim()
+        : reflowHardWrappedBlock(block),
+    )
     .filter(Boolean);
 
   if (blocks.length === 0) {
@@ -246,6 +260,9 @@ export function parseManuscript(text: string): ParsedManuscript {
   };
 }
 
-export function splitManuscript(text: string): string[] {
-  return parseManuscript(text).chunks;
+export function splitManuscript(
+  text: string,
+  options: ParseManuscriptOptions = {},
+): string[] {
+  return parseManuscript(text, options).chunks;
 }
