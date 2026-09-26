@@ -34,7 +34,7 @@ const KEYS = [
   "translation_budget",
 ] as const;
 
-const DEFAULT_MONTHLY_PLAN_PRICE_USD = 2;
+const DEFAULT_MONTHLY_PLAN_PRICE_USD = 2.99;
 
 function AdminSettingsPage() {
   const [key, setKey] = useState<(typeof KEYS)[number]>("monetization_enabled");
@@ -229,7 +229,12 @@ function AdminSettingsPage() {
 
       {secretsQuery.data && (
         <div className="mt-3 flex gap-3 text-xs text-muted-foreground">
-          <span>Gemini: {secretsQuery.data["gemini"] ? "configured" : "not configured"}</span>
+          <span>
+            Gemini: {secretsQuery.data["gemini"] ? "API key present" : "API key missing"}
+          </span>
+          <span>
+            Billing: {secretsQuery.data["billingProviderReady"] ? "provider ready" : "not connected"}
+          </span>
           <span>
             Supabase service role:{" "}
             {secretsQuery.data["supabaseServiceRole"] ? "configured" : "not configured"}
@@ -354,6 +359,13 @@ function AdminSettingsPage() {
           <p className="text-xs text-muted-foreground">
             Current version: {settingQuery.data?.version ?? "unset"}
           </p>
+          {(key === "categories" || key === "monetization_enabled") && (
+            <p className="rounded-lg bg-secondary px-3 py-2 text-xs leading-relaxed text-secondary-foreground">
+              {key === "categories"
+                ? 'Protected rule: "Religious" must remain in the master category list. The server rejects any raw JSON publish or rollback that removes it.'
+                : "Protected rule: monetization cannot be turned on from settings until the production billing provider is explicitly marked ready in the server runtime."}
+            </p>
+          )}
           <textarea
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
