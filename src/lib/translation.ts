@@ -19,8 +19,20 @@ const SCRIPT_PATTERNS: Record<string, RegExp> = {
   Urdu: /[؀-ۿݐ-ݿ]/,
   Arabic: /[؀-ۿݐ-ݿ]/,
   Pashto: /[؀-ۿݐ-ݿ]/,
+  Persian: /[؀-ۿݐ-ݿ]/,
+  Hebrew: /[֐-׿]/,
   Hindi: /[ऀ-ॿ]/,
+  Marathi: /[ऀ-ॿ]/,
+  Bengali: /[ঀ-৿]/,
+  Punjabi: /[਀-੿]/,
+  Gujarati: /[઀-૿]/,
+  Tamil: /[஀-௿]/,
+  Telugu: /[ఀ-౿]/,
   Russian: /[Ѐ-ӿ]/,
+  Ukrainian: /[Ѐ-ӿ]/,
+  Japanese: /[ぁ-ヿ一-鿿]/,
+  Korean: /[ᄀ-ᇿ가-힯]/,
+  Thai: /[ก-๿]/,
   // Simplified and Traditional Chinese share the core Han block; this
   // confirms "Chinese script" but not which variant was produced. Editions
   // should record which script convention (Simplified/Traditional) they
@@ -36,6 +48,16 @@ const LATIN_LANGUAGE_MARKERS: Record<string, RegExp> = {
   French: /\b(le|la|les|des|est|une|et|dans|que|qui|être|pour|avec)\b|[àâçéèêëîïôûùüœ]/i,
   German: /\b(der|die|das|und|ist|nicht|ein|eine|mit|für|sich|auch)\b|[äöüß]/i,
   Spanish: /\b(el|la|los|las|es|una|un|que|con|para|está|pero)\b|[áéíóúñ¿¡]/i,
+  Portuguese: /\b(o|a|os|as|de|do|da|e|que|para|com|uma|não)\b|[ãõáéíóúç]/i,
+  Italian: /\b(il|lo|la|gli|le|di|che|e|per|con|una|non)\b|[àèéìòù]/i,
+  Dutch: /\b(de|het|een|en|van|dat|voor|met|niet|zijn|op)\b/i,
+  Polish: /\b(i|w|na|nie|że|do|z|się|jest|dla)\b|[ąćęłńóśźż]/i,
+  Turkish: /\b(ve|bir|bu|için|ile|de|da|değil|olan|gibi)\b|[çğıöşü]/i,
+  Indonesian: /\b(dan|yang|di|ke|dari|untuk|dengan|tidak|ini|itu)\b/i,
+  Malay: /\b(dan|yang|di|ke|dari|untuk|dengan|tidak|ini|itu)\b/i,
+  Vietnamese: /\b(và|của|là|một|trong|không|cho|với|đã|được)\b|[ăâêôơưđ]/i,
+  Swahili: /\b(na|ya|wa|kwa|katika|ni|hii|hiyo|kama|lakini)\b/i,
+  Filipino: /\b(ang|ng|mga|sa|ay|na|at|para|hindi|ito)\b/i,
   English: /\b(the|and|of|to|is|was|that|with|her|his)\b/i,
 };
 
@@ -135,6 +157,12 @@ export function validateTranslationOutput({
 const LANGUAGE_LOCALE_DEFAULTS: Record<string, string> = {
   Chinese:
     "Write in Simplified Chinese (简体中文) using standard Mainland conventions and horizontal layout, unless the target-language conventions below specify Traditional Chinese.",
+  Punjabi:
+    "Write Punjabi in Gurmukhi script by default unless the target-language conventions below explicitly request Shahmukhi.",
+  Persian:
+    "Write in modern Persian (Farsi) using standard Persian orthography, not Arabic lexical substitutions unless the source meaning requires them.",
+  Portuguese:
+    "Use natural contemporary Portuguese. If the target-language conventions specify Brazilian or European Portuguese, follow that variant consistently.",
 };
 
 export function buildSystemPrompt(params: {
