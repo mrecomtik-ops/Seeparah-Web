@@ -285,6 +285,8 @@ export async function addHighlight(
   language: string,
   chunkIndex: number,
   text: string,
+  startOffset: number | null = null,
+  endOffset: number | null = null,
 ): Promise<Highlight> {
   const row: Highlight = {
     id: crypto.randomUUID(),
@@ -293,6 +295,8 @@ export async function addHighlight(
     language,
     chunk_index: chunkIndex,
     highlight_text: text,
+    start_offset: startOffset,
+    end_offset: endOffset,
     created_at: new Date().toISOString(),
     note: null,
   };
