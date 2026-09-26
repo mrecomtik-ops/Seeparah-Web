@@ -225,32 +225,32 @@ export type Database = {
       book_editions: {
         Row: {
           access_type: string
-          provenance_type: string
-          typography_profile: string
           authenticity_notes: string | null
           book_id: string
           created_at: string
           language: string
+          provenance_type: string
+          typography_profile: string
           updated_at: string
         }
         Insert: {
           access_type?: string
-          provenance_type?: string
-          typography_profile?: string
-          authenticity_notes?: string | null
-          provenance_type?: string
-          typography_profile?: string
           authenticity_notes?: string | null
           book_id: string
           created_at?: string
           language: string
+          provenance_type?: string
+          typography_profile?: string
           updated_at?: string
         }
         Update: {
           access_type?: string
+          authenticity_notes?: string | null
           book_id?: string
           created_at?: string
           language?: string
+          provenance_type?: string
+          typography_profile?: string
           updated_at?: string
         }
         Relationships: [
