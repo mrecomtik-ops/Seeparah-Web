@@ -1,19 +1,13 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 
-
-import { z } from "zod";
 import { BookOpen, Check, Crown, Feather, ShieldCheck } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { TRANSLATION_EXPLAINER_SHORT } from "@/lib/data";
-import { getBook } from "@/lib/library";
 
 import { getPublicContentSettings } from "@/lib/admin/settings.functions";
 
-const searchSchema = z.object({ book: z.string().optional() });
-
 export const Route = createFileRoute("/subscribe")({
-  validateSearch: searchSchema,
   head: () => ({
     meta: [
       { title: "Plans & subscriptions — Seeparah" },
@@ -29,17 +23,8 @@ export const Route = createFileRoute("/subscribe")({
 });
 
 function SubscribePage() {
-  const { book: bookId } = Route.useSearch();
-
   const navigate = useNavigate();
 
-
-
-  const bookQuery = useQuery({
-    queryKey: ["book", bookId],
-    queryFn: () => getBook(bookId!),
-    enabled: !!bookId,
-  });
   const settingsQuery = useQuery({
     queryKey: ["public-content-settings"],
     queryFn: () => getPublicContentSettings(),
@@ -48,7 +33,6 @@ function SubscribePage() {
   // see src/lib/reader.server.ts isMonetizationEnabled for the same default.
   const monetizationEnabled = settingsQuery.data?.["monetization_enabled"] === true;
 
-  const book = bookQuery.data;
   // ONE plan price, not a per-book price — "there are no per-book or
   // per-translation charges." Same $2 default as
   // settings.server.ts's DEFAULT_MONTHLY_PLAN_PRICE_USD for as long as no
