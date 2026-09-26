@@ -3,6 +3,7 @@ const KEY = "seeparah:prefs";
 export type ReaderTheme = "light" | "sepia" | "dark";
 export type ReaderFontFamily = "literary" | "serif" | "sans";
 export type ReaderContentWidth = "narrow" | "medium" | "wide";
+export type ReaderPresentation = "book" | "continuous";
 
 export interface ReaderPrefs {
   language: string;
@@ -13,6 +14,7 @@ export interface ReaderPrefs {
   fontFamily: ReaderFontFamily;
   contentWidth: ReaderContentWidth;
   paragraphSpacing: number; // rem
+  presentation: ReaderPresentation;
 }
 
 const DEFAULTS: ReaderPrefs = {
@@ -24,6 +26,7 @@ const DEFAULTS: ReaderPrefs = {
   fontFamily: "literary",
   contentWidth: "medium",
   paragraphSpacing: 1.1,
+  presentation: "book",
 };
 
 export const FONT_SIZE_RANGE = { min: 14, max: 28, step: 1 } as const;
