@@ -36,6 +36,16 @@ export interface Book {
   estimated_reading_minutes?: number | null;
   structure_review_status?: string;
   cleanup_review_status?: string;
+  content_classification?: "general" | "religious";
+  translation_generation_policy?: "ai_allowed" | "source_only";
+  typography_profile?:
+    | "standard"
+    | "scripture_arabic"
+    | "scripture_urdu"
+    | "scripture_hebrew"
+    | "scripture_indic"
+    | "facsimile_preserving";
+  authenticity_notes?: string | null;
 }
 
 export interface Chunk {
@@ -161,6 +171,17 @@ export function isRequestableTranslationLanguage(
   return (REQUESTABLE_TRANSLATION_LANGUAGES as readonly string[]).includes(language);
 }
 
+export const RELIGIOUS_CATEGORY = "Religious" as const;
+
+export function isReligiousBook(
+  book: Pick<Book, "categories" | "content_classification">,
+): boolean {
+  return (
+    book.content_classification === "religious" ||
+    (book.categories ?? []).includes(RELIGIOUS_CATEGORY)
+  );
+}
+
 export const GENRES = [
   "Classic Romance",
   "Literary Fiction",
@@ -183,11 +204,11 @@ export const AUTHOR_PAYOUT = 0.7;
  * sentence, everywhere this needs saying. No "automatic," no "ten
  * languages," no per-page live translation — reviewed editions only. */
 export const TRANSLATION_EXPLAINER =
-  "Read available editions free during launch. Translations are prepared once, reviewed, and saved. English and Urdu are the standard editorial targets; readers can request any supported major language for administrator review.";
+  "Every book's original-language edition is free. Reviewed translated editions are part of the monthly plan when monetization is active. Religious books and their verified, sourced translations are always free and are never machine-translated by Seeparah.";
 
 /** Short form for tight spaces (badges, stat labels). */
 export const TRANSLATION_EXPLAINER_SHORT =
-  "Editions are reviewed before publishing. English/Urdu are standard editorial targets; other supported major languages are available on request.";
+  "Original editions are always free. Reviewed translations use the monthly plan; Religious books and verified Religious translations are always free.";
 
 /** The one sentence describing what publishing costs/pays right now — no
  * revenue split, no payout promise, while monetization is off. */
