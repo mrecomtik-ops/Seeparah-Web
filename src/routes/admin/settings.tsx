@@ -43,6 +43,8 @@ function AdminSettingsPage() {
   const [priceDraft, setPriceDraft] = useState("");
   const [priceBusy, setPriceBusy] = useState(false);
   const [suggestionBusy, setSuggestionBusy] = useState<string | null>(null);
+  const [categoryDraft, setCategoryDraft] = useState("");
+  const [categoryBusy, setCategoryBusy] = useState(false);
   const queryClient = useQueryClient();
   const session = useResolvedAdminSession();
   const canManageCategories = can(session, "catalog.categories.manage");
@@ -71,6 +73,44 @@ function AdminSettingsPage() {
     } finally {
       setSuggestionBusy(null);
     }
+  }
+
+  const categoriesQuery = useQuery({
+    queryKey: ["admin-setting", "categories", "simple-editor"],
+    queryFn: async () =>
+      adminGetSetting({ data: { accessToken: await getAccessToken(), key: "categories" } }),
+  });
+  const categories = Array.isArray(categoriesQuery.data?.value)
+    ? (categoriesQuery.data!.value as string[])
+    : [];
+
+  async function saveCategories(next: string[]) {
+    setCategoryBusy(true);
+    try {
+      const cleaned = [...new Set(next.map((v) => v.trim()).filter(Boolean))];
+      if (!cleaned.includes("Religious")) cleaned.unshift("Religious");
+      await adminPublishSetting({
+        data: {
+          accessToken: await getAccessToken(),
+          key: "categories",
+          value: cleaned,
+        },
+      });
+      toast.success("Categories updated");
+      setCategoryDraft("");
+      await queryClient.invalidateQueries({ queryKey: ["admin-setting", "categories"] });
+      await queryClient.invalidateQueries({ queryKey: ["public-content-settings"] });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Couldn't update categories");
+    } finally {
+      setCategoryBusy(false);
+    }
+  }
+
+  async function addCategory() {
+    const value = categoryDraft.trim();
+    if (!value) return;
+    await saveCategories([...categories, value]);
   }
 
   const planPriceQuery = useQuery({
@@ -230,6 +270,58 @@ function AdminSettingsPage() {
           an explicit decision on whether a change here affects existing subscribers or only new
           ones. Nothing here ever changes what an existing subscriber is currently charged.
         </p>
+      </section>
+
+      <section className="mt-6 rounded-2xl border border-border bg-card p-5 card-shadow">
+        <h2 className="font-display text-base font-semibold text-foreground">Book categories</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          These appear in the reader Library filter. Religious is protected and cannot be removed,
+          because Religious books use the always-free, sourced-translation policy.
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {categories.map((category) => (
+            <span
+              key={category}
+              className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-3 py-1.5 text-xs font-semibold text-foreground"
+            >
+              {category}
+              {category !== "Religious" && canManageCategories && (
+                <button
+                  type="button"
+                  aria-label={`Remove ${category}`}
+                  disabled={categoryBusy}
+                  onClick={() => void saveCategories(categories.filter((c) => c !== category))}
+                  className="text-muted-foreground hover:text-destructive"
+                >
+                  ×
+                </button>
+              )}
+            </span>
+          ))}
+        </div>
+        {canManageCategories && (
+          <div className="mt-4 flex gap-2">
+            <input
+              value={categoryDraft}
+              onChange={(e) => setCategoryDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  void addCategory();
+                }
+              }}
+              placeholder="Add a category"
+              className="min-w-0 flex-1 rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+            />
+            <button
+              disabled={categoryBusy || !categoryDraft.trim()}
+              onClick={() => void addCategory()}
+              className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+            >
+              Add
+            </button>
+          </div>
+        )}
       </section>
 
       <div className="mt-4 flex flex-wrap gap-2">
