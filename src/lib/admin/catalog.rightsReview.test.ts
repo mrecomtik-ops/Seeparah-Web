@@ -158,7 +158,7 @@ describe("reviewRights — approval gate refuses placeholder evidence", () => {
       decision: "approved",
       reviewerId: "admin-1",
     });
-    expect(result.after.rights_status).toBe("approved");
+    expect(result.after["rights_status"]).toBe("approved");
     expect(mock.updateSpy).toHaveBeenCalled();
   });
 
@@ -182,7 +182,7 @@ describe("reviewRights — approval gate refuses placeholder evidence", () => {
       reviewerId: "admin-1",
       notes: "Not enough evidence",
     });
-    expect(result.after.rights_status).toBe("rejected");
+    expect(result.after["rights_status"]).toBe("rejected");
   });
 });
 
@@ -215,7 +215,7 @@ describe("updateBookRightsProvenance", () => {
         permittedTerritories: ["US", "AE"],
       },
     });
-    expect(result.after.rights_status).toBe("pending");
+    expect(result.after["rights_status"]).toBe("pending");
     expect(mock.updateSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         rights_status: "pending",
@@ -252,7 +252,7 @@ describe("updateBookRightsProvenance", () => {
         permittedTerritories: [],
       },
     });
-    expect(result.after.rights_status).toBe("unverified");
+    expect(result.after["rights_status"]).toBe("unverified");
   });
 
   it("refuses to change provenance while a book is published", async () => {
