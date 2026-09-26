@@ -139,63 +139,38 @@ describe("resolveReaderAccess — an edition that has never been published (no b
   });
 });
 
-describe("resolveReaderAccess — subscription gate (original edition)", () => {
-  const paidBook = { status: "published", accessType: "paid", sourceLanguage: "English" };
+describe("resolveReaderAccess — original editions are permanently free", () => {
+  const legacyPaidBook = { status: "published", accessType: "paid", sourceLanguage: "English" };
 
-  it("never gates when monetization is disabled, even for a paid book past page 1", () => {
-    const result = resolveReaderAccess({ ...BASE, book: paidBook, monetizationEnabled: false });
-    expect(result.locked).toBe(false);
-  });
-
-  it("always allows the free preview page (index 0) regardless of subscription", () => {
+  it("ignores a legacy paid flag for the source language when monetization is enabled", () => {
     const result = resolveReaderAccess({
       ...BASE,
-      chunkIndex: 0,
-      book: paidBook,
+      book: legacyPaidBook,
       monetizationEnabled: true,
+      hasActiveSubscription: false,
     });
-    expect(result.locked).toBe(false);
+    expect(result).toEqual({ locked: false });
   });
 
-  it("requires sign-in before requiring a subscription", () => {
+  it("does not require sign-in for the original edition", () => {
     const result = resolveReaderAccess({
       ...BASE,
       userId: null,
-      book: paidBook,
+      book: legacyPaidBook,
       monetizationEnabled: true,
     });
-    expect(result).toEqual({ locked: true, reason: "sign_in_required" });
+    expect(result).toEqual({ locked: false });
   });
 
-  it("blocks a signed-in reader with no active subscription", () => {
+  it("keeps every original page free, not only the opening preview", () => {
     const result = resolveReaderAccess({
       ...BASE,
-      book: paidBook,
+      chunkIndex: 17,
+      book: legacyPaidBook,
       monetizationEnabled: true,
       hasActiveSubscription: false,
     });
-    expect(result).toEqual({ locked: true, reason: "subscription_required" });
-  });
-
-  it("lets a reader with an active subscription through", () => {
-    const result = resolveReaderAccess({
-      ...BASE,
-      book: paidBook,
-      monetizationEnabled: true,
-      hasActiveSubscription: true,
-    });
-    expect(result.locked).toBe(false);
-  });
-
-  it("never subscription-gates the book's own owner", () => {
-    const result = resolveReaderAccess({
-      ...BASE,
-      isOwner: true,
-      book: paidBook,
-      monetizationEnabled: true,
-      hasActiveSubscription: false,
-    });
-    expect(result.locked).toBe(false);
+    expect(result).toEqual({ locked: false });
   });
 });
 
