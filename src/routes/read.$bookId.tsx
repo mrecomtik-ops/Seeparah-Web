@@ -111,6 +111,25 @@ function religiousTypographyFont(profile: string | null | undefined): string | u
   }
 }
 
+function readerScriptFontHref(language: string, profile: string): string | null {
+  const families: string[] = [];
+  if (language === "Urdu" || profile === "scripture_urdu") {
+    families.push("Noto+Nastaliq+Urdu:wght@400..700");
+  }
+  if (profile === "scripture_arabic") families.push("Noto+Naskh+Arabic:wght@400..700");
+  if (profile === "scripture_hebrew") families.push("Noto+Serif+Hebrew:wght@400..700");
+  if (profile === "scripture_indic") {
+    families.push(
+      "Noto+Serif+Devanagari:wght@400..700",
+      "Noto+Serif+Bengali:wght@400..700",
+      "Noto+Serif+Tamil:wght@400..700",
+    );
+  }
+  return families.length
+    ? `https://fonts.googleapis.com/css2?${families.map((family) => `family=${family}`).join("&")}&display=swap`
+    : null;
+}
+
 function ReaderPage() {
   const { bookId } = Route.useParams();
   const { lang, page } = Route.useSearch();
@@ -326,6 +345,20 @@ function ReaderPage() {
   const typographyProfile =
     chunkQuery.data?.typographyProfile ?? book?.typography_profile ?? "standard";
   const protectedFontFamily = religiousTypographyFont(typographyProfile);
+
+  useEffect(() => {
+    const id = "seeparah-reader-script-fonts";
+    document.getElementById(id)?.remove();
+    const href = readerScriptFontHref(language, typographyProfile);
+    if (!href) return;
+    const link = document.createElement("link");
+    link.id = id;
+    link.rel = "stylesheet";
+    link.href = href;
+    document.head.appendChild(link);
+    return () => link.remove();
+  }, [language, typographyProfile]);
+
   const total = book?.total_chunks ?? 1;
   const pct = Math.round(((index + 1) / total) * 100);
   // A language counts as "available" for the purpose of NOT showing the
