@@ -91,7 +91,7 @@
 
 /* Reading-pane theme: sepia. Scoped like .dark — applied to a wrapper, not
    the whole app — so the shared brand identity elsewhere is untouched. */
-.sepia {
+.reader-sepia {
   --background: oklch(0.93 0.03 80);
   --foreground: oklch(0.32 0.04 60);
   --card: oklch(0.95 0.025 78);
@@ -245,6 +245,28 @@
     0 1px 1px oklch(0.25 0.02 90 / 0.08),
     0 8px 20px -8px oklch(0.25 0.02 90 / 0.18),
     0 24px 56px -22px oklch(0.25 0.02 90 / 0.22);
+}
+
+.dark .book-page-surface,
+body.dark .book-page-surface {
+  background-color: var(--paper);
+  color: var(--foreground);
+}
+
+.reader-sepia .book-page-surface,
+body.reader-sepia .book-page-surface {
+  background-color: var(--paper);
+  color: var(--foreground);
+}
+
+.dark.paper-texture,
+body.dark {
+  background-color: var(--background);
+}
+
+.reader-sepia.paper-texture,
+body.reader-sepia {
+  background-color: var(--background);
 }
 
 [dir="rtl"].book-page-surface {
