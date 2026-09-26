@@ -26,12 +26,20 @@ export async function requestTranslationAccess(params: {
   const db = await admin();
   const { data: book } = await db
     .from("books")
-    .select("id, source_language")
+    .select("id, source_language, content_classification, translation_generation_policy")
     .eq("id", params.bookId)
     .single();
   if (!book) throw new Error("Book not found");
   if (book.source_language === params.language) {
     throw new Error("This is the book's original language — it's already free to read");
+  }
+  if (
+    book.content_classification === "religious" ||
+    book.translation_generation_policy === "source_only"
+  ) {
+    throw new Error(
+      "Seeparah does not machine-translate Religious/source-only books. Verified sourced editions are added by the catalog team and remain free.",
+    );
   }
 
   const { data: existing } = await db
@@ -128,12 +136,20 @@ export async function approveTranslationRequest(params: {
 
   const { data: rightsBook, error: rightsBookError } = await db
     .from("books")
-    .select("rights_status, translation_permission")
+    .select("rights_status, translation_permission, content_classification, translation_generation_policy")
     .eq("id", request.book_id)
     .single();
   if (rightsBookError || !rightsBook) throw new Error("Book not found");
   if (rightsBook.rights_status !== "approved") {
     throw new Error("Approve the book's rights review before approving a translation request");
+  }
+  if (
+    rightsBook.content_classification === "religious" ||
+    rightsBook.translation_generation_policy === "source_only"
+  ) {
+    throw new Error(
+      "Religious/source-only books cannot enter the AI translation pipeline. Add a verified sourced edition instead.",
+    );
   }
   if (!rightsBook.translation_permission) {
     throw new Error("This book's rights record does not currently permit translation");
