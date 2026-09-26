@@ -412,7 +412,7 @@ export const adminProcessTranslationJobBatch = createServerFn({ method: "POST" }
       action: "translation.process_batch",
       entityType: "translation_job",
       entityId: data.jobId,
-      after: result,
+      after: result as unknown as Record<string, unknown>,
     });
     return result;
   });
@@ -527,7 +527,9 @@ export const adminSetBookContentPolicy = createServerFn({ method: "POST" })
       bookId: data.bookId,
       classification: data.classification,
       typographyProfile: data.typographyProfile,
-      authenticityNotes: data.authenticityNotes,
+      ...(data.authenticityNotes !== undefined
+        ? { authenticityNotes: data.authenticityNotes }
+        : {}),
     });
     await recordAudit({
       actorId: userId,
