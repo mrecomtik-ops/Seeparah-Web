@@ -21,7 +21,12 @@ import {
   X,
 } from "lucide-react";
 import { z } from "zod";
-import { RTL_LANGUAGES, REQUESTABLE_TRANSLATION_LANGUAGES, type Progress } from "@/lib/data";
+import {
+  RTL_LANGUAGES,
+  REQUESTABLE_TRANSLATION_LANGUAGES,
+  type Highlight,
+  type Progress,
+} from "@/lib/data";
 import {
   addHighlight,
   getBook,
@@ -124,6 +129,9 @@ function ReaderPage() {
   const [contentWidth, setContentWidth] = useState<ReaderContentWidth>(prefs.contentWidth);
   const [paragraphSpacing, setParagraphSpacing] = useState(prefs.paragraphSpacing);
   const [presentation, setPresentation] = useState<ReaderPresentation>(prefs.presentation);
+  const [highlightSaved, setHighlightSaved] = useState(false);
+  const readerTextRef = useRef<HTMLDivElement | null>(null);
+  const highlightFeedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Dark/sepia are scoped CSS classes (.dark/.reader-sepia in src/styles.css) —
   // applying THEME_CLASS only to this route's own wrapper div left the
@@ -141,6 +149,13 @@ function ReaderPage() {
       if (themeClass) document.body.classList.remove(themeClass);
     };
   }, [theme]);
+
+  useEffect(
+    () => () => {
+      if (highlightFeedbackTimer.current) clearTimeout(highlightFeedbackTimer.current);
+    },
+    [],
+  );
 
   const seededBookRef = useRef<string | null>(null);
 
@@ -390,14 +405,68 @@ function ReaderPage() {
   }, [index, total, language, showSettings, showToc, showHighlights, showSearch]);
 
   async function handleHighlight() {
-    const selection = window.getSelection()?.toString().trim();
-    if (!selection) {
+    const selection = window.getSelection();
+    const selectedText = selection?.toString() ?? "";
+    if (!selection || selection.rangeCount === 0 || !selectedText.trim()) {
       toast.info("Select some text in the page first, then tap Highlight.");
       return;
     }
-    await addHighlight(userId, bookId, language, index, selection);
-    queryClient.invalidateQueries({ queryKey: ["highlights", userId] });
-    toast.success("Passage saved to your highlights");
+
+    const range = selection.getRangeAt(0);
+    const root = readerTextRef.current;
+    if (
+      !root ||
+      !root.contains(range.startContainer) ||
+      !root.contains(range.endContainer)
+    ) {
+      toast.info("Select text from the book page itself, then tap Highlight.");
+      return;
+    }
+
+    const startAnchor = findReaderTextAnchor(range.startContainer);
+    const endAnchor = findReaderTextAnchor(range.endContainer);
+    if (!startAnchor || !endAnchor) {
+      toast.info("That selection crosses content we can't anchor yet. Try selecting the passage text only.");
+      return;
+    }
+
+    const startBase = Number(startAnchor.dataset.readerTextStart);
+    const endBase = Number(endAnchor.dataset.readerTextStart);
+    if (!Number.isFinite(startBase) || !Number.isFinite(endBase)) {
+      toast.error("Couldn't anchor that highlight.");
+      return;
+    }
+
+    const startOffset =
+      startBase + textOffsetWithinAnchor(startAnchor, range.startContainer, range.startOffset);
+    const endOffset =
+      endBase + textOffsetWithinAnchor(endAnchor, range.endContainer, range.endOffset);
+
+    if (endOffset <= startOffset) {
+      toast.info("Select at least one complete word or phrase.");
+      return;
+    }
+
+    const saved = await addHighlight(
+      userId,
+      bookId,
+      language,
+      index,
+      selectedText.replace(/\s+/g, " ").trim(),
+      startOffset,
+      endOffset,
+    );
+
+    queryClient.setQueryData<Highlight[]>(["highlights", userId], (rows = []) => [
+      saved,
+      ...rows.filter((row) => row.id !== saved.id),
+    ]);
+    selection.removeAllRanges();
+
+    setHighlightSaved(true);
+    if (highlightFeedbackTimer.current) clearTimeout(highlightFeedbackTimer.current);
+    highlightFeedbackTimer.current = setTimeout(() => setHighlightSaved(false), 900);
+    toast.success("Highlighted — it will stay marked in this book for your account");
   }
 
   const isOriginalLanguage = book ? language === book.source_language : true;
@@ -454,6 +523,12 @@ function ReaderPage() {
 
   const content = chunkQuery.data?.content ?? null;
   const readableBlocks = useMemo(() => (content ? parseReadableBlocks(content) : []), [content]);
+  const pageHighlights = (highlightsQuery.data ?? []).filter(
+    (highlight) =>
+      highlight.book_id === bookId &&
+      highlight.language === language &&
+      highlight.chunk_index === index,
+  );
   const navigationItems = (navigationQuery.data ?? []) as ReaderNavigationItem[];
   const currentNavigationItem =
     [...navigationItems].reverse().find((item) => item.index <= index) ?? navigationItems[0] ?? null;
@@ -760,7 +835,12 @@ function ReaderPage() {
                   <span className="shrink-0">{book.author}</span>
                 </div>
               )}
-              <ReadableChunk blocks={readableBlocks} paragraphSpacing={paragraphSpacing} />
+              <ReadableChunk
+                blocks={readableBlocks}
+                paragraphSpacing={paragraphSpacing}
+                highlights={pageHighlights}
+                contentRef={readerTextRef}
+              />
               {presentation === "book" && (
                 <footer className="mt-12 border-t border-border/50 pt-4 text-center text-xs text-muted-foreground">
                   <span aria-label={`Reading section ${index + 1} of ${total}`}>
@@ -833,10 +913,15 @@ function ReaderPage() {
             </button>
             <button
               onClick={handleHighlight}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-accent-foreground"
+              aria-live="polite"
+              className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors ${
+                highlightSaved
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-accent text-accent-foreground hover:bg-primary/15"
+              }`}
             >
               <Highlighter className="h-4 w-4" />
-              <span className="hidden sm:inline">Highlight</span>
+              <span className="hidden sm:inline">{highlightSaved ? "Highlighted" : "Highlight"}</span>
             </button>
           </div>
           <button
@@ -910,6 +995,105 @@ function ReaderPage() {
   );
 }
 
+function findReaderTextAnchor(node: Node | null): HTMLElement | null {
+  const element =
+    node instanceof HTMLElement
+      ? node
+      : node?.parentElement instanceof HTMLElement
+        ? node.parentElement
+        : null;
+  return element?.closest<HTMLElement>("[data-reader-text-start]") ?? null;
+}
+
+function textOffsetWithinAnchor(
+  anchor: HTMLElement,
+  boundaryNode: Node,
+  boundaryOffset: number,
+): number {
+  const probe = document.createRange();
+  probe.selectNodeContents(anchor);
+  try {
+    probe.setEnd(boundaryNode, boundaryOffset);
+    return probe.toString().length;
+  } catch {
+    return 0;
+  }
+}
+
+function mergeHighlightRanges(
+  text: string,
+  absoluteStart: number,
+  highlights: Highlight[],
+): Array<{ start: number; end: number }> {
+  const absoluteEnd = absoluteStart + text.length;
+  const ranges: Array<{ start: number; end: number }> = [];
+
+  for (const highlight of highlights) {
+    if (
+      highlight.start_offset != null &&
+      highlight.end_offset != null &&
+      highlight.end_offset > absoluteStart &&
+      highlight.start_offset < absoluteEnd
+    ) {
+      ranges.push({
+        start: Math.max(0, highlight.start_offset - absoluteStart),
+        end: Math.min(text.length, highlight.end_offset - absoluteStart),
+      });
+      continue;
+    }
+
+    // Backward compatibility for highlights created before migration 0020.
+    // If the saved passage is wholly inside this rendered text anchor, mark
+    // the exact occurrence. If an old multi-block highlight wholly contains
+    // this anchor, mark the anchor instead of silently losing it.
+    const legacyText = highlight.highlight_text.trim();
+    if (!legacyText) continue;
+    const exact = text.indexOf(legacyText);
+    if (exact >= 0) {
+      ranges.push({ start: exact, end: exact + legacyText.length });
+    } else if (text.trim().length >= 4 && legacyText.includes(text.trim())) {
+      const leading = text.indexOf(text.trim());
+      ranges.push({ start: Math.max(0, leading), end: leading + text.trim().length });
+    }
+  }
+
+  ranges.sort((a, b) => a.start - b.start || a.end - b.end);
+  const merged: Array<{ start: number; end: number }> = [];
+  for (const range of ranges) {
+    if (range.end <= range.start) continue;
+    const previous = merged[merged.length - 1];
+    if (previous && range.start <= previous.end) {
+      previous.end = Math.max(previous.end, range.end);
+    } else {
+      merged.push({ ...range });
+    }
+  }
+  return merged;
+}
+
+function renderPersistedHighlights(
+  text: string,
+  absoluteStart: number,
+  highlights: Highlight[],
+): React.ReactNode {
+  const ranges = mergeHighlightRanges(text, absoluteStart, highlights);
+  if (ranges.length === 0) return text;
+
+  const nodes: React.ReactNode[] = [];
+  let cursor = 0;
+  ranges.forEach((range, i) => {
+    if (range.start > cursor) nodes.push(text.slice(cursor, range.start));
+    nodes.push(
+      <mark key={`${range.start}:${range.end}:${i}`} className="reader-highlight">
+        {text.slice(range.start, range.end)}
+      </mark>,
+    );
+    cursor = range.end;
+  });
+  if (cursor < text.length) nodes.push(text.slice(cursor));
+  return nodes;
+}
+
 function languageToBcp47(language: string): string {
   const map: Record<string, string> = {
     English: "en",
@@ -957,13 +1141,42 @@ function SheetShell({
 function ReadableChunk({
   blocks,
   paragraphSpacing,
+  highlights,
+  contentRef,
 }: {
   blocks: ReturnType<typeof parseReadableBlocks>;
   paragraphSpacing: number;
+  highlights: Highlight[];
+  contentRef: React.RefObject<HTMLDivElement | null>;
 }) {
   if (blocks.length === 0) return null;
+
+  // Character positions are intentionally based on the visible text anchors,
+  // not raw EPUB/PDF whitespace. This makes saved highlights stable across
+  // font, width, theme and page-style changes because those only reflow the
+  // same text; they do not change this coordinate space.
+  let cursor = 0;
+  const nextStart = (text: string) => {
+    const start = cursor;
+    cursor += text.length + 2;
+    return start;
+  };
+
+  const anchoredText = (text: string, className?: string) => {
+    const start = nextStart(text);
+    return (
+      <span
+        data-reader-text-start={start}
+        data-reader-text-end={start + text.length}
+        className={className}
+      >
+        {renderPersistedHighlights(text, start, highlights)}
+      </span>
+    );
+  };
+
   return (
-    <div>
+    <div ref={contentRef} data-reader-text-root="true">
       {blocks.map((block, i) => {
         const spacing = i === 0 ? undefined : { marginTop: `${paragraphSpacing}rem` };
         if (block.kind === "heading") {
@@ -974,7 +1187,7 @@ function ReadableChunk({
                 style={spacing}
                 className="font-display text-3xl font-semibold leading-tight tracking-tight text-foreground"
               >
-                {block.text}
+                {anchoredText(block.text)}
               </h2>
             );
           }
@@ -985,7 +1198,7 @@ function ReadableChunk({
                 style={spacing}
                 className="font-display text-2xl font-semibold leading-snug text-foreground"
               >
-                {block.text}
+                {anchoredText(block.text)}
               </h3>
             );
           }
@@ -995,7 +1208,7 @@ function ReadableChunk({
               style={spacing}
               className="font-display text-xl font-semibold leading-snug text-foreground"
             >
-              {block.text}
+              {anchoredText(block.text)}
             </h4>
           );
         }
@@ -1006,7 +1219,7 @@ function ReadableChunk({
               style={spacing}
               className="rounded-xl border border-primary/20 bg-primary/5 px-5 py-4 font-semibold leading-relaxed text-foreground"
             >
-              {block.text}
+              {anchoredText(block.text)}
             </aside>
           );
         }
@@ -1017,7 +1230,7 @@ function ReadableChunk({
               style={spacing}
               className="border-l-4 border-primary/40 pl-5 italic text-muted-foreground"
             >
-              {block.text}
+              {anchoredText(block.text)}
             </blockquote>
           );
         }
@@ -1025,14 +1238,14 @@ function ReadableChunk({
           return (
             <ul key={i} style={spacing} className="list-disc space-y-2 pl-6">
               {(block.items ?? []).map((item, itemIndex) => (
-                <li key={itemIndex}>{item}</li>
+                <li key={itemIndex}>{anchoredText(item)}</li>
               ))}
             </ul>
           );
         }
         return (
           <p key={i} style={spacing} className="leading-inherit">
-            {block.text}
+            {anchoredText(block.text)}
           </p>
         );
       })}
