@@ -20,7 +20,11 @@ export const SETTINGS_SCHEMAS = {
     z.object({ id: z.string(), title: z.string(), bookIds: z.array(z.string()) }),
   ),
   featured_books: z.array(z.string()),
-  categories: z.array(z.string()),
+  categories: z
+    .array(z.string().trim().min(1))
+    .refine((categories) => categories.includes("Religious"), {
+      message: 'The protected "Religious" category cannot be removed',
+    }),
   announcements: z.array(z.object({ id: z.string(), message: z.string(), active: z.boolean() })),
   support_contact: z.object({ email: z.string().email(), helpUrl: z.string().url().optional() }),
   maintenance_message: z.object({ active: z.boolean(), message: z.string().optional() }),
@@ -57,6 +61,18 @@ export const PUBLIC_SETTINGS_KEYS: SettingsKey[] = [
  * publishes a real value, that value — not this constant — is what every
  * reader and every future billing sync sees. */
 export const DEFAULT_MONTHLY_PLAN_PRICE_USD = 2.99;
+
+/**
+ * Monetization is deliberately fail-closed until the production billing
+ * integration explicitly opts in. Merely editing a public setting must never
+ * turn on a paywall that readers have no way to purchase.
+ *
+ * BILLING_PROVIDER_READY is set only by deployment/ops after the real
+ * recurring billing + webhook flow has been connected and verified.
+ */
+export function isBillingProviderReady(): boolean {
+  return process.env["BILLING_PROVIDER_READY"] === "true";
+}
 
 export async function getMonthlyPlanPriceUsd(): Promise<number> {
   const db = await admin();
@@ -97,6 +113,13 @@ export async function publishSetting(params: {
       `Invalid value for ${params.key}: ${parsed.error.issues.map((i) => i.message).join("; ")}`,
     );
   }
+
+  if (params.key === "monetization_enabled" && parsed.data === true && !isBillingProviderReady()) {
+    throw new Error(
+      "Monetization cannot be enabled until the production billing provider, recurring plan, and webhook flow have been connected and BILLING_PROVIDER_READY=true in the server runtime.",
+    );
+  }
+
   const db = await admin();
   const { data: existing } = await db
     .from("content_settings")
@@ -159,5 +182,6 @@ export async function getSecretsStatus(): Promise<Record<string, boolean>> {
   return {
     gemini: !!process.env["GEMINI_API_KEY"],
     supabaseServiceRole: !!process.env["SUPABASE_SERVICE_ROLE_KEY"],
+    billingProviderReady: isBillingProviderReady(),
   };
 }
