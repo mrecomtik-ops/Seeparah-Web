@@ -617,16 +617,32 @@ export async function retryFailedSections(jobId: string, requesterId: string) {
  * the admin permission matrix instead of authorship. */
 export async function retrySectionsCore(jobId: string) {
   const db = await admin();
+
+  // Explicit recovery after the underlying provider/configuration problem
+  // has been fixed. Reset attempts so infrastructure failures cannot strand
+  // a valid edition at the retry ceiling forever.
   await db
     .from("book_translation_sections")
-    .update({ status: "pending", next_attempt_at: null, updated_at: new Date().toISOString() })
+    .update({
+      status: "pending",
+      attempts: 0,
+      last_error: null,
+      next_attempt_at: null,
+      updated_at: new Date().toISOString(),
+    })
     .eq("job_id", jobId)
-    .eq("status", "failed")
-    .lt("attempts", MAX_SECTION_ATTEMPTS);
+    .eq("status", "failed");
 
   await db
     .from("book_translation_jobs")
-    .update({ status: "processing", last_error: null, updated_at: new Date().toISOString() })
+    .update({
+      status: "processing",
+      failed_sections: 0,
+      attempts: 0,
+      last_error: null,
+      next_attempt_at: null,
+      updated_at: new Date().toISOString(),
+    })
     .eq("id", jobId);
 
   return { ok: true };
