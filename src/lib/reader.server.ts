@@ -264,17 +264,7 @@ export async function getReaderNavigation(params: {
     .order("chunk_index", { ascending: true });
   if (!fullAccess) query = query.eq("chunk_index", 0);
 
-  let { data: rows, error: rowsError } = await query;
-  if (rowsError) {
-    let fallback = db
-      .from("book_chunks")
-      .select("chunk_index, content")
-      .eq("book_id", params.bookId)
-      .eq("language", params.language)
-      .order("chunk_index", { ascending: true });
-    if (!fullAccess) fallback = fallback.eq("chunk_index", 0);
-    ({ data: rows, error: rowsError } = await fallback);
-  }
+  const { data: rows, error: rowsError } = await query;
   if (rowsError || !rows) return [];
 
   const { buildFallbackNavigation } = await import("@/lib/reader-structure");
@@ -372,19 +362,7 @@ export async function searchReaderBook(params: {
     .limit(50);
   if (!fullAccess) query = query.eq("chunk_index", 0);
 
-  let { data: rows, error } = await query;
-  if (error) {
-    let fallback = db
-      .from("book_chunks")
-      .select("chunk_index, content")
-      .eq("book_id", params.bookId)
-      .eq("language", params.language)
-      .ilike("content", pattern)
-      .order("chunk_index", { ascending: true })
-      .limit(50);
-    if (!fullAccess) fallback = fallback.eq("chunk_index", 0);
-    ({ data: rows, error } = await fallback);
-  }
+  const { data: rows, error } = await query;
   if (error || !rows) return [];
 
   const results: ReaderSearchResult[] = [];
@@ -486,28 +464,20 @@ export async function getReaderChunk(params: {
     // the query above errors on every single call, the error is
     // impossible to see from here (only `data` was ever read), and every
     // reader silently gets "this page couldn't be loaded" for every book,
-    // every language, every page. Retry without the status filter: every
-    // row that exists pre-migration was already being served as live
-    // content (see migration 0001's own comment: existing rows default to
-    // status='published' precisely because they were already visible), so
-    // this fallback doesn't change what a reader can see today — it just
-    // stops a schema-compatibility query from masquerading as "no content
-    // here." Once the migration lands, the first query succeeds and this
-    // branch stops running.
-    ({ data: chunk } = await db
-      .from("book_chunks")
-      .select("content")
-      .eq("book_id", params.bookId)
-      .eq("language", params.language)
-      .eq("chunk_index", params.chunkIndex)
-      .maybeSingle());
+    // every language, every page. Retry  const { data: chunk, error: chunkError } = await db
+    .from("book_chunks")
+    .select("content")
+    .eq("book_id", params.bookId)
+    .eq("language", params.language)
+    .eq("chunk_index", params.chunkIndex)
+    .eq("status", "published")
+    .eq("source_version", book.source_version ?? 1)
+    .maybeSingle();
+
+  // Migrations 0001+ are required in production. If the filtered query
+  // fails, fail closed instead of retrying without publication/version
+  // guards and risking stale or unpublished content exposure.
+  if (chunkError) {
+    return { content: null, locked: true, reason: "not_available" };
   }
 
-  return {
-    content: chunk?.content ?? null,
-    locked: false,
-    typographyProfile: isSourceLanguage
-      ? book.typography_profile ?? "standard"
-      : editionTypographyProfile ?? "standard",
-  };
-}
