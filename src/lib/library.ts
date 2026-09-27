@@ -3,7 +3,6 @@ import {
   getReaderChunk as fetchReaderChunk,
   getReaderNavigation as fetchReaderNavigation,
   searchReaderBook as fetchReaderBookSearch,
-  activateSubscription,
 } from "@/lib/reader.functions";
 import {
   listPublicBooks as fetchPublicBooks,
@@ -402,41 +401,11 @@ export async function listSubscriptions(
 }
 
 /**
- * Test-mode only — there is no Stripe (or other payment provider)
- * integration in this codebase. For a signed-in user this still goes
- * through a server function that verifies their identity and writes the
- * subscription row itself (see src/lib/reader.server.ts), rather than
- * letting the browser write "active" directly to the database. Demo mode
- * (no account) keeps a local-only simulated subscription, which was already
- * the existing behavior and is clearly labeled as such in the UI.
+ * There is intentionally no reader-callable subscription activation helper.
+ * A future billing integration must create entitlements only from a verified
+ * payment-provider flow/webhook. Keeping this client module write-free here
+ * prevents a hidden/test button or forged request from granting paid access.
  */
-export async function subscribeToBook(
-  userId: string,
-  book: Book,
-): Promise<Subscription> {
-  const row: Subscription = {
-    id: crypto.randomUUID(),
-    user_id: userId,
-    book_id: book.id,
-    status: "active",
-    monthly_price_usd: book.subscription_price_usd ?? 0,
-    starts_at: new Date().toISOString(),
-    expires_at: new Date(Date.now() + 30 * 86400000).toISOString(),
-    renewed_at: null,
-    created_at: new Date().toISOString(),
-  };
-  if (userId !== DEMO_USER_ID) {
-    const token = await accessToken();
-    if (token) {
-      const sub = await activateSubscription({ data: { bookId: book.id, accessToken: token } });
-      return sub as Subscription;
-    }
-  }
-  const rows = demoStore.getSubscriptions();
-  rows.push(row);
-  demoStore.setSubscriptions(rows);
-  return row;
-}
 
 export type BookStatus = "draft" | "in_review" | "published" | "unpublished";
 
