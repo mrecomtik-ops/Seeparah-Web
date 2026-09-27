@@ -402,6 +402,23 @@ function LibraryPage() {
                 <div key={i} className="aspect-[2/3] animate-pulse rounded-2xl bg-secondary" />
               ))}
             </div>
+          ) : booksQuery.isError ? (
+            <div className="mt-6 rounded-2xl border border-destructive/30 bg-card p-8 text-center card-shadow sm:p-12">
+              <BookOpen className="mx-auto h-10 w-10 text-destructive/60" />
+              <p className="mt-3 font-display text-lg font-semibold text-foreground">
+                The library couldn't load
+              </p>
+              <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
+                This is a catalog connection error, not an empty library. Try the request again.
+              </p>
+              <button
+                type="button"
+                onClick={() => void booksQuery.refetch()}
+                className="mt-5 min-h-11 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:brightness-95 active:scale-[0.98]"
+              >
+                Try again
+              </button>
+            </div>
           ) : books.length === 0 && tab === "all" && !hasActiveFilters ? (
             <div className="mt-6 rounded-2xl border border-dashed border-border bg-card p-8 text-center card-shadow sm:p-12">
               <BookOpen className="mx-auto h-10 w-10 text-muted-foreground/50" />
