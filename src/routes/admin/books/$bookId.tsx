@@ -202,7 +202,7 @@ function AdminBookDetail() {
         return;
       }
       downgradeReason = window.prompt(
-        "Religious protection is being removed. Enter the reason (at least 20 characters). Existing verified sourced editions must be resolved first.",
+        "Religious protection is being removed. The book must already be unpublished. Enter the reason (at least 20 characters). Existing verified sourced editions must be resolved first, and translation permission will reset to No.",
       );
       if (downgradeReason === null) return;
       if (downgradeReason.trim().length < 20) {
@@ -1157,7 +1157,10 @@ function AdminBookDetail() {
               >
                 <option
                   value="general"
-                  disabled={book.content_classification === "religious" && session.role !== "owner"}
+                  disabled={
+                    book.content_classification === "religious" &&
+                    (session.role !== "owner" || book.status === "published")
+                  }
                 >
                   General book
                 </option>
@@ -1165,8 +1168,10 @@ function AdminBookDetail() {
               </select>
               {book.content_classification === "religious" && (
                 <span className="mt-1 block text-[11px] leading-relaxed text-muted-foreground">
-                  Religious → General is an owner-only protected action and requires an explicit
-                  reason. Verified sourced Religious editions must be resolved first.
+                  Religious → General is an owner-only protected action. Unpublish the book first,
+                  provide an explicit reason, and resolve any verified sourced Religious editions.
+                  Translation permission is reset to No during the downgrade and must be reviewed
+                  separately before any future AI translation can be approved.
                 </span>
               )}
             </label>
