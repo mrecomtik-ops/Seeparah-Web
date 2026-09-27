@@ -39,3 +39,7 @@ dist-ssr
 # committed.
 supabase/.temp/
 backups/
+
+# Environment files are machine/deployment specific. Use .env.example as the template.
+.env
+.env.local
