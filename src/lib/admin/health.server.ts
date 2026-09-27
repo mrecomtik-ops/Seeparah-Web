@@ -13,6 +13,7 @@ export interface HealthSnapshot {
   stalledJobs: {
     id: string;
     bookId: string;
+    bookTitle: string;
     language: string;
     status: string;
     updatedAt: string;
@@ -54,7 +55,7 @@ export async function getHealthSnapshot(): Promise<HealthSnapshot> {
   ] = await Promise.all([
     db
       .from("book_translation_jobs")
-      .select("id, book_id, language, status, updated_at")
+      .select("id, book_id, language, status, updated_at, books!inner(title)")
       .eq("status", "processing")
       .lt("updated_at", stalledSince)
       .limit(50),
@@ -95,6 +96,8 @@ export async function getHealthSnapshot(): Promise<HealthSnapshot> {
     stalledJobs: (stalled ?? []).map((j) => ({
       id: j.id,
       bookId: j.book_id,
+      bookTitle:
+        (j.books as unknown as { title?: string } | null)?.title ?? "Unknown book",
       language: j.language,
       status: j.status,
       updatedAt: j.updated_at,
