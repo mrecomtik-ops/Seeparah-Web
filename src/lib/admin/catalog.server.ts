@@ -620,7 +620,7 @@ export async function setBookContentPolicy(params: {
   const db = await admin();
   const { data: before, error: beforeError } = await db
     .from("books")
-    .select("content_classification, translation_generation_policy, typography_profile, authenticity_notes, categories, access_type")
+    .select("status, content_classification, translation_generation_policy, typography_profile, authenticity_notes, categories, access_type")
     .eq("id", params.bookId)
     .single();
   if (beforeError || !before) throw new Error(beforeError?.message ?? "Book not found");
@@ -631,6 +631,11 @@ export async function setBookContentPolicy(params: {
   if (isReligiousDowngrade) {
     if (params.actorRole !== "owner") {
       throw new Error("Only the owner can change a Religious book back to General.");
+    }
+    if (before.status === "published") {
+      throw new Error(
+        "Unpublish the Religious book before changing it to General. This prevents a policy change from immediately enabling normal translation behavior on a live title.",
+      );
     }
     const reason = params.downgradeReason?.trim() ?? "";
     if (reason.length < 20) {
