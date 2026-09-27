@@ -87,12 +87,3 @@ export const searchReaderBook = createServerFn({ method: "POST" })
       userId,
     });
   });
-
-export const activateSubscription = createServerFn({ method: "POST" })
-  .inputValidator((data) => z.object({ bookId: z.string(), accessToken: z.string() }).parse(data))
-  .handler(async ({ data }) => {
-    const { requireUserId } = await import("@/lib/require-user.server");
-    const userId = await requireUserId(data.accessToken);
-    const { activateTestModeSubscription } = await import("@/lib/reader.server");
-    return activateTestModeSubscription({ bookId: data.bookId, userId });
-  });
