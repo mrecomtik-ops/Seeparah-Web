@@ -1326,15 +1326,12 @@ function AdminBookDetail() {
                 return (
                   <button
                     key={c}
-                    disabled={
-                      categoriesBusy ||
-                      (c === "Religious" &&
-                        book.content_classification === "religious" &&
-                        (book.categories ?? []).includes("Religious"))
-                    }
+                    disabled={categoriesBusy || c === "Religious"}
                     title={
-                      c === "Religious" && book.content_classification === "religious"
-                        ? "Religious is protected here. Use Content policy & typography for an owner-only downgrade."
+                      c === "Religious"
+                        ? book.content_classification === "religious"
+                          ? "Religious is protected here. Use Content policy & typography for an owner-only downgrade."
+                          : "Religious is a protected classification. Use Content policy & typography to enable its free/source-only safeguards."
                         : undefined
                     }
                     onClick={() => toggleCategory(c, book.categories ?? [])}
