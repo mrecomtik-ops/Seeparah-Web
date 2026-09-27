@@ -73,6 +73,8 @@ export interface PublishGateBook {
   original_publication_year?: number | null;
   word_count?: number | null;
   estimated_reading_minutes?: number | null;
+  rights_basis?: string | null;
+  rights_evidence_url?: string | null;
   rights_risk_acknowledged_at?: string | null;
 }
 
@@ -91,6 +93,12 @@ export function computePublishGate(
   }
   if (book.cleanup_review_status !== "approved") {
     reasons.push("Text cleanup review is not yet approved");
+  }
+  if (isPlaceholderRightsText(book.rights_basis)) {
+    reasons.push("Rights basis is unresolved or looks like placeholder/review text");
+  }
+  if (!isPlausibleEvidenceUrl(book.rights_evidence_url)) {
+    reasons.push("Rights evidence URL is missing or invalid");
   }
 
   const missingEditionMetadata: string[] = [];
@@ -143,7 +151,7 @@ export async function scanBookRightsSignals(bookId: string): Promise<RightsRiskS
     .maybeSingle();
   if (!book) return [];
 
-  let { data: rows, error } = await db
+  const { data: rows, error } = await db
     .from("book_chunks")
     .select("chunk_index, content")
     .eq("book_id", bookId)
@@ -152,15 +160,9 @@ export async function scanBookRightsSignals(bookId: string): Promise<RightsRiskS
     .order("chunk_index", { ascending: true })
     .limit(30);
   if (error) {
-    ({ data: rows, error } = await db
-      .from("book_chunks")
-      .select("chunk_index, content")
-      .eq("book_id", bookId)
-      .eq("language", book.source_language)
-      .order("chunk_index", { ascending: true })
-      .limit(30));
+    throw new Error(`Unable to scan rights-risk signals: ${error.message}`);
   }
-  if (error || !rows) return [];
+  if (!rows) return [];
 
   const patterns: Array<{ label: string; regex: RegExp }> = [
     { label: "Copyright notice", regex: /(?:copyright|©|\(c\))/i },
