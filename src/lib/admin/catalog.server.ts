@@ -1514,9 +1514,16 @@ export async function setBookCategories(params: {
     .eq("id", params.bookId)
     .single();
   if (beforeError) throw new Error(beforeError.message);
-  if (before?.content_classification === "religious" && !deduped.includes("Religious")) {
+  const wasReligious = before?.content_classification === "religious";
+  const hasReligious = deduped.includes("Religious");
+  if (wasReligious && !hasReligious) {
     throw new Error(
       'The protected "Religious" category cannot be removed directly. Use the owner-only content-policy downgrade workflow.',
+    );
+  }
+  if (!wasReligious && hasReligious) {
+    throw new Error(
+      'Religious is a protected content classification, not a normal tag. Use "Content policy & typography" to classify this book as Religious.',
     );
   }
   const { error } = await db.from("books").update({ categories: deduped }).eq("id", params.bookId);
@@ -1539,9 +1546,11 @@ export async function bulkPatchBookCategory(params: {
   category: string;
   action: "add" | "remove";
 }): Promise<BulkCategoryResult[]> {
-  if (params.action === "remove" && params.category === "Religious") {
+  if (params.category === "Religious") {
     throw new Error(
-      'The protected "Religious" category cannot be removed in bulk. Change a Religious book classification only through the owner-only content-policy workflow.',
+      params.action === "remove"
+        ? 'The protected "Religious" category cannot be removed in bulk. Change a Religious book classification only through the owner-only content-policy workflow.'
+        : 'Religious cannot be added as a bulk tag. Classify each book through "Content policy & typography" so source-only translation and free-access safeguards are applied deliberately.',
     );
   }
   const master = await getMasterCategories();
