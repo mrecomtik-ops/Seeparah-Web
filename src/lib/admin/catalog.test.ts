@@ -53,6 +53,9 @@ describe("computePublishGate", () => {
     original_publication_year: 1890,
     word_count: 50_000,
     estimated_reading_minutes: 223,
+    rights_basis:
+      "Public-domain or licensed exact-edition rights basis verified against the linked evidence.",
+    rights_evidence_url: "https://example.com/rights-evidence",
     rights_risk_acknowledged_at: null,
   };
 
@@ -118,6 +121,30 @@ describe("computePublishGate", () => {
     );
     expect(result.canPublish).toBe(false);
     expect(result.reasons.join(" ")).toMatch(/metadata/i);
+  });
+
+  it("blocks publishing when the rights basis is unresolved review text", () => {
+    const result = computePublishGate(
+      { ...approved, rights_basis: "PENDING — do not approve until verified" },
+      new Set(),
+    );
+    expect(result.canPublish).toBe(false);
+    expect(result.reasons.join(" ")).toMatch(/rights basis|placeholder|unresolved/i);
+  });
+
+  it("blocks publishing when the rights evidence URL is missing or invalid", () => {
+    const missing = computePublishGate(
+      { ...approved, rights_evidence_url: null },
+      new Set(),
+    );
+    const invalid = computePublishGate(
+      { ...approved, rights_evidence_url: "not-a-url" },
+      new Set(),
+    );
+    expect(missing.canPublish).toBe(false);
+    expect(invalid.canPublish).toBe(false);
+    expect(missing.reasons.join(" ")).toMatch(/evidence/i);
+    expect(invalid.reasons.join(" ")).toMatch(/evidence/i);
   });
 
   it("requires acknowledgment when the manuscript contains rights-risk clues", () => {
