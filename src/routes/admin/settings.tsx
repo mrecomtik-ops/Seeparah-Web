@@ -233,7 +233,10 @@ function AdminSettingsPage() {
             Gemini: {secretsQuery.data["gemini"] ? "API key present" : "API key missing"}
           </span>
           <span>
-            Billing: {secretsQuery.data["billingProviderReady"] ? "provider ready" : "not connected"}
+            Billing readiness flag:{" "}
+            {secretsQuery.data["billingProviderReady"]
+              ? "present (database monetization lock still applies)"
+              : "not set"}
           </span>
           <span>
             Supabase service role:{" "}
