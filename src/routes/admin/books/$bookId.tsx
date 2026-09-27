@@ -1411,6 +1411,41 @@ function AdminBookDetail() {
                       Process next batch
                     </button>
                   )}
+                {canManageTranslations && j.status === "failed" && (
+                  <button
+                    disabled={busy}
+                    onClick={() =>
+                      withBusy(async () => {
+                        if (
+                          !window.confirm(
+                            `Retry only the failed ${j.language} sections? Do this only after the provider/configuration problem shown above has been fixed.`,
+                          )
+                        ) {
+                          return;
+                        }
+                        const result = await adminProcessTranslationJobBatch({
+                          data: { accessToken: await getAccessToken(), jobId: j.id },
+                        });
+                        if (result.failed > 0) {
+                          toast.error(
+                            result.errors[0] ??
+                              `${result.failed} translation section(s) are still failing`,
+                            { duration: 9000 },
+                          );
+                        } else {
+                          toast.success(
+                            result.jobStatus === "awaiting_review"
+                              ? `${j.language} translation is ready for review`
+                              : `Retry processed ${result.processed} section(s)`,
+                          );
+                        }
+                      })
+                    }
+                    className="min-h-11 rounded-lg border border-destructive/30 px-3 py-2 text-xs font-semibold text-destructive hover:bg-destructive/10 disabled:opacity-60"
+                  >
+                    Retry failed sections…
+                  </button>
+                )}
                 {canManageTranslations && j.status === "awaiting_review" && (
                   <button
                     disabled={busy}
