@@ -215,6 +215,30 @@ describe("resolveReaderAccess — subscription gate (translated edition, indepen
     }
   });
 
+  it("fails closed for a Premium translated edition when monetization state cannot be verified", () => {
+    const result = resolveReaderAccess({
+      ...BASE,
+      language: "Hindi",
+      book,
+      editionAccessType: "paid",
+      monetizationEnabled: null,
+      hasActiveSubscription: false,
+    });
+    expect(result).toEqual({ locked: true, reason: "subscription_required" });
+  });
+
+  it("still keeps explicitly free translations readable when monetization state is unknown", () => {
+    const result = resolveReaderAccess({
+      ...BASE,
+      language: "Hindi",
+      book,
+      editionAccessType: "free",
+      monetizationEnabled: null,
+      hasActiveSubscription: false,
+    });
+    expect(result).toEqual({ locked: false });
+  });
+
   it("a Premium translated edition never gates while monetization itself is disabled", () => {
     const result = resolveReaderAccess({
       ...BASE,
