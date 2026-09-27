@@ -55,30 +55,14 @@ export async function currentUser() {
  * placeholders."
  */
 export async function listBooks(): Promise<Book[]> {
-  try {
-    return await fetchPublicBooks();
-  } catch (error) {
-    console.error(
-      "[listBooks] real catalog query failed:",
-      error instanceof Error ? error.message : String(error),
-    );
-    return [];
-  }
+  return fetchPublicBooks();
 }
 
 /** Same honesty guarantee as listBooks(): a real book id that doesn't
  * exist (or a real query error) returns null, never a demo placeholder
  * substituted in by coincidentally matching a seed book's fixed id. */
 export async function getBook(id: string): Promise<Book | null> {
-  try {
-    return await fetchPublicBook({ data: { bookId: id } });
-  } catch (error) {
-    console.error(
-      "[getBook] real query failed:",
-      error instanceof Error ? error.message : String(error),
-    );
-    return null;
-  }
+  return fetchPublicBook({ data: { bookId: id } });
 }
 
 /**
@@ -103,12 +87,9 @@ export function matchesBookSearch(book: Pick<Book, "title" | "author">, query: s
  * Server-side search by title or author — same matching rule as
  * matchesBookSearch, expressed as `ilike` so it scales past whatever's
  * already fetched to the client and works from a page that hasn't loaded
- * the full catalog. Goes through the plain (RLS-backed) client, exactly
- * like listBooks/getBook — never service-role — so an unpublished or
- * otherwise inaccessible book can never appear in a result: the SAME
- * `books_read_access` policy that already gates listBooks() gates this,
- * by construction, not by an extra filter this function has to remember
- * to apply.
+ * the full catalog. The browser calls the same server-only public catalog
+ * projection as listBooks/getBook, so internal rights/review columns never
+ * enter the client response and unpublished rows are explicitly filtered.
  */
 export async function searchBooks(query: string): Promise<Book[]> {
   const q = query.trim();
