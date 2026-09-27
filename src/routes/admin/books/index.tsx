@@ -179,8 +179,8 @@ function AdminBooksList() {
               >
                 <option value="">Category…</option>
                 {masterCategories.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
+                  <option key={c} value={c} disabled={c === "Religious"}>
+                    {c === "Religious" ? "Religious — use book content policy" : c}
                   </option>
                 ))}
               </select>
