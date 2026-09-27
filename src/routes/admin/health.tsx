@@ -133,16 +133,19 @@ function AdminHealthPage() {
           {h.stalledJobs.map((j) => (
             <div
               key={j.id}
-              className="flex items-center justify-between rounded-xl border border-border bg-card p-3 text-sm"
+              className="flex flex-col gap-3 rounded-xl border border-border bg-card p-3 text-sm sm:flex-row sm:items-center sm:justify-between"
             >
-              <span>
-                {j.language} · last updated {new Date(j.updatedAt).toLocaleString()}
-              </span>
+              <div className="min-w-0">
+                <p className="font-semibold text-foreground">{j.bookTitle}</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {j.language} · last updated {new Date(j.updatedAt).toLocaleString()}
+                </p>
+              </div>
               {canRecover && (
                 <button
                   disabled={busyId === j.id}
                   onClick={() => resumeJob(j.id)}
-                  className="rounded-lg border border-border px-2 py-1 text-xs hover:bg-secondary disabled:opacity-60"
+                  className="min-h-11 shrink-0 rounded-lg border border-border px-3 py-2 text-xs font-semibold hover:bg-secondary disabled:opacity-60"
                 >
                   Resume
                 </button>
@@ -161,7 +164,7 @@ function AdminHealthPage() {
           {h.failedJobs.map((j) => (
             <div
               key={j.id}
-              className="flex items-center justify-between rounded-xl border border-border bg-card p-3 text-sm"
+              className="flex flex-col gap-3 rounded-xl border border-border bg-card p-3 text-sm sm:flex-row sm:items-center sm:justify-between"
             >
               <div className="min-w-0 flex-1">
                 <p className="font-semibold text-foreground">{j.bookTitle}</p>
