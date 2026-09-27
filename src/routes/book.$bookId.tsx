@@ -49,6 +49,30 @@ function BookDetailPage() {
     );
   }
 
+  if (bookQuery.isError) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-background px-4 text-center">
+        <p className="font-display text-2xl font-semibold text-foreground">
+          We couldn't load this book right now
+        </p>
+        <p className="max-w-md text-sm text-muted-foreground">
+          The catalog request failed. Try again rather than treating a temporary service problem as
+          a missing book.
+        </p>
+        <button
+          type="button"
+          onClick={() => void bookQuery.refetch()}
+          className="min-h-11 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:brightness-95 active:scale-[0.98]"
+        >
+          Try again
+        </button>
+        <Link to="/library" className="text-sm font-semibold text-primary hover:underline">
+          Back to the library
+        </Link>
+      </div>
+    );
+  }
+
   if (!book) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-background px-4 text-center">
