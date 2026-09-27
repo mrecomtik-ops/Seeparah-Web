@@ -196,6 +196,23 @@ function AdminBookDetail() {
       book.content_classification === "religious" &&
       contentPolicyDraft.classification === "general";
 
+    const isReligiousUpgrade =
+      book.content_classification !== "religious" &&
+      contentPolicyDraft.classification === "religious";
+
+    if (isReligiousUpgrade) {
+      const hasAiEdition = editions.some((edition) => edition.provenance_type === "ai_assisted");
+      const hasActiveAiJob = jobs.some((job) =>
+        ["pending", "processing", "awaiting_review", "published"].includes(job.status),
+      );
+      if (hasAiEdition || hasActiveAiJob) {
+        toast.error(
+          "Resolve existing AI-assisted translated editions and active/published translation jobs before changing this book to Religious.",
+        );
+        return;
+      }
+    }
+
     if (isReligiousDowngrade) {
       if (session.role !== "owner") {
         toast.error("Only the owner can change a Religious book back to General.");
@@ -1122,7 +1139,8 @@ function AdminBookDetail() {
             </h2>
             <p className="mt-1 max-w-2xl text-xs leading-relaxed text-muted-foreground">
               Religious books are permanently free, never sent to the AI translation pipeline,
-              and should use verified sourced editions. Typography and authenticity notes travel
+              and use verified sourced editions only. A General book cannot be reclassified until
+              any AI-assisted editions/jobs are resolved. Typography and authenticity notes travel
               with the catalog record so the reader can preserve the edition's script conventions.
             </p>
           </div>
