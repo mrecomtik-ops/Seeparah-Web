@@ -627,6 +627,31 @@ export async function setBookContentPolicy(params: {
 
   const isReligiousDowngrade =
     before.content_classification === "religious" && params.classification === "general";
+  const isReligiousUpgrade =
+    before.content_classification !== "religious" && params.classification === "religious";
+
+  if (isReligiousUpgrade) {
+    const [{ count: aiEditionCount, error: aiEditionError }, { count: activeJobCount, error: activeJobError }] =
+      await Promise.all([
+        db
+          .from("book_editions")
+          .select("language", { count: "exact", head: true })
+          .eq("book_id", params.bookId)
+          .eq("provenance_type", "ai_assisted"),
+        db
+          .from("book_translation_jobs")
+          .select("id", { count: "exact", head: true })
+          .eq("book_id", params.bookId)
+          .in("status", ["pending", "processing", "awaiting_review", "published"]),
+      ]);
+    if (aiEditionError) throw new Error(aiEditionError.message);
+    if (activeJobError) throw new Error(activeJobError.message);
+    if ((aiEditionCount ?? 0) > 0 || (activeJobCount ?? 0) > 0) {
+      throw new Error(
+        "Resolve existing AI-assisted translated editions and active/published AI translation jobs before classifying this book as Religious.",
+      );
+    }
+  }
 
   if (isReligiousDowngrade) {
     if (params.actorRole !== "owner") {
@@ -688,10 +713,11 @@ export async function setBookContentPolicy(params: {
   if (error) throw new Error(error.message);
 
   if (params.classification === "religious") {
-    await db
+    const { error: editionPolicyError } = await db
       .from("book_editions")
       .update({ access_type: "free", updated_at: new Date().toISOString() })
       .eq("book_id", params.bookId);
+    if (editionPolicyError) throw new Error(editionPolicyError.message);
   }
 
   return { before, after };
