@@ -128,7 +128,7 @@ function SubscribePage() {
               <ul className="mt-5 space-y-2.5 text-sm text-foreground">
                 {[
                   "All reviewed general translated editions",
-                  "One account-wide monthly plan — no separate charge for each translated book",
+                  "One account-wide monthly plan — no yearly plan and no separate charge for each translated book",
                   "New translation requests remain review-gated; translated once and saved",
                   "Religious books are excluded from paid translation and remain free",
                 ].map((f) => (
