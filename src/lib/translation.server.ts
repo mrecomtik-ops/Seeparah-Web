@@ -782,6 +782,18 @@ export async function getPublicBookEditions(bookId: string): Promise<PublicBookE
 
 export async function getBookTranslationLanguageStatus(bookId: string) {
   const db = await admin();
+
+  // This function is public-facing. Do not reveal translation work-in-progress
+  // for drafts, rejected, archived or otherwise non-public books merely
+  // because someone knows/guesses the UUID.
+  const { data: book, error: bookError } = await db
+    .from("books")
+    .select("status")
+    .eq("id", bookId)
+    .maybeSingle();
+  if (bookError) throw new Error(bookError.message);
+  if (!book || book.status !== "published") return [];
+
   const { data: jobs, error } = await db
     .from("book_translation_jobs")
     .select("language, status")
