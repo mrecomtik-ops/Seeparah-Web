@@ -64,19 +64,49 @@ export async function getPublicBook(bookId: string): Promise<Book | null> {
   return data ? asPublicBook(data) : null;
 }
 
+export function literalIlikePattern(query: string): string {
+  const escaped = query.replace(/[\\%_]/g, (char) => `\\${char}`);
+  return `%${escaped}%`;
+}
+
 export async function searchPublicBooks(query: string): Promise<Book[]> {
   const q = query.trim();
   if (!q) return [];
-  const escaped = q.replace(/[%_]/g, (char) => `\\${char}`);
+
+  // Supabase .or() accepts raw PostgREST filter syntax. User punctuation
+  // such as commas/parentheses can therefore become filter grammar if
+  // interpolated into .or(). Use two ordinary ilike filters instead and
+  // merge the rows server-side so reader input is always a value, never
+  // executable filter syntax.
+  const pattern = literalIlikePattern(q);
   const db = await admin();
-  const { data, error } = await db
-    .from("books")
-    .select(PUBLIC_BOOK_COLUMNS)
-    .eq("status", "published")
-    .or(`title.ilike.%${escaped}%,author.ilike.%${escaped}%`)
-    .order("created_at", { ascending: true });
-  if (error) throw new Error(error.message);
-  return (data ?? []).map(asPublicBook);
+  const [titleResult, authorResult] = await Promise.all([
+    db
+      .from("books")
+      .select(PUBLIC_BOOK_COLUMNS)
+      .eq("status", "published")
+      .ilike("title", pattern)
+      .order("created_at", { ascending: true }),
+    db
+      .from("books")
+      .select(PUBLIC_BOOK_COLUMNS)
+      .eq("status", "published")
+      .ilike("author", pattern)
+      .order("created_at", { ascending: true }),
+  ]);
+
+  if (titleResult.error) throw new Error(titleResult.error.message);
+  if (authorResult.error) throw new Error(authorResult.error.message);
+
+  const rows = new Map<string, Book>();
+  for (const row of [...(titleResult.data ?? []), ...(authorResult.data ?? [])]) {
+    const book = asPublicBook(row);
+    rows.set(book.id, book);
+  }
+
+  return [...rows.values()].sort((a, b) =>
+    String(a.created_at ?? "").localeCompare(String(b.created_at ?? "")),
+  );
 }
 
 
