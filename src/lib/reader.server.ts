@@ -448,7 +448,7 @@ export async function getReaderChunk(params: {
   });
   if (access.locked) return { content: null, locked: true, reason: access.reason };
 
-  let { data: chunk, error: chunkError } = await db
+  const { data: chunk, error: chunkError } = await db
     .from("book_chunks")
     .select("content")
     .eq("book_id", params.bookId)
@@ -458,26 +458,18 @@ export async function getReaderChunk(params: {
     .eq("source_version", book.source_version ?? 1)
     .maybeSingle();
 
-  if (chunkError) {
-    // `book_chunks.status` doesn't exist until migration 0001 is applied —
-    // as of this writing it isn't, on production. Without this fallback,
-    // the query above errors on every single call, the error is
-    // impossible to see from here (only `data` was ever read), and every
-    // reader silently gets "this page couldn't be loaded" for every book,
-    // every language, every page. Retry  const { data: chunk, error: chunkError } = await db
-    .from("book_chunks")
-    .select("content")
-    .eq("book_id", params.bookId)
-    .eq("language", params.language)
-    .eq("chunk_index", params.chunkIndex)
-    .eq("status", "published")
-    .eq("source_version", book.source_version ?? 1)
-    .maybeSingle();
-
-  // Migrations 0001+ are required in production. If the filtered query
-  // fails, fail closed instead of retrying without publication/version
-  // guards and risking stale or unpublished content exposure.
+  // Production requires the applied schema migrations. On any database
+  // query error, fail closed rather than dropping publication/version
+  // filters and risking stale or unpublished content exposure.
   if (chunkError) {
     return { content: null, locked: true, reason: "not_available" };
   }
 
+  return {
+    content: chunk?.content ?? null,
+    locked: false,
+    typographyProfile: isSourceLanguage
+      ? book.typography_profile ?? "standard"
+      : editionTypographyProfile ?? "standard",
+  };
+}
