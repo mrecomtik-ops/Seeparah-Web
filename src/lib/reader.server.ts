@@ -21,21 +21,22 @@ export interface ReaderChunkResult {
  * Seeparah is free during launch: no checkout, no premium locks. This flag
  * lets that be reversed later purely via admin content settings (see
  * src/lib/admin/settings.server.ts) rather than a code change — but it
- * defaults to false (free) even if the content_settings table/row doesn't
- * exist yet, so a missing settings row can never accidentally turn paywalls
- * back on.
+ * returns null when the setting cannot be verified. Paid translated content
+ * treats that unknown state as locked, while source-language editions,
+ * Religious content, and explicitly free translations remain available.
  */
-async function isMonetizationEnabled(): Promise<boolean> {
+async function isMonetizationEnabled(): Promise<boolean | null> {
   try {
     const db = await admin();
-    const { data } = await db
+    const { data, error } = await db
       .from("content_settings")
       .select("value")
       .eq("key", "monetization_enabled")
       .maybeSingle();
-    return data?.value === true;
+    if (error || !data || typeof data.value !== "boolean") return null;
+    return data.value;
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -52,7 +53,8 @@ interface ReaderAccessInput {
   chunkIndex: number;
   userId: string | null;
   isOwner: boolean;
-  monetizationEnabled: boolean;
+  /** true/false = verified setting; null = settings state could not be verified. */
+  monetizationEnabled: boolean | null;
   hasActiveSubscription: boolean;
   /** undefined = this (book, language) edition has no book_editions row at
    * all yet — not published, not a premium lock, a "request it" case.
@@ -118,8 +120,11 @@ export function resolveReaderAccess(
   }
 
   const effectiveAccessType = input.editionAccessType;
+  // A paid translated edition is free only when monetization is positively
+  // verified OFF. If settings cannot be read, fail closed instead of
+  // treating the database/configuration error as a free-access signal.
   const requiresSubscription =
-    input.monetizationEnabled && effectiveAccessType === "paid";
+    effectiveAccessType === "paid" && input.monetizationEnabled !== false;
   if (requiresSubscription) {
     if (!input.userId) return { locked: true, reason: "sign_in_required" };
     if (!input.hasActiveSubscription) return { locked: true, reason: "subscription_required" };
