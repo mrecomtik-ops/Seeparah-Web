@@ -30,7 +30,7 @@ export function BookCard({
    * saved-progress lookup won't find a matching row and silently restarts
    * at page 1. See src/routes/read.$bookId.tsx's seeding effect. */
   progressLanguage?: string | null;
-  /** Defaults to false — during free launch there is no paid tier, so a
+  /** Defaults to false — a paid badge appears only when monetization is active, so a
    * "Premium" badge must never render unless the caller has confirmed
    * monetization is actually on (see content_settings.monetization_enabled).
    * Never infer this from `book.access_type` alone. */
