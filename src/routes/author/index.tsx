@@ -112,8 +112,8 @@ function AuthorDashboard() {
               Where your book finds its readers
             </h1>
             <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
-              Publish a manuscript once — free to publish and free to read during launch. An
-              administrator reviews rights and quality before it goes live. {TRANSLATION_EXPLAINER}
+              Submit a manuscript once and keep its editions connected to the same book record.
+              An administrator reviews rights and quality before it goes live. {TRANSLATION_EXPLAINER}
             </p>
           </div>
           <div className="flex gap-3">
