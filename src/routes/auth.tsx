@@ -62,7 +62,7 @@ function AuthPage() {
     // platform intercepts. On this standalone Netlify deployment nothing
     // handles that path, so the app's own router 404'd on it. `redirectTo`
     // must be present in this Supabase project's Authentication > URL
-    // Configuration > Redirect URLs allow-list (see launch report) or
+    // Configuration > Redirect URLs allow-list (see deployment documentation) or
     // Supabase will refuse the callback.
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
