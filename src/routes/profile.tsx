@@ -26,6 +26,7 @@ import { getPrefs, setPrefs } from "@/lib/prefs";
 import { useShelves } from "@/components/ShelfButtons";
 import { SHELF_LABELS, type ShelfKind } from "@/lib/shelves";
 import { getPublicContentSettings } from "@/lib/admin/settings.functions";
+import { countPagesRead } from "@/lib/reading-stats";
 
 export const Route = createFileRoute("/profile")({
   head: () => ({
@@ -104,7 +105,7 @@ function ProfilePage() {
 
   const books = booksQuery.data ?? [];
   const bookTitle = (id: string) => books.find((b) => b.id === id)?.title ?? "a book";
-  const pagesRead = (progressQuery.data ?? []).reduce((s, p) => s + p.last_chunk_index + 1, 0);
+  const pagesRead = countPagesRead(progressQuery.data);
   const subs = subsQuery.data ?? [];
 
   async function handleSaveAuthorProfile() {
