@@ -228,19 +228,24 @@ function AdminSettingsPage() {
       </p>
 
       {secretsQuery.data && (
-        <div className="mt-3 flex gap-3 text-xs text-muted-foreground">
-          <span>
-            Gemini: {secretsQuery.data["gemini"] ? "API key present" : "API key missing"}
+        <div className="mt-4 grid gap-2 text-xs sm:grid-cols-3">
+          <span className="rounded-xl border border-border bg-card px-3 py-2">
+            <strong className="text-foreground">Gemini</strong>
+            <span className="ml-1 text-muted-foreground">
+              {secretsQuery.data["gemini"] ? "configured" : "missing"}
+            </span>
           </span>
-          <span>
-            Billing readiness flag:{" "}
-            {secretsQuery.data["billingProviderReady"]
-              ? "present (database monetization lock still applies)"
-              : "not set"}
+          <span className="rounded-xl border border-border bg-card px-3 py-2">
+            <strong className="text-foreground">Billing</strong>
+            <span className="ml-1 text-muted-foreground">
+              {secretsQuery.data["billingProviderReady"] ? "provider ready" : "not connected"}
+            </span>
           </span>
-          <span>
-            Supabase service role:{" "}
-            {secretsQuery.data["supabaseServiceRole"] ? "configured" : "not configured"}
+          <span className="rounded-xl border border-border bg-card px-3 py-2">
+            <strong className="text-foreground">Supabase</strong>
+            <span className="ml-1 text-muted-foreground">
+              {secretsQuery.data["supabaseServiceRole"] ? "configured" : "missing"}
+            </span>
           </span>
         </div>
       )}
@@ -332,7 +337,16 @@ function AdminSettingsPage() {
         )}
       </section>
 
-      <div className="mt-4 flex flex-wrap gap-2">
+      <details className="mt-6 rounded-2xl border border-border bg-card p-5 card-shadow">
+        <summary className="cursor-pointer font-display text-base font-semibold text-foreground">
+          Advanced settings
+        </summary>
+        <p className="mt-2 max-w-2xl text-xs leading-relaxed text-muted-foreground">
+          Raw versioned configuration for operators who need to edit a setting that does not yet
+          have a dedicated control above. Changes here are audited and can be rolled back.
+        </p>
+
+        <div className="mt-4 flex flex-wrap gap-2">
         {KEYS.map((k) => (
           <button
             key={k}
@@ -342,7 +356,7 @@ function AdminSettingsPage() {
             {k}
           </button>
         ))}
-      </div>
+        </div>
 
       {settingQuery.isLoading ? (
         <div className="mt-8 flex justify-center">
@@ -451,6 +465,7 @@ function AdminSettingsPage() {
           </ul>
         </section>
       )}
+      </details>
     </div>
   );
 }
