@@ -826,6 +826,181 @@ export async function importVerifiedSourcedEdition(params: {
   };
 }
 
+export interface SacredReferenceManifestNode {
+  nodeKey: string;
+  parentNodeKey?: string | null;
+  nodeType:
+    | "front_matter"
+    | "part"
+    | "book"
+    | "volume"
+    | "chapter"
+    | "story"
+    | "section"
+    | "act"
+    | "scene"
+    | "poem"
+    | "canto"
+    | "stanza"
+    | "paragraph"
+    | "footnote"
+    | "endnote"
+    | "back_matter";
+  title?: string | null;
+  ordinal: number;
+  depth: number;
+  startChunkIndex: number;
+  endChunkIndex: number;
+  canonicalRef: string;
+  referenceLabel: string;
+  referenceKind: string;
+  referencePath?: Array<{ kind: string; label: string; value: string }>;
+}
+
+const SACRED_REFERENCE_NODE_TYPES = new Set<SacredReferenceManifestNode["nodeType"]>([
+  "front_matter",
+  "part",
+  "book",
+  "volume",
+  "chapter",
+  "story",
+  "section",
+  "act",
+  "scene",
+  "poem",
+  "canto",
+  "stanza",
+  "paragraph",
+  "footnote",
+  "endnote",
+  "back_matter",
+]);
+
+/**
+ * Replaces the semantic/reference structure for one Religious edition.
+ *
+ * This is deliberately separate from manuscript text: canonical references
+ * are metadata sourced from the verified scripture edition and must never be
+ * injected into or inferred from the sacred text itself. The book must be
+ * unpublished while this map is replaced, so a half-reviewed reference map
+ * can never become public.
+ */
+export async function replaceSacredReferenceManifest(params: {
+  bookId: string;
+  language: string;
+  nodes: SacredReferenceManifestNode[];
+}): Promise<{ count: number; language: string }> {
+  const db = await admin();
+  const { data: book, error: bookError } = await db
+    .from("books")
+    .select(
+      "id,status,content_classification,translation_generation_policy,source_language,available_languages,source_version,total_chunks",
+    )
+    .eq("id", params.bookId)
+    .single();
+  if (bookError || !book) throw new Error("Book not found");
+  if (
+    book.content_classification !== "religious" ||
+    book.translation_generation_policy !== "source_only"
+  ) {
+    throw new Error("Canonical scripture reference manifests are reserved for Religious/source-only books.");
+  }
+  if (book.status === "published") {
+    throw new Error("Unpublish the Religious book before replacing its canonical reference map.");
+  }
+
+  const allowedLanguages = new Set([book.source_language, ...(book.available_languages ?? [])]);
+  if (!allowedLanguages.has(params.language)) {
+    throw new Error("Import the sourced edition before adding a reference map for this language.");
+  }
+  if (params.nodes.length === 0) {
+    throw new Error("The canonical reference manifest cannot be empty.");
+  }
+
+  const seenKeys = new Set<string>();
+  const seenRefs = new Set<string>();
+  for (const node of params.nodes) {
+    if (!node.nodeKey.trim()) throw new Error("Every reference node needs a nodeKey.");
+    if (seenKeys.has(node.nodeKey)) throw new Error(`Duplicate nodeKey: ${node.nodeKey}`);
+    seenKeys.add(node.nodeKey);
+
+    if (!SACRED_REFERENCE_NODE_TYPES.has(node.nodeType)) {
+      throw new Error(`Unsupported semantic node type: ${node.nodeType}`);
+    }
+    if (!node.canonicalRef.trim()) throw new Error("Every reference node needs canonicalRef.");
+    if (!node.referenceLabel.trim()) throw new Error("Every reference node needs referenceLabel.");
+    if (!node.referenceKind.trim()) throw new Error("Every reference node needs referenceKind.");
+    if (seenRefs.has(node.canonicalRef)) {
+      throw new Error(`Duplicate canonicalRef: ${node.canonicalRef}`);
+    }
+    seenRefs.add(node.canonicalRef);
+
+    if (!Number.isInteger(node.ordinal) || node.ordinal < 0) {
+      throw new Error(`Invalid ordinal for ${node.nodeKey}`);
+    }
+    if (!Number.isInteger(node.depth) || node.depth < 0) {
+      throw new Error(`Invalid depth for ${node.nodeKey}`);
+    }
+    if (
+      !Number.isInteger(node.startChunkIndex) ||
+      !Number.isInteger(node.endChunkIndex) ||
+      node.startChunkIndex < 0 ||
+      node.endChunkIndex < node.startChunkIndex ||
+      node.endChunkIndex >= book.total_chunks
+    ) {
+      throw new Error(`Invalid chunk range for ${node.nodeKey}`);
+    }
+    for (const part of node.referencePath ?? []) {
+      if (!part.kind.trim() || !part.label.trim() || !part.value.trim()) {
+        throw new Error(`Invalid referencePath entry for ${node.nodeKey}`);
+      }
+    }
+  }
+
+  const { error: deleteError } = await db
+    .from("book_structure_nodes")
+    .delete()
+    .eq("book_id", params.bookId)
+    .eq("language", params.language)
+    .eq("source_version", book.source_version);
+  if (deleteError) throw new Error(deleteError.message);
+
+  const { error: insertError } = await db.from("book_structure_nodes").insert(
+    params.nodes.map((node) => ({
+      book_id: params.bookId,
+      language: params.language,
+      source_version: book.source_version,
+      node_key: node.nodeKey.trim(),
+      parent_node_key: node.parentNodeKey?.trim() || null,
+      node_type: node.nodeType,
+      title: node.title?.trim() || null,
+      ordinal: node.ordinal,
+      depth: node.depth,
+      start_chunk_index: node.startChunkIndex,
+      end_chunk_index: node.endChunkIndex,
+      metadata: {
+        canonical_ref: node.canonicalRef.trim(),
+        reference_label: node.referenceLabel.trim(),
+        reference_kind: node.referenceKind.trim(),
+        reference_path: (node.referencePath ?? []).map((part) => ({
+          kind: part.kind.trim(),
+          label: part.label.trim(),
+          value: part.value.trim(),
+        })),
+      },
+    })),
+  );
+  if (insertError) throw new Error(insertError.message);
+
+  const { error: reviewResetError } = await db
+    .from("books")
+    .update({ structure_review_status: "pending" })
+    .eq("id", params.bookId);
+  if (reviewResetError) throw new Error(reviewResetError.message);
+
+  return { count: params.nodes.length, language: params.language };
+}
+
 // ---------------------------------------------------------------------------
 // Admin upload / batch import
 // ---------------------------------------------------------------------------
