@@ -76,6 +76,9 @@ export interface PublishGateBook {
   rights_basis?: string | null;
   rights_evidence_url?: string | null;
   rights_risk_acknowledged_at?: string | null;
+  content_classification?: string | null;
+  source_url?: string | null;
+  source_edition_id?: string | null;
 }
 
 export function computePublishGate(
@@ -117,6 +120,15 @@ export function computePublishGate(
   }
   if (missingEditionMetadata.length > 0) {
     reasons.push(`Exact-edition metadata is incomplete: ${missingEditionMetadata.join(", ")}`);
+  }
+
+  if (book.content_classification === "religious") {
+    if (!isPlausibleEvidenceUrl(book.source_url)) {
+      reasons.push("Religious source URL is missing or invalid");
+    }
+    if (!book.source_edition_id?.trim() && !book.source_scan_id?.trim()) {
+      reasons.push("Religious source edition identifier is missing");
+    }
   }
 
   if (hasRightsRiskSignals && !book.rights_risk_acknowledged_at) {
