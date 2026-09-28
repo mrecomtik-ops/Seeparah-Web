@@ -11,6 +11,7 @@ import { coverFor } from "@/lib/covers";
 import { currentStreak, readingDays } from "@/lib/shelves";
 import { getPrefs } from "@/lib/prefs";
 import { getPublicContentSettings } from "@/lib/admin/settings.functions";
+import { countPagesRead } from "@/lib/reading-stats";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
@@ -67,8 +68,10 @@ function DashboardPage() {
     [progress],
   );
   const currentBook = books.find((b) => b.id === latest?.book_id);
-  const pagesRead = progress.reduce((s, p) => s + p.last_chunk_index + 1, 0);
+  const pagesRead = countPagesRead(progress);
   const goalPct = Math.min(100, Math.round((pagesRead / Math.max(1, goal)) * 100));
+  const goalReached = pagesRead >= goal;
+  const hasReadingHistory = progress.length > 0;
 
   const wanted = new Set(
     (shelvesQuery.data ?? [])
@@ -155,18 +158,21 @@ function DashboardPage() {
             ) : (
               <div className="p-7">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">
-                  Start here
+                  {hasReadingHistory ? "Your reading history is safe" : "Start here"}
                 </p>
-                <h2 className="mt-2 font-display text-2xl font-semibold">Open your first book</h2>
+                <h2 className="mt-2 font-display text-2xl font-semibold">
+                  {hasReadingHistory ? "New reviewed editions are coming soon" : "Open your first book"}
+                </h2>
                 <p className="mt-2 max-w-md text-sm opacity-90">
-                  Pick any title from the library — pages arrive one at a time in your language, and
-                  your place is saved automatically.
+                  {hasReadingHistory
+                    ? "Your progress and highlights are still saved. The public library is temporarily empty while reviewed editions are prepared."
+                    : "Pick any title from the library — pages arrive one at a time in your language, and your place is saved automatically."}
                 </p>
                 <Link
                   to="/library"
                   className="mt-5 inline-flex items-center gap-2 rounded-xl bg-accent px-5 py-3 text-sm font-semibold text-accent-foreground"
                 >
-                  Start reading <ArrowRight className="h-4 w-4" />
+                  Browse library <ArrowRight className="h-4 w-4" />
                 </Link>
               </div>
             )}
@@ -186,12 +192,16 @@ function DashboardPage() {
                   style={{ width: `${goalPct}%` }}
                 />
               </div>
-              <Link
-                to="/profile"
-                className="mt-3 inline-block text-xs font-semibold text-primary hover:underline"
-              >
-                Adjust your goal
-              </Link>
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs">
+                <span className={goalReached ? "font-semibold text-primary" : "text-muted-foreground"}>
+                  {goalReached
+                    ? `Goal reached · +${Math.max(0, pagesRead - goal)} pages`
+                    : `${Math.max(0, goal - pagesRead)} pages to go`}
+                </span>
+                <Link to="/profile" className="font-semibold text-primary hover:underline">
+                  Adjust goal
+                </Link>
+              </div>
             </div>
             <div className="rounded-2xl border border-border bg-card p-5 card-shadow">
               <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
@@ -201,7 +211,11 @@ function DashboardPage() {
                 {streak} {streak === 1 ? "day" : "days"}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
-                {daysThisWeek} of the last 7 days · read a page today to keep it alive.
+                {streak > 0
+                  ? `${daysThisWeek} of the last 7 days · read today to keep the streak alive.`
+                  : daysThisWeek > 0
+                    ? `You read on ${daysThisWeek} of the last 7 days. Read today to start a new streak.`
+                    : "Read a page today to start a new streak."}
               </p>
             </div>
           </div>
