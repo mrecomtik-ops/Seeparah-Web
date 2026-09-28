@@ -5,7 +5,6 @@ import { BookUp2, Feather, Languages, LineChart, Loader2, Users } from "lucide-r
 import {
   LANGUAGES,
   TRANSLATION_EXPLAINER,
-  TRANSLATION_EXPLAINER_SHORT,
   STANDARD_TRANSLATION_LANGUAGES,
   REQUESTABLE_TRANSLATION_LANGUAGES,
 } from "@/lib/data";
