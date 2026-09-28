@@ -11,7 +11,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 
 let authState: { isDemo: boolean; loading: boolean } = { isDemo: true, loading: true };
-let adminSessionState: { data: { role: string | null } | undefined } = { data: undefined };
+let adminSessionState: { data: { role: string | null } | undefined; isError?: boolean } = {
+  data: undefined,
+};
 
 vi.mock("@/lib/use-auth", () => ({
   useAuth: () => authState,
@@ -72,6 +74,70 @@ describe("AppHeader — does not show a false guest state while auth is still re
     authState = { isDemo: false, loading: false };
     adminSessionState = { data: { role: "owner" } };
     render(<AppHeader />);
-    expect(screen.queryByText("Admin")).not.toBeNull();
+    expect(screen.queryAllByText("Admin").length).toBeGreaterThan(0);
+  });
+});
+
+describe("AppHeader — Admin nav slot is reserved while the role is unresolved", () => {
+  it("shows a placeholder (not the Admin link) while auth is still loading", () => {
+    authState = { isDemo: true, loading: true };
+    adminSessionState = { data: undefined };
+    render(<AppHeader />);
+    expect(screen.getByTestId("admin-nav-placeholder")).toBeTruthy();
+    expect(screen.queryByText("Admin")).toBeNull();
+  });
+
+  it("shows a placeholder while signed in and the admin role query has not resolved", () => {
+    authState = { isDemo: false, loading: false };
+    adminSessionState = { data: undefined };
+    render(<AppHeader />);
+    expect(screen.getByTestId("admin-nav-placeholder")).toBeTruthy();
+  });
+
+  it("replaces the placeholder with the Admin link once an admin role resolves", () => {
+    authState = { isDemo: false, loading: false };
+    adminSessionState = { data: { role: "owner" } };
+    render(<AppHeader />);
+    expect(screen.queryByTestId("admin-nav-placeholder")).toBeNull();
+    expect(screen.getAllByText("Admin")[0]).toBeTruthy();
+  });
+
+  it("renders neither placeholder nor Admin link for a resolved non-admin", () => {
+    authState = { isDemo: false, loading: false };
+    adminSessionState = { data: { role: null } };
+    render(<AppHeader />);
+    expect(screen.queryByTestId("admin-nav-placeholder")).toBeNull();
+    expect(screen.queryByText("Admin")).toBeNull();
+  });
+
+  it("does not leave a permanent placeholder when the role lookup fails", () => {
+    authState = { isDemo: false, loading: false };
+    adminSessionState = { data: undefined, isError: true };
+    render(<AppHeader />);
+    expect(screen.queryByTestId("admin-nav-placeholder")).toBeNull();
+    expect(screen.queryByText("Admin")).toBeNull();
+  });
+
+  it("renders no placeholder for a resolved signed-out visitor", () => {
+    authState = { isDemo: true, loading: false };
+    adminSessionState = { data: undefined };
+    render(<AppHeader />);
+    expect(screen.queryByTestId("admin-nav-placeholder")).toBeNull();
+  });
+});
+
+describe("AppHeader — mobile bottom nav", () => {
+  it("includes an Admin entry for a resolved admin (desktop + mobile = 2 links)", () => {
+    authState = { isDemo: false, loading: false };
+    adminSessionState = { data: { role: "owner" } };
+    render(<AppHeader />);
+    expect(screen.getAllByText("Admin")).toHaveLength(2);
+  });
+
+  it("has no Admin entry anywhere for a non-admin", () => {
+    authState = { isDemo: false, loading: false };
+    adminSessionState = { data: { role: null } };
+    render(<AppHeader />);
+    expect(screen.queryAllByText("Admin")).toHaveLength(0);
   });
 });
