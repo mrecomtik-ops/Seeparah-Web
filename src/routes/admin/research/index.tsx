@@ -11,6 +11,10 @@ export const Route = createFileRoute("/admin/research/")({
 
 const STATUSES = ["", "submitted", "changes_requested", "approved", "rejected", "published", "unpublished", "draft"];
 
+function statusLabel(value: string) {
+  return value ? value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase()) : "All";
+}
+
 function AdminResearchList() {
   const [status, setStatus] = useState("submitted");
   const papersQuery = useQuery({
@@ -37,7 +41,7 @@ function AdminResearchList() {
             onClick={() => setStatus(s)}
             className={`rounded-full px-3 py-1 text-xs font-semibold ${status === s ? "bg-primary text-primary-foreground" : "border border-border bg-card text-foreground hover:bg-secondary"}`}
           >
-            {s || "All"}
+            {statusLabel(s)}
           </button>
         ))}
       </div>
@@ -45,6 +49,15 @@ function AdminResearchList() {
       {papersQuery.isLoading ? (
         <div className="mt-8 flex justify-center">
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        </div>
+      ) : papers.length === 0 ? (
+        <div className="mt-4 rounded-2xl border border-dashed border-border bg-card p-10 text-center card-shadow">
+          <p className="font-display text-lg font-semibold text-foreground">
+            No {status ? statusLabel(status).toLowerCase() : ""} papers
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Papers will appear here when they enter this editorial state.
+          </p>
         </div>
       ) : (
         <div className="mt-4 overflow-x-auto rounded-2xl border border-border bg-card card-shadow">
@@ -74,19 +87,17 @@ function AdminResearchList() {
                   <td className="px-4 py-2 text-xs">{p.author_name as string}</td>
                   <td className="px-4 py-2 text-xs">{p.paper_type as string}</td>
                   <td className="px-4 py-2 text-xs">{p.language as string}</td>
-                  <td className="px-4 py-2 text-xs">{p.status as string}</td>
+                  <td className="px-4 py-2 text-xs">
+                    <span className="rounded-full bg-secondary px-2.5 py-1 font-semibold text-secondary-foreground">
+                      {statusLabel(p.status as string)}
+                    </span>
+                  </td>
                   <td className="px-4 py-2 text-xs">
                     {new Date(p.updated_at as string).toLocaleDateString()}
                   </td>
                 </tr>
               ))}
-              {papers.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-sm text-muted-foreground">
-                    No papers match.
-                  </td>
-                </tr>
-              )}
+
             </tbody>
           </table>
         </div>
