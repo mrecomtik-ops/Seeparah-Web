@@ -105,18 +105,19 @@ export function LegalPage() {
               </li>
               <li>
                 <span className="font-semibold text-foreground">Google</span> — only if you choose
-                Google authentication, for that sign-in itself; and separately, manuscript text may
-                be sent to the configured translation provider (currently Google's Gemini) only
-                when translation processing is enabled and actually run for that manuscript — this
-                never includes your personal reading activity, highlights, or account information.
+                Google authentication, for that sign-in itself; and separately, eligible general
+                manuscript text may be sent to the configured translation provider (currently
+                Google's Gemini) only when translation processing is enabled and actually run for
+                that manuscript. Religious scriptures and source-only editions are excluded from
+                that AI translation pipeline. Translation processing never includes your personal
+                reading activity, highlights, or account information.
               </li>
               <li>
                 <span className="font-semibold text-foreground">
                   No payment processor is active today.
                 </span>{" "}
-                Seeparah is free during launch — no payment information is collected or processed.
-                If a paid plan launches later, this section will name the payment processor before
-                any payment data is collected.
+                No payment information is currently collected or processed. If billing is enabled,
+                this section will identify the payment processor before payment data is collected.
               </li>
             </ul>
 
@@ -206,12 +207,15 @@ export function LegalPage() {
           <div className="space-y-3 text-sm leading-relaxed text-muted-foreground">
             <p>By creating an account or using Seeparah, you agree to the terms below.</p>
 
-            <p className="font-semibold text-foreground">Free during launch</p>
+            <p className="font-semibold text-foreground">Access and billing</p>
             <p>
-              Every book and every available language edition is free to read while Seeparah is in
-              launch. There's no checkout and no active paid tier right now. If paid plans launch
-              later, pricing, refund terms, and any author revenue arrangement will be published
-              here in advance of being enabled — not applied retroactively or without notice.
+              Original-language editions remain free to read. Religious books and their verified
+              sourced translations remain free and do not enter Seeparah's AI translation
+              pipeline. Reviewed translated editions of eligible general books may use the active
+              account plan when monetization is enabled. No payment processor or checkout is
+              active today; pricing, refund terms and any author revenue arrangement must be
+              published here before billing is enabled and are not applied retroactively without
+              notice.
             </p>
 
             <p className="font-semibold text-foreground">Reader and author accounts</p>
@@ -234,14 +238,14 @@ export function LegalPage() {
             <p className="font-semibold text-foreground">How publishing works</p>
             <p>
               Submitting a manuscript doesn't publish it: an administrator reviews rights and
-              edition quality before anything reaches the public library. English and Urdu are the
-              standard translation targets prepared for every accepted book; readers can request
-              additional languages (currently Hindi and Arabic), and a requested translation is
-              produced and reviewed before being made available — we don't promise instant or
-              universal translation into every language, or that every request will be approved.
-              An author may withdraw (unpublish) their own book at any time; a published book can't
-              be silently edited in place — revising it goes through the same review as a new
-              submission.
+              edition quality before anything reaches the public library. English and Urdu are
+              prioritized translation targets where rights and source material allow; readers may
+              request other supported languages for eligible books, and a requested translation is
+              produced and reviewed before being made available. Religious scriptures are handled
+              differently: Seeparah does not generate their translations, and only verified
+              existing sourced translations may be added. An author may withdraw (unpublish) their
+              own book at any time; a published book can't be silently edited in place — revising
+              it goes through the same review as a new submission.
             </p>
 
             <p className="font-semibold text-foreground">Prohibited use</p>
