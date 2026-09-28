@@ -18,7 +18,18 @@ export async function listAdminUsers() {
     .is("revoked_at", null)
     .order("granted_at", { ascending: true });
   if (error) throw new Error(error.message);
-  return data ?? [];
+
+  return Promise.all(
+    (data ?? []).map(async (row) => {
+      const { data: account } = await db.auth.admin.getUserById(row.user_id);
+      return {
+        ...row,
+        email: account.user?.email ?? null,
+        display_name:
+          (account.user?.user_metadata?.["full_name"] as string | undefined) ?? null,
+      };
+    }),
+  );
 }
 
 export async function grantRole(params: { userId: string; role: AdminRole; grantedBy: string }) {
