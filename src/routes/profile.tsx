@@ -104,8 +104,10 @@ function ProfilePage() {
   }, [authorProfileQuery.data]);
 
   const books = booksQuery.data ?? [];
-  const bookTitle = (id: string) => books.find((b) => b.id === id)?.title ?? "a book";
+  const bookTitle = (id: string) =>
+    books.find((b) => b.id === id)?.title ?? "Previously available title";
   const pagesRead = countPagesRead(progressQuery.data);
+  const booksStarted = new Set((progressQuery.data ?? []).map((p) => p.book_id)).size;
   const subs = subsQuery.data ?? [];
 
   async function handleSaveAuthorProfile() {
@@ -135,7 +137,7 @@ function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <main className="mx-auto max-w-3xl px-4 pb-20 pt-8 sm:px-6">
+      <main className="mx-auto max-w-5xl px-4 pb-20 pt-8 sm:px-6">
         {authLoading ? (
           // Auth unresolved is a distinct state from confirmed signed
           // out: userId/isDemo/displayName all still carry their demo
@@ -205,7 +207,9 @@ function ProfilePage() {
               value: highlightsQuery.data?.length ?? 0,
               icon: Highlighter,
             },
-            { label: "Active subscriptions", value: subs.length, icon: Crown },
+            monetizationEnabled
+              ? { label: "Active subscriptions", value: subs.length, icon: Crown }
+              : { label: "Books started", value: booksStarted, icon: BookOpen },
           ].map(({ label, value, icon: Icon }) => (
             <div key={label} className="rounded-2xl border border-border bg-card p-5 card-shadow">
               <div className="flex items-center justify-between">
@@ -217,7 +221,8 @@ function ProfilePage() {
           ))}
         </div>
 
-        <section className="mt-8 rounded-2xl border border-border bg-card p-6 card-shadow">
+        {monetizationEnabled && (
+          <section className="mt-8 rounded-2xl border border-border bg-card p-6 card-shadow">
           <h2 className="font-display text-lg font-semibold text-foreground">Subscription</h2>
           {subs.length === 0 ? (
             <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
@@ -259,7 +264,8 @@ function ProfilePage() {
               ))}
             </ul>
           )}
-        </section>
+          </section>
+        )}
 
         {authLoading ? (
           <section
@@ -303,11 +309,11 @@ function ProfilePage() {
                 />
               </label>
               <label className="flex flex-col gap-1">
-                <span className="text-xs font-medium text-muted-foreground">Avatar URL</span>
+                <span className="text-xs font-medium text-muted-foreground">Profile image URL</span>
                 <input
                   value={avatarUrl}
                   onChange={(e) => setAvatarUrl(e.target.value)}
-                  placeholder="https://…"
+                  placeholder="Paste an image URL…"
                   className="rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
                 />
               </label>
