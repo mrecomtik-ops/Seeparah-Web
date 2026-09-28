@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Loader2, RefreshCw } from "lucide-react";
 import { getAccessToken, useResolvedAdminSession, can } from "@/lib/admin/use-admin-session";
 import {
   adminGetHealthSnapshot,
@@ -119,11 +119,65 @@ function AdminHealthPage() {
 
   return (
     <div>
-      <h1 className="font-display text-2xl font-semibold text-foreground">Health</h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Recovery actions here are a fixed allowlist (retry, resume, mark resolved) — no arbitrary
-        SQL or table editing.
-      </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="font-display text-2xl font-semibold text-foreground">Health</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Operational issues that need attention. Recovery controls are limited to safe,
+            predefined actions.
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Last checked {new Date(healthQuery.dataUpdatedAt).toLocaleTimeString()} · refreshes every
+            30 seconds
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => void healthQuery.refetch()}
+          className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary"
+        >
+          <RefreshCw className={`h-4 w-4 ${healthQuery.isFetching ? "animate-spin" : ""}`} />
+          Refresh
+        </button>
+      </div>
+
+      <div className="mt-6 grid gap-3 sm:grid-cols-3">
+        {[
+          {
+            label: "Stalled jobs",
+            value: h.stalledJobs.length,
+            healthy: h.stalledJobs.length === 0,
+          },
+          {
+            label: "Failed jobs",
+            value: h.failedJobs.length,
+            healthy: h.failedJobs.length === 0,
+          },
+          {
+            label: "Unresolved errors",
+            value: h.unresolvedErrors.length,
+            healthy: h.unresolvedErrors.length === 0,
+          },
+        ].map((item) => (
+          <div
+            key={item.label}
+            className="rounded-2xl border border-border bg-card p-4 card-shadow"
+          >
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-semibold text-foreground">{item.label}</p>
+              {item.healthy ? (
+                <CheckCircle2 className="h-5 w-5 text-primary" />
+              ) : (
+                <AlertTriangle className="h-5 w-5 text-gold" />
+              )}
+            </div>
+            <p className="mt-2 font-display text-3xl font-semibold text-foreground">{item.value}</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {item.healthy ? "Healthy" : "Needs attention"}
+            </p>
+          </div>
+        ))}
+      </div>
 
       <section className="mt-6">
         <h2 className="font-display text-base font-semibold text-foreground">
@@ -152,7 +206,9 @@ function AdminHealthPage() {
               )}
             </div>
           ))}
-          {h.stalledJobs.length === 0 && <p className="text-sm text-muted-foreground">None.</p>}
+          {h.stalledJobs.length === 0 && (
+            <p className="text-sm text-muted-foreground">No stalled jobs.</p>
+          )}
         </div>
       </section>
 
@@ -188,7 +244,9 @@ function AdminHealthPage() {
               )}
             </div>
           ))}
-          {h.failedJobs.length === 0 && <p className="text-sm text-muted-foreground">None.</p>}
+          {h.failedJobs.length === 0 && (
+            <p className="text-sm text-muted-foreground">No unresolved failed jobs.</p>
+          )}
         </div>
       </section>
 
@@ -224,18 +282,16 @@ function AdminHealthPage() {
             </div>
           ))}
           {h.unresolvedErrors.length === 0 && (
-            <p className="text-sm text-muted-foreground">None.</p>
+            <p className="text-sm text-muted-foreground">No unresolved application errors.</p>
           )}
         </div>
       </section>
 
       <section className="mt-6 rounded-2xl border border-dashed border-border p-4 text-sm text-muted-foreground">
-        <p className="font-semibold text-foreground">
-          Not covered by any button here (needs engineering or provider-console action):
-        </p>
+        <p className="font-semibold text-foreground">Provider and infrastructure checks</p>
         <ul className="mt-1 list-disc pl-5">
-          <li>Database/storage outages — check the Supabase project dashboard directly.</li>
-          <li>Gemini provider outages/rate limits — check Google AI Studio / Vertex status.</li>
+          <li>Database/storage outages require the Supabase project dashboard.</li>
+          <li>Gemini provider outages or rate limits require the Google provider console.</li>
           <li>
             OAuth/redirect misconfiguration — check the Supabase Auth provider settings and Google
             Cloud Console OAuth client.
