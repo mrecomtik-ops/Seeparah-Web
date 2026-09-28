@@ -251,12 +251,13 @@ function AdminSettingsPage() {
       )}
 
       <section className="mt-6 rounded-2xl border border-border bg-card p-5 card-shadow">
-        <h2 className="font-display text-base font-semibold text-foreground">Monthly plan price</h2>
+        <h2 className="font-display text-base font-semibold text-foreground">Future monthly plan price</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Effective price right now:{" "}
+          Stored intended price:{" "}
           <span className="font-semibold text-foreground">
             ${effectivePlanPrice.toFixed(2)}/month
           </span>
+          {" · not currently charged"}
           {planPriceQuery.data?.value === undefined && " (proposed default — not yet published)"}
         </p>
         <div className="mt-3 flex flex-wrap items-center gap-2">
