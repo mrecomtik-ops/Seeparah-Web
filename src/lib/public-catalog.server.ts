@@ -35,6 +35,10 @@ const PUBLIC_BOOK_COLUMNS = [
   "content_classification",
   "typography_profile",
   "authenticity_notes",
+  "source_url",
+  "source_edition_id",
+  "attribution",
+  "translator",
 ].join(",");
 
 function asPublicBook(row: unknown): Book {
