@@ -26,12 +26,12 @@ export const Route = createFileRoute("/author/publish")({
       {
         name: "description",
         content:
-          "Publish your book on Seeparah: free during launch, reviewed by an administrator before it goes live.",
+          "Submit your manuscript to Seeparah for rights and edition review before publication.",
       },
       { property: "og:title", content: "Publish a manuscript — Seeparah" },
       {
         property: "og:description",
-        content: "Publish your book, free during launch.",
+        content: "Submit a manuscript for reviewed publication on Seeparah.",
       },
     ],
   }),
@@ -440,8 +440,24 @@ function PublishPage() {
           </div>
 
           <div className="rounded-xl border border-border bg-secondary/50 p-4">
-            <p className="text-sm font-semibold text-foreground">Publishing terms right now</p>
+            <p className="text-sm font-semibold text-foreground">Publishing terms</p>
             <p className="mt-1.5 text-xs text-muted-foreground">{FREE_LAUNCH_AUTHOR_TERMS}</p>
+          </div>
+
+          <div className="rounded-xl border border-primary/20 bg-accent/40 p-4">
+            <p className="text-sm font-semibold text-foreground">Sacred Texts use a separate source workflow</p>
+            <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
+              Religious scriptures and established scripture translations are not submitted for
+              Seeparah-generated translation through this ordinary manuscript form. They are
+              imported only after the original source, canonical reference structure and each
+              existing translation source have been verified and recorded.
+            </p>
+            <Link
+              to="/sacred-texts"
+              className="mt-2 inline-block text-xs font-semibold text-primary hover:underline"
+            >
+              See the Sacred Text source policy
+            </Link>
           </div>
 
           <label className="flex items-start gap-3 rounded-xl border border-border bg-secondary/30 p-4 text-sm text-foreground">
