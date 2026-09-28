@@ -1,5 +1,13 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { BookOpen, Feather, FileText, LayoutDashboard, LogIn, ShieldCheck, User } from "lucide-react";
+import {
+  BookOpen,
+  Feather,
+  FileText,
+  LayoutDashboard,
+  LogIn,
+  ShieldCheck,
+  User,
+} from "lucide-react";
 import logoUrl from "@/assets/seeparah-logo.png";
 import { useAuth } from "@/lib/use-auth";
 import { useAdminSession } from "@/lib/admin/use-admin-session";
@@ -34,6 +42,14 @@ export function AppHeader() {
   // — it's just one more plain query observer, same as AdminLayout's own.
   const adminSession = useAdminSession();
   const isAdmin = !isDemo && !!adminSession.data?.role;
+  // Role not known yet: auth still initializing, or signed in but the
+  // whoami query has neither data nor an error. Reserve the Admin link's
+  // slot with a placeholder instead of rendering nothing — otherwise, on
+  // every hard refresh, the nav renders without "Admin" and it pops in
+  // ~1–2s later, shifting the other items. A failed lookup renders
+  // nothing (never a permanent skeleton, never a false Admin link).
+  const adminRoleResolving =
+    authLoading || (!isDemo && adminSession.data === undefined && !adminSession.isError);
 
   return (
     <>
@@ -69,6 +85,13 @@ export function AppHeader() {
                 </Link>
               );
             })}
+            {!isAdmin && adminRoleResolving && (
+              <div
+                className="h-9 w-[76px] animate-pulse rounded-lg bg-secondary"
+                aria-hidden="true"
+                data-testid="admin-nav-placeholder"
+              />
+            )}
             {isAdmin && (
               <Link
                 to="/admin"
@@ -132,6 +155,20 @@ export function AppHeader() {
               </Link>
             );
           })}
+          {/* The desktop nav shows Admin; without this, admins on phones had
+              no navigable path to /admin at all. Only for a resolved admin
+              role — never a guess, never for demo/signed-out visitors. */}
+          {isAdmin && (
+            <Link
+              to="/admin"
+              className={`flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium ${
+                pathname.startsWith("/admin") ? "text-primary" : "text-muted-foreground"
+              }`}
+            >
+              <ShieldCheck className="h-5 w-5" />
+              Admin
+            </Link>
+          )}
         </div>
       </nav>
     </>
