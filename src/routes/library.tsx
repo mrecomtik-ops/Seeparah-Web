@@ -26,6 +26,7 @@ import { BookCard } from "@/components/BookCard";
 import { useShelves } from "@/components/ShelfButtons";
 import { coverFor, FEATURED_BOOK_ID } from "@/lib/covers";
 import { getPublicContentSettings } from "@/lib/admin/settings.functions";
+import { countPagesRead } from "@/lib/reading-stats";
 
 const TABS = [
   { key: "all", label: "All books", icon: LibraryIcon },
@@ -185,7 +186,7 @@ function LibraryPage() {
   const featured: Book | undefined = books.find((b) => b.id === FEATURED_BOOK_ID) ?? books[0];
   const featuredIsSample = featured ? SAMPLE_EXCERPT_BOOK_IDS.has(featured.id) : false;
   const featuredIsDemo = featured ? DEMO_MANUSCRIPT_BOOK_IDS.has(featured.id) : false;
-  const pagesRead = [...progressByBook.values()].reduce((a, p) => a + p.lastChunkIndex + 1, 0);
+  const pagesRead = countPagesRead(progressQuery.data);
   const counts: Record<TabKey, number> = {
     all: books.length,
     continue: books.filter(
