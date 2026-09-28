@@ -120,7 +120,7 @@ export function AppHeader() {
           {/* Constant desktop width whether it holds the auth placeholder,
               the Sign in button, or nothing (signed in) — otherwise the
               justify-between nav re-centers when auth resolves. */}
-          <div className="flex items-center justify-end gap-2 sm:min-w-[92px]">
+          <div className="flex items-center justify-end gap-2 sm:min-w-[96px]">
             {authLoading ? (
               // Reserves roughly the same footprint as the "Sign in"
               // button so it doesn't jump in/out, without committing to
@@ -128,7 +128,7 @@ export function AppHeader() {
               // resolved — see index.tsx's landing-page header for the
               // same established pattern.
               <div
-                className="hidden h-[38px] w-[92px] animate-pulse rounded-xl bg-secondary sm:block"
+                className="hidden h-[38px] w-[96px] animate-pulse rounded-xl bg-secondary sm:block"
                 aria-hidden="true"
               />
             ) : (
