@@ -201,7 +201,7 @@ export const PLATFORM_COMMISSION = 0.3;
 export const AUTHOR_PAYOUT = 0.7;
 
 // ---------------------------------------------------------------------------
-// Shared launch-accurate copy — reused everywhere this claim appears so a
+// Shared publishing/access copy — reused everywhere this claim appears so a
 // correction only has to be made once. Do not restate these claims with
 // different wording on individual pages; import and use these instead.
 // ---------------------------------------------------------------------------
