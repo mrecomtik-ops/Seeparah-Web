@@ -18,6 +18,17 @@ export const Route = createFileRoute("/admin/translation-requests")({
 
 const STATUSES = ["", "requested", "approved_awaiting_edition", "granted", "declined", "revoked"];
 
+function statusLabel(value: string) {
+  const labels: Record<string, string> = {
+    requested: "Requested",
+    approved_awaiting_edition: "Approved · awaiting edition",
+    granted: "Granted",
+    declined: "Declined",
+    revoked: "Revoked",
+  };
+  return value ? labels[value] ?? value.replaceAll("_", " ") : "All";
+}
+
 function AdminTranslationRequests() {
   const [status, setStatus] = useState("requested");
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -137,7 +148,7 @@ function AdminTranslationRequests() {
             onClick={() => setStatus(s)}
             className={`rounded-full px-3 py-1 text-xs font-semibold ${status === s ? "bg-primary text-primary-foreground" : "border border-border"}`}
           >
-            {s || "All"}
+            {statusLabel(s)}
           </button>
         ))}
         {status === "requested" && (
@@ -154,6 +165,15 @@ function AdminTranslationRequests() {
       {requestsQuery.isLoading ? (
         <div className="mt-8 flex justify-center">
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        </div>
+      ) : rows.length === 0 ? (
+        <div className="mt-4 rounded-2xl border border-dashed border-border bg-card p-10 text-center card-shadow">
+          <p className="font-display text-lg font-semibold text-foreground">
+            No {status ? statusLabel(status).toLowerCase() : ""} translation requests
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Requests will appear here when readers ask for an eligible edition.
+          </p>
         </div>
       ) : (
         <div className="mt-4 overflow-x-auto rounded-2xl border border-border bg-card card-shadow">
@@ -187,7 +207,11 @@ function AdminTranslationRequests() {
                   )}
                   <td className="px-4 py-2">{r.books?.title ?? "—"}</td>
                   <td className="px-4 py-2 text-xs">{r.language}</td>
-                  <td className="px-4 py-2 text-xs">{r.status}</td>
+                  <td className="px-4 py-2 text-xs">
+                    <span className="rounded-full bg-secondary px-2.5 py-1 font-semibold text-secondary-foreground">
+                      {statusLabel(r.status)}
+                    </span>
+                  </td>
                   <td className="px-4 py-2 text-xs">
                     {new Date(r.created_at).toLocaleDateString()}
                   </td>
@@ -224,13 +248,6 @@ function AdminTranslationRequests() {
                   </td>
                 </tr>
               ))}
-              {rows.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-sm text-muted-foreground">
-                    No requests here.
-                  </td>
-                </tr>
-              )}
             </tbody>
           </table>
         </div>
