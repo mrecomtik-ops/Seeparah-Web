@@ -122,9 +122,9 @@ export function LandingPage() {
               <span className="italic text-primary">in your own words.</span>
             </h1>
             <p className="mt-5 max-w-xl text-lg leading-relaxed text-muted-foreground">
-              Seeparah is a warm home for readers and authors. English and Urdu are our standard
-              languages for every book; you can request Hindi or Arabic and an administrator will
-              review it. Your progress and highlights travel with you.
+              Seeparah is a warm home for readers and authors. We prioritize reviewed English and
+              Urdu editions where rights and source material allow; Hindi or Arabic can be requested
+              for eligible books. Your progress and highlights travel with you.
             </p>
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
