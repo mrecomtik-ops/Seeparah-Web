@@ -12,12 +12,14 @@ import {
   Search,
   X,
   Library as LibraryIcon,
+  ShieldCheck,
 } from "lucide-react";
 import {
   GENRES,
   LANGUAGES,
   SAMPLE_EXCERPT_BOOK_IDS,
   DEMO_MANUSCRIPT_BOOK_IDS,
+  isReligiousBook,
   type Book,
 } from "@/lib/data";
 import { listBooks, listProgress, matchesBookSearch } from "@/lib/library";
@@ -97,6 +99,7 @@ function LibraryPage() {
   const monetizationEnabled = settingsQuery.data?.["monetization_enabled"] === true;
 
   const books = booksQuery.data ?? [];
+  const religiousBooks = books.filter(isReligiousBook);
   const shelves = shelvesQuery.data ?? [];
 
   // Keeps the language of the winning (highest-chunk) row alongside the
@@ -230,6 +233,55 @@ function LibraryPage() {
             <p className="font-display text-lg font-semibold text-foreground">{pagesRead}</p>
           </div>
         </div>
+
+        {tab === "all" && !hasActiveFilters && (
+          <section className="mt-8 rounded-3xl border border-primary/20 bg-card p-5 card-shadow sm:p-6">
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+              <div className="max-w-2xl">
+                <div className="flex items-center gap-2 text-primary">
+                  <ShieldCheck className="h-5 w-5" />
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em]">Sacred Texts</p>
+                </div>
+                <h2 className="mt-2 font-display text-2xl font-semibold text-foreground">
+                  Religious texts with their sources kept visible
+                </h2>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                  Sacred Texts have a dedicated reference reader for canonical navigation,
+                  original-source provenance and verified existing translations. Seeparah does not
+                  generate scripture translations with AI.
+                </p>
+              </div>
+              <div className="flex shrink-0 flex-wrap items-center gap-3">
+                <span className="rounded-full bg-accent px-3 py-1.5 text-xs font-semibold text-accent-foreground">
+                  {religiousBooks.length} published
+                </span>
+                <Link
+                  to="/sacred-texts"
+                  className="rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground"
+                >
+                  Explore Sacred Texts
+                </Link>
+              </div>
+            </div>
+            {religiousBooks.length > 0 && (
+              <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {religiousBooks.slice(0, 3).map((book) => (
+                  <Link
+                    key={book.id}
+                    to="/sacred-texts/$bookId"
+                    params={{ bookId: book.id }}
+                    className="rounded-xl border border-border bg-background p-4 hover:bg-secondary/50"
+                  >
+                    <p className="font-display text-base font-semibold text-foreground">{book.title}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {book.source_language} original · source record available
+                    </p>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
 
         {featured && tab === "all" && !hasActiveFilters && (
           <section className="mt-8 overflow-hidden rounded-3xl border border-border bg-primary text-primary-foreground card-shadow-lg">
