@@ -1,4 +1,10 @@
-import { createFileRoute, Link, useNavigate, useRouterState } from "@tanstack/react-router";
+import {
+  createFileRoute,
+  Link,
+  notFound,
+  useNavigate,
+  useRouterState,
+} from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -71,6 +77,15 @@ const searchSchema = z.object({
 
 export const Route = createFileRoute("/read/$bookId")({
   validateSearch: searchSchema,
+  loader: async ({ params }) => {
+    if (!z.string().uuid().safeParse(params.bookId).success) {
+      throw notFound();
+    }
+    const book = await getBook(params.bookId);
+    if (!book) throw notFound();
+    return { book };
+  },
+  notFoundComponent: ReaderBookNotFoundPage,
   head: () => ({
     meta: [
       { title: "Reading room — Seeparah" },
@@ -130,9 +145,23 @@ function readerScriptFontHref(language: string, profile: string): string | null 
     : null;
 }
 
+function ReaderBookNotFoundPage() {
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-background px-4 text-center">
+      <p className="font-display text-2xl font-semibold text-foreground">
+        We couldn't find that book
+      </p>
+      <Link to="/library" className="text-sm font-semibold text-primary hover:underline">
+        Back to the library
+      </Link>
+    </div>
+  );
+}
+
 function ReaderPage() {
   const { bookId } = Route.useParams();
   const { lang, page } = Route.useSearch();
+  const { book: initialBook } = Route.useLoaderData();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { userId, isDemo } = useAuth();
@@ -141,6 +170,7 @@ function ReaderPage() {
   const bookQuery = useQuery({
     queryKey: ["book", bookId],
     queryFn: () => getBook(bookId),
+    initialData: initialBook,
   });
   const book = bookQuery.data;
 
