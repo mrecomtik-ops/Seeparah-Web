@@ -162,6 +162,20 @@ describe("computePublishGate", () => {
     expect(missingSourceId.canPublish).toBe(false);
     expect(missingSourceId.reasons.join(" ")).toMatch(/source edition identifier/i);
 
+    const missingReferences = computePublishGate(
+      {
+        ...approved,
+        content_classification: "religious",
+        source_url: "https://example.org/authentic-scripture-source",
+        source_edition_id: "AUTH-EDITION-1",
+      },
+      new Set(),
+      false,
+      false,
+    );
+    expect(missingReferences.canPublish).toBe(false);
+    expect(missingReferences.reasons.join(" ")).toMatch(/canonical reference/i);
+
     const complete = computePublishGate(
       {
         ...approved,
@@ -170,6 +184,8 @@ describe("computePublishGate", () => {
         source_edition_id: "AUTH-EDITION-1",
       },
       new Set(),
+      false,
+      true,
     );
     expect(complete.canPublish).toBe(true);
   });
