@@ -93,6 +93,7 @@ vi.mock("@tanstack/react-router", async (importOriginal) => {
       ...config,
       useParams: () => ({ bookId: "book-1" }),
       useSearch: () => ({ lang: undefined }),
+      useLoaderData: () => ({ book }),
     }),
     useNavigate: () => vi.fn(),
     useRouterState: () => "/read/book-1",
