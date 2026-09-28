@@ -23,6 +23,7 @@ import {
   Save,
   Search,
   Settings2,
+  ShieldCheck,
   Trash2,
   X,
 } from "lucide-react";
@@ -761,6 +762,30 @@ function ReaderPage() {
             </button>
           ))}
         </div>
+
+        {religious && (
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/20 bg-accent/35 px-4 py-3">
+            <div className="flex min-w-0 items-start gap-2">
+              <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-foreground">
+                  Source-preserving Sacred Text edition
+                </p>
+                <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+                  Open the source record and canonical reference navigator to verify where this
+                  text and its published translations were sourced.
+                </p>
+              </div>
+            </div>
+            <Link
+              to="/sacred-texts/$bookId"
+              params={{ bookId }}
+              className="shrink-0 rounded-lg border border-primary/30 bg-card px-3 py-2 text-xs font-semibold text-primary hover:bg-background"
+            >
+              Source & references
+            </Link>
+          </div>
+        )}
 
         {requestableLanguagesForBook.length > 0 && (
           <div className="mt-2 flex flex-wrap items-center gap-2">
