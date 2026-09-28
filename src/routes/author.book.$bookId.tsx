@@ -587,7 +587,7 @@ function ManageBookPage() {
           )}
           <p className="mt-4 text-[11px] text-muted-foreground">
             "Process next batch" runs a few pages at a time — for a full book without watching the
-            page, an operator needs to schedule this on a timer (see the launch report for the exact
+            page, an operator needs to schedule this on a timer (see the operations documentation for the exact
             setup this requires).
           </p>
         </section>
