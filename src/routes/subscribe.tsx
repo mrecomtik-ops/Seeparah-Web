@@ -65,8 +65,8 @@ function SubscribePage() {
               Nothing to subscribe to yet
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
-              No payment provider is live yet, so there is nothing to buy today. Planned launch
-              pricing is $2.99/month, monthly only — no yearly plan. It will be one account-wide
+              No payment provider is live yet, so there is nothing to buy today. The currently
+              configured future price is $2.99/month, monthly only — no yearly plan. If billing is enabled, it will be one account-wide
               subscription for reviewed general translated editions, not a separate per-book or
               per-translation purchase. Original-language editions stay free forever; Religious
               books and verified Religious translations always stay free.
@@ -162,7 +162,7 @@ function SubscribePage() {
             <h2 className="font-display text-xl font-semibold text-foreground">Author plan</h2>
           </div>
           <p className="mt-1 font-display text-3xl font-semibold text-foreground">
-            Free to publish
+            Author publishing
             <span className="text-base font-normal text-muted-foreground">
               {" "}
               · originals stay free
