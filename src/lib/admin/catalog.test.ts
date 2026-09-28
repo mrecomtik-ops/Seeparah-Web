@@ -57,6 +57,9 @@ describe("computePublishGate", () => {
       "Public-domain or licensed exact-edition rights basis verified against the linked evidence.",
     rights_evidence_url: "https://example.com/rights-evidence",
     rights_risk_acknowledged_at: null,
+    content_classification: "general",
+    source_url: null,
+    source_edition_id: null,
   };
 
   it("allows publishing an approved original-language edition with NO translations at all", () => {
@@ -130,6 +133,45 @@ describe("computePublishGate", () => {
     );
     expect(result.canPublish).toBe(false);
     expect(result.reasons.join(" ")).toMatch(/rights basis|placeholder|unresolved/i);
+  });
+
+  it("requires reader-visible authentic source provenance for Religious books", () => {
+    const missingSource = computePublishGate(
+      {
+        ...approved,
+        content_classification: "religious",
+        source_url: null,
+        source_edition_id: "AUTH-EDITION-1",
+      },
+      new Set(),
+    );
+    expect(missingSource.canPublish).toBe(false);
+    expect(missingSource.reasons.join(" ")).toMatch(/religious source url/i);
+
+    const missingSourceId = computePublishGate(
+      {
+        ...approved,
+        content_classification: "religious",
+        source_url: "https://example.org/authentic-scripture-source",
+        isbn: "ISBN-ONLY",
+        source_scan_id: null,
+        source_edition_id: null,
+      },
+      new Set(),
+    );
+    expect(missingSourceId.canPublish).toBe(false);
+    expect(missingSourceId.reasons.join(" ")).toMatch(/source edition identifier/i);
+
+    const complete = computePublishGate(
+      {
+        ...approved,
+        content_classification: "religious",
+        source_url: "https://example.org/authentic-scripture-source",
+        source_edition_id: "AUTH-EDITION-1",
+      },
+      new Set(),
+    );
+    expect(complete.canPublish).toBe(true);
   });
 
   it("blocks publishing when the rights evidence URL is missing or invalid", () => {
