@@ -1,7 +1,15 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
-import { ArrowLeft, BookOpen, FlaskConical, Globe2, Loader2 } from "lucide-react";
+import {
+  ArrowLeft,
+  BookOpen,
+  ExternalLink,
+  FlaskConical,
+  Globe2,
+  Loader2,
+  ShieldCheck,
+} from "lucide-react";
 import { getBook } from "@/lib/library";
 import { coverFor } from "@/lib/covers";
 import { getPrefs } from "@/lib/prefs";
@@ -264,6 +272,63 @@ function BookDetailPage() {
               )}
             </section>
 
+            {isReligious && (
+              <section className="mt-4 rounded-2xl border border-primary/20 bg-accent/30 p-4">
+                <div className="flex items-start gap-3">
+                  <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                  <div className="min-w-0">
+                    <h2 className="font-display text-base font-semibold text-foreground">
+                      Authentic source provenance
+                    </h2>
+                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                      This record identifies where Seeparah sourced the original scripture text.
+                      Internal rights-review evidence is kept separate from this reader-facing
+                      provenance.
+                    </p>
+                    <dl className="mt-3 grid gap-3 text-xs sm:grid-cols-2">
+                      <div>
+                        <dt className="text-muted-foreground">Source / authority</dt>
+                        <dd className="mt-0.5 font-semibold text-foreground">
+                          {book.attribution || book.publisher || book.edition_title || "Recorded source"}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-muted-foreground">Source edition / identifier</dt>
+                        <dd className="mt-0.5 font-semibold text-foreground">
+                          {book.source_edition_id || book.source_scan_id || "Recorded in edition metadata"}
+                        </dd>
+                      </div>
+                      {book.translator && (
+                        <div>
+                          <dt className="text-muted-foreground">Translator / editor</dt>
+                          <dd className="mt-0.5 font-semibold text-foreground">{book.translator}</dd>
+                        </div>
+                      )}
+                    </dl>
+                    <div className="mt-3 flex flex-wrap gap-3">
+                      {book.source_url && (
+                        <a
+                          href={book.source_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
+                        >
+                          View authentic source <ExternalLink className="h-3.5 w-3.5" />
+                        </a>
+                      )}
+                      <Link
+                        to="/sacred-texts/$bookId"
+                        params={{ bookId: book.id }}
+                        className="text-xs font-semibold text-primary hover:underline"
+                      >
+                        Browse canonical references
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              </section>
+            )}
+
             <div className="mt-6">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Editions
@@ -342,9 +407,10 @@ function BookDetailPage() {
                               href={edition.sourceUrl}
                               target="_blank"
                               rel="noreferrer"
-                              className="font-semibold text-primary hover:underline"
+                              className="inline-flex items-center gap-1 font-semibold text-primary hover:underline"
                             >
-                              View the sourced edition
+                              View the authentic translation source
+                              <ExternalLink className="h-3 w-3" />
                             </a>
                           </p>
                         )}
@@ -374,6 +440,16 @@ function BookDetailPage() {
               >
                 {isSample ? `Read the sample in ${readLanguage}` : `Start reading in ${readLanguage}`}
               </Link>
+              {isReligious && (
+                <Link
+                  to="/sacred-texts/$bookId"
+                  params={{ bookId: book.id }}
+                  className="inline-flex items-center gap-2 rounded-xl border border-primary/30 bg-card px-5 py-3 text-sm font-semibold text-primary hover:bg-accent/40"
+                >
+                  <ShieldCheck className="h-4 w-4" />
+                  Source & references
+                </Link>
+              )}
               {offersDistinctSample && (
                 <Link
                   to="/subscribe"
