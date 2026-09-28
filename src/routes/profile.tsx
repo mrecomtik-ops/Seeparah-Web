@@ -229,7 +229,7 @@ function ProfilePage() {
               <p className="text-sm text-muted-foreground">
                 {monetizationEnabled
                   ? "You're on the free plan — every free book, in every language."
-                  : "Every book is free to read during launch — no plan needed."}
+                  : "No active subscription is required for the content currently available."}
               </p>
               {monetizationEnabled && (
                 <Link
