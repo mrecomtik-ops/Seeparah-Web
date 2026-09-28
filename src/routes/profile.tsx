@@ -267,6 +267,7 @@ function ProfilePage() {
           </section>
         )}
 
+        <div className="grid gap-6 lg:grid-cols-2">
         {authLoading ? (
           <section
             className="mt-8 rounded-2xl border border-border bg-card p-6 card-shadow"
@@ -382,6 +383,7 @@ function ProfilePage() {
             </label>
           </div>
         </section>
+        </div>
 
         <section className="mt-8 rounded-2xl border border-border bg-card p-6 card-shadow">
           <h2 className="font-display text-lg font-semibold text-foreground">Saved titles</h2>
