@@ -1,6 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowRight, BookOpen, Languages, LayoutDashboard, Loader2, Settings, Users } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowRight,
+  BookOpen,
+  Languages,
+  LayoutDashboard,
+  Loader2,
+  Settings,
+  Users,
+} from "lucide-react";
 import { getAccessToken } from "@/lib/admin/use-admin-session";
 import { adminGetHealthSnapshot } from "@/lib/admin/health.functions";
 import { adminListCatalog } from "@/lib/admin/catalog.functions";
@@ -60,13 +69,36 @@ function AdminOverview() {
     { label: "Active readers · 7 days", value: a?.readers.active7d ?? "—" },
     { label: "Active readers · 30 days", value: a?.readers.active30d ?? "—" },
     { label: "Highlights saved", value: a?.readers.highlights ?? "—" },
-    { label: "New translation requests", value: a?.translations.requested ?? h.pendingTranslationRequests },
-    { label: "Awaiting translation review", value: a?.translations.awaitingReviewJobs ?? "—" },
-    { label: "Failed translation jobs", value: a?.translations.failedJobs ?? h.failedJobs.length },
     { label: "Active subscriptions", value: a?.subscriptions.active ?? "—" },
-    { label: "Awaiting book review", value: draftsQuery.data?.total ?? "—" },
-    { label: "Open support tickets", value: h.openSupportTickets },
   ];
+
+  const attention = [
+    {
+      label: "Books awaiting review",
+      value: draftsQuery.data?.total ?? 0,
+      to: "/admin/books" as const,
+    },
+    {
+      label: "Translation requests",
+      value: a?.translations.requested ?? h.pendingTranslationRequests,
+      to: "/admin/translation-requests" as const,
+    },
+    {
+      label: "Translation jobs needing review",
+      value: a?.translations.awaitingReviewJobs ?? 0,
+      to: "/admin/health" as const,
+    },
+    {
+      label: "Failed translation jobs",
+      value: h.failedJobs.length,
+      to: "/admin/health" as const,
+    },
+    {
+      label: "Open support tickets",
+      value: h.openSupportTickets,
+      to: "/admin/support" as const,
+    },
+  ].filter((item) => typeof item.value === "number" && item.value > 0);
 
   return (
     <div>
@@ -99,7 +131,36 @@ function AdminOverview() {
           </Link>
         ))}
       </section>
-      <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+      <section className="mt-6">
+        <div className="flex items-center gap-2">
+          <AlertTriangle className="h-4 w-4 text-gold" />
+          <h2 className="font-display text-lg font-semibold text-foreground">Needs attention</h2>
+        </div>
+        {attention.length === 0 ? (
+          <div className="mt-3 rounded-2xl border border-border bg-card p-4 text-sm text-muted-foreground card-shadow">
+            Nothing needs immediate action right now.
+          </div>
+        ) : (
+          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {attention.map((item) => (
+              <Link
+                key={item.label}
+                to={item.to}
+                className="group rounded-2xl border border-gold/30 bg-card p-4 card-shadow transition hover:-translate-y-0.5 hover:border-gold/60"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-semibold text-foreground">{item.label}</p>
+                  <ArrowRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+                </div>
+                <p className="mt-2 font-display text-3xl font-semibold text-foreground">{item.value}</p>
+              </Link>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <h2 className="mt-8 font-display text-lg font-semibold text-foreground">At a glance</h2>
+      <div className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
         {cards.map((c) => (
           <div key={c.label} className="rounded-2xl border border-border bg-card p-4 card-shadow">
             <p className="text-xs text-muted-foreground">{c.label}</p>
