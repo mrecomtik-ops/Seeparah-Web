@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { BookUp2, Feather, Languages, LineChart, Loader2, Users } from "lucide-react";
 import {
@@ -55,6 +56,7 @@ export const Route = createFileRoute("/author/")({
 
 function AuthorDashboard() {
   const { userId, isDemo } = useAuth();
+  const [showAllLanguages, setShowAllLanguages] = useState(false);
   const myBooksQuery = useQuery({
     queryKey: ["my-books", userId],
     queryFn: () => listMyBooks(userId),
@@ -71,6 +73,15 @@ function AuthorDashboard() {
     (b) => b.status === "in_review" || b.status === "approved",
   ).length;
   const publishedCount = myBooks.filter((b) => b.status === "published").length;
+  const priorityRequestedLanguages = REQUESTABLE_TRANSLATION_LANGUAGES.filter(
+    (language) => language === "Hindi" || language === "Arabic",
+  );
+  const additionalRequestableLanguages = REQUESTABLE_TRANSLATION_LANGUAGES.filter(
+    (language) =>
+      !STANDARD_TRANSLATION_LANGUAGES.includes(
+        language as (typeof STANDARD_TRANSLATION_LANGUAGES)[number],
+      ) && !priorityRequestedLanguages.includes(language),
+  );
 
   const stats = [
     {
@@ -150,7 +161,7 @@ function AuthorDashboard() {
               </div>
               <div className="min-w-0">
                 <p className="truncate font-display text-lg font-semibold text-foreground">
-                  {myBooks[0]?.author ?? "Your pen name"}
+                  {myBooks[0]?.author ?? "Set up your author profile"}
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {publishedCount} published · {editionsAvailable} edition{editionsAvailable === 1 ? "" : "s"} available to readers
@@ -167,31 +178,84 @@ function AuthorDashboard() {
         </section>
 
         <section className="mt-6 rounded-2xl border border-border bg-card p-5 card-shadow">
-          <p className="text-sm font-semibold text-foreground">Language editions</p>
-          <p className="mt-1 text-xs text-muted-foreground">{TRANSLATION_EXPLAINER_SHORT}</p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {STANDARD_TRANSLATION_LANGUAGES.map((l) => (
-              <span
-                key={l}
-                className="rounded-full bg-accent px-3 py-1 text-xs font-medium text-accent-foreground"
-              >
-                {l} · standard
-              </span>
-            ))}
-            {REQUESTABLE_TRANSLATION_LANGUAGES.map((l) => (
-              <span
-                key={l}
-                className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground"
-              >
-                {l} · on reader request
-              </span>
-            ))}
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-foreground">Language editions</p>
+              <p className="mt-1 max-w-2xl text-xs leading-relaxed text-muted-foreground">
+                Every manuscript keeps its original language. During launch, Seeparah prioritizes
+                reviewed English and Urdu editions where rights and source material allow. Eligible
+                readers can request additional languages; Religious books use verified sourced
+                translations only.
+              </p>
+            </div>
           </div>
-          <p className="mt-3 text-xs text-muted-foreground">
-            Your manuscript's own language can be any of {LANGUAGES.length} choices when you
-            publish — the badges above are the languages Seeparah currently produces additional
-            editions in.
-          </p>
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            <div className="rounded-xl border border-border bg-background p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Original language
+              </p>
+              <p className="mt-1 text-sm font-semibold text-foreground">
+                Any of {LANGUAGES.length} supported manuscript languages
+              </p>
+            </div>
+            <div className="rounded-xl border border-border bg-background p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Priority editions
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {STANDARD_TRANSLATION_LANGUAGES.map((language) => (
+                  <span
+                    key={language}
+                    className="rounded-full bg-accent px-3 py-1 text-xs font-medium text-accent-foreground"
+                  >
+                    {language}
+                  </span>
+                ))}
+              </div>
+            </div>
+            <div className="rounded-xl border border-border bg-background p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Reader requests
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {priorityRequestedLanguages.map((language) => (
+                  <span
+                    key={language}
+                    className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground"
+                  >
+                    {language}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {additionalRequestableLanguages.length > 0 && (
+            <div className="mt-4">
+              <button
+                type="button"
+                onClick={() => setShowAllLanguages((value) => !value)}
+                className="text-xs font-semibold text-primary hover:underline"
+              >
+                {showAllLanguages
+                  ? "Hide additional supported languages"
+                  : `View ${additionalRequestableLanguages.length} more supported languages`}
+              </button>
+              {showAllLanguages && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {additionalRequestableLanguages.map((language) => (
+                    <span
+                      key={language}
+                      className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground"
+                    >
+                      {language}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </section>
 
         <section className="mt-10">
