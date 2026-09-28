@@ -28,6 +28,24 @@ const STATUSES = [
   "archived",
 ];
 
+function statusLabel(value: string) {
+  return value ? value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase()) : "All";
+}
+
+function catalogActionLabel(book: {
+  status: string;
+  rights_status: string | null;
+  edition_review_status: string | null;
+}) {
+  if (book.status === "published") return "Manage";
+  if (book.status === "archived") return "Review archive";
+  if (book.rights_status !== "approved" || book.edition_review_status !== "approved") {
+    return "Review blockers";
+  }
+  if (book.status === "approved") return "Review & publish";
+  return "Continue review";
+}
+
 function AdminBooksList() {
   const [status, setStatus] = useState("");
   const [query, setQuery] = useState("");
@@ -153,7 +171,7 @@ function AdminBooksList() {
             }}
             className={`rounded-full px-3 py-1 text-xs font-semibold ${status === s ? "bg-primary text-primary-foreground" : "border border-border bg-card text-foreground hover:bg-secondary"}`}
           >
-            {s || "All"}
+            {statusLabel(s)}
           </button>
         ))}
         <input
@@ -271,9 +289,18 @@ function AdminBooksList() {
                     >
                       {b.title}
                     </Link>
+                    {b.title === "Seeparah Reader V2 QA Book" && (
+                      <span className="ml-2 rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                        QA fixture
+                      </span>
+                    )}
                   </td>
                   <td className="px-4 py-2 text-xs">{b.author}</td>
-                  <td className="px-4 py-2 text-xs">{b.status}</td>
+                  <td className="px-4 py-2 text-xs">
+                    <span className="rounded-full bg-secondary px-2.5 py-1 font-semibold text-secondary-foreground">
+                      {statusLabel(b.status)}
+                    </span>
+                  </td>
                   <td className="px-4 py-2 text-xs">
                     <span className="rounded-full bg-accent px-2 py-0.5 text-[11px] font-semibold text-accent-foreground">
                       Always free
@@ -288,7 +315,7 @@ function AdminBooksList() {
                         params={{ bookId: b.id }}
                         className="text-primary hover:underline"
                       >
-                        {b.status === "published" ? "Manage" : "Review / Publish"}
+                        {catalogActionLabel(b)}
                       </Link>
                       {canPublish && b.status !== "archived" && (
                         <button
