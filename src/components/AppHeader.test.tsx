@@ -176,6 +176,6 @@ describe("AppHeader — role/auth resolution cannot shift the desktop nav", () =
     adminSessionState = admin;
     const { container } = render(<AppHeader />);
     const right = container.querySelector("header nav")!.nextElementSibling!;
-    expect(right.className).toContain("sm:min-w-[92px]");
+    expect(right.className).toContain("sm:min-w-[96px]");
   });
 });
