@@ -85,6 +85,7 @@ export function computePublishGate(
   book: PublishGateBook,
   reviewedLanguages: Set<string>,
   hasRightsRiskSignals = false,
+  hasCanonicalReferenceStructure = true,
 ): { canPublish: boolean; reasons: string[]; pendingTranslations: string[] } {
   const reasons: string[] = [];
   if (book.rights_status !== "approved") reasons.push("Rights review is not yet approved");
@@ -128,6 +129,9 @@ export function computePublishGate(
     }
     if (!book.source_edition_id?.trim() && !book.source_scan_id?.trim()) {
       reasons.push("Religious source edition identifier is missing");
+    }
+    if (!hasCanonicalReferenceStructure) {
+      reasons.push("Religious canonical reference structure has not been imported");
     }
   }
 
@@ -212,19 +216,40 @@ export async function evaluatePublishGate(
   const { data: book, error } = await db.from("books").select("*").eq("id", bookId).single();
   if (error || !book) throw new Error("Book not found");
 
-  const [{ data: jobs }, rightsSignals] = await Promise.all([
-    db
-      .from("book_translation_jobs")
-      .select("language, status, human_reviewed")
-      .eq("book_id", bookId)
-      .eq("source_version", book.source_version)
-      .eq("status", "published")
-      .eq("human_reviewed", true),
-    scanBookRightsSignals(bookId),
-  ]);
+  const [{ data: jobs }, rightsSignals, { data: structureRows, error: structureError }] =
+    await Promise.all([
+      db
+        .from("book_translation_jobs")
+        .select("language, status, human_reviewed")
+        .eq("book_id", bookId)
+        .eq("source_version", book.source_version)
+        .eq("status", "published")
+        .eq("human_reviewed", true),
+      scanBookRightsSignals(bookId),
+      db
+        .from("book_structure_nodes")
+        .select("metadata")
+        .eq("book_id", bookId)
+        .eq("language", book.source_language)
+        .eq("source_version", book.source_version),
+    ]);
+  if (structureError) throw new Error(structureError.message);
   const reviewedLanguages = new Set((jobs ?? []).map((j) => j.language));
+  const hasCanonicalReferenceStructure = (structureRows ?? []).some((row) => {
+    const metadata =
+      row.metadata && typeof row.metadata === "object" && !Array.isArray(row.metadata)
+        ? (row.metadata as Record<string, unknown>)
+        : null;
+    return typeof metadata?.["canonical_ref"] === "string" &&
+      metadata["canonical_ref"].trim().length > 0;
+  });
 
-  return computePublishGate(book, reviewedLanguages, rightsSignals.length > 0);
+  return computePublishGate(
+    book,
+    reviewedLanguages,
+    rightsSignals.length > 0,
+    hasCanonicalReferenceStructure,
+  );
 }
 
 const PLACEHOLDER_RIGHTS_TEXT = new Set([
