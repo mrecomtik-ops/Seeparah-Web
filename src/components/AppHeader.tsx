@@ -67,7 +67,13 @@ export function AppHeader() {
               Seeparah
             </span>
           </Link>
-          <nav className="hidden items-center gap-1 sm:flex">
+          {/* `relative` anchors the Admin slot below. The slot is absolutely
+              positioned just past "Profile" so it takes no space in this
+              centered nav: the placeholder appearing, turning into the Admin
+              link, or disappearing for non-admins never moves the other
+              items (the header is justify-between, so any width change here
+              would shift the whole nav by half that change). */}
+          <nav className="relative hidden items-center gap-1 sm:flex">
             {NAV.map(({ to, label, icon: Icon }) => {
               const active = pathname.startsWith(to);
               return (
@@ -85,28 +91,36 @@ export function AppHeader() {
                 </Link>
               );
             })}
-            {!isAdmin && adminRoleResolving && (
-              <div
-                className="h-9 w-[76px] animate-pulse rounded-lg bg-secondary"
-                aria-hidden="true"
-                data-testid="admin-nav-placeholder"
-              />
-            )}
-            {isAdmin && (
-              <Link
-                to="/admin"
-                className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                  pathname.startsWith("/admin")
-                    ? "bg-accent text-accent-foreground"
-                    : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-                }`}
-              >
-                <ShieldCheck className="h-4 w-4" />
-                Admin
-              </Link>
-            )}
+            <div
+              className="absolute left-full top-1/2 ml-1 flex -translate-y-1/2 items-center"
+              data-testid="admin-nav-slot"
+            >
+              {!isAdmin && adminRoleResolving && (
+                <div
+                  className="h-9 w-[87px] animate-pulse rounded-lg bg-secondary"
+                  aria-hidden="true"
+                  data-testid="admin-nav-placeholder"
+                />
+              )}
+              {isAdmin && (
+                <Link
+                  to="/admin"
+                  className={`flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                    pathname.startsWith("/admin")
+                      ? "bg-accent text-accent-foreground"
+                      : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                  }`}
+                >
+                  <ShieldCheck className="h-4 w-4" />
+                  Admin
+                </Link>
+              )}
+            </div>
           </nav>
-          <div className="flex items-center gap-2">
+          {/* Constant desktop width whether it holds the auth placeholder,
+              the Sign in button, or nothing (signed in) — otherwise the
+              justify-between nav re-centers when auth resolves. */}
+          <div className="flex items-center justify-end gap-2 sm:min-w-[92px]">
             {authLoading ? (
               // Reserves roughly the same footprint as the "Sign in"
               // button so it doesn't jump in/out, without committing to
