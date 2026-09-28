@@ -11,6 +11,10 @@ export const Route = createFileRoute("/admin/support/")({
 
 const STATUSES = ["", "open", "pending", "resolved", "closed"];
 
+function statusLabel(value: string) {
+  return value ? value[0]!.toUpperCase() + value.slice(1) : "All";
+}
+
 const REQUEST_KIND_LABEL: Record<string, string> = {
   ticket: "General request",
   copyright_notice: "Copyright notice",
@@ -35,6 +39,10 @@ function AdminSupportList() {
   return (
     <div>
       <h1 className="font-display text-2xl font-semibold text-foreground">Support tickets</h1>
+      <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+        Reader support, account issues and copyright workflows. Legal notices stay visibly
+        distinct from ordinary support requests.
+      </p>
       <div className="mt-4 flex flex-wrap gap-2">
         {STATUSES.map((s) => (
           <button
@@ -42,7 +50,7 @@ function AdminSupportList() {
             onClick={() => setStatus(s)}
             className={`rounded-full px-3 py-1 text-xs font-semibold ${status === s ? "bg-primary text-primary-foreground" : "border border-border"}`}
           >
-            {s || "All"}
+            {statusLabel(s)}
           </button>
         ))}
       </div>
@@ -64,7 +72,7 @@ function AdminSupportList() {
                 <p className="font-semibold text-foreground">{t.subject}</p>
                 <div className="flex shrink-0 items-center gap-1.5">
                   {t.request_kind !== "ticket" && (
-                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
+                    <span className="rounded-full bg-gold/15 px-2 py-0.5 text-xs font-semibold text-gold">
                       {REQUEST_KIND_LABEL[t.request_kind] ?? t.request_kind}
                     </span>
                   )}
@@ -77,7 +85,13 @@ function AdminSupportList() {
               <p className="mt-1 text-xs text-muted-foreground">
                 {t.reference_code && <span className="font-mono">{t.reference_code}</span>}
                 {t.reference_code && " · "}
-                {t.category} · {t.is_anonymous ? "anonymous report" : "signed-in user"} · {t.status}
+                {t.category} · {t.is_anonymous ? "anonymous report" : "signed-in user"} ·{" "}
+                <span className="font-semibold text-foreground">{statusLabel(t.status)}</span>
+                {" · "}
+                opened {new Date(t.created_at).toLocaleDateString()}
+                {t.updated_at && t.updated_at !== t.created_at
+                  ? ` · updated ${new Date(t.updated_at).toLocaleDateString()}`
+                  : ""}
                 {t.notification_status === "failed" && (
                   <span className="ml-1 font-semibold text-destructive">
                     · notification failed
@@ -87,7 +101,14 @@ function AdminSupportList() {
             </Link>
           ))}
           {(ticketsQuery.data?.tickets.length ?? 0) === 0 && (
-            <p className="text-sm text-muted-foreground">No tickets here.</p>
+            <div className="rounded-2xl border border-dashed border-border bg-card p-10 text-center">
+              <p className="font-display text-lg font-semibold text-foreground">
+                No {status ? statusLabel(status).toLowerCase() : ""} tickets
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                New support and rights notices will appear here automatically.
+              </p>
+            </div>
           )}
         </div>
       )}
