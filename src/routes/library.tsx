@@ -194,7 +194,7 @@ function LibraryPage() {
         progressByBook.has(b.id) &&
         (progressByBook.get(b.id)?.lastChunkIndex ?? 0) + 1 < b.total_chunks,
     ).length,
-    history: progressByBook.size,
+    history: books.filter((book) => progressByBook.has(book.id)).length,
     saved: shelfIds("saved").size,
     favorite: shelfIds("favorite").size,
     want_to_read: shelfIds("want_to_read").size,
@@ -297,6 +297,12 @@ function LibraryPage() {
             ))}
           </div>
         </div>
+
+        {books.length === 0 && progressByBook.size > 0 && (
+          <p className="mt-3 text-xs text-muted-foreground">
+            {progressByBook.size} previous reading {progressByBook.size === 1 ? "record is" : "records are"} preserved in your account, even though those editions are not currently public.
+          </p>
+        )}
 
         <div className="mt-6 flex flex-col gap-3">
           <div className="relative">
