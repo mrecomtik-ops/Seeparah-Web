@@ -385,7 +385,8 @@ function ProfilePage() {
         </section>
         </div>
 
-        <section className="mt-8 rounded-2xl border border-border bg-card p-6 card-shadow">
+        <div className="mt-8 grid gap-6 lg:grid-cols-2">
+        <section className="rounded-2xl border border-border bg-card p-6 card-shadow">
           <h2 className="font-display text-lg font-semibold text-foreground">Saved titles</h2>
           {(shelvesQuery.data ?? []).length === 0 ? (
             <p className="mt-3 text-sm text-muted-foreground">
@@ -415,7 +416,7 @@ function ProfilePage() {
           )}
         </section>
 
-        <section className="mt-8 rounded-2xl border border-border bg-card p-6 card-shadow">
+        <section className="rounded-2xl border border-border bg-card p-6 card-shadow">
           <h2 className="font-display text-lg font-semibold text-foreground">Saved highlights</h2>
           {(highlightsQuery.data ?? []).length === 0 ? (
             <p className="mt-3 text-sm text-muted-foreground">
@@ -440,6 +441,7 @@ function ProfilePage() {
             </ul>
           )}
         </section>
+        </div>
       </main>
     </div>
   );
