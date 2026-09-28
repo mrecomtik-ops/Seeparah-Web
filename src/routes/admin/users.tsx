@@ -150,8 +150,8 @@ function AdminUsersPage() {
     <div>
       <h1 className="font-display text-2xl font-semibold text-foreground">Users</h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        Search is a best-effort scan (Supabase's admin API has no server-side email filter) —
-        results may be incomplete for a very large user base with a partial query.
+        Search by email or exact user ID. Very large account lists may return partial matches until
+        you narrow the search.
       </p>
 
       <div className="mt-4 flex items-center gap-2">
@@ -207,50 +207,55 @@ function AdminUsersPage() {
                   </td>
                   <td className="px-4 py-2">
                     {canAct && (
-                      <div className="flex flex-wrap gap-1.5">
-                        {u.banned ? (
+                      <details className="relative">
+                        <summary className="cursor-pointer list-none rounded-lg border border-border px-3 py-1.5 text-xs font-semibold hover:bg-secondary">
+                          Actions
+                        </summary>
+                        <div className="mt-2 flex min-w-[190px] flex-col gap-1 rounded-xl border border-border bg-background p-2 shadow-lg">
+                          {u.banned ? (
+                            <button
+                              disabled={busyId === u.id}
+                              onClick={() => handleRestore(u.id)}
+                              className="rounded-lg px-2 py-1.5 text-left text-xs hover:bg-secondary disabled:opacity-60"
+                            >
+                              Restore account
+                            </button>
+                          ) : (
+                            <button
+                              disabled={busyId === u.id}
+                              onClick={() => handleSuspend(u.id)}
+                              className="rounded-lg px-2 py-1.5 text-left text-xs text-destructive hover:bg-destructive/5 disabled:opacity-60"
+                            >
+                              Suspend account
+                            </button>
+                          )}
+                          {u.hasPassword && (
+                            <button
+                              disabled={busyId === u.id}
+                              onClick={() => handleRecovery(u.id, u.email)}
+                              className="rounded-lg px-2 py-1.5 text-left text-xs hover:bg-secondary disabled:opacity-60"
+                            >
+                              Send password recovery
+                            </button>
+                          )}
+                          {!u.emailConfirmedAt && (
+                            <button
+                              disabled={busyId === u.id}
+                              onClick={() => handleVerification(u.id, u.email)}
+                              className="rounded-lg px-2 py-1.5 text-left text-xs hover:bg-secondary disabled:opacity-60"
+                            >
+                              Resend verification
+                            </button>
+                          )}
                           <button
                             disabled={busyId === u.id}
-                            onClick={() => handleRestore(u.id)}
-                            className="rounded-lg border border-border px-2 py-1 text-xs hover:bg-secondary disabled:opacity-60"
+                            onClick={() => handleRepair(u.id)}
+                            className="rounded-lg px-2 py-1.5 text-left text-xs hover:bg-secondary disabled:opacity-60"
                           >
-                            Restore
+                            Repair author profile
                           </button>
-                        ) : (
-                          <button
-                            disabled={busyId === u.id}
-                            onClick={() => handleSuspend(u.id)}
-                            className="rounded-lg border border-border px-2 py-1 text-xs hover:bg-secondary disabled:opacity-60"
-                          >
-                            Suspend
-                          </button>
-                        )}
-                        {u.hasPassword && (
-                          <button
-                            disabled={busyId === u.id}
-                            onClick={() => handleRecovery(u.id, u.email)}
-                            className="rounded-lg border border-border px-2 py-1 text-xs hover:bg-secondary disabled:opacity-60"
-                          >
-                            Send recovery
-                          </button>
-                        )}
-                        {!u.emailConfirmedAt && (
-                          <button
-                            disabled={busyId === u.id}
-                            onClick={() => handleVerification(u.id, u.email)}
-                            className="rounded-lg border border-border px-2 py-1 text-xs hover:bg-secondary disabled:opacity-60"
-                          >
-                            Resend verification
-                          </button>
-                        )}
-                        <button
-                          disabled={busyId === u.id}
-                          onClick={() => handleRepair(u.id)}
-                          className="rounded-lg border border-border px-2 py-1 text-xs hover:bg-secondary disabled:opacity-60"
-                        >
-                          Repair author profile
-                        </button>
-                      </div>
+                        </div>
+                      </details>
                     )}
                   </td>
                 </tr>
@@ -268,7 +273,7 @@ function AdminUsersPage() {
       )}
       {usersQuery.data?.truncated && (
         <p className="mt-2 text-xs text-muted-foreground">
-          Scan hit its page limit — narrow the query for complete results.
+          Search reached its scan limit. Narrow the query for more complete results.
         </p>
       )}
       <div className="mt-3 flex gap-2">
