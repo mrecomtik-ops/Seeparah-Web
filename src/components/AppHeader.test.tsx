@@ -141,3 +141,41 @@ describe("AppHeader — mobile bottom nav", () => {
     expect(screen.queryAllByText("Admin")).toHaveLength(0);
   });
 });
+
+
+describe("AppHeader — role/auth resolution cannot shift the desktop nav", () => {
+  const states: Array<[string, typeof authState, typeof adminSessionState]> = [
+    ["resolving", { isDemo: true, loading: true }, { data: undefined }],
+    ["admin", { isDemo: false, loading: false }, { data: { role: "owner" } }],
+    ["non-admin", { isDemo: false, loading: false }, { data: { role: null } }],
+    ["signed-out", { isDemo: true, loading: false }, { data: undefined }],
+  ];
+
+  it.each(states)("%s: Admin slot content lives in an out-of-flow slot", (_n, auth, admin) => {
+    authState = auth;
+    adminSessionState = admin;
+    const { container } = render(<AppHeader />);
+    const nav = container.querySelector("header nav")!;
+    const slot = screen.getByTestId("admin-nav-slot");
+    expect(nav.className).toContain("relative");
+    expect(slot.parentElement).toBe(nav);
+    expect(slot.className).toContain("absolute");
+    // Nothing Admin-related is a direct in-flow child of the nav.
+    const inFlow = [...nav.children].filter((c) => c !== slot);
+    expect(inFlow.map((c) => c.getAttribute("href"))).toEqual([
+      "/dashboard",
+      "/library",
+      "/research",
+      "/author",
+      "/profile",
+    ]);
+  });
+
+  it.each(states)("%s: right-hand auth slot keeps a constant desktop width", (_n, auth, admin) => {
+    authState = auth;
+    adminSessionState = admin;
+    const { container } = render(<AppHeader />);
+    const right = container.querySelector("header nav")!.nextElementSibling!;
+    expect(right.className).toContain("sm:min-w-[92px]");
+  });
+});
