@@ -63,7 +63,7 @@ export function LandingPage() {
 
   return (
     <div className="min-h-screen paper-texture">
-      <div className="mx-auto flex min-h-screen max-w-6xl flex-col px-4 sm:px-6">
+      <div className="mx-auto flex min-h-screen max-w-6xl flex-col overflow-x-clip px-4 sm:px-6">
         <header className="flex items-center justify-between py-6">
           <div className="flex items-center gap-3">
             <img
