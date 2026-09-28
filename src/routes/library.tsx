@@ -318,52 +318,56 @@ function LibraryPage() {
               </button>
             )}
           </div>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <Select
-              label="Language"
-              value={lang}
-              options={[...LANGUAGES]}
-              onChange={(v) => updateSearch({ lang: v ?? undefined })}
-            />
-            <Select
-              label="Author"
-              value={author}
-              options={authors}
-              onChange={(v) => updateSearch({ author: v ?? undefined })}
-            />
-            <Select
-              label="Genre / theme"
-              value={genre}
-              options={genresInUse.length ? genresInUse : [...GENRES]}
-              onChange={(v) => updateSearch({ genre: v ?? undefined })}
-            />
-            <Select
-              label="Category"
-              allLabel="All categories"
-              value={category}
-              options={categoriesInUse}
-              onChange={(v) => updateSearch({ category: v ?? undefined })}
-            />
-          </div>
-          {hasActiveFilters && (
-            <button
-              onClick={() =>
-                updateSearch({
-                  q: undefined,
-                  lang: undefined,
-                  genre: undefined,
-                  author: undefined,
-                  category: undefined,
-                })
-              }
-              className="min-h-10 self-start rounded-lg px-2 text-xs font-semibold text-primary hover:bg-secondary hover:underline"
-            >
-              Reset all filters
-            </button>
+          {books.length > 0 && (
+            <>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <Select
+                  label="Language"
+                  value={lang}
+                  options={[...LANGUAGES]}
+                  onChange={(v) => updateSearch({ lang: v ?? undefined })}
+                />
+                <Select
+                  label="Author"
+                  value={author}
+                  options={authors}
+                  onChange={(v) => updateSearch({ author: v ?? undefined })}
+                />
+                <Select
+                  label="Genre / theme"
+                  value={genre}
+                  options={genresInUse.length ? genresInUse : [...GENRES]}
+                  onChange={(v) => updateSearch({ genre: v ?? undefined })}
+                />
+                <Select
+                  label="Category"
+                  allLabel="All categories"
+                  value={category}
+                  options={categoriesInUse}
+                  onChange={(v) => updateSearch({ category: v ?? undefined })}
+                />
+              </div>
+              {hasActiveFilters && (
+                <button
+                  onClick={() =>
+                    updateSearch({
+                      q: undefined,
+                      lang: undefined,
+                      genre: undefined,
+                      author: undefined,
+                      category: undefined,
+                    })
+                  }
+                  className="min-h-10 self-start rounded-lg px-2 text-xs font-semibold text-primary hover:bg-secondary hover:underline"
+                >
+                  Reset all filters
+                </button>
+              )}
+            </>
           )}
         </div>
 
-        {categoriesInUse.length > 0 && tab === "all" && !hasActiveFilters && (
+        {books.length > 0 && categoriesInUse.length > 0 && tab === "all" && !hasActiveFilters && (
           <div className="mt-5">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Browse by category
@@ -426,9 +430,10 @@ function LibraryPage() {
               <p className="mt-3 font-display text-lg font-semibold text-foreground">
                 No books are published yet
               </p>
-              <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
-                The catalog is intentionally empty until a cleared, reviewed edition is published.
-                Search and category browsing will populate automatically as books go live.
+              <p className="mx-auto mt-1 max-w-lg text-sm text-muted-foreground">
+                {pagesRead > 0
+                  ? "Your previous reading progress, highlights and history are still saved. The public catalog is intentionally empty while cleared, reviewed editions are prepared."
+                  : "The public catalog is intentionally empty until a cleared, reviewed edition is published. Search and browsing will populate automatically as books go live."}
               </p>
             </div>
           ) : filtered.length === 0 && isEmptyShelf ? (
