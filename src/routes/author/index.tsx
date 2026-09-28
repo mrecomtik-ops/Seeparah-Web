@@ -41,7 +41,7 @@ export const Route = createFileRoute("/author/")({
       {
         name: "description",
         content:
-          "Publish your manuscript, free during launch, and follow your readers once it's reviewed and published.",
+          "Submit your manuscript for rights and edition review, publish approved work, and follow your readers once it is available.",
       },
       { property: "og:title", content: "Author Studio — Seeparah" },
       {
@@ -146,10 +146,11 @@ function AuthorDashboard() {
 
         <section className="mt-6 grid gap-4 lg:grid-cols-2">
           <div className="rounded-2xl border border-border bg-card p-6 card-shadow">
-            <p className="text-sm font-semibold text-foreground">Publishing is free right now</p>
+            <p className="text-sm font-semibold text-foreground">Reviewed publishing workflow</p>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              Seeparah is free for readers during launch — there's no checkout and no premium
-              locks. Publishing, translation and hosting are free for authors too.
+              Drafts stay private until you submit them. Rights, edition quality and reader
+              structure are reviewed before publication, and access rules are applied per edition
+              rather than implied by a temporary product phase.
             </p>
           </div>
           <div className="rounded-2xl border border-border bg-card p-6 card-shadow">
@@ -181,10 +182,10 @@ function AuthorDashboard() {
             <div>
               <p className="text-sm font-semibold text-foreground">Language editions</p>
               <p className="mt-1 max-w-2xl text-xs leading-relaxed text-muted-foreground">
-                Every manuscript keeps its original language. During launch, Seeparah prioritizes
-                reviewed English and Urdu editions where rights and source material allow. Eligible
-                readers can request additional languages; Religious books use verified sourced
-                translations only.
+                Every manuscript keeps its original language. Seeparah prioritizes reviewed English
+                and Urdu editions where rights and source material allow. Eligible readers can
+                request additional languages; Religious books use verified sourced translations
+                only.
               </p>
             </div>
           </div>
