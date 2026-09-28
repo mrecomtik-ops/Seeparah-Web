@@ -146,9 +146,9 @@ export function LandingPage() {
 
             <div className="mt-10 grid max-w-lg grid-cols-3 gap-4 border-t border-border pt-6">
               {[
-                ["Free", "every book, during launch"],
-                ["0", "downloads — read in flow"],
-                ["2+2", "standard, plus requestable languages"],
+                ["Free", "during launch"],
+                ["Reviewed", "editions before publishing"],
+                ["Saved", "progress & highlights"],
               ].map(([stat, label]) => (
                 <div key={label}>
                   <p className="font-display text-3xl font-semibold text-primary">{stat}</p>
