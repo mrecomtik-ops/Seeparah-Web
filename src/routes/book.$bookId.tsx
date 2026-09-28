@@ -1,5 +1,6 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { z } from "zod";
 import { ArrowLeft, BookOpen, FlaskConical, Globe2, Loader2 } from "lucide-react";
 import { getBook } from "@/lib/library";
 import { coverFor } from "@/lib/covers";
@@ -18,6 +19,15 @@ import {
 } from "@/lib/translation.functions";
 
 export const Route = createFileRoute("/book/$bookId")({
+  loader: async ({ params }) => {
+    if (!z.string().uuid().safeParse(params.bookId).success) {
+      throw notFound();
+    }
+    const book = await getBook(params.bookId);
+    if (!book) throw notFound();
+    return { book };
+  },
+  notFoundComponent: BookNotFoundPage,
   head: () => ({
     meta: [
       { title: "Book details — Seeparah" },
@@ -27,9 +37,25 @@ export const Route = createFileRoute("/book/$bookId")({
   component: BookDetailPage,
 });
 
+function BookNotFoundPage() {
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-background px-4 text-center">
+      <p className="font-display text-2xl font-semibold text-foreground">We couldn't find that book</p>
+      <Link to="/library" className="text-sm font-semibold text-primary hover:underline">
+        Back to the library
+      </Link>
+    </div>
+  );
+}
+
 function BookDetailPage() {
   const { bookId } = Route.useParams();
-  const bookQuery = useQuery({ queryKey: ["book", bookId], queryFn: () => getBook(bookId) });
+  const { book: initialBook } = Route.useLoaderData();
+  const bookQuery = useQuery({
+    queryKey: ["book", bookId],
+    queryFn: () => getBook(bookId),
+    initialData: initialBook,
+  });
   const translationStatusQuery = useQuery({
     queryKey: ["translation-language-status", bookId],
     queryFn: () => getBookTranslationLanguageStatus({ data: { bookId } }),
