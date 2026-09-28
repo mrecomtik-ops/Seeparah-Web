@@ -51,12 +51,17 @@ function ResearchIndexPage() {
         </h1>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
           Original research, literary analysis, review essays, and textual studies — reviewed by an
-          editor for rights and readiness before publication.{" "}
-          <strong className="text-foreground">
-            Editorial approval is not peer review, and none of these papers carry a journal
-            affiliation, DOI, or indexed status unless explicitly shown on the paper itself.
-          </strong>
+          editor for rights and readiness before publication.
         </p>
+        <details className="mt-3 max-w-2xl rounded-xl border border-border bg-card px-4 py-3 text-sm">
+          <summary className="cursor-pointer font-semibold text-foreground">
+            About editorial review
+          </summary>
+          <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+            Editorial approval is not peer review. Papers do not carry a journal affiliation, DOI,
+            or indexed status unless that information is explicitly shown on the paper itself.
+          </p>
+        </details>
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <Link
             to="/research/submit"
