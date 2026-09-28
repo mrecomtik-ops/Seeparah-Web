@@ -169,7 +169,8 @@ export function AnalyticsPage() {
               </dl>
               <p className="mt-4 rounded-lg bg-secondary px-3 py-2 text-xs text-secondary-foreground">
                 Estimates assume twelve active subscribers per premium book.
-                Payments run in Stripe test mode until launch.
+                No payment provider is connected today; this card only appears when monetization
+                is explicitly enabled.
               </p>
             </div>
           )}
