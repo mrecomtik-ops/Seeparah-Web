@@ -158,22 +158,20 @@ function RootComponent() {
       {!bare && <AppHeader />}
       <Outlet />
       {!bare && (
-        <footer className="border-t border-border py-4 pb-20 text-center text-xs text-muted-foreground sm:pb-4">
-          <Link to="/legal" hash="privacy" className="hover:text-foreground hover:underline">
-            Privacy
-          </Link>
-          <span className="px-2">·</span>
-          <Link to="/legal" hash="terms" className="hover:text-foreground hover:underline">
-            Terms
-          </Link>
-          <span className="px-2">·</span>
-          <Link to="/legal" hash="copyright" className="hover:text-foreground hover:underline">
-            Copyright
-          </Link>
-          <span className="px-2">·</span>
-          <Link to="/legal" hash="support" className="hover:text-foreground hover:underline">
-            Support
-          </Link>
+        <footer className="border-t border-border py-5 pb-20 text-center text-xs text-muted-foreground sm:pb-5">
+          <nav
+            aria-label="Site footer"
+            className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2"
+          >
+            <Link to="/library" className="hover:text-foreground hover:underline">Library</Link>
+            <Link to="/sacred-texts" className="hover:text-foreground hover:underline">Sacred Texts</Link>
+            <Link to="/insights" className="hover:text-foreground hover:underline">Insights</Link>
+            <Link to="/research" className="hover:text-foreground hover:underline">Research</Link>
+            <Link to="/legal" hash="privacy" className="hover:text-foreground hover:underline">Privacy</Link>
+            <Link to="/legal" hash="terms" className="hover:text-foreground hover:underline">Terms</Link>
+            <Link to="/legal" hash="copyright" className="hover:text-foreground hover:underline">Copyright</Link>
+            <Link to="/legal" hash="support" className="hover:text-foreground hover:underline">Support</Link>
+          </nav>
         </footer>
       )}
       <Toaster richColors position="bottom-center" />
