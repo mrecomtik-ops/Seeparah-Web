@@ -20,6 +20,7 @@ import {
   adminSetEditionAccessType,
   adminSetBookContentPolicy,
   adminImportVerifiedSourcedEdition,
+  adminReplaceSacredReferenceManifest,
   adminUpdateBookMetadata,
   adminUpdateBookRightsProvenance,
   adminGetBookDeletionImpact,
@@ -30,7 +31,10 @@ import {
   adminDiscardChunkContentEdit,
   adminSetBookCategories,
 } from "@/lib/admin/catalog.functions";
-import type { BookDeletionImpact } from "@/lib/admin/catalog.server";
+import type {
+  BookDeletionImpact,
+  SacredReferenceManifestNode,
+} from "@/lib/admin/catalog.server";
 import { friendlyTranslationError } from "@/lib/translation-error";
 
 
@@ -94,6 +98,9 @@ function AdminBookDetail() {
   });
   const [sourcedEditionOpen, setSourcedEditionOpen] = useState(false);
   const [sourcedEditionBusy, setSourcedEditionBusy] = useState(false);
+  const [referenceManifestBusy, setReferenceManifestBusy] = useState(false);
+  const [referenceManifestLanguage, setReferenceManifestLanguage] = useState("");
+  const [referenceManifestText, setReferenceManifestText] = useState("");
   const [sourcedEditionDraft, setSourcedEditionDraft] = useState({
     language: "",
     provenanceType: "human_translation" as
@@ -349,6 +356,42 @@ function AdminBookDetail() {
       toast.error(error instanceof Error ? error.message : "Sourced edition import failed");
     } finally {
       setSourcedEditionBusy(false);
+    }
+  }
+
+  async function importSacredReferenceManifest() {
+    let nodes: SacredReferenceManifestNode[];
+    try {
+      const parsed = JSON.parse(referenceManifestText) as unknown;
+      if (!Array.isArray(parsed) || parsed.length === 0) {
+        throw new Error("Reference manifest must be a non-empty JSON array.");
+      }
+      nodes = parsed as SacredReferenceManifestNode[];
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Reference manifest is not valid JSON.");
+      return;
+    }
+
+    setReferenceManifestBusy(true);
+    try {
+      const language = referenceManifestLanguage || book.source_language;
+      const result = await adminReplaceSacredReferenceManifest({
+        data: {
+          accessToken: await getAccessToken(),
+          bookId,
+          language,
+          nodes,
+        },
+      });
+      toast.success(
+        `Imported ${result.count} canonical references for ${result.language}; structure review reset to pending.`,
+      );
+      setReferenceManifestText("");
+      await refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Canonical reference import failed.");
+    } finally {
+      setReferenceManifestBusy(false);
     }
   }
 
@@ -1233,6 +1276,85 @@ function AdminBookDetail() {
                 {contentPolicyBusy ? "Saving…" : "Save content policy"}
               </button>
             </div>
+          </div>
+        )}
+
+        {book.content_classification === "religious" && (
+          <div className="mt-5 border-t border-border pt-4">
+            <h3 className="text-sm font-semibold text-foreground">
+              Authentic source & canonical reference map
+            </h3>
+            <p className="mt-1 max-w-3xl text-xs leading-relaxed text-muted-foreground">
+              A Religious book cannot be published until it has a valid reader-visible source URL,
+              an exact source edition identifier, and a reviewed canonical reference map. Keep the
+              sacred text itself untouched; import chapter/verse, Surah/Ayah, Chapter/Shloka, Ang,
+              hymn, canto or other authentic reference metadata separately here.
+            </p>
+            <div className="mt-3 rounded-xl border border-border bg-background p-3 text-xs">
+              <p>
+                <strong>Public source URL:</strong> {book.source_url || "Missing — edit Rights & provenance"}
+              </p>
+              <p className="mt-1">
+                <strong>Source edition ID:</strong>{" "}
+                {book.source_edition_id || book.source_scan_id || "Missing — edit book metadata"}
+              </p>
+            </div>
+
+            {canReview && (
+              <div className="mt-4 grid gap-3">
+                <label className="block max-w-sm">
+                  <span className="text-xs font-medium text-muted-foreground">
+                    Reference-map language
+                  </span>
+                  <select
+                    value={referenceManifestLanguage || book.source_language}
+                    onChange={(e) => setReferenceManifestLanguage(e.target.value)}
+                    disabled={book.status === "published"}
+                    className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm disabled:opacity-60"
+                  >
+                    {[book.source_language, ...book.available_languages.filter((l) => l !== book.source_language)].map(
+                      (language) => (
+                        <option key={language} value={language}>
+                          {language}
+                        </option>
+                      ),
+                    )}
+                  </select>
+                </label>
+                <label className="block">
+                  <span className="text-xs font-medium text-muted-foreground">
+                    Canonical reference manifest (JSON)
+                  </span>
+                  <textarea
+                    rows={9}
+                    value={referenceManifestText}
+                    onChange={(e) => setReferenceManifestText(e.target.value)}
+                    disabled={book.status === "published"}
+                    placeholder={'[{"nodeKey":"ref-1","nodeType":"section","title":"…","ordinal":0,"depth":0,"startChunkIndex":0,"endChunkIndex":0,"canonicalRef":"…","referenceLabel":"…","referenceKind":"verse","referencePath":[{"kind":"chapter","label":"Chapter","value":"1"},{"kind":"verse","label":"Verse","value":"1"}]}]'}
+                    className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 font-mono text-xs leading-relaxed disabled:opacity-60"
+                  />
+                </label>
+                <div className="flex flex-wrap items-center gap-3">
+                  <button
+                    type="button"
+                    disabled={
+                      referenceManifestBusy ||
+                      book.status === "published" ||
+                      !referenceManifestText.trim()
+                    }
+                    onClick={() => void importSacredReferenceManifest()}
+                    className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {referenceManifestBusy ? "Importing…" : "Import reviewed reference map"}
+                  </button>
+                  {book.status === "published" && (
+                    <span className="text-xs text-muted-foreground">
+                      Unpublish first before replacing canonical references.
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </section>
