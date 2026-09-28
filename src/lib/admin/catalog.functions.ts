@@ -608,6 +608,75 @@ export const adminImportVerifiedSourcedEdition = createServerFn({ method: "POST"
     return result;
   });
 
+const SACRED_REFERENCE_NODE = z.object({
+  nodeKey: z.string().trim().min(1).max(500),
+  parentNodeKey: z.string().trim().max(500).nullable().optional(),
+  nodeType: z.enum([
+    "front_matter",
+    "part",
+    "book",
+    "volume",
+    "chapter",
+    "story",
+    "section",
+    "act",
+    "scene",
+    "poem",
+    "canto",
+    "stanza",
+    "paragraph",
+    "footnote",
+    "endnote",
+    "back_matter",
+  ]),
+  title: z.string().max(1000).nullable().optional(),
+  ordinal: z.number().int().min(0),
+  depth: z.number().int().min(0),
+  startChunkIndex: z.number().int().min(0),
+  endChunkIndex: z.number().int().min(0),
+  canonicalRef: z.string().trim().min(1).max(500),
+  referenceLabel: z.string().trim().min(1).max(1000),
+  referenceKind: z.string().trim().min(1).max(120),
+  referencePath: z
+    .array(
+      z.object({
+        kind: z.string().trim().min(1).max(120),
+        label: z.string().trim().min(1).max(120),
+        value: z.string().trim().min(1).max(500),
+      }),
+    )
+    .max(16)
+    .optional(),
+});
+
+export const adminReplaceSacredReferenceManifest = createServerFn({ method: "POST" })
+  .inputValidator((data) =>
+    withToken({
+      bookId: z.string().uuid(),
+      language: z.string().trim().min(1).max(80),
+      nodes: z.array(SACRED_REFERENCE_NODE).min(1).max(10000),
+    }).parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { userId, role } = await requireAdmin(data.accessToken, "catalog.review");
+    const { replaceSacredReferenceManifest } = await import("@/lib/admin/catalog.server");
+    const result = await replaceSacredReferenceManifest({
+      bookId: data.bookId,
+      language: data.language,
+      nodes: data.nodes,
+    });
+    await recordAudit({
+      actorId: userId,
+      actorRole: role,
+      action: "catalog.replace_sacred_reference_manifest",
+      entityType: "book",
+      entityId: data.bookId,
+      reason: `Reviewed canonical reference map imported for ${data.language}`,
+      after: result as unknown as Record<string, unknown>,
+    });
+    return result;
+  });
+
 // ============================================================================
 // Book metadata editing (admin)
 // ============================================================================
