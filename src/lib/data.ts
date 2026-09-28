@@ -46,6 +46,12 @@ export interface Book {
     | "scripture_indic"
     | "facsimile_preserving";
   authenticity_notes?: string | null;
+  // Public-safe source provenance for the exact edition used by Seeparah.
+  // Internal rights evidence remains separate and is never exposed here.
+  source_url?: string | null;
+  source_edition_id?: string | null;
+  attribution?: string | null;
+  translator?: string | null;
 }
 
 export interface Chunk {
@@ -213,7 +219,7 @@ export const TRANSLATION_EXPLAINER_SHORT =
 /** The one sentence describing what publishing costs/pays right now — no
  * revenue split, no payout promise, while monetization is off. */
 export const FREE_LAUNCH_AUTHOR_TERMS =
-  "Free to publish and free for readers during launch — no subscriptions, no premium switch, no revenue split yet. Payout terms will be published here before any paid plan starts.";
+  "Submitting a manuscript is free. An administrator reviews rights and edition quality before publication. Original-language editions remain free; translated-edition access follows the active plan settings. Any author payout or revenue terms are shown only when a monetization program is actually active.";
 
 // ---------------------------------------------------------------------------
 // Demo / offline fallback content (mirrors the seeded cloud library)
