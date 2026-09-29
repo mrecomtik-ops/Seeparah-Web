@@ -14,10 +14,11 @@ import {
 } from "@/lib/data";
 import { ManuscriptSaveError, publishBook, splitManuscript } from "@/lib/library";
 import { useAuth } from "@/lib/use-auth";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { importEpubManuscript, MAX_EPUB_RAW_BYTES } from "@/lib/manuscript-import.functions";
 import { supabase } from "@/integrations/supabase/client";
+import { getPublicContentSettings } from "@/lib/admin/settings.functions";
 
 export const Route = createFileRoute("/author/publish")({
   head: () => ({
@@ -57,6 +58,7 @@ function PublishPage() {
   const [summary, setSummary] = useState("");
   const [manuscript, setManuscript] = useState("");
   const [genre, setGenre] = useState<string>(GENRES[0]);
+  const [categories, setCategories] = useState<string[]>([]);
   const [coverUrl, setCoverUrl] = useState("");
   const [rightsConfirmed, setRightsConfirmed] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
@@ -71,6 +73,14 @@ function PublishPage() {
   // longer be resumable), so a dead id can never get stuck being retried
   // forever.
   const [pendingDraftId, setPendingDraftId] = useState<string | null>(null);
+
+  const categoriesQuery = useQuery({
+    queryKey: ["public-content-settings"],
+    queryFn: () => getPublicContentSettings(),
+  });
+  const masterCategories = (
+    (categoriesQuery.data?.["categories"] as string[] | undefined) ?? []
+  ).filter((category) => category !== "Religious");
 
   const chapters = manuscript.trim() ? splitManuscript(manuscript) : [];
 
@@ -176,6 +186,9 @@ function PublishPage() {
     if (chapters.length === 0) {
       return "Couldn't detect any content to publish — check your manuscript text.";
     }
+    if (forSubmit && categories.length === 0) {
+      return "Choose at least one category before submitting for review.";
+    }
     if (forSubmit && !rightsConfirmed) {
       return "Confirm you hold the rights to this manuscript before submitting for review.";
     }
@@ -204,6 +217,7 @@ function PublishPage() {
           isPaid: false,
           priceUsd: null,
           genre,
+          categories,
           coverUrl: coverUrl.trim() || null,
           status,
           rightsConfirmed,
@@ -308,7 +322,7 @@ function PublishPage() {
             </div>
             <div>
               <label className={labelCls} htmlFor="pub-genre">
-                Category / topic
+                Genre
               </label>
               <select
                 id="pub-genre"
@@ -323,6 +337,51 @@ function PublishPage() {
                 ))}
               </select>
             </div>
+          </div>
+
+          <div>
+            <span className={labelCls}>Categories</span>
+            <p className="mb-2 text-xs text-muted-foreground">
+              Choose one or more categories for discovery. An administrator can adjust these during
+              review. Religious/Sacred Texts use the separate verified-source workflow.
+            </p>
+            {masterCategories.length === 0 ? (
+              <p className="rounded-lg border border-border bg-secondary/40 px-3 py-2 text-xs text-muted-foreground">
+                Categories are loading or have not been configured yet.
+              </p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {masterCategories.map((category) => {
+                  const active = categories.includes(category);
+                  return (
+                    <button
+                      type="button"
+                      key={category}
+                      aria-pressed={active}
+                      onClick={() =>
+                        setCategories((current) =>
+                          current.includes(category)
+                            ? current.filter((item) => item !== category)
+                            : [...current, category],
+                        )
+                      }
+                      className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                        active
+                          ? "bg-primary text-primary-foreground"
+                          : "border border-border bg-background text-foreground hover:bg-secondary"
+                      }`}
+                    >
+                      {category}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            <p className="mt-2 text-xs text-muted-foreground">
+              {categories.length
+                ? `${categories.length} selected: ${categories.join(", ")}`
+                : "Select at least one category before submitting for review."}
+            </p>
           </div>
 
           <div>
@@ -445,7 +504,9 @@ function PublishPage() {
           </div>
 
           <div className="rounded-xl border border-primary/20 bg-accent/40 p-4">
-            <p className="text-sm font-semibold text-foreground">Sacred Texts use a separate source workflow</p>
+            <p className="text-sm font-semibold text-foreground">
+              Sacred Texts use a separate source workflow
+            </p>
             <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
               Religious scriptures and established scripture translations are not submitted for
               Seeparah-generated translation through this ordinary manuscript form. They are

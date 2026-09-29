@@ -109,7 +109,8 @@ export interface ReaderChunkResult {
   content: string | null;
   locked: boolean;
   typographyProfile?: string;
-  reason?: "sign_in_required" | "subscription_required" | "translation_access_required" | "not_available";
+  reason?:
+    "sign_in_required" | "subscription_required" | "translation_access_required" | "not_available";
 }
 
 function findDemoChunk(bookId: string, language: string, chunkIndex: number): Chunk | undefined {
@@ -117,23 +118,15 @@ function findDemoChunk(bookId: string, language: string, chunkIndex: number): Ch
     demoStore
       .getExtraChunks()
       .find(
-        (c) =>
-          c.book_id === bookId &&
-          c.language === language &&
-          c.chunk_index === chunkIndex,
+        (c) => c.book_id === bookId && c.language === language && c.chunk_index === chunkIndex,
       ) ??
     DEMO_CHUNKS.find(
-      (c) =>
-        c.book_id === bookId &&
-        c.language === language &&
-        c.chunk_index === chunkIndex,
+      (c) => c.book_id === bookId && c.language === language && c.chunk_index === chunkIndex,
     ) ??
     demoStore
       .getPublishedBooks()
       .find((p) => p.book.id === bookId)
-      ?.chunks.find(
-        (c) => c.language === language && c.chunk_index === chunkIndex,
-      )
+      ?.chunks.find((c) => c.language === language && c.chunk_index === chunkIndex)
   );
 }
 
@@ -242,8 +235,7 @@ export async function saveProgress(
   }
   const rows = demoStore.getProgress();
   const i = rows.findIndex(
-    (r) =>
-      r.book_id === bookId && r.language === language && r.user_id === userId,
+    (r) => r.book_id === bookId && r.language === language && r.user_id === userId,
   );
   if (i >= 0) rows[i] = row;
   else rows.push(row);
@@ -361,9 +353,7 @@ export async function listHighlights(userId: string): Promise<Highlight[]> {
     .reverse();
 }
 
-export async function listSubscriptions(
-  userId: string,
-): Promise<Subscription[]> {
+export async function listSubscriptions(userId: string): Promise<Subscription[]> {
   if (userId !== DEMO_USER_ID) {
     try {
       const { data, error } = await supabase
@@ -376,9 +366,7 @@ export async function listSubscriptions(
       // fall through
     }
   }
-  return demoStore
-    .getSubscriptions()
-    .filter((s) => s.user_id === userId && s.status === "active");
+  return demoStore.getSubscriptions().filter((s) => s.user_id === userId && s.status === "active");
 }
 
 /**
@@ -483,13 +471,13 @@ export interface PublishInput {
   isPaid: boolean;
   priceUsd: number | null;
   genre: string | null;
+  categories?: string[];
   coverUrl: string | null;
   status: BookStatus;
   rightsConfirmed: boolean;
 }
 
 export { splitManuscript } from "@/lib/manuscript";
-
 
 /**
  * Creates (or resumes) a book's draft, then optionally submits it for
@@ -555,6 +543,7 @@ export async function publishBook(
       source_language: input.sourceLanguage,
       description: input.summary,
       genre: input.genre,
+      categories: input.categories ?? [],
       status: input.status,
       access_type: input.isPaid ? "paid" : "free",
       subscription_price_usd: input.isPaid ? input.priceUsd : null,
@@ -638,6 +627,7 @@ export async function publishBook(
         source_language: input.sourceLanguage,
         description: input.summary,
         ...(input.genre ? { genre: input.genre } : {}),
+        categories: input.categories ?? [],
         ...(input.coverUrl ? { cover_url: input.coverUrl } : {}),
         status: "draft",
         access_type: input.isPaid ? "paid" : "free",
@@ -680,9 +670,9 @@ export async function publishBook(
       // (src/lib/reader.server.ts's getReaderChunk). Once migration 0001
       // lands, the first attempt above succeeds and this branch stops
       // running.
-      ({ error: chunkError } = await supabase.from("book_chunks").insert(
-        chunkRows.map(({ status: _status, ...rest }) => rest),
-      ));
+      ({ error: chunkError } = await supabase
+        .from("book_chunks")
+        .insert(chunkRows.map(({ status: _status, ...rest }) => rest)));
     }
 
     if (chunkError) {
@@ -753,7 +743,9 @@ export async function publishBook(
     .eq("id", bookId)
     .single();
   if (finalError || !finalRow) {
-    throw new Error(`Saved, but couldn't confirm the final state: ${finalError?.message ?? "not found"}`);
+    throw new Error(
+      `Saved, but couldn't confirm the final state: ${finalError?.message ?? "not found"}`,
+    );
   }
   return finalRow as Book;
 }

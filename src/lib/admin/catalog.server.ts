@@ -240,8 +240,9 @@ export async function evaluatePublishGate(
       row.metadata && typeof row.metadata === "object" && !Array.isArray(row.metadata)
         ? (row.metadata as Record<string, unknown>)
         : null;
-    return typeof metadata?.["canonical_ref"] === "string" &&
-      metadata["canonical_ref"].trim().length > 0;
+    return (
+      typeof metadata?.["canonical_ref"] === "string" && metadata["canonical_ref"].trim().length > 0
+    );
   });
 
   return computePublishGate(
@@ -281,7 +282,11 @@ export function isPlaceholderRightsText(value: string | null | undefined): boole
   if (/^(.)\1*$/.test(trimmed)) return true;
   if (PLACEHOLDER_RIGHTS_TEXT.has(trimmed.toLowerCase())) return true;
   if (/lorem ipsum/i.test(trimmed)) return true;
-  if (/\b(?:pending|do\s+not\s+approve|not\s+verified|awaiting\s+rights|rights\s+unknown)\b/i.test(trimmed)) {
+  if (
+    /\b(?:pending|do\s+not\s+approve|not\s+verified|awaiting\s+rights|rights\s+unknown)\b/i.test(
+      trimmed,
+    )
+  ) {
     return true;
   }
   return false;
@@ -352,10 +357,7 @@ export async function reviewRights(params: {
   return { before, after: { rights_status: params.decision, ...statusPatch } };
 }
 
-export async function acknowledgeRightsRiskSignals(params: {
-  bookId: string;
-  reviewerId: string;
-}) {
+export async function acknowledgeRightsRiskSignals(params: { bookId: string; reviewerId: string }) {
   const signals = await scanBookRightsSignals(params.bookId);
   if (signals.length === 0) {
     throw new Error("No rights-risk clues were detected for this manuscript.");
@@ -418,6 +420,134 @@ export async function reviewReaderQuality(params: {
  * or archived just because someone re-runs a review action on it. */
 function isReviewableStatus(status: string | undefined): boolean {
   return status === "in_review" || status === "approved" || status === "changes_requested";
+}
+
+export interface BulkBookReviewResult {
+  bookId: string;
+  title: string;
+  ok: boolean;
+  approvedSteps: Array<"rights" | "edition" | "structure" | "cleanup">;
+  blockers: string[];
+}
+
+export async function bulkApproveBookReviews(params: {
+  bookIds: string[];
+  reviewerId: string;
+  notes?: string | undefined;
+}): Promise<BulkBookReviewResult[]> {
+  const db = await admin();
+  const results: BulkBookReviewResult[] = [];
+
+  for (const bookId of [...new Set(params.bookIds)]) {
+    const approvedSteps: BulkBookReviewResult["approvedSteps"] = [];
+    const blockers: string[] = [];
+    try {
+      const { data: book, error } = await db
+        .from("books")
+        .select(
+          "title,status,rights_status,edition_review_status,structure_review_status,cleanup_review_status",
+        )
+        .eq("id", bookId)
+        .single();
+      if (error || !book) throw new Error(error?.message ?? "Book not found");
+
+      if (!["in_review", "changes_requested", "approved"].includes(book.status)) {
+        results.push({
+          bookId,
+          title: book.title,
+          ok: false,
+          approvedSteps,
+          blockers: [`Book is ${book.status.replaceAll("_", " ")} and is not in the review queue.`],
+        });
+        continue;
+      }
+
+      if (book.structure_review_status !== "approved") {
+        await reviewReaderQuality({
+          bookId,
+          target: "structure",
+          decision: "approved",
+          reviewerId: params.reviewerId,
+          notes: params.notes,
+        });
+        approvedSteps.push("structure");
+      }
+
+      if (book.cleanup_review_status !== "approved") {
+        await reviewReaderQuality({
+          bookId,
+          target: "cleanup",
+          decision: "approved",
+          reviewerId: params.reviewerId,
+          notes: params.notes,
+        });
+        approvedSteps.push("cleanup");
+      }
+
+      if (book.edition_review_status !== "approved") {
+        await reviewEdition({
+          bookId,
+          decision: "approved",
+          reviewerId: params.reviewerId,
+          notes: params.notes,
+        });
+        approvedSteps.push("edition");
+      }
+
+      if (book.rights_status !== "approved") {
+        try {
+          await reviewRights({
+            bookId,
+            decision: "approved",
+            reviewerId: params.reviewerId,
+            notes: params.notes,
+          });
+          approvedSteps.push("rights");
+        } catch (rightsError) {
+          blockers.push(
+            rightsError instanceof Error
+              ? rightsError.message
+              : "Rights review still needs individual attention.",
+          );
+        }
+      }
+
+      const { data: final, error: finalError } = await db
+        .from("books")
+        .select("rights_status,edition_review_status,structure_review_status,cleanup_review_status")
+        .eq("id", bookId)
+        .single();
+      if (finalError || !final)
+        throw new Error(finalError?.message ?? "Could not verify review state");
+
+      const incomplete: string[] = [];
+      if (final.rights_status !== "approved") incomplete.push("rights");
+      if (final.edition_review_status !== "approved") incomplete.push("edition");
+      if (final.structure_review_status !== "approved") incomplete.push("structure");
+      if (final.cleanup_review_status !== "approved") incomplete.push("text cleanup");
+      if (incomplete.length) {
+        blockers.push(`Still pending: ${incomplete.join(", ")}.`);
+      }
+
+      results.push({
+        bookId,
+        title: book.title,
+        ok: blockers.length === 0,
+        approvedSteps,
+        blockers: [...new Set(blockers)],
+      });
+    } catch (error) {
+      results.push({
+        bookId,
+        title: "Unknown book",
+        ok: false,
+        approvedSteps,
+        blockers: [error instanceof Error ? error.message : String(error)],
+      });
+    }
+  }
+
+  return results;
 }
 
 export async function reviewEdition(params: {
@@ -613,7 +743,8 @@ export interface BookEditionRow {
   book_id: string;
   language: string;
   access_type: EditionAccessType;
-  provenance_type: "ai_assisted" | "human_translation" | "licensed_translation" | "public_domain_translation";
+  provenance_type:
+    "ai_assisted" | "human_translation" | "licensed_translation" | "public_domain_translation";
   typography_profile: string;
   authenticity_notes: string | null;
   edition_title: string | null;
@@ -659,7 +790,9 @@ export async function setBookContentPolicy(params: {
   const db = await admin();
   const { data: before, error: beforeError } = await db
     .from("books")
-    .select("status, content_classification, translation_generation_policy, typography_profile, authenticity_notes, categories, access_type")
+    .select(
+      "status, content_classification, translation_generation_policy, typography_profile, authenticity_notes, categories, access_type",
+    )
     .eq("id", params.bookId)
     .single();
   if (beforeError || !before) throw new Error(beforeError?.message ?? "Book not found");
@@ -670,19 +803,21 @@ export async function setBookContentPolicy(params: {
     before.content_classification !== "religious" && params.classification === "religious";
 
   if (isReligiousUpgrade) {
-    const [{ count: aiEditionCount, error: aiEditionError }, { count: activeJobCount, error: activeJobError }] =
-      await Promise.all([
-        db
-          .from("book_editions")
-          .select("language", { count: "exact", head: true })
-          .eq("book_id", params.bookId)
-          .eq("provenance_type", "ai_assisted"),
-        db
-          .from("book_translation_jobs")
-          .select("id", { count: "exact", head: true })
-          .eq("book_id", params.bookId)
-          .in("status", ["pending", "processing", "awaiting_review", "published"]),
-      ]);
+    const [
+      { count: aiEditionCount, error: aiEditionError },
+      { count: activeJobCount, error: activeJobError },
+    ] = await Promise.all([
+      db
+        .from("book_editions")
+        .select("language", { count: "exact", head: true })
+        .eq("book_id", params.bookId)
+        .eq("provenance_type", "ai_assisted"),
+      db
+        .from("book_translation_jobs")
+        .select("id", { count: "exact", head: true })
+        .eq("book_id", params.bookId)
+        .in("status", ["pending", "processing", "awaiting_review", "published"]),
+    ]);
     if (aiEditionError) throw new Error(aiEditionError.message);
     if (activeJobError) throw new Error(activeJobError.message);
     if ((aiEditionCount ?? 0) > 0 || (activeJobCount ?? 0) > 0) {
@@ -763,9 +898,7 @@ export async function setBookContentPolicy(params: {
 }
 
 export type SourcedEditionProvenance =
-  | "human_translation"
-  | "licensed_translation"
-  | "public_domain_translation";
+  "human_translation" | "licensed_translation" | "public_domain_translation";
 
 export async function importVerifiedSourcedEdition(params: {
   bookId: string;
@@ -903,7 +1036,9 @@ export async function replaceSacredReferenceManifest(params: {
     book.content_classification !== "religious" ||
     book.translation_generation_policy !== "source_only"
   ) {
-    throw new Error("Canonical scripture reference manifests are reserved for Religious/source-only books.");
+    throw new Error(
+      "Canonical scripture reference manifests are reserved for Religious/source-only books.",
+    );
   }
   if (book.status === "published") {
     throw new Error("Unpublish the Religious book before replacing its canonical reference map.");
@@ -1424,11 +1559,15 @@ export async function updateBookMetadata(params: {
     ...(params.patch.description !== undefined ? { description: params.patch.description } : {}),
     ...(params.patch.genre !== undefined ? { genre: params.patch.genre } : {}),
     ...(params.patch.coverUrl !== undefined ? { cover_url: params.patch.coverUrl } : {}),
-    ...(params.patch.editionTitle !== undefined ? { edition_title: params.patch.editionTitle } : {}),
+    ...(params.patch.editionTitle !== undefined
+      ? { edition_title: params.patch.editionTitle }
+      : {}),
     ...(params.patch.editionYear !== undefined ? { edition_year: params.patch.editionYear } : {}),
     ...(params.patch.publisher !== undefined ? { publisher: params.patch.publisher } : {}),
     ...(params.patch.isbn !== undefined ? { isbn: params.patch.isbn } : {}),
-    ...(params.patch.sourceScanId !== undefined ? { source_scan_id: params.patch.sourceScanId } : {}),
+    ...(params.patch.sourceScanId !== undefined
+      ? { source_scan_id: params.patch.sourceScanId }
+      : {}),
     ...(params.patch.originalPublicationYear !== undefined
       ? { original_publication_year: params.patch.originalPublicationYear }
       : {}),
@@ -1795,7 +1934,11 @@ export async function bulkPatchBookCategory(params: {
       if (writeError) throw new Error(writeError.message);
       results.push({ bookId, ok: true });
     } catch (error) {
-      results.push({ bookId, ok: false, error: error instanceof Error ? error.message : String(error) });
+      results.push({
+        bookId,
+        ok: false,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
   return results;
@@ -1859,10 +2002,7 @@ export interface CategorySuggestionRow {
 // as listBookEditions had in an earlier pass.
 export async function listCategorySuggestions(status?: string): Promise<CategorySuggestionRow[]> {
   const db = await admin();
-  let query = db
-    .from("category_suggestions")
-    .select("*")
-    .order("created_at", { ascending: false });
+  let query = db.from("category_suggestions").select("*").order("created_at", { ascending: false });
   if (status) query = query.eq("status", status);
   const { data, error } = await query;
   if (error) throw new Error(error.message);

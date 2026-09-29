@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { CheckCheck, Loader2, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { getAccessToken, useResolvedAdminSession, can } from "@/lib/admin/use-admin-session";
 import { getPublicContentSettings } from "@/lib/admin/settings.functions";
@@ -10,6 +10,7 @@ import {
   adminListCatalog,
   adminSetBookLifecycle,
   adminBulkPatchBookCategory,
+  adminBulkApproveBookReviews,
 } from "@/lib/admin/catalog.functions";
 
 export const Route = createFileRoute("/admin/books/")({
@@ -29,7 +30,9 @@ const STATUSES = [
 ];
 
 function statusLabel(value: string) {
-  return value ? value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase()) : "All";
+  return value
+    ? value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase())
+    : "All";
 }
 
 function catalogActionLabel(book: {
@@ -55,15 +58,18 @@ function AdminBooksList() {
   const [deleting, setDeleting] = useState(false);
   const [bulkCategory, setBulkCategory] = useState("");
   const [categoryBusy, setCategoryBusy] = useState(false);
+  const [reviewBusy, setReviewBusy] = useState(false);
   const queryClient = useQueryClient();
   const session = useResolvedAdminSession();
   const canPublish = can(session, "catalog.publish");
+  const canReview = can(session, "catalog.review");
   const canManageCategories = can(session, "catalog.categories.manage");
   const masterCategoriesQuery = useQuery({
     queryKey: ["public-content-settings"],
     queryFn: () => getPublicContentSettings(),
   });
-  const masterCategories = (masterCategoriesQuery.data?.["categories"] as string[] | undefined) ?? [];
+  const masterCategories =
+    (masterCategoriesQuery.data?.["categories"] as string[] | undefined) ?? [];
 
   const booksQuery = useQuery({
     queryKey: ["admin-books", status, query, page],
@@ -92,7 +98,9 @@ function AdminBooksList() {
   }
 
   function toggleAll() {
-    setSelected((prev) => (prev.size === books.length ? new Set() : new Set(books.map((b) => b.id))));
+    setSelected((prev) =>
+      prev.size === books.length ? new Set() : new Set(books.map((b) => b.id)),
+    );
   }
 
   async function confirmDelete() {
@@ -117,6 +125,38 @@ function AdminBooksList() {
     }
   }
 
+  async function approveSelectedReviews() {
+    if (selected.size === 0) return;
+    setReviewBusy(true);
+    try {
+      const results = await adminBulkApproveBookReviews({
+        data: {
+          accessToken: await getAccessToken(),
+          bookIds: [...selected],
+          notes: "Bulk review approval from Admin Catalog",
+        },
+      });
+      const complete = results.filter((result) => result.ok).length;
+      const needsAttention = results.length - complete;
+      if (needsAttention === 0) {
+        toast.success(`Review checks approved for ${complete} book(s).`);
+      } else {
+        const firstBlocker = results.find((result) => !result.ok)?.blockers?.[0];
+        toast.error(
+          `${complete} fully approved; ${needsAttention} still need individual attention.${
+            firstBlocker ? ` First blocker: ${firstBlocker}` : ""
+          }`,
+          { duration: 9000 },
+        );
+      }
+      await queryClient.invalidateQueries({ queryKey: ["admin-books"] });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Bulk review failed");
+    } finally {
+      setReviewBusy(false);
+    }
+  }
+
   async function applyBulkCategory(action: "add" | "remove") {
     if (!bulkCategory || selected.size === 0) return;
     setCategoryBusy(true);
@@ -131,7 +171,9 @@ function AdminBooksList() {
       });
       const failed = results.filter((r) => !r.ok);
       if (failed.length === 0) {
-        toast.success(`${action === "add" ? "Added to" : "Removed from"} ${results.length} book(s)`);
+        toast.success(
+          `${action === "add" ? "Added to" : "Removed from"} ${results.length} book(s)`,
+        );
       } else {
         toast.error(`${results.length - failed.length} succeeded, ${failed.length} failed`);
       }
@@ -188,6 +230,17 @@ function AdminBooksList() {
       {selected.size > 0 && (
         <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-4 py-2.5 text-sm">
           <span className="font-semibold text-foreground">{selected.size} selected</span>
+          {canReview && (
+            <button
+              disabled={reviewBusy}
+              onClick={() => void approveSelectedReviews()}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-60"
+              title="Approves edition, structure and cleanup checks in bulk. Rights approval still stops on any unreviewed rights/copyright clues."
+            >
+              <CheckCheck className="h-3.5 w-3.5" />
+              {reviewBusy ? "Approving…" : "Approve review checks"}
+            </button>
+          )}
           {canManageCategories && masterCategories.length > 0 && (
             <>
               <select
@@ -260,6 +313,7 @@ function AdminBooksList() {
                 </th>
                 <th className="px-4 py-2">Title</th>
                 <th className="px-4 py-2">Author</th>
+                <th className="px-4 py-2">Categories</th>
                 <th className="px-4 py-2">Status</th>
                 <th className="px-4 py-2">Original access</th>
                 <th className="px-4 py-2">Rights</th>
@@ -297,6 +351,22 @@ function AdminBooksList() {
                   </td>
                   <td className="px-4 py-2 text-xs">{b.author}</td>
                   <td className="px-4 py-2 text-xs">
+                    {(b.categories ?? []).length ? (
+                      <div className="flex max-w-52 flex-wrap gap-1">
+                        {(b.categories ?? []).map((category) => (
+                          <span
+                            key={category}
+                            className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold text-secondary-foreground"
+                          >
+                            {category}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground">Uncategorized</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-2 text-xs">
                     <span className="rounded-full bg-secondary px-2.5 py-1 font-semibold text-secondary-foreground">
                       {statusLabel(b.status)}
                     </span>
@@ -331,7 +401,7 @@ function AdminBooksList() {
               ))}
               {books.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-4 py-8 text-center text-sm text-muted-foreground">
+                  <td colSpan={9} className="px-4 py-8 text-center text-sm text-muted-foreground">
                     No books match.
                   </td>
                 </tr>
@@ -364,11 +434,11 @@ function AdminBooksList() {
               Delete “{deleteTarget.title}”?
             </h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              This archives the book — it stops being published and disappears from the catalog,
-              but nothing is erased. Chunks, translations, editions, reader highlights and
-              progress, requests, and audit history all stay intact, and this can be reversed from
-              the book's detail page anytime. For irreversible deletion, open the book and use
-              "Delete permanently" (owner/administrator only).
+              This archives the book — it stops being published and disappears from the catalog, but
+              nothing is erased. Chunks, translations, editions, reader highlights and progress,
+              requests, and audit history all stay intact, and this can be reversed from the book's
+              detail page anytime. For irreversible deletion, open the book and use "Delete
+              permanently" (owner/administrator only).
             </p>
             <div className="mt-4 flex justify-end gap-2">
               <button
