@@ -42,12 +42,8 @@ export const adminGetCatalogBook = createServerFn({ method: "POST" })
   .inputValidator((data) => withToken({ bookId: z.string() }).parse(data))
   .handler(async ({ data }) => {
     await requireAdmin(data.accessToken, "catalog.read_unpublished");
-    const {
-      adminGetBook,
-      evaluatePublishGate,
-      listBookEditions,
-      scanBookRightsSignals,
-    } = await import("@/lib/admin/catalog.server");
+    const { adminGetBook, evaluatePublishGate, listBookEditions, scanBookRightsSignals } =
+      await import("@/lib/admin/catalog.server");
     const [detail, gate, editions, rightsSignals] = await Promise.all([
       adminGetBook(data.bookId),
       evaluatePublishGate(data.bookId),
@@ -170,6 +166,36 @@ export const adminReviewBookReaderQuality = createServerFn({ method: "POST" })
     return { ok: true as const };
   });
 
+export const adminBulkApproveBookReviews = createServerFn({ method: "POST" })
+  .inputValidator((data) =>
+    withToken({
+      bookIds: z.array(z.string()).min(1).max(200),
+      notes: z.string().max(4000).optional(),
+    }).parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { userId, role } = await requireAdmin(data.accessToken, "catalog.review");
+    const { bulkApproveBookReviews } = await import("@/lib/admin/catalog.server");
+    const results = await bulkApproveBookReviews({
+      bookIds: data.bookIds,
+      reviewerId: userId,
+      notes: data.notes,
+    });
+    await recordAudit({
+      actorId: userId,
+      actorRole: role,
+      action: "catalog.bulk_approve_reviews",
+      entityType: "book_batch",
+      entityId: `batch:${Date.now()}`,
+      after: {
+        requested: data.bookIds.length,
+        fullyApproved: results.filter((result) => result.ok).length,
+        needsAttention: results.filter((result) => !result.ok).length,
+      },
+    });
+    return results;
+  });
+
 export const adminPublishCatalogBook = createServerFn({ method: "POST" })
   .inputValidator((data) => withToken({ bookId: z.string() }).parse(data))
   .handler(async ({ data }) => {
@@ -220,9 +246,7 @@ export const adminSetBookLifecycle = createServerFn({ method: "POST" })
 const ACCESS_TYPE = z.enum(["free", "paid"]);
 
 export const adminSetBookAccessType = createServerFn({ method: "POST" })
-  .inputValidator((data) =>
-    withToken({ bookId: z.string(), accessType: ACCESS_TYPE }).parse(data),
-  )
+  .inputValidator((data) => withToken({ bookId: z.string(), accessType: ACCESS_TYPE }).parse(data))
   .handler(async ({ data }) => {
     const { userId, role } = await requireAdmin(data.accessToken, "catalog.publish");
     const { setBookAccessType } = await import("@/lib/admin/catalog.server");
@@ -532,9 +556,7 @@ export const adminSetBookContentPolicy = createServerFn({ method: "POST" })
       ...(data.authenticityNotes !== undefined
         ? { authenticityNotes: data.authenticityNotes }
         : {}),
-      ...(data.downgradeReason !== undefined
-        ? { downgradeReason: data.downgradeReason }
-        : {}),
+      ...(data.downgradeReason !== undefined ? { downgradeReason: data.downgradeReason } : {}),
     });
     await recordAudit({
       actorId: userId,
@@ -736,9 +758,11 @@ export const adminUpdateBookMetadata = createServerFn({ method: "POST" })
 // ============================================================================
 export const adminGetChunkForEdit = createServerFn({ method: "POST" })
   .inputValidator((data) =>
-    withToken({ bookId: z.string(), language: z.string(), chunkIndex: z.number().int().min(0) }).parse(
-      data,
-    ),
+    withToken({
+      bookId: z.string(),
+      language: z.string(),
+      chunkIndex: z.number().int().min(0),
+    }).parse(data),
   )
   .handler(async ({ data }) => {
     await requireAdmin(data.accessToken, "catalog.review");
@@ -783,9 +807,11 @@ export const adminStageChunkContentEdit = createServerFn({ method: "POST" })
 
 export const adminPublishChunkContentEdit = createServerFn({ method: "POST" })
   .inputValidator((data) =>
-    withToken({ bookId: z.string(), language: z.string(), chunkIndex: z.number().int().min(0) }).parse(
-      data,
-    ),
+    withToken({
+      bookId: z.string(),
+      language: z.string(),
+      chunkIndex: z.number().int().min(0),
+    }).parse(data),
   )
   .handler(async ({ data }) => {
     const { userId, role } = await requireAdmin(data.accessToken, "catalog.review");
@@ -809,9 +835,11 @@ export const adminPublishChunkContentEdit = createServerFn({ method: "POST" })
 
 export const adminDiscardChunkContentEdit = createServerFn({ method: "POST" })
   .inputValidator((data) =>
-    withToken({ bookId: z.string(), language: z.string(), chunkIndex: z.number().int().min(0) }).parse(
-      data,
-    ),
+    withToken({
+      bookId: z.string(),
+      language: z.string(),
+      chunkIndex: z.number().int().min(0),
+    }).parse(data),
   )
   .handler(async ({ data }) => {
     const { userId, role } = await requireAdmin(data.accessToken, "catalog.review");
@@ -852,9 +880,8 @@ export const adminDeleteBookPermanently = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     const { userId, role } = await requireAdmin(data.accessToken, "catalog.delete_permanent");
-    const { getBookDeletionImpact, deleteBookPermanently } = await import(
-      "@/lib/admin/catalog.server"
-    );
+    const { getBookDeletionImpact, deleteBookPermanently } =
+      await import("@/lib/admin/catalog.server");
     // Defense in depth beyond the confirm dialog itself — the exact title
     // must be re-typed and re-checked server-side, not just shown/compared
     // client-side, so a scripted/automated call can't skip the deliberate-
