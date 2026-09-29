@@ -4,7 +4,10 @@ import { buildSitemapXml, type SitemapEntry } from "@/lib/sitemap";
 
 const ORIGIN = "https://seeparah.com";
 
-export const Route = createFileRoute("/sitemap.xml")({
+// This route is discovered by the Vite router plugin during build. The checked-in
+// route tree can be one generation behind a newly-added escaped-dot route, so keep
+// the literal here while allowing the generator to register it on the build pass.
+export const Route = createFileRoute("/sitemap.xml" as any)({
   server: {
     handlers: {
       GET: async () => {
@@ -28,7 +31,7 @@ export const Route = createFileRoute("/sitemap.xml")({
           const [booksResult, papersResult] = await Promise.all([
             supabaseAdmin
               .from("books")
-              .select("id,author_id,content_classification,updated_at")
+              .select("id,author_id,content_classification,created_at")
               .eq("status", "published"),
             supabaseAdmin
               .from("research_paper_versions")
@@ -40,14 +43,14 @@ export const Route = createFileRoute("/sitemap.xml")({
             for (const book of booksResult.data ?? []) {
               entries.push({
                 loc: `${ORIGIN}/book/${book.id}`,
-                lastmod: book.updated_at,
+                lastmod: book.created_at,
                 changefreq: "weekly",
                 priority: 0.8,
               });
               if (book.content_classification === "religious") {
                 entries.push({
                   loc: `${ORIGIN}/sacred-texts/${book.id}`,
-                  lastmod: book.updated_at,
+                  lastmod: book.created_at,
                   changefreq: "weekly",
                   priority: 0.9,
                 });
