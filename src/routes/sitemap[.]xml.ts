@@ -4,10 +4,7 @@ import { buildSitemapXml, type SitemapEntry } from "@/lib/sitemap";
 
 const ORIGIN = "https://seeparah.com";
 
-// This route is discovered by the Vite router plugin during build. The checked-in
-// route tree can be one generation behind a newly-added escaped-dot route, so keep
-// the literal here while allowing the generator to register it on the build pass.
-export const Route = createFileRoute("/sitemap.xml" as any)({
+export const Route = createFileRoute("/sitemap.xml")({
   server: {
     handlers: {
       GET: async () => {
