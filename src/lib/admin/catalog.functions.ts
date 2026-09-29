@@ -610,7 +610,7 @@ export const adminImportVerifiedSourcedEdition = createServerFn({ method: "POST"
 
 const SACRED_REFERENCE_NODE = z.object({
   nodeKey: z.string().trim().min(1).max(500),
-  parentNodeKey: z.string().trim().max(500).nullable().optional(),
+  parentNodeKey: z.string().trim().max(500).nullable().default(null),
   nodeType: z.enum([
     "front_matter",
     "part",
@@ -629,7 +629,7 @@ const SACRED_REFERENCE_NODE = z.object({
     "endnote",
     "back_matter",
   ]),
-  title: z.string().max(1000).nullable().optional(),
+  title: z.string().max(1000).nullable().default(null),
   ordinal: z.number().int().min(0),
   depth: z.number().int().min(0),
   startChunkIndex: z.number().int().min(0),
@@ -646,7 +646,7 @@ const SACRED_REFERENCE_NODE = z.object({
       }),
     )
     .max(16)
-    .optional(),
+    .default([]),
 });
 
 export const adminReplaceSacredReferenceManifest = createServerFn({ method: "POST" })
