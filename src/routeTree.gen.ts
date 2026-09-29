@@ -17,6 +17,7 @@ import { Route as CopyrightRouteImport } from './routes/copyright'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as LegalRouteImport } from './routes/legal'
 import { Route as LibraryRouteImport } from './routes/library'
+import { Route as SitemapXmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as InsightsIndexRouteImport } from './routes/insights/index'
 import { Route as InsightsSlugRouteImport } from './routes/insights/$slug'
 import { Route as SacredTextsIndexRouteImport } from './routes/sacred-texts/index'
@@ -91,6 +92,11 @@ const LegalRoute = LegalRouteImport.update({
 const LibraryRoute = LibraryRouteImport.update({
   id: '/library',
   path: '/library',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SitemapXmlRoute = SitemapXmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
 const InsightsIndexRoute = InsightsIndexRouteImport.update({
@@ -279,6 +285,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRoute
   '/legal': typeof LegalRoute
   '/library': typeof LibraryRoute
+  '/sitemap.xml': typeof SitemapXmlRoute
   '/insights/$slug': typeof InsightsSlugRoute
   '/sacred-texts/$bookId': typeof SacredTextsBookIdRoute
   '/insights/': typeof InsightsIndexRoute
@@ -322,6 +329,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardRoute
   '/legal': typeof LegalRoute
   '/library': typeof LibraryRoute
+  '/sitemap.xml': typeof SitemapXmlRoute
   '/insights/$slug': typeof InsightsSlugRoute
   '/sacred-texts/$bookId': typeof SacredTextsBookIdRoute
   '/insights': typeof InsightsIndexRoute
@@ -368,6 +376,7 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRoute
   '/legal': typeof LegalRoute
   '/library': typeof LibraryRoute
+  '/sitemap.xml': typeof SitemapXmlRoute
   '/insights/$slug': typeof InsightsSlugRoute
   '/sacred-texts/$bookId': typeof SacredTextsBookIdRoute
   '/insights/': typeof InsightsIndexRoute
@@ -415,6 +424,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/legal'
     | '/library'
+    | '/sitemap.xml'
     | '/insights/$slug'
     | '/sacred-texts/$bookId'
     | '/insights/'
@@ -458,6 +468,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/legal'
     | '/library'
+    | '/sitemap.xml'
     | '/insights/$slug'
     | '/sacred-texts/$bookId'
     | '/insights'
@@ -503,6 +514,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/legal'
     | '/library'
+    | '/sitemap.xml'
     | '/insights/$slug'
     | '/sacred-texts/$bookId'
     | '/insights/'
@@ -549,6 +561,7 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRoute
   LegalRoute: typeof LegalRoute
   LibraryRoute: typeof LibraryRoute
+  SitemapXmlRoute: typeof SitemapXmlRoute
   InsightsSlugRoute: typeof InsightsSlugRoute
   SacredTextsBookIdRoute: typeof SacredTextsBookIdRoute
   InsightsIndexRoute: typeof InsightsIndexRoute
@@ -622,6 +635,13 @@ declare module '@tanstack/react-router' {
       path: '/library'
       fullPath: '/library'
       preLoaderRoute: typeof LibraryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapXmlRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/insights/': {
@@ -949,6 +969,7 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRoute,
   LegalRoute: LegalRoute,
   LibraryRoute: LibraryRoute,
+  SitemapXmlRoute: SitemapXmlRoute,
   InsightsSlugRoute: InsightsSlugRoute,
   SacredTextsBookIdRoute: SacredTextsBookIdRoute,
   InsightsIndexRoute: InsightsIndexRoute,
