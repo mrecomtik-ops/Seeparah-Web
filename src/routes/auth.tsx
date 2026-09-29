@@ -89,8 +89,12 @@ function AuthPage() {
 
   async function handleEmail(e: React.FormEvent) {
     e.preventDefault();
-    if (!email.trim() || password.length < 6) {
-      toast.error("Enter your email and a password of at least 6 characters.");
+    if (!email.trim() || !password) {
+      toast.error("Enter your email and password.");
+      return;
+    }
+    if (mode === "signup" && password.length < 8) {
+      toast.error("Use a password of at least 8 characters.");
       return;
     }
     setBusy(true);
@@ -211,6 +215,7 @@ function AuthPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   autoComplete={mode === "signin" ? "current-password" : "new-password"}
+                  minLength={mode === "signup" ? 8 : undefined}
                   required
                 />
                 <button

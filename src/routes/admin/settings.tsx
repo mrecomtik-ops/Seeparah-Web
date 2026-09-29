@@ -232,7 +232,7 @@ function AdminSettingsPage() {
           <span className="rounded-xl border border-border bg-card px-3 py-2">
             <strong className="text-foreground">Gemini</strong>
             <span className="ml-1 text-muted-foreground">
-              {secretsQuery.data["gemini"] ? "configured" : "missing"}
+              {secretsQuery.data["gemini"] ? "key present" : "missing"}
             </span>
           </span>
           <span className="rounded-xl border border-border bg-card px-3 py-2">
