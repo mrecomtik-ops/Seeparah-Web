@@ -68,11 +68,12 @@ describe("legal page", () => {
     expect(text).not.toMatch(/billing help/i);
     expect(text.toLowerCase()).not.toContain("instant translation");
     expect(text.toLowerCase()).not.toContain("guaranteed translation");
-    // "free during launch" and "no active paid plan/tier" language IS
-    // expected and correct — only an affirmative CURRENT payout/revenue
-    // commitment would be wrong; check the surrounding text is careful,
-    // not absent, since author revenue is a real future-tense topic.
-    expect(text).toMatch(/free during launch/i);
+    // Temporary launch framing was intentionally removed. The page must say
+    // what is true now (no active processor/checkout) and describe any
+    // future monetization only conditionally.
+    expect(text).not.toMatch(/free during launch/i);
+    expect(text).toMatch(/no payment processor or checkout is active today/i);
+    expect(text).toMatch(/when monetization is enabled/i);
     cleanup();
   });
 
