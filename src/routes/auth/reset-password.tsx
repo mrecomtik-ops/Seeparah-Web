@@ -42,8 +42,8 @@ function ResetPasswordPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (password.length < 6) {
-      toast.error("Password must be at least 6 characters");
+    if (password.length < 8) {
+      toast.error("Password must be at least 8 characters");
       return;
     }
     setBusy(true);
@@ -79,6 +79,7 @@ function ResetPasswordPage() {
             onChange={(e) => setPassword(e.target.value)}
             placeholder="New password"
             autoComplete="new-password"
+            minLength={8}
             className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-ring"
             required
           />
