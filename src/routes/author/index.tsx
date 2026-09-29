@@ -72,14 +72,13 @@ function AuthorDashboard() {
     (b) => b.status === "in_review" || b.status === "approved",
   ).length;
   const publishedCount = myBooks.filter((b) => b.status === "published").length;
-  const priorityRequestedLanguages = REQUESTABLE_TRANSLATION_LANGUAGES.filter(
-    (language) => language === "Hindi" || language === "Arabic",
-  );
+  const priorityRequestedLanguages = ["Hindi", "Arabic"] as const;
+  const priorityRequestedLanguageSet = new Set<string>(priorityRequestedLanguages);
   const additionalRequestableLanguages = REQUESTABLE_TRANSLATION_LANGUAGES.filter(
     (language) =>
       !STANDARD_TRANSLATION_LANGUAGES.includes(
         language as (typeof STANDARD_TRANSLATION_LANGUAGES)[number],
-      ) && !priorityRequestedLanguages.includes(language),
+      ) && !priorityRequestedLanguageSet.has(language),
   );
 
   const stats = [
