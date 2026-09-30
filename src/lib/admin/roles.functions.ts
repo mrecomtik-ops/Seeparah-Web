@@ -9,7 +9,7 @@ const withToken = <T extends z.ZodRawShape>(shape: T) =>
 const ROLE = z.enum(["owner", "administrator", "editor", "support"]);
 
 export const adminListRoles = createServerFn({ method: "POST" })
-  .inputValidator((data) => withToken({}).parse(data))
+  .validator((data) => withToken({}).parse(data))
   .handler(async ({ data }) => {
     await requireAdmin(data.accessToken, "roles.manage");
     const { listAdminUsers } = await import("@/lib/admin/roles.server");
@@ -17,7 +17,7 @@ export const adminListRoles = createServerFn({ method: "POST" })
   });
 
 export const adminGrantRole = createServerFn({ method: "POST" })
-  .inputValidator((data) =>
+  .validator((data) =>
     withToken({ userId: z.string(), role: ROLE, reason: z.string().min(3) }).parse(data),
   )
   .handler(async ({ data }) => {
@@ -40,9 +40,7 @@ export const adminGrantRole = createServerFn({ method: "POST" })
   });
 
 export const adminRevokeRole = createServerFn({ method: "POST" })
-  .inputValidator((data) =>
-    withToken({ userId: z.string(), reason: z.string().min(3) }).parse(data),
-  )
+  .validator((data) => withToken({ userId: z.string(), reason: z.string().min(3) }).parse(data))
   .handler(async ({ data }) => {
     const { userId: actorId, role: actorRole } = await requireAdmin(
       data.accessToken,

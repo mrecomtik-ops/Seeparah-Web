@@ -11,7 +11,7 @@ const withToken = <T extends z.ZodRawShape>(shape: T) =>
  * reader can call this for themselves — it only ever records "I'd like
  * access", never grants anything by itself. */
 export const requestBookTranslationAccess = createServerFn({ method: "POST" })
-  .inputValidator((data) => withToken({ bookId: z.string(), language: z.string() }).parse(data))
+  .validator((data) => withToken({ bookId: z.string(), language: z.string() }).parse(data))
   .handler(async ({ data }) => {
     const userId = await requireUserId(data.accessToken);
     const { requestTranslationAccess } = await import("@/lib/admin/translation-access.server");
@@ -23,7 +23,7 @@ export const requestBookTranslationAccess = createServerFn({ method: "POST" })
   });
 
 export const listMyTranslationRequests = createServerFn({ method: "POST" })
-  .inputValidator((data) => withToken({}).parse(data))
+  .validator((data) => withToken({}).parse(data))
   .handler(async ({ data }) => {
     const userId = await requireUserId(data.accessToken);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -47,7 +47,7 @@ export const listMyTranslationRequests = createServerFn({ method: "POST" })
   });
 
 export const adminListTranslationRequests = createServerFn({ method: "POST" })
-  .inputValidator((data) =>
+  .validator((data) =>
     withToken({
       status: z.string().optional(),
       page: z.number().int().min(1).default(1),
@@ -61,7 +61,7 @@ export const adminListTranslationRequests = createServerFn({ method: "POST" })
   });
 
 export const adminApproveTranslationRequest = createServerFn({ method: "POST" })
-  .inputValidator((data) =>
+  .validator((data) =>
     withToken({ requestId: z.string(), reason: z.string().optional() }).parse(data),
   )
   .handler(async ({ data }) => {
@@ -85,9 +85,7 @@ export const adminApproveTranslationRequest = createServerFn({ method: "POST" })
   });
 
 export const adminDeclineTranslationRequest = createServerFn({ method: "POST" })
-  .inputValidator((data) =>
-    withToken({ requestId: z.string(), reason: z.string().min(3) }).parse(data),
-  )
+  .validator((data) => withToken({ requestId: z.string(), reason: z.string().min(3) }).parse(data))
   .handler(async ({ data }) => {
     const { userId, role } = await requireAdmin(data.accessToken, "translation.requests.decide");
     const { declineTranslationRequest } = await import("@/lib/admin/translation-access.server");
@@ -108,9 +106,7 @@ export const adminDeclineTranslationRequest = createServerFn({ method: "POST" })
   });
 
 export const adminRevokeTranslationAccess = createServerFn({ method: "POST" })
-  .inputValidator((data) =>
-    withToken({ requestId: z.string(), reason: z.string().min(3) }).parse(data),
-  )
+  .validator((data) => withToken({ requestId: z.string(), reason: z.string().min(3) }).parse(data))
   .handler(async ({ data }) => {
     const { userId, role } = await requireAdmin(data.accessToken, "translation.requests.decide");
     const { revokeTranslationAccess } = await import("@/lib/admin/translation-access.server");
@@ -131,7 +127,7 @@ export const adminRevokeTranslationAccess = createServerFn({ method: "POST" })
   });
 
 export const adminBulkApproveTranslationRequests = createServerFn({ method: "POST" })
-  .inputValidator((data) =>
+  .validator((data) =>
     withToken({ requestIds: z.array(z.string()).min(1), reason: z.string().optional() }).parse(
       data,
     ),

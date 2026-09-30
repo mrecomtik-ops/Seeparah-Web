@@ -37,57 +37,62 @@ const NAMED_ENTITIES: Record<string, string> = {
 };
 
 function decodeHtmlEntities(text: string): string {
-  return text.replace(
-    /&(#x[0-9a-f]+|#\d+|[a-z][a-z0-9]+);/gi,
-    (full, body: string) => {
-      if (body[0] === "#") {
-        const hex = body[1]?.toLowerCase() === "x";
-        const raw = body.slice(hex ? 2 : 1);
-        const codePoint = Number.parseInt(raw, hex ? 16 : 10);
-        if (
-          Number.isFinite(codePoint) &&
-          codePoint >= 0 &&
-          codePoint <= 0x10ffff &&
-          !(codePoint >= 0xd800 && codePoint <= 0xdfff)
-        ) {
-          return String.fromCodePoint(codePoint);
-        }
-        return full;
+  return text.replace(/&(#x[0-9a-f]+|#\d+|[a-z][a-z0-9]+);/gi, (full, body: string) => {
+    if (body[0] === "#") {
+      const hex = body[1]?.toLowerCase() === "x";
+      const raw = body.slice(hex ? 2 : 1);
+      const codePoint = Number.parseInt(raw, hex ? 16 : 10);
+      if (
+        Number.isFinite(codePoint) &&
+        codePoint >= 0 &&
+        codePoint <= 0x10ffff &&
+        !(codePoint >= 0xd800 && codePoint <= 0xdfff)
+      ) {
+        return String.fromCodePoint(codePoint);
       }
-      return NAMED_ENTITIES[body.toLowerCase()] ?? full;
-    },
-  );
+      return full;
+    }
+    return NAMED_ENTITIES[body.toLowerCase()] ?? full;
+  });
 }
 
 function stripTagsToText(xhtml: string): string {
-  return decodeHtmlEntities(
-    xhtml
-      // Drop entire script/style elements including their content — never
-      // execute or retain script text.
-      .replace(/<script[\s\S]*?<\/script>/gi, "")
-      .replace(/<style[\s\S]*?<\/style>/gi, "")
-      // Preserve explicit line breaks and common EPUB verse/line spans.
-      .replace(/<br\s*\/?>/gi, "\n")
-      .replace(
-        /<span\b[^>]*(?:class\s*=\s*["'][^"']*(?:verse|line|stanza|poetry)[^"']*["']|epub:type\s*=\s*["'][^"']*(?:verse|poem)[^"']*["'])[^>]*>/gi,
-        "\n",
-      )
-      .replace(
-        /<\/span>/gi,
-        (match, offset, whole) => {
-          const before = whole.slice(Math.max(0, offset - 220), offset);
-          return /<span\b[^>]*(?:verse|line|stanza|poetry|epub:type)/i.test(before)
-            ? "\n"
-            : "";
-        },
-      )
-      // Headings and structural blocks must remain separate paragraphs.
-      .replace(/<\/(h1|h2|h3|h4|h5|h6|p|div|section|article|blockquote|pre)>/gi, "\n\n")
-      .replace(/<\/li>/gi, "\n")
-      .replace(/<[^>]+>/g, "")
+  // Private-use sentinels let us distinguish semantic EPUB breaks from
+  // harmless newlines/indentation in the XHTML source itself.
+  const LINE_BREAK = "\uE000";
+  const BLOCK_BREAK = "\uE001";
+  const LIST_BREAK = "\uE002";
+
+  const stripped = xhtml
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/<style[\s\S]*?<\/style>/gi, "")
+    .replace(/<br\s*\/?>/gi, LINE_BREAK)
+    .replace(
+      /<span\b[^>]*(?:class\s*=\s*["'][^"']*(?:verse|line|stanza|poetry)[^"']*["']|epub:type\s*=\s*["'][^"']*(?:verse|poem)[^"']*["'])[^>]*>/gi,
+      LINE_BREAK,
+    )
+    .replace(/<\/span>/gi, (match, offset, whole) => {
+      const before = whole.slice(Math.max(0, offset - 220), offset);
+      return /<span\b[^>]*(?:verse|line|stanza|poetry|epub:type)/i.test(before) ? LINE_BREAK : "";
+    })
+    .replace(/<\/(h1|h2|h3|h4|h5|h6|p|div|section|article|blockquote|pre)>/gi, BLOCK_BREAK)
+    .replace(/<\/li>/gi, LIST_BREAK)
+    .replace(/<[^>]+>/g, "");
+
+  return (
+    decodeHtmlEntities(stripped)
+      .replace(new RegExp(`\\s*${LINE_BREAK}\\s*`, "g"), LINE_BREAK)
+      .replace(new RegExp(`\\s*${BLOCK_BREAK}\\s*`, "g"), BLOCK_BREAK)
+      .replace(new RegExp(`\\s*${LIST_BREAK}\\s*`, "g"), LIST_BREAK)
+      // XHTML source formatting is not reader lineation. Collapse it first,
+      // then restore only the semantic sentinels above.
+      .replace(/\s+/g, " ")
+      .replaceAll(BLOCK_BREAK, "\n\n")
+      .replaceAll(LIST_BREAK, "\n")
+      .replaceAll(LINE_BREAK, "\n")
       .replace(/[ \t]+\n/g, "\n")
       .replace(/\n{3,}/g, "\n\n")
-      .trim(),
+      .trim()
   );
 }
 

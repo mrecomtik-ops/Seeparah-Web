@@ -185,7 +185,7 @@
   }
 }
 
-/* Respect prefers-reduced-motion app-wide — every transition-*/animate-*
+/* Respect prefers-reduced-motion app-wide — every transition and animation
    utility used across the app (hover lifts, progress bars, skeletons,
    sheet slide-ins) collapses to effectively instant rather than being
    hunted down and disabled one component at a time. */
@@ -262,7 +262,9 @@
      Latin words/numbers follow the standard Unicode bidi algorithm instead
      of forcing shaping across the run. */
   unicode-bidi: plain-text;
-  font-feature-settings: "liga" 1, "calt" 1;
+  font-feature-settings:
+    "liga" 1,
+    "calt" 1;
   text-wrap: pretty;
 }
 
@@ -287,10 +289,7 @@
 
 @utility paper-texture {
   background-color: var(--color-paper);
-  background-image: radial-gradient(
-    oklch(0.5 0.03 140 / 0.04) 1px,
-    transparent 1px
-  );
+  background-image: radial-gradient(oklch(0.5 0.03 140 / 0.04) 1px, transparent 1px);
   background-size: 22px 22px;
 }
 
@@ -307,11 +306,7 @@
   border-radius: 0.45rem;
   background-color: var(--color-card);
   background-image:
-    linear-gradient(
-      90deg,
-      oklch(0.25 0.02 90 / 0.07) 0,
-      transparent 1.15rem
-    ),
+    linear-gradient(90deg, oklch(0.25 0.02 90 / 0.07) 0, transparent 1.15rem),
     radial-gradient(oklch(0.5 0.03 100 / 0.035) 0.7px, transparent 0.8px);
   background-size:
     100% 100%,
@@ -346,11 +341,7 @@ body.reader-sepia {
 
 [dir="rtl"].book-page-surface {
   background-image:
-    linear-gradient(
-      270deg,
-      oklch(0.25 0.02 90 / 0.07) 0,
-      transparent 1.15rem
-    ),
+    linear-gradient(270deg, oklch(0.25 0.02 90 / 0.07) 0, transparent 1.15rem),
     radial-gradient(oklch(0.5 0.03 100 / 0.035) 0.7px, transparent 0.8px);
 }
 

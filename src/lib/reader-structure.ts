@@ -61,6 +61,19 @@ function isAllCapsHeading(value: string): boolean {
   return letters === letters.toUpperCase();
 }
 
+function looksLikeDramaSpeakerCue(value: string): boolean {
+  const line = cleanLine(value);
+  // Gutenberg drama editions commonly use short all-caps character names
+  // ending in a period (SAMPSON., JULIET., FIRST SERVANT.). Those are
+  // dialogue cues, not navigation headings.
+  if (!line.endsWith(".") || line.length > 48) return false;
+  const withoutPeriod = line.slice(0, -1).trim();
+  if (!withoutPeriod || /\d/u.test(withoutPeriod)) return false;
+  const letters = withoutPeriod.replace(/[^\p{L}]/gu, "");
+  if (letters.length < 2 || letters !== letters.toUpperCase()) return false;
+  return withoutPeriod.split(/\s+/u).length <= 4;
+}
+
 export function classifyHeading(value: string): {
   kind: ReaderNavigationItem["kind"];
   level: 1 | 2 | 3;
@@ -77,7 +90,10 @@ export function classifyHeading(value: string): {
   if (FRONT_MATTER_HEADING.test(line)) {
     return { kind: "front_matter", level: 2 };
   }
-  if (OTHER_STRUCTURAL_HEADING.test(line) || isAllCapsHeading(line)) {
+  if (OTHER_STRUCTURAL_HEADING.test(line)) {
+    return { kind: "section", level: 3 };
+  }
+  if (isAllCapsHeading(line) && !looksLikeDramaSpeakerCue(line)) {
     return { kind: "section", level: 3 };
   }
   return null;
@@ -158,12 +174,17 @@ export function parseReadableBlocks(content: string): ReaderBlock[] {
       continue;
     }
 
-    if (
-      text.length <= 700 &&
-      (/^[“"]/u.test(first) || /^['‘]/u.test(first)) &&
-      (/[”"]$/u.test(text) || /[’']$/u.test(text))
-    ) {
-      result.push({ kind: "quote", text });
+    // A paragraph that merely begins and ends with quotation marks is
+    // usually dialogue in fiction, not a typographic block quote. Only
+    // preserve an explicit Markdown-style quote signal here.
+    if (text.length <= 1200 && lines.every((line) => /^>\s?/u.test(line))) {
+      result.push({
+        kind: "quote",
+        text: text
+          .split("\n")
+          .map((line) => line.replace(/^>\s?/u, ""))
+          .join("\n"),
+      });
       continue;
     }
 

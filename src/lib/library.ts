@@ -468,6 +468,7 @@ export interface PublishInput {
   sourceLanguage: string;
   summary: string;
   manuscript: string;
+  preserveLineation?: boolean;
   isPaid: boolean;
   priceUsd: number | null;
   genre: string | null;
@@ -529,7 +530,9 @@ export async function publishBook(
   if (input.status !== "draft" && !input.rightsConfirmed) {
     throw new Error("Rights confirmation is required before submitting for review");
   }
-  const chunks = splitManuscript(input.manuscript);
+  const chunks = splitManuscript(input.manuscript, {
+    preserveLineation: input.preserveLineation === true,
+  });
 
   if (userId === DEMO_USER_ID) {
     const book: Book = {
@@ -630,8 +633,6 @@ export async function publishBook(
         categories: input.categories ?? [],
         ...(input.coverUrl ? { cover_url: input.coverUrl } : {}),
         status: "draft",
-        access_type: input.isPaid ? "paid" : "free",
-        subscription_price_usd: input.isPaid ? input.priceUsd : null,
       })
       .select("id")
       .single();
@@ -793,6 +794,7 @@ export interface AuthorBookMetadataPatch {
   author?: string;
   description?: string;
   genre?: string | null;
+  categories?: string[];
   coverUrl?: string | null;
 }
 
@@ -806,13 +808,11 @@ export interface AuthorBookMetadataPatch {
 const AUTHOR_EDITABLE_STATUSES = new Set(["draft", "in_review", "unpublished"]);
 
 /**
- * Author-facing metadata edit — title/author/description/genre/cover only,
- * matching exactly the column list migration 0011 grants `authenticated`
- * on `books` (access_type, subscription_price_usd, and every rights/review
- * column are excluded from that grant entirely, so an author literally
- * cannot set them through this or any other client call, regardless of
- * what this function's own TypeScript signature does or doesn't allow —
- * the database is the real boundary, not this file).
+ * Author-facing metadata edit — title/author/description/genre/categories/cover only.
+ * Categories are validated by the database against the controlled master list
+ * (max three for ordinary authors; Religious remains protected). Monetization
+ * and every rights/review column remain unavailable to ordinary authors, so
+ * the database — not this TypeScript signature — remains the real boundary.
  *
  * "An edit to a published book's content or rights-sensitive metadata must
  * return it to review before the changed version can be published": since
@@ -838,6 +838,7 @@ export async function editBookMetadata(
       if (patch.author !== undefined) entry.book.author = patch.author;
       if (patch.description !== undefined) entry.book.description = patch.description;
       if (patch.genre !== undefined) entry.book.genre = patch.genre;
+      if (patch.categories !== undefined) entry.book.categories = patch.categories;
       if (patch.coverUrl !== undefined) entry.book.cover_url = patch.coverUrl;
       demoStore.setPublishedBooks(published);
     }
@@ -857,6 +858,7 @@ export async function editBookMetadata(
     author?: string;
     description?: string;
     genre?: string | null;
+    categories?: string[];
     cover_url?: string | null;
     status?: string;
   } = {
@@ -864,6 +866,7 @@ export async function editBookMetadata(
     ...(patch.author !== undefined ? { author: patch.author } : {}),
     ...(patch.description !== undefined ? { description: patch.description } : {}),
     ...(patch.genre !== undefined ? { genre: patch.genre } : {}),
+    ...(patch.categories !== undefined ? { categories: patch.categories } : {}),
     ...(patch.coverUrl !== undefined ? { cover_url: patch.coverUrl } : {}),
   };
   if (Object.keys(payload).length === 0) {

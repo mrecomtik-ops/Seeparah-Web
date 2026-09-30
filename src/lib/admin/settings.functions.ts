@@ -26,7 +26,7 @@ export const getPublicContentSettings = createServerFn({ method: "GET" }).handle
 });
 
 export const adminGetSetting = createServerFn({ method: "POST" })
-  .inputValidator((data) => withToken({ key: KEY }).parse(data))
+  .validator((data) => withToken({ key: KEY }).parse(data))
   .handler(async ({ data }) => {
     await requireAdmin(data.accessToken, "settings.manage");
     const { getSetting } = await import("@/lib/admin/settings.server");
@@ -34,7 +34,7 @@ export const adminGetSetting = createServerFn({ method: "POST" })
   });
 
 export const adminPublishSetting = createServerFn({ method: "POST" })
-  .inputValidator((data) => withToken({ key: KEY, value: z.unknown() }).parse(data))
+  .validator((data) => withToken({ key: KEY, value: z.unknown() }).parse(data))
   .handler(async ({ data }) => {
     const { userId, role } = await requireAdmin(data.accessToken, "settings.manage");
     const { publishSetting } = await import("@/lib/admin/settings.server");
@@ -53,9 +53,7 @@ export const adminPublishSetting = createServerFn({ method: "POST" })
   });
 
 export const adminRollbackSetting = createServerFn({ method: "POST" })
-  .inputValidator((data) =>
-    withToken({ key: KEY, toVersion: z.number().int().positive() }).parse(data),
-  )
+  .validator((data) => withToken({ key: KEY, toVersion: z.number().int().positive() }).parse(data))
   .handler(async ({ data }) => {
     const { userId, role } = await requireAdmin(data.accessToken, "settings.manage");
     const { rollbackSetting } = await import("@/lib/admin/settings.server");
@@ -76,7 +74,7 @@ export const adminRollbackSetting = createServerFn({ method: "POST" })
   });
 
 export const adminListSettingHistory = createServerFn({ method: "POST" })
-  .inputValidator((data) => withToken({ key: KEY }).parse(data))
+  .validator((data) => withToken({ key: KEY }).parse(data))
   .handler(async ({ data }) => {
     await requireAdmin(data.accessToken, "settings.manage");
     const { listSettingHistory } = await import("@/lib/admin/settings.server");
@@ -84,7 +82,7 @@ export const adminListSettingHistory = createServerFn({ method: "POST" })
   });
 
 export const adminGetSecretsStatus = createServerFn({ method: "POST" })
-  .inputValidator((data) => withToken({}).parse(data))
+  .validator((data) => withToken({}).parse(data))
   .handler(async ({ data }) => {
     await requireAdmin(data.accessToken, "settings.secrets_status.read");
     const { getSecretsStatus } = await import("@/lib/admin/settings.server");

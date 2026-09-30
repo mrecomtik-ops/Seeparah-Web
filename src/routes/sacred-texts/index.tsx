@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { BookOpen, ExternalLink, Search, ShieldCheck } from "lucide-react";
 import { listBooks } from "@/lib/library";
 import { isReligiousBook } from "@/lib/data";
+import { safeJsonLd } from "@/lib/seo";
 
 export const Route = createFileRoute("/sacred-texts/")({
   loader: async () => {
@@ -41,10 +42,7 @@ function SacredTextsPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
-      />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(schema) }} />
       <main className="mx-auto max-w-6xl px-4 pb-24 pt-10 sm:px-6">
         <section className="overflow-hidden rounded-3xl border border-primary/20 bg-primary text-primary-foreground card-shadow-lg">
           <div className="grid gap-8 p-7 sm:p-9 lg:grid-cols-[1.2fr_0.8fr]">
@@ -57,8 +55,8 @@ function SacredTextsPage() {
               </h1>
               <p className="mt-4 max-w-2xl leading-relaxed opacity-90">
                 Religious books on Seeparah use a source-preserving workflow. Readers can see where
-                the original text was sourced, which established translation they are reading,
-                and the canonical reference that connects the original with its translations.
+                the original text was sourced, which established translation they are reading, and
+                the canonical reference that connects the original with its translations.
               </p>
               <div className="mt-6 flex flex-wrap gap-3">
                 <span className="rounded-full bg-accent px-3 py-1.5 text-xs font-semibold text-accent-foreground">
@@ -113,9 +111,9 @@ function SacredTextsPage() {
                 Verified source editions are being prepared
               </h3>
               <p className="mx-auto mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
-                The source collection is being assembled separately. Nothing appears here until
-                the original source, reference structure and any translated edition have been
-                reviewed and recorded with their provenance.
+                The source collection is being assembled separately. Nothing appears here until the
+                original source, reference structure and any translated edition have been reviewed
+                and recorded with their provenance.
               </p>
             </div>
           ) : (
@@ -146,7 +144,10 @@ function SacredTextsPage() {
                     <div>
                       <dt className="text-xs text-muted-foreground">Source</dt>
                       <dd className="font-semibold text-foreground">
-                        {book.attribution || book.publisher || book.edition_title || "Source recorded"}
+                        {book.attribution ||
+                          book.publisher ||
+                          book.edition_title ||
+                          "Source recorded"}
                       </dd>
                     </div>
                   </dl>

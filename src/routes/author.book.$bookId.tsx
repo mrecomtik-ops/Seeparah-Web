@@ -18,6 +18,7 @@ import { getBook, setBookStatus, editBookMetadata, type BookStatus } from "@/lib
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/use-auth";
 import { suggestBookCategory } from "@/lib/categories.functions";
+import { getPublicContentSettings } from "@/lib/admin/settings.functions";
 import {
   cancelTranslationJob,
   getBookTranslationStatus,
@@ -81,12 +82,20 @@ function ManageBookPage() {
     author: "",
     description: "",
     genre: "",
+    categories: [] as string[],
     coverUrl: "",
   });
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteBusy, setDeleteBusy] = useState(false);
 
   const bookQuery = useQuery({ queryKey: ["book", bookId], queryFn: () => getBook(bookId) });
+  const categoriesQuery = useQuery({
+    queryKey: ["public-content-settings"],
+    queryFn: () => getPublicContentSettings(),
+  });
+  const authorCategories = (
+    (categoriesQuery.data?.["categories"] as string[] | undefined) ?? []
+  ).filter((category) => category !== "Religious");
   const jobsQuery = useQuery({
     queryKey: ["translation-jobs", bookId],
     queryFn: async () => getBookTranslationStatus({ data: { bookId, accessToken: await token() } }),
@@ -116,6 +125,7 @@ function ManageBookPage() {
       author: book.author,
       description: book.description,
       genre: book.genre ?? "",
+      categories: (book.categories ?? []).filter((category) => category !== "Religious"),
       coverUrl: book.cover_url ?? "",
     });
     setEditOpen(true);
@@ -135,15 +145,14 @@ function ManageBookPage() {
         author: editDraft.author.trim(),
         description: editDraft.description.trim(),
         genre: editDraft.genre.trim() || null,
+        categories: editDraft.categories,
         coverUrl: editDraft.coverUrl.trim() || null,
       });
       queryClient.invalidateQueries({ queryKey: ["book", bookId] });
       queryClient.invalidateQueries({ queryKey: ["my-books", userId] });
       queryClient.invalidateQueries({ queryKey: ["books"] });
       toast.success(
-        wasPublished
-          ? "Saved — this book is back in review before the changes go live."
-          : "Saved.",
+        wasPublished ? "Saved — this book is back in review before the changes go live." : "Saved.",
       );
       setEditOpen(false);
     } catch (error) {
@@ -184,9 +193,16 @@ function ManageBookPage() {
         return;
       }
       await suggestBookCategory({
-        data: { accessToken, contentType: "book", contentId: bookId, category: categorySuggestion.trim() },
+        data: {
+          accessToken,
+          contentType: "book",
+          contentId: bookId,
+          category: categorySuggestion.trim(),
+        },
       });
-      toast.success("Thanks — an admin will review this suggestion. It doesn't change your book's categories yet.");
+      toast.success(
+        "Thanks — an admin will review this suggestion. It doesn't change your book's categories yet.",
+      );
       setCategorySuggestion("");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Couldn't send the suggestion");
@@ -587,8 +603,8 @@ function ManageBookPage() {
           )}
           <p className="mt-4 text-[11px] text-muted-foreground">
             "Process next batch" runs a few pages at a time — for a full book without watching the
-            page, an operator needs to schedule this on a timer (see the operations documentation for the exact
-            setup this requires).
+            page, an operator needs to schedule this on a timer (see the operations documentation
+            for the exact setup this requires).
           </p>
         </section>
       </main>
@@ -596,13 +612,17 @@ function ManageBookPage() {
       {editOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 card-shadow-lg">
-            <h2 className="font-display text-lg font-semibold text-foreground">Edit book details</h2>
-            {book.status !== "draft" && book.status !== "in_review" && book.status !== "unpublished" && (
-              <p className="mt-1 rounded-lg bg-secondary px-3 py-2 text-xs text-secondary-foreground">
-                This book is {STATUS_LABEL[book.status]?.toLowerCase() ?? book.status} — saving will
-                send it back into review before the changes are visible to readers.
-              </p>
-            )}
+            <h2 className="font-display text-lg font-semibold text-foreground">
+              Edit book details
+            </h2>
+            {book.status !== "draft" &&
+              book.status !== "in_review" &&
+              book.status !== "unpublished" && (
+                <p className="mt-1 rounded-lg bg-secondary px-3 py-2 text-xs text-secondary-foreground">
+                  This book is {STATUS_LABEL[book.status]?.toLowerCase() ?? book.status} — saving
+                  will send it back into review before the changes are visible to readers.
+                </p>
+              )}
             <div className="mt-3 space-y-2.5">
               <input
                 value={editDraft.title}
@@ -635,6 +655,43 @@ function ManageBookPage() {
                   </option>
                 ))}
               </select>
+              <fieldset className="rounded-xl border border-border bg-background p-3">
+                <legend className="px-1 text-xs font-semibold text-muted-foreground">
+                  Categories · choose up to 3
+                </legend>
+                <div className="mt-1 flex flex-wrap gap-2">
+                  {authorCategories.map((category) => {
+                    const selected = editDraft.categories.includes(category);
+                    const disabled = !selected && editDraft.categories.length >= 3;
+                    return (
+                      <button
+                        key={category}
+                        type="button"
+                        disabled={disabled}
+                        aria-pressed={selected}
+                        onClick={() =>
+                          setEditDraft((draft) => ({
+                            ...draft,
+                            categories: selected
+                              ? draft.categories.filter((value) => value !== category)
+                              : [...draft.categories, category],
+                          }))
+                        }
+                        className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-40 ${
+                          selected
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-border bg-card text-foreground hover:bg-secondary"
+                        }`}
+                      >
+                        {category}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="mt-2 text-[11px] text-muted-foreground">
+                  Religious is protected and is never available in the normal author workflow.
+                </p>
+              </fieldset>
               <input
                 value={editDraft.coverUrl}
                 onChange={(e) => setEditDraft((d) => ({ ...d, coverUrl: e.target.value }))}
@@ -672,10 +729,10 @@ function ManageBookPage() {
               Delete “{book.title}”?
             </h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              This removes it from the library and stops readers from opening it — it will no
-              longer be published. Nothing is permanently erased: your manuscript, translations,
-              readers' highlights and progress, and your submission history all stay intact. You
-              can republish it from here anytime.
+              This removes it from the library and stops readers from opening it — it will no longer
+              be published. Nothing is permanently erased: your manuscript, translations, readers'
+              highlights and progress, and your submission history all stay intact. You can
+              republish it from here anytime.
             </p>
             <p className="mt-2 text-xs text-muted-foreground">
               Permanent deletion, if you ever want that, is an admin-only action — contact support.

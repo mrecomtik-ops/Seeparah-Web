@@ -11,7 +11,10 @@ import {
   isSameOriginRequest,
 } from "@/lib/support-request-guard.server";
 import { generateReferenceCode } from "@/lib/reference-code.server";
-import { sendSupportNotificationEmail, sendTicketReplyEmail } from "@/lib/support-notification.server";
+import {
+  sendSupportNotificationEmail,
+  sendTicketReplyEmail,
+} from "@/lib/support-notification.server";
 import { SUPPORT_REQUEST_SCHEMA, COPYRIGHT_REQUEST_SCHEMA } from "@/lib/support-request-schemas";
 
 const withToken = <T extends z.ZodRawShape>(shape: T) =>
@@ -33,7 +36,7 @@ function clientIpHash(): string {
 
 /** Signed-in user creates a ticket linked to their account. */
 export const createMyTicket = createServerFn({ method: "POST" })
-  .inputValidator((data) =>
+  .validator((data) =>
     withToken({
       subject: z.string().min(3).max(200),
       description: z.string().min(1).max(5000),
@@ -61,7 +64,7 @@ export const createMyTicket = createServerFn({ method: "POST" })
  * contact email only if the reporter gives one (never required).
  */
 export const createPublicReport = createServerFn({ method: "POST" })
-  .inputValidator((data) =>
+  .validator((data) =>
     z
       .object({
         subject: z.string().min(3).max(200),
@@ -99,7 +102,7 @@ export const createPublicReport = createServerFn({ method: "POST" })
  * the real signed-in user id is attached — never a client-supplied one.
  */
 export const submitSupportRequest = createServerFn({ method: "POST" })
-  .inputValidator((data) => SUPPORT_REQUEST_SCHEMA.parse(data))
+  .validator((data) => SUPPORT_REQUEST_SCHEMA.parse(data))
   .handler(async ({ data }) => {
     if (isHoneypotTripped(data.honeypot) || !isSameOriginRequest()) {
       // Same accept-and-drop pattern as createPublicReport — see its
@@ -141,7 +144,7 @@ export const submitSupportRequest = createServerFn({ method: "POST" })
  * are structured data (structuredData), never appended into free text.
  */
 export const submitCopyrightRequest = createServerFn({ method: "POST" })
-  .inputValidator((data) => COPYRIGHT_REQUEST_SCHEMA.parse(data))
+  .validator((data) => COPYRIGHT_REQUEST_SCHEMA.parse(data))
   .handler(async ({ data }) => {
     if (isHoneypotTripped(data.honeypot) || !isSameOriginRequest()) {
       return { ok: true as const, referenceCode: generateReferenceCode() };
@@ -189,7 +192,7 @@ export const submitCopyrightRequest = createServerFn({ method: "POST" })
   });
 
 export const listMyTickets = createServerFn({ method: "POST" })
-  .inputValidator((data) => withToken({}).parse(data))
+  .validator((data) => withToken({}).parse(data))
   .handler(async ({ data }) => {
     const userId = await requireUserId(data.accessToken);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -212,7 +215,7 @@ export const listMyTickets = createServerFn({ method: "POST" })
   });
 
 export const adminListTickets = createServerFn({ method: "POST" })
-  .inputValidator((data) =>
+  .validator((data) =>
     withToken({
       status: z.string().optional(),
       assignedTo: z.string().optional(),
@@ -232,7 +235,7 @@ export const adminListTickets = createServerFn({ method: "POST" })
   });
 
 export const adminGetTicket = createServerFn({ method: "POST" })
-  .inputValidator((data) => withToken({ ticketId: z.string() }).parse(data))
+  .validator((data) => withToken({ ticketId: z.string() }).parse(data))
   .handler(async ({ data }) => {
     await requireAdmin(data.accessToken, "support.tickets.read_all");
     const { getTicket } = await import("@/lib/admin/support.server");
@@ -240,7 +243,7 @@ export const adminGetTicket = createServerFn({ method: "POST" })
   });
 
 export const adminAssignTicket = createServerFn({ method: "POST" })
-  .inputValidator((data) =>
+  .validator((data) =>
     withToken({ ticketId: z.string(), assignedTo: z.string().nullable() }).parse(data),
   )
   .handler(async ({ data }) => {
@@ -259,7 +262,7 @@ export const adminAssignTicket = createServerFn({ method: "POST" })
   });
 
 export const adminSetTicketStatus = createServerFn({ method: "POST" })
-  .inputValidator((data) =>
+  .validator((data) =>
     withToken({
       ticketId: z.string(),
       status: z.enum(["open", "pending", "resolved", "closed"]),
@@ -287,7 +290,7 @@ export const adminSetTicketStatus = createServerFn({ method: "POST" })
   });
 
 export const adminAddTicketNote = createServerFn({ method: "POST" })
-  .inputValidator((data) =>
+  .validator((data) =>
     withToken({
       ticketId: z.string(),
       body: z.string().min(1).max(5000),
@@ -325,7 +328,7 @@ export const adminAddTicketNote = createServerFn({ method: "POST" })
  * already requires MFA (aal2) inside requireAdmin.
  */
 export const adminReplyToTicket = createServerFn({ method: "POST" })
-  .inputValidator((data) =>
+  .validator((data) =>
     withToken({
       ticketId: z.string(),
       body: z.string().min(1).max(5000),

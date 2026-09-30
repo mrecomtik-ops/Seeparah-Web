@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CheckCheck, Loader2, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { getAccessToken, useResolvedAdminSession, can } from "@/lib/admin/use-admin-session";
@@ -11,6 +11,7 @@ import {
   adminSetBookLifecycle,
   adminBulkPatchBookCategory,
   adminBulkApproveBookReviews,
+  adminBulkRequestBookChanges,
 } from "@/lib/admin/catalog.functions";
 
 export const Route = createFileRoute("/admin/books/")({
@@ -59,6 +60,8 @@ function AdminBooksList() {
   const [bulkCategory, setBulkCategory] = useState("");
   const [categoryBusy, setCategoryBusy] = useState(false);
   const [reviewBusy, setReviewBusy] = useState(false);
+  const [changeRequestBusy, setChangeRequestBusy] = useState(false);
+  const [bulkChangeNote, setBulkChangeNote] = useState("");
   const queryClient = useQueryClient();
   const session = useResolvedAdminSession();
   const canPublish = can(session, "catalog.publish");
@@ -88,6 +91,10 @@ function AdminBooksList() {
   const books = booksQuery.data?.books ?? [];
   const selectedBooks = books.filter((b) => selected.has(b.id));
 
+  useEffect(() => {
+    setSelected(new Set());
+  }, [status, query, page]);
+
   function toggle(id: string) {
     setSelected((prev) => {
       const next = new Set(prev);
@@ -98,9 +105,11 @@ function AdminBooksList() {
   }
 
   function toggleAll() {
-    setSelected((prev) =>
-      prev.size === books.length ? new Set() : new Set(books.map((b) => b.id)),
-    );
+    setSelected((prev) => {
+      const allCurrentPageSelected = books.length > 0 && books.every((book) => prev.has(book.id));
+      if (allCurrentPageSelected) return new Set();
+      return new Set(books.map((book) => book.id));
+    });
   }
 
   async function confirmDelete() {
@@ -141,12 +150,16 @@ function AdminBooksList() {
       if (needsAttention === 0) {
         toast.success(`Review checks approved for ${complete} book(s).`);
       } else {
-        const firstBlocker = results.find((result) => !result.ok)?.blockers?.[0];
+        const failures = results
+          .filter((result) => !result.ok)
+          .slice(0, 4)
+          .map((result) => `${result.title}: ${result.blockers.join("; ")}`)
+          .join(" • ");
         toast.error(
           `${complete} fully approved; ${needsAttention} still need individual attention.${
-            firstBlocker ? ` First blocker: ${firstBlocker}` : ""
+            failures ? ` ${failures}` : ""
           }`,
-          { duration: 9000 },
+          { duration: 12000 },
         );
       }
       await queryClient.invalidateQueries({ queryKey: ["admin-books"] });
@@ -154,6 +167,46 @@ function AdminBooksList() {
       toast.error(error instanceof Error ? error.message : "Bulk review failed");
     } finally {
       setReviewBusy(false);
+    }
+  }
+
+  async function requestSelectedChanges() {
+    if (selected.size === 0) return;
+    const notes = bulkChangeNote.trim();
+    if (notes.length < 3) {
+      toast.error("Add a short change-request note first.");
+      return;
+    }
+    setChangeRequestBusy(true);
+    try {
+      const results = await adminBulkRequestBookChanges({
+        data: {
+          accessToken: await getAccessToken(),
+          bookIds: [...selected],
+          notes,
+        },
+      });
+      const failed = results.filter((result) => !result.ok);
+      if (failed.length === 0) {
+        toast.success(`Changes requested for ${results.length} book(s).`);
+        setBulkChangeNote("");
+      } else {
+        const details = failed
+          .slice(0, 4)
+          .map((result) => `${result.title}: ${result.error ?? "Unknown error"}`)
+          .join(" • ");
+        toast.error(
+          `${results.length - failed.length} succeeded; ${failed.length} failed.${
+            details ? ` ${details}` : ""
+          }`,
+          { duration: 12000 },
+        );
+      }
+      await queryClient.invalidateQueries({ queryKey: ["admin-books"] });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Bulk change request failed");
+    } finally {
+      setChangeRequestBusy(false);
     }
   }
 
@@ -241,6 +294,23 @@ function AdminBooksList() {
               {reviewBusy ? "Approving…" : "Approve review checks"}
             </button>
           )}
+          {canReview && (
+            <>
+              <input
+                value={bulkChangeNote}
+                onChange={(event) => setBulkChangeNote(event.target.value)}
+                placeholder="Change-request note…"
+                className="min-w-56 rounded-lg border border-border bg-card px-2 py-1.5 text-xs outline-none focus:ring-2 focus:ring-ring"
+              />
+              <button
+                disabled={changeRequestBusy || bulkChangeNote.trim().length < 3}
+                onClick={() => void requestSelectedChanges()}
+                className="rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-semibold hover:bg-secondary disabled:opacity-60"
+              >
+                {changeRequestBusy ? "Requesting…" : "Request changes"}
+              </button>
+            </>
+          )}
           {canManageCategories && masterCategories.length > 0 && (
             <>
               <select
@@ -306,7 +376,7 @@ function AdminBooksList() {
                 <th className="w-8 px-4 py-2">
                   <input
                     type="checkbox"
-                    checked={books.length > 0 && selected.size === books.length}
+                    checked={books.length > 0 && selectedBooks.length === books.length}
                     onChange={toggleAll}
                     aria-label="Select all"
                   />

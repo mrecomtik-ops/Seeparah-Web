@@ -8,7 +8,7 @@ const withToken = <T extends z.ZodRawShape>(shape: T) =>
   z.object({ accessToken: z.string(), ...shape });
 
 export const searchAdminUsers = createServerFn({ method: "POST" })
-  .inputValidator((data) =>
+  .validator((data) =>
     withToken({
       query: z.string().default(""),
       page: z.number().int().min(1).default(1),
@@ -22,7 +22,7 @@ export const searchAdminUsers = createServerFn({ method: "POST" })
   });
 
 export const getAdminUserDetail = createServerFn({ method: "POST" })
-  .inputValidator((data) => withToken({ userId: z.string() }).parse(data))
+  .validator((data) => withToken({ userId: z.string() }).parse(data))
   .handler(async ({ data }) => {
     await requireAdmin(data.accessToken, "users.read");
     const { getUserDetail } = await import("@/lib/admin/users.server");
@@ -30,9 +30,7 @@ export const getAdminUserDetail = createServerFn({ method: "POST" })
   });
 
 export const suspendUserAccount = createServerFn({ method: "POST" })
-  .inputValidator((data) =>
-    withToken({ userId: z.string(), reason: z.string().min(3) }).parse(data),
-  )
+  .validator((data) => withToken({ userId: z.string(), reason: z.string().min(3) }).parse(data))
   .handler(async ({ data }) => {
     const { userId: actorId, role } = await requireAdmin(data.accessToken, "users.support_actions");
     await enforceRateLimit({
@@ -56,9 +54,7 @@ export const suspendUserAccount = createServerFn({ method: "POST" })
   });
 
 export const restoreUserAccount = createServerFn({ method: "POST" })
-  .inputValidator((data) =>
-    withToken({ userId: z.string(), reason: z.string().min(3) }).parse(data),
-  )
+  .validator((data) => withToken({ userId: z.string(), reason: z.string().min(3) }).parse(data))
   .handler(async ({ data }) => {
     const { userId: actorId, role } = await requireAdmin(data.accessToken, "users.support_actions");
     await enforceRateLimit({
@@ -82,7 +78,7 @@ export const restoreUserAccount = createServerFn({ method: "POST" })
   });
 
 export const sendUserRecoveryEmail = createServerFn({ method: "POST" })
-  .inputValidator((data) =>
+  .validator((data) =>
     withToken({
       userId: z.string(),
       email: z.string().email(),
@@ -121,7 +117,7 @@ export const sendUserRecoveryEmail = createServerFn({ method: "POST" })
   });
 
 export const resendUserVerificationEmail = createServerFn({ method: "POST" })
-  .inputValidator((data) =>
+  .validator((data) =>
     withToken({ userId: z.string(), email: z.string().email(), reason: z.string().min(3) }).parse(
       data,
     ),
@@ -150,9 +146,7 @@ export const resendUserVerificationEmail = createServerFn({ method: "POST" })
   });
 
 export const repairUserAuthorProfile = createServerFn({ method: "POST" })
-  .inputValidator((data) =>
-    withToken({ userId: z.string(), reason: z.string().min(3) }).parse(data),
-  )
+  .validator((data) => withToken({ userId: z.string(), reason: z.string().min(3) }).parse(data))
   .handler(async ({ data }) => {
     const { userId: actorId, role } = await requireAdmin(data.accessToken, "users.support_actions");
     const { repairAuthorProfile } = await import("@/lib/admin/users.server");

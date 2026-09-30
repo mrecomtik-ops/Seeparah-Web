@@ -10,7 +10,7 @@ const withToken = <T extends z.ZodRawShape>(shape: T) =>
  * — see suggestCategory in src/lib/admin/catalog.server.ts for why an
  * admin's own separate, later action is always required either way. */
 export const suggestBookCategory = createServerFn({ method: "POST" })
-  .inputValidator((data) =>
+  .validator((data) =>
     withToken({
       contentType: z.enum(["book", "research_paper"]),
       contentId: z.string(),

@@ -5,7 +5,7 @@ import {
   useNavigate,
   useRouterState,
 } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -70,6 +70,7 @@ import {
 } from "@/lib/prefs";
 import { parseReadableBlocks, type ReaderNavigationItem } from "@/lib/reader-structure";
 import { getPublicContentSettings } from "@/lib/admin/settings.functions";
+import { formatAuthorName } from "@/lib/author-name";
 
 const searchSchema = z.object({
   lang: z.string().optional(),
@@ -98,7 +99,8 @@ export const Route = createFileRoute("/read/$bookId")({
       { property: "og:title", content: "Reading room — Seeparah" },
       {
         property: "og:description",
-        content: "Read with structured navigation and comfortable typography in your chosen language.",
+        content:
+          "Read with structured navigation and comfortable typography in your chosen language.",
       },
       { name: "robots", content: "noindex" },
     ],
@@ -115,13 +117,13 @@ const THEME_CLASS: Record<ReaderTheme, string> = {
 function religiousTypographyFont(profile: string | null | undefined): string | undefined {
   switch (profile) {
     case "scripture_arabic":
-      return "\'Noto Naskh Arabic\', Amiri, \'Scheherazade New\', serif";
+      return "'Noto Naskh Arabic', Amiri, 'Scheherazade New', serif";
     case "scripture_urdu":
-      return "\'Noto Nastaliq Urdu\', \'Jameel Noori Nastaleeq\', serif";
+      return "'Noto Nastaliq Urdu', 'Jameel Noori Nastaleeq', serif";
     case "scripture_hebrew":
-      return "\'Noto Serif Hebrew\', \'David Libre\', serif";
+      return "'Noto Serif Hebrew', 'David Libre', serif";
     case "scripture_indic":
-      return "\'Noto Serif Devanagari\', \'Noto Serif Bengali\', \'Noto Serif Tamil\', serif";
+      return "'Noto Serif Devanagari', 'Noto Serif Bengali', 'Noto Serif Tamil', serif";
     default:
       return undefined;
   }
@@ -311,17 +313,7 @@ function ReaderPage() {
         replace: true,
       });
     }
-  }, [
-    book,
-    progressQuery.data,
-    bookId,
-    language,
-    seedKey,
-    seededKeyState,
-    page,
-    lang,
-    navigate,
-  ]);
+  }, [book, progressQuery.data, bookId, language, seedKey, seededKeyState, page, lang, navigate]);
 
   const chunkQuery = useQuery({
     queryKey: ["reader-chunk", bookId, language, index],
@@ -333,12 +325,7 @@ function ReaderPage() {
   // access has been established. The same server-side access gate still
   // applies, so prefetching never exposes locked content.
   useEffect(() => {
-    if (
-      !book ||
-      seededKeyState !== seedKey ||
-      !chunkQuery.data ||
-      chunkQuery.isFetching
-    ) {
+    if (!book || seededKeyState !== seedKey || !chunkQuery.data || chunkQuery.isFetching) {
       return;
     }
     for (const adjacent of [index - 1, index + 1]) {
@@ -448,22 +435,28 @@ function ReaderPage() {
     return result;
   }
 
-  function setReaderPosition(nextIndex: number, replace = true) {
-    const next = Math.min(total - 1, Math.max(0, nextIndex));
-    setIndex(next);
-    void navigate({
-      to: "/read/$bookId",
-      params: { bookId },
-      search: { lang: language, page: next + 1 },
-      replace,
-    });
-  }
+  const setReaderPosition = useCallback(
+    (nextIndex: number, replace = true) => {
+      const next = Math.min(total - 1, Math.max(0, nextIndex));
+      setIndex(next);
+      void navigate({
+        to: "/read/$bookId",
+        params: { bookId },
+        search: { lang: language, page: next + 1 },
+        replace,
+      });
+    },
+    [bookId, language, navigate, total],
+  );
 
-  function go(delta: number) {
-    const next = Math.min(total - 1, Math.max(0, index + delta));
-    if (next === index) return;
-    setReaderPosition(next);
-  }
+  const go = useCallback(
+    (delta: number) => {
+      const next = Math.min(total - 1, Math.max(0, index + delta));
+      if (next === index) return;
+      setReaderPosition(next);
+    },
+    [index, setReaderPosition, total],
+  );
 
   function switchLanguage(l: string) {
     void navigate({
@@ -522,7 +515,7 @@ function ReaderPage() {
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [index, total, language, showSettings, showToc, showHighlights, showSearch]);
+  }, [go, showSettings, showToc, showHighlights, showSearch]);
 
   async function handleHighlight() {
     const selection = window.getSelection();
@@ -534,11 +527,7 @@ function ReaderPage() {
 
     const range = selection.getRangeAt(0);
     const root = readerTextRef.current;
-    if (
-      !root ||
-      !root.contains(range.startContainer) ||
-      !root.contains(range.endContainer)
-    ) {
+    if (!root || !root.contains(range.startContainer) || !root.contains(range.endContainer)) {
       toast.info("Select text from the book page itself, then tap Highlight.");
       return;
     }
@@ -546,7 +535,9 @@ function ReaderPage() {
     const startAnchor = findReaderTextAnchor(range.startContainer);
     const endAnchor = findReaderTextAnchor(range.endContainer);
     if (!startAnchor || !endAnchor) {
-      toast.info("That selection crosses content we can't anchor yet. Try selecting the passage text only.");
+      toast.info(
+        "That selection crosses content we can't anchor yet. Try selecting the passage text only.",
+      );
       return;
     }
 
@@ -651,7 +642,9 @@ function ReaderPage() {
   );
   const navigationItems = (navigationQuery.data ?? []) as ReaderNavigationItem[];
   const currentNavigationItem =
-    [...navigationItems].reverse().find((item) => item.index <= index) ?? navigationItems[0] ?? null;
+    [...navigationItems].reverse().find((item) => item.index <= index) ??
+    navigationItems[0] ??
+    null;
   const locked = chunkQuery.data?.locked ?? false;
   const lockReason = chunkQuery.data?.reason;
   const myRequestForLanguage = myRequestStatusByLanguage.get(language);
@@ -698,9 +691,10 @@ function ReaderPage() {
                 {book.title}
               </p>
               <p className="truncate text-xs text-muted-foreground">
-                {book.author} ·{" "}
+                {formatAuthorName(book.author)} ·{" "}
                 <span dir="ltr" className="inline-block">
-                  {currentNavigationItem?.title ?? `Reading section ${index + 1}`} · {index + 1}/{total}
+                  {currentNavigationItem?.title ?? `Reading section ${index + 1}`} · {index + 1}/
+                  {total}
                 </span>
               </p>
             </Link>
@@ -772,8 +766,8 @@ function ReaderPage() {
                   Source-preserving Sacred Text edition
                 </p>
                 <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
-                  Open the source record and canonical reference navigator to verify where this
-                  text and its published translations were sourced.
+                  Open the source record and canonical reference navigator to verify where this text
+                  and its published translations were sourced.
                 </p>
               </div>
             </div>
@@ -791,7 +785,13 @@ function ReaderPage() {
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <span className="text-xs text-muted-foreground">Request translation:</span>
             <select
-              value={requestableLanguagesForBook.includes(language as (typeof requestableLanguagesForBook)[number]) ? language : ""}
+              value={
+                requestableLanguagesForBook.includes(
+                  language as (typeof requestableLanguagesForBook)[number],
+                )
+                  ? language
+                  : ""
+              }
               onChange={(e) => {
                 if (e.target.value) switchLanguage(e.target.value);
               }}
@@ -812,7 +812,8 @@ function ReaderPage() {
                         : "";
                 return (
                   <option key={l} value={l}>
-                    {l}{suffix}
+                    {l}
+                    {suffix}
                   </option>
                 );
               })}
@@ -977,15 +978,13 @@ function ReaderPage() {
               } ${isUrdu ? "urdu-reading-block" : ""} ${
                 religious ? "religious-reading-block" : ""
               } ${
-                typographyProfile === "facsimile_preserving"
-                  ? "source-lineation-preserving"
-                  : ""
+                typographyProfile === "facsimile_preserving" ? "source-lineation-preserving" : ""
               }`}
             >
               {presentation === "book" && (
                 <div className="mb-8 flex items-center justify-between gap-4 border-b border-border/60 pb-3 text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
                   <span className="truncate">{currentNavigationItem?.title ?? book.title}</span>
-                  <span className="shrink-0">{book.author}</span>
+                  <span className="shrink-0">{formatAuthorName(book.author)}</span>
                 </div>
               )}
               <ReadableChunk
@@ -996,9 +995,7 @@ function ReaderPage() {
               />
               {presentation === "book" && (
                 <footer className="mt-12 border-t border-border/50 pt-4 text-center text-xs text-muted-foreground">
-                  <span aria-label={`Reading section ${index + 1} of ${total}`}>
-                    {index + 1}
-                  </span>
+                  <span aria-label={`Reading section ${index + 1} of ${total}`}>{index + 1}</span>
                 </footer>
               )}
             </article>
@@ -1008,7 +1005,9 @@ function ReaderPage() {
                 className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground"
               >
                 <Flag className="h-3.5 w-3.5" />{" "}
-                {isOriginalLanguage ? "Report a problem with this page" : "Report translation issue"}
+                {isOriginalLanguage
+                  ? "Report a problem with this page"
+                  : "Report translation issue"}
               </button>
             </div>
           </>
@@ -1074,7 +1073,9 @@ function ReaderPage() {
               }`}
             >
               <Highlighter className="h-4 w-4" />
-              <span className="hidden sm:inline">{highlightSaved ? "Highlighted" : "Highlight"}</span>
+              <span className="hidden sm:inline">
+                {highlightSaved ? "Highlighted" : "Highlight"}
+              </span>
             </button>
           </div>
           <button
@@ -1186,10 +1187,7 @@ function mergeHighlightRanges(
     // has offsets, NEVER fall back to text matching on other anchors: doing
     // that would mark every repeated occurrence of a word such as "should".
     if (highlight.start_offset != null && highlight.end_offset != null) {
-      if (
-        highlight.end_offset > absoluteStart &&
-        highlight.start_offset < absoluteEnd
-      ) {
+      if (highlight.end_offset > absoluteStart && highlight.start_offset < absoluteEnd) {
         ranges.push({
           start: Math.max(0, highlight.start_offset - absoluteStart),
           end: Math.min(text.length, highlight.end_offset - absoluteStart),
@@ -1404,7 +1402,7 @@ function ReadableChunk({
             <blockquote
               key={i}
               style={spacing}
-              className="border-l-4 border-primary/40 pl-5 italic text-muted-foreground"
+              className="whitespace-pre-line border-l-4 border-primary/40 pl-5 italic text-muted-foreground"
             >
               {anchoredText(block.text)}
             </blockquote>
@@ -1420,7 +1418,7 @@ function ReadableChunk({
           );
         }
         return (
-          <p key={i} style={spacing} className="leading-inherit">
+          <p key={i} style={spacing} className="whitespace-pre-line leading-inherit">
             {anchoredText(block.text)}
           </p>
         );
@@ -1490,10 +1488,12 @@ function ReaderSettingsSheet({
             Reading style
           </p>
           <div className="mt-2 grid grid-cols-2 gap-2">
-            {([
-              ["book", "Book page"],
-              ["continuous", "Continuous"],
-            ] as const).map(([value, label]) => (
+            {(
+              [
+                ["book", "Book page"],
+                ["continuous", "Continuous"],
+              ] as const
+            ).map(([value, label]) => (
               <button
                 key={value}
                 onClick={() => onChange({ presentation: value })}
@@ -1509,7 +1509,8 @@ function ReaderSettingsSheet({
             ))}
           </div>
           <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
-            Book page gives each reading section a paper-page shape with generous inner margins and a page number.
+            Book page gives each reading section a paper-page shape with generous inner margins and
+            a page number.
           </p>
         </div>
 
@@ -1518,11 +1519,13 @@ function ReaderSettingsSheet({
             Typeface
           </p>
           <div className="mt-2 grid grid-cols-3 gap-2">
-            {([
-              ["literary", "Literary"],
-              ["serif", "Serif"],
-              ["sans", "Sans"],
-            ] as const).map(([value, label]) => (
+            {(
+              [
+                ["literary", "Literary"],
+                ["serif", "Serif"],
+                ["sans", "Sans"],
+              ] as const
+            ).map(([value, label]) => (
               <button
                 key={value}
                 onClick={() => onChange({ fontFamily: value })}
@@ -1604,9 +1607,7 @@ function ReaderSettingsSheet({
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Paragraph spacing
             </p>
-            <span className="text-xs text-muted-foreground">
-              {paragraphSpacing.toFixed(1)}rem
-            </span>
+            <span className="text-xs text-muted-foreground">{paragraphSpacing.toFixed(1)}rem</span>
           </div>
           <input
             type="range"

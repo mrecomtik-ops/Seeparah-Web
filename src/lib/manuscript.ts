@@ -96,28 +96,82 @@ function fallbackGroups(blocks: string[]): Array<{ start: number; end: number }>
   return groups;
 }
 
+function subdivideStructuredGroups(
+  blocks: string[],
+  groups: Array<{ start: number; end: number }>,
+): Array<{ start: number; end: number }> {
+  const out: Array<{ start: number; end: number }> = [];
+  for (const group of groups) {
+    const local: Array<{ start: number; end: number }> = [];
+    let start = group.start;
+    let words = 0;
+    let paragraphs = 0;
+    for (let i = group.start; i <= group.end; i++) {
+      words += wordCount(blocks[i] ?? "");
+      paragraphs += 1;
+      if ((words >= 900 || paragraphs >= 12) && i < group.end) {
+        local.push({ start, end: i });
+        start = i + 1;
+        words = 0;
+        paragraphs = 0;
+      }
+    }
+    if (start <= group.end) local.push({ start, end: group.end });
+
+    // Do not leave a scene/chapter with a tiny final page containing only
+    // an exit cue or a few closing lines; fold that tail into the previous
+    // page from the same semantic group.
+    if (local.length > 1) {
+      const last = local[local.length - 1]!;
+      const lastWords = blocks
+        .slice(last.start, last.end + 1)
+        .reduce((sum, block) => sum + wordCount(block), 0);
+      if (lastWords < 100) {
+        local[local.length - 2]!.end = last.end;
+        local.pop();
+      }
+    }
+    out.push(...local);
+  }
+  return out;
+}
+
 function structuredGroups(
   blocks: string[],
   headings: Array<ReturnType<typeof classifyHeading>>,
 ): Array<{ start: number; end: number }> | null {
   const chapterStarts: number[] = [];
   const partStarts: number[] = [];
+  const sceneStarts: number[] = [];
+  const scenePattern =
+    /^(?:scene|scène|escena|scena|szene|сцена|المشهد|منظر|दृश्य)(?=$|[\s:.\-—–0-9IVXLCDM])/iu;
 
   headings.forEach((heading, i) => {
     if (!heading) return;
     if (heading.kind === "chapter") chapterStarts.push(i);
     if (heading.kind === "part") partStarts.push(i);
+    if (scenePattern.test(firstLine(blocks[i] ?? ""))) sceneStarts.push(i);
   });
 
   let starts: number[] = [];
-  if (chapterStarts.length >= 2) {
+  if (chapterStarts.length >= 2 && sceneStarts.length >= 2) {
+    // Drama: Act/Chapter boundaries alone create enormous sections. Use
+    // explicit Scene headings as reader boundaries while retaining Acts.
+    // When Scene I immediately follows an Act heading, the Act itself is
+    // the boundary so we do not create a heading-only reader page.
+    const meaningfulSceneStarts = sceneStarts.filter(
+      (sceneIndex) =>
+        !chapterStarts.some((chapterIndex) => {
+          const distance = sceneIndex - chapterIndex;
+          return distance > 0 && distance <= 2;
+        }),
+    );
+    starts = [...chapterStarts, ...meaningfulSceneStarts];
+  } else if (chapterStarts.length >= 2) {
     starts = chapterStarts.map((chapterIndex, chapterOrdinal) => {
       const previousChapter = chapterOrdinal === 0 ? -1 : chapterStarts[chapterOrdinal - 1]!;
       const immediatelyBefore = chapterIndex - 1;
-      if (
-        immediatelyBefore > previousChapter &&
-        headings[immediatelyBefore]?.kind === "part"
-      ) {
+      if (immediatelyBefore > previousChapter && headings[immediatelyBefore]?.kind === "part") {
         return immediatelyBefore;
       }
       return chapterIndex;
@@ -183,7 +237,10 @@ export function parseManuscript(
   }
 
   const headings = blocks.map((block) => classifyHeading(firstLine(block)));
-  const groups = structuredGroups(blocks, headings) ?? fallbackGroups(blocks);
+  const structured = structuredGroups(blocks, headings);
+  const groups = structured
+    ? subdivideStructuredGroups(blocks, structured)
+    : fallbackGroups(blocks);
 
   const chunks = groups.map((group) => blocks.slice(group.start, group.end + 1).join("\n\n"));
   const blockToChunk = new Map<number, number>();
@@ -243,9 +300,7 @@ export function parseManuscript(
   // nested sections therefore stay inside their parent chapter/part range.
   for (let i = 0; i < structure.length; i++) {
     const node = structure[i]!;
-    const nextBoundary = structure
-      .slice(i + 1)
-      .find((candidate) => candidate.depth <= node.depth);
+    const nextBoundary = structure.slice(i + 1).find((candidate) => candidate.depth <= node.depth);
     node.endChunkIndex = nextBoundary
       ? Math.max(node.startChunkIndex, nextBoundary.startChunkIndex - 1)
       : Math.max(node.startChunkIndex, chunks.length - 1);
@@ -260,9 +315,6 @@ export function parseManuscript(
   };
 }
 
-export function splitManuscript(
-  text: string,
-  options: ParseManuscriptOptions = {},
-): string[] {
+export function splitManuscript(text: string, options: ParseManuscriptOptions = {}): string[] {
   return parseManuscript(text, options).chunks;
 }

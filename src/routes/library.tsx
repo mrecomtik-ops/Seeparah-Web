@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 import {
@@ -29,6 +29,8 @@ import { useShelves } from "@/components/ShelfButtons";
 import { coverFor, FEATURED_BOOK_ID } from "@/lib/covers";
 import { getPublicContentSettings } from "@/lib/admin/settings.functions";
 import { countPagesRead } from "@/lib/reading-stats";
+import { formatAuthorName } from "@/lib/author-name";
+import { publicBookDescription } from "@/lib/book-description";
 
 const TABS = [
   { key: "all", label: "All books", icon: LibraryIcon },
@@ -64,7 +66,8 @@ export const Route = createFileRoute("/library")({
       { property: "og:title", content: "Library — Seeparah" },
       {
         property: "og:description",
-        content: "Search and browse books by language and category, including the always-free Religious collection.",
+        content:
+          "Search and browse books by language and category, including the always-free Religious collection.",
       },
     ],
   }),
@@ -72,7 +75,7 @@ export const Route = createFileRoute("/library")({
 });
 
 function LibraryPage() {
-  const { userId, displayName, isDemo } = useAuth();
+  const { userId, displayName, isDemo, loading: authLoading } = useAuth();
   const navigate = Route.useNavigate();
   const search = Route.useSearch();
   const tab = search.tab ?? "all";
@@ -90,6 +93,7 @@ function LibraryPage() {
   const progressQuery = useQuery({
     queryKey: ["progress", userId],
     queryFn: () => listProgress(userId),
+    enabled: !authLoading,
   });
   const shelvesQuery = useShelves();
   const settingsQuery = useQuery({
@@ -98,9 +102,9 @@ function LibraryPage() {
   });
   const monetizationEnabled = settingsQuery.data?.["monetization_enabled"] === true;
 
-  const books = booksQuery.data ?? [];
+  const books = useMemo(() => booksQuery.data ?? [], [booksQuery.data]);
   const religiousBooks = books.filter(isReligiousBook);
-  const shelves = shelvesQuery.data ?? [];
+  const shelves = useMemo(() => shelvesQuery.data ?? [], [shelvesQuery.data]);
 
   // Keeps the language of the winning (highest-chunk) row alongside the
   // index — a book can have saved progress in more than one language, and
@@ -133,9 +137,13 @@ function LibraryPage() {
     }
     return counts;
   }, [books]);
-  const configuredCategories = Array.isArray(settingsQuery.data?.["categories"])
-    ? (settingsQuery.data?.["categories"] as string[])
-    : [];
+  const configuredCategories = useMemo(
+    () =>
+      Array.isArray(settingsQuery.data?.["categories"])
+        ? (settingsQuery.data?.["categories"] as string[])
+        : [],
+    [settingsQuery.data],
+  );
   const categoriesInUse = useMemo(() => {
     const names = new Set([...configuredCategories, ...categoryCounts.keys()]);
     return [...names].sort((a, b) => {
@@ -145,8 +153,10 @@ function LibraryPage() {
     });
   }, [configuredCategories, categoryCounts]);
 
-  const shelfIds = (kind: string) =>
-    new Set(shelves.filter((s) => s.shelf === kind).map((s) => s.book_id));
+  const shelfIds = useCallback(
+    (kind: string) => new Set(shelves.filter((s) => s.shelf === kind).map((s) => s.book_id)),
+    [shelves],
+  );
 
   const tabBooks = useMemo(() => {
     switch (tab) {
@@ -167,7 +177,7 @@ function LibraryPage() {
       default:
         return books;
     }
-  }, [tab, books, progressByBook, shelves]);
+  }, [tab, books, progressByBook, shelfIds]);
 
   const hasActiveFilters = Boolean(query.trim() || lang || genre || author || category);
 
@@ -209,7 +219,9 @@ function LibraryPage() {
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="text-sm font-medium text-muted-foreground">
-              {isDemo ? (
+              {authLoading ? (
+                "Loading your library…"
+              ) : isDemo ? (
                 <>
                   Reading as a guest —{" "}
                   <Link
@@ -272,7 +284,9 @@ function LibraryPage() {
                     params={{ bookId: book.id }}
                     className="rounded-xl border border-border bg-background p-4 hover:bg-secondary/50"
                   >
-                    <p className="font-display text-base font-semibold text-foreground">{book.title}</p>
+                    <p className="font-display text-base font-semibold text-foreground">
+                      {book.title}
+                    </p>
                     <p className="mt-1 text-xs text-muted-foreground">
                       {book.source_language} original · source record available
                     </p>
@@ -308,8 +322,15 @@ function LibraryPage() {
                 <h2 className="mt-2 font-display text-2xl font-semibold sm:text-3xl">
                   {featured.title}
                 </h2>
-                <p className="mt-1 text-sm opacity-80">{featured.author}</p>
-                <p className="mt-4 max-w-xl leading-relaxed opacity-90">{featured.description}</p>
+                <p className="mt-1 text-sm opacity-80">{formatAuthorName(featured.author)}</p>
+                <p className="mt-4 max-w-xl leading-relaxed opacity-90">
+                  {publicBookDescription({
+                    title: featured.title,
+                    author: formatAuthorName(featured.author),
+                    sourceLanguage: featured.source_language,
+                    description: featured.description,
+                  })}
+                </p>
                 {featuredIsSample && (
                   <p className="mt-2 max-w-xl text-xs opacity-75">
                     This edition includes the opening {featured.total_chunks}{" "}
@@ -319,7 +340,9 @@ function LibraryPage() {
                 <Link
                   to="/read/$bookId"
                   params={{ bookId: featured.id }}
-                  search={{ lang: progressByBook.get(featured.id)?.language ?? featured.source_language }}
+                  search={{
+                    lang: progressByBook.get(featured.id)?.language ?? featured.source_language,
+                  }}
                   className="mt-6 inline-flex items-center gap-2 rounded-xl bg-accent px-5 py-3 text-sm font-semibold text-accent-foreground transition-transform hover:-translate-y-0.5"
                 >
                   {progressByBook.has(featured.id) ? "Continue reading" : "Start reading"}
@@ -352,7 +375,9 @@ function LibraryPage() {
 
         {books.length === 0 && progressByBook.size > 0 && (
           <p className="mt-3 text-xs text-muted-foreground">
-            {progressByBook.size} previous reading {progressByBook.size === 1 ? "record is" : "records are"} preserved in your account, even though those editions are not currently public.
+            {progressByBook.size} previous reading{" "}
+            {progressByBook.size === 1 ? "record is" : "records are"} preserved in your account,
+            even though those editions are not currently public.
           </p>
         )}
 
@@ -438,9 +463,7 @@ function LibraryPage() {
                   className="min-h-10 rounded-full border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary"
                 >
                   {c}
-                  {c === "Religious" && (
-                    <span className="ml-1 text-primary">· always free</span>
-                  )}
+                  {c === "Religious" && <span className="ml-1 text-primary">· always free</span>}
                   <span className="text-muted-foreground">({categoryCounts.get(c) ?? 0})</span>
                 </button>
               ))}

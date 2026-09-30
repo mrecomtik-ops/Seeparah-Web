@@ -57,6 +57,7 @@ function PublishPage() {
   const [sourceLanguage, setSourceLanguage] = useState<string>("English");
   const [summary, setSummary] = useState("");
   const [manuscript, setManuscript] = useState("");
+  const [preserveLineation, setPreserveLineation] = useState(false);
   const [genre, setGenre] = useState<string>(GENRES[0]);
   const [categories, setCategories] = useState<string[]>([]);
   const [coverUrl, setCoverUrl] = useState("");
@@ -82,13 +83,14 @@ function PublishPage() {
     (categoriesQuery.data?.["categories"] as string[] | undefined) ?? []
   ).filter((category) => category !== "Religious");
 
-  const chapters = manuscript.trim() ? splitManuscript(manuscript) : [];
+  const chapters = manuscript.trim() ? splitManuscript(manuscript, { preserveLineation }) : [];
 
   function loadSample() {
     setTitle(SAMPLE_MANUSCRIPT_TITLE);
     setAuthorName(SAMPLE_MANUSCRIPT_AUTHOR);
     setSummary(SAMPLE_MANUSCRIPT_SUMMARY);
     setManuscript(SAMPLE_MANUSCRIPT_CHAPTERS.join("\n\n"));
+    setPreserveLineation(false);
     setSourceLanguage("English");
     toast.success("Sample manuscript loaded — 10 chapters");
   }
@@ -130,6 +132,7 @@ function PublishPage() {
           return;
         }
         setManuscript(text);
+        setPreserveLineation(true);
         if (!title) setTitle(file.name.replace(/\.[^.]+$/, ""));
         setImportWarnings(warnings);
         toast.success(
@@ -163,6 +166,7 @@ function PublishPage() {
       return;
     }
     setManuscript(text);
+    setPreserveLineation(false);
     if (!title) setTitle(file.name.replace(/\.[^.]+$/, ""));
     toast.success(`Loaded ${file.name} — ${splitManuscript(text).length} section(s) detected`);
   }
@@ -189,6 +193,9 @@ function PublishPage() {
     if (forSubmit && categories.length === 0) {
       return "Choose at least one category before submitting for review.";
     }
+    if (categories.length > 3) {
+      return "Choose no more than three categories.";
+    }
     if (forSubmit && !rightsConfirmed) {
       return "Confirm you hold the rights to this manuscript before submitting for review.";
     }
@@ -214,6 +221,7 @@ function PublishPage() {
           sourceLanguage,
           summary: summary.trim(),
           manuscript,
+          preserveLineation,
           isPaid: false,
           priceUsd: null,
           genre,
@@ -342,7 +350,7 @@ function PublishPage() {
           <div>
             <span className={labelCls}>Categories</span>
             <p className="mb-2 text-xs text-muted-foreground">
-              Choose one or more categories for discovery. An administrator can adjust these during
+              Choose up to three categories for discovery. An administrator can adjust these during
               review. Religious/Sacred Texts use the separate verified-source workflow.
             </p>
             {masterCategories.length === 0 ? (
@@ -358,11 +366,14 @@ function PublishPage() {
                       type="button"
                       key={category}
                       aria-pressed={active}
+                      disabled={!active && categories.length >= 3}
                       onClick={() =>
                         setCategories((current) =>
                           current.includes(category)
                             ? current.filter((item) => item !== category)
-                            : [...current, category],
+                            : current.length < 3
+                              ? [...current, category]
+                              : current,
                         )
                       }
                       className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${

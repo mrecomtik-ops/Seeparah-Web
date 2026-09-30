@@ -6,7 +6,7 @@ const withToken = <T extends z.ZodRawShape>(shape: T) =>
   z.object({ accessToken: z.string(), ...shape });
 
 export const adminListAuditLog = createServerFn({ method: "POST" })
-  .inputValidator((data) =>
+  .validator((data) =>
     withToken({
       entityType: z.string().optional(),
       entityId: z.string().optional(),

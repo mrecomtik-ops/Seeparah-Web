@@ -13,6 +13,9 @@ import {
 import { getBook } from "@/lib/library";
 import { coverFor } from "@/lib/covers";
 import { getPrefs } from "@/lib/prefs";
+import { formatAuthorName } from "@/lib/author-name";
+import { publicBookDescription } from "@/lib/book-description";
+import { safeJsonLd } from "@/lib/seo";
 import { ShelfButtons } from "@/components/ShelfButtons";
 import {
   SAMPLE_EXCERPT_BOOK_IDS,
@@ -36,19 +39,49 @@ export const Route = createFileRoute("/book/$bookId")({
     return { book };
   },
   notFoundComponent: BookNotFoundPage,
-  head: () => ({
-    meta: [
-      { title: "Book details — Seeparah" },
-      { name: "description", content: "Everything about this book on Seeparah: languages, length, and access." },
-    ],
-  }),
+  head: ({ loaderData }) => {
+    const book = loaderData?.book;
+    if (!book) {
+      return {
+        meta: [
+          { title: "Book details — Seeparah" },
+          { name: "description", content: "Read books and reviewed editions on Seeparah." },
+        ],
+      };
+    }
+    const author = formatAuthorName(book.author);
+    const description = publicBookDescription({
+      title: book.title,
+      author,
+      sourceLanguage: book.source_language,
+      description: book.description,
+    });
+    const title = `${book.title} by ${author} — Seeparah`;
+    const canonical = `https://seeparah.com/book/${book.id}`;
+    const cover = coverFor(book.id, book.cover_url);
+    return {
+      meta: [
+        { title },
+        { name: "description", content: description },
+        { property: "og:title", content: title },
+        { property: "og:description", content: description },
+        { property: "og:type", content: "book" },
+        { property: "og:url", content: canonical },
+        ...(cover ? [{ property: "og:image", content: cover }] : []),
+        { name: "twitter:card", content: cover ? "summary_large_image" : "summary" },
+      ],
+      links: [{ rel: "canonical", href: canonical }],
+    };
+  },
   component: BookDetailPage,
 });
 
 function BookNotFoundPage() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-background px-4 text-center">
-      <p className="font-display text-2xl font-semibold text-foreground">We couldn't find that book</p>
+      <p className="font-display text-2xl font-semibold text-foreground">
+        We couldn't find that book
+      </p>
       <Link to="/library" className="text-sm font-semibold text-primary hover:underline">
         Back to the library
       </Link>
@@ -110,7 +143,9 @@ function BookDetailPage() {
   if (!book) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-background px-4 text-center">
-        <p className="font-display text-2xl font-semibold text-foreground">We couldn't find that book</p>
+        <p className="font-display text-2xl font-semibold text-foreground">
+          We couldn't find that book
+        </p>
         <Link to="/library" className="text-sm font-semibold text-primary hover:underline">
           Back to the library
         </Link>
@@ -126,9 +161,29 @@ function BookDetailPage() {
   const isDemoManuscript = DEMO_MANUSCRIPT_BOOK_IDS.has(book.id);
   const isReligious = isReligiousBook(book);
   const offersDistinctSample = false;
+  const displayAuthor = formatAuthorName(book.author);
+  const displayDescription = publicBookDescription({
+    title: book.title,
+    author: displayAuthor,
+    sourceLanguage: book.source_language,
+    description: book.description,
+  });
+  const schema = {
+    "@context": "https://schema.org",
+    "@type": "Book",
+    name: book.title,
+    author: { "@type": "Person", name: displayAuthor },
+    inLanguage: book.source_language,
+    url: `https://seeparah.com/book/${book.id}`,
+    description: displayDescription,
+    ...(cover ? { image: cover } : {}),
+    ...(book.isbn ? { isbn: book.isbn } : {}),
+    ...(book.publisher ? { publisher: { "@type": "Organization", name: book.publisher } } : {}),
+  };
 
   return (
     <div className="min-h-screen bg-background">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(schema) }} />
       <main className="mx-auto max-w-4xl px-4 pb-20 pt-8 sm:px-6">
         <Link
           to="/library"
@@ -140,11 +195,17 @@ function BookDetailPage() {
         <div className="mt-6 grid gap-8 sm:grid-cols-[220px_1fr]">
           <div className="mx-auto w-full max-w-[220px] overflow-hidden rounded-2xl border border-border bg-secondary card-shadow sm:mx-0">
             {cover ? (
-              <img src={cover} alt={`Cover of ${book.title}`} className="aspect-[2/3] w-full object-cover" />
+              <img
+                src={cover}
+                alt={`Cover of ${book.title}`}
+                className="aspect-[2/3] w-full object-cover"
+              />
             ) : (
               <div className="flex aspect-[2/3] flex-col items-center justify-center gap-2 p-4 text-center">
                 <BookOpen className="h-8 w-8 text-primary/50" />
-                <span className="font-display text-lg font-semibold text-foreground">{book.title}</span>
+                <span className="font-display text-lg font-semibold text-foreground">
+                  {book.title}
+                </span>
               </div>
             )}
           </div>
@@ -161,10 +222,10 @@ function BookDetailPage() {
                     params={{ authorId: book.author_id }}
                     className="mt-1 inline-block text-sm text-muted-foreground hover:text-foreground hover:underline"
                   >
-                    {book.author}
+                    {displayAuthor}
                   </Link>
                 ) : (
-                  <p className="mt-1 text-sm text-muted-foreground">{book.author}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">{displayAuthor}</p>
                 )}
               </div>
               <ShelfButtons bookId={book.id} />
@@ -181,7 +242,8 @@ function BookDetailPage() {
               )}
               {(isSample || isDemoManuscript) && (
                 <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-1 text-[11px] font-semibold text-secondary-foreground">
-                  <FlaskConical className="h-3 w-3" /> {isDemoManuscript ? "Demo manuscript" : "Sample chapters"}
+                  <FlaskConical className="h-3 w-3" />{" "}
+                  {isDemoManuscript ? "Demo manuscript" : "Sample chapters"}
                 </span>
               )}
               {book.genre && (
@@ -205,7 +267,7 @@ function BookDetailPage() {
               </span>
             </div>
 
-            <p className="mt-5 max-w-2xl leading-relaxed text-foreground">{book.description}</p>
+            <p className="mt-5 max-w-2xl leading-relaxed text-foreground">{displayDescription}</p>
             {isSample && (
               <p className="mt-2 max-w-2xl text-sm font-medium text-gold">
                 This is an excerpt — {book.total_chunks}{" "}
@@ -241,9 +303,7 @@ function BookDetailPage() {
                 </div>
                 <div>
                   <dt className="text-xs text-muted-foreground">Publisher</dt>
-                  <dd className="mt-0.5 font-medium text-foreground">
-                    {book.publisher || "—"}
-                  </dd>
+                  <dd className="mt-0.5 font-medium text-foreground">{book.publisher || "—"}</dd>
                 </div>
                 <div>
                   <dt className="text-xs text-muted-foreground">Length</dt>
@@ -289,19 +349,26 @@ function BookDetailPage() {
                       <div>
                         <dt className="text-muted-foreground">Source / authority</dt>
                         <dd className="mt-0.5 font-semibold text-foreground">
-                          {book.attribution || book.publisher || book.edition_title || "Recorded source"}
+                          {book.attribution ||
+                            book.publisher ||
+                            book.edition_title ||
+                            "Recorded source"}
                         </dd>
                       </div>
                       <div>
                         <dt className="text-muted-foreground">Source edition / identifier</dt>
                         <dd className="mt-0.5 font-semibold text-foreground">
-                          {book.source_edition_id || book.source_scan_id || "Recorded in edition metadata"}
+                          {book.source_edition_id ||
+                            book.source_scan_id ||
+                            "Recorded in edition metadata"}
                         </dd>
                       </div>
                       {book.translator && (
                         <div>
                           <dt className="text-muted-foreground">Translator / editor</dt>
-                          <dd className="mt-0.5 font-semibold text-foreground">{book.translator}</dd>
+                          <dd className="mt-0.5 font-semibold text-foreground">
+                            {book.translator}
+                          </dd>
                         </div>
                       )}
                     </dl>
@@ -354,18 +421,18 @@ function BookDetailPage() {
                   ))}
                 {!isReligious &&
                   REQUESTABLE_TRANSLATION_LANGUAGES.filter(
-                  (l) =>
-                    !book.available_languages.includes(l) &&
-                    l !== book.source_language &&
-                    !(translationStatusQuery.data ?? []).some((s) => s.language === l),
-                ).map((l) => (
-                  <span
-                    key={l}
-                    className="rounded-full border border-dashed border-border px-3 py-1 text-xs font-medium text-muted-foreground"
-                  >
-                    {l} · available on request
-                  </span>
-                ))}
+                    (l) =>
+                      !book.available_languages.includes(l) &&
+                      l !== book.source_language &&
+                      !(translationStatusQuery.data ?? []).some((s) => s.language === l),
+                  ).map((l) => (
+                    <span
+                      key={l}
+                      className="rounded-full border border-dashed border-border px-3 py-1 text-xs font-medium text-muted-foreground"
+                    >
+                      {l} · available on request
+                    </span>
+                  ))}
               </div>
               <p className="mt-2 text-xs text-muted-foreground">{TRANSLATION_EXPLAINER_SHORT}</p>
               {isReligious && (
@@ -397,7 +464,9 @@ function BookDetailPage() {
                       <div className="mt-2 space-y-1 text-muted-foreground">
                         {edition.editionTitle && <p>Edition: {edition.editionTitle}</p>}
                         {edition.translator && <p>Translator/editor: {edition.translator}</p>}
-                        {edition.sourceEditionId && <p>Source edition ID: {edition.sourceEditionId}</p>}
+                        {edition.sourceEditionId && (
+                          <p>Source edition ID: {edition.sourceEditionId}</p>
+                        )}
                         {edition.authenticityNotes && (
                           <p>Text/typography notes: {edition.authenticityNotes}</p>
                         )}
@@ -438,7 +507,9 @@ function BookDetailPage() {
                 search={{ lang: readLanguage }}
                 className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground card-shadow transition-transform hover:-translate-y-0.5"
               >
-                {isSample ? `Read the sample in ${readLanguage}` : `Start reading in ${readLanguage}`}
+                {isSample
+                  ? `Read the sample in ${readLanguage}`
+                  : `Start reading in ${readLanguage}`}
               </Link>
               {isReligious && (
                 <Link

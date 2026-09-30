@@ -5,6 +5,8 @@ import { SAMPLE_EXCERPT_BOOK_IDS, DEMO_MANUSCRIPT_BOOK_IDS } from "@/lib/data";
 import { coverFor } from "@/lib/covers";
 import { ShelfButtons } from "@/components/ShelfButtons";
 import { getPrefs } from "@/lib/prefs";
+import { formatAuthorName } from "@/lib/author-name";
+import { publicBookDescription } from "@/lib/book-description";
 
 export function BookCard({
   book,
@@ -36,9 +38,19 @@ export function BookCard({
    * Never infer this from `book.access_type` alone. */
   monetizationEnabled?: boolean;
 }) {
+  const displayAuthor = formatAuthorName(book.author);
+  const displayDescription = publicBookDescription({
+    title: book.title,
+    author: displayAuthor,
+    sourceLanguage: book.source_language,
+    description: book.description,
+  });
   const isSample = SAMPLE_EXCERPT_BOOK_IDS.has(book.id);
   const isDemoManuscript = DEMO_MANUSCRIPT_BOOK_IDS.has(book.id);
   const cover = coverFor(book.id, book.cover_url);
+  const listCover = cover?.includes("/book-covers/generated/SP-CAND-")
+    ? cover.replace("/book-covers/generated/", "/book-covers/generated/thumbs/")
+    : cover;
   const pct =
     progress != null && book.total_chunks > 0
       ? Math.min(100, Math.round(((progress + 1) / book.total_chunks) * 100))
@@ -46,7 +58,9 @@ export function BookCard({
   const savedLanguage = getPrefs().language;
   const openLanguage =
     (progressLanguage && book.available_languages.includes(progressLanguage) && progressLanguage) ||
-    (preferredLanguage && book.available_languages.includes(preferredLanguage) && preferredLanguage) ||
+    (preferredLanguage &&
+      book.available_languages.includes(preferredLanguage) &&
+      preferredLanguage) ||
     (book.available_languages.includes(savedLanguage) && savedLanguage) ||
     book.source_language;
 
@@ -64,11 +78,13 @@ export function BookCard({
         className="flex flex-1 flex-col"
       >
         <div className="relative aspect-[2/3] w-full overflow-hidden bg-secondary">
-          {cover ? (
+          {listCover ? (
             <img
-              src={cover}
+              src={listCover}
               alt={`Cover of ${book.title}`}
               loading="lazy"
+              width={600}
+              height={900}
               className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
             />
           ) : (
@@ -77,7 +93,7 @@ export function BookCard({
               <span className="font-display text-lg font-semibold text-foreground">
                 {book.title}
               </span>
-              <span className="text-xs text-muted-foreground">{book.author}</span>
+              <span className="text-xs text-muted-foreground">{displayAuthor}</span>
             </div>
           )}
           {monetizationEnabled && book.access_type === "paid" && (
@@ -96,7 +112,7 @@ export function BookCard({
             <h3 className="font-display text-base font-semibold leading-snug text-foreground">
               {book.title}
             </h3>
-            <p className="text-sm text-muted-foreground">{book.author}</p>
+            <p className="text-sm text-muted-foreground">{displayAuthor}</p>
           </div>
           {book.genre && (
             <span className="w-fit rounded-full bg-secondary px-2 py-0.5 text-[11px] font-semibold text-secondary-foreground">
@@ -115,9 +131,7 @@ export function BookCard({
               ))}
             </div>
           )}
-          <p className="line-clamp-2 text-sm text-muted-foreground">
-            {book.description}
-          </p>
+          <p className="line-clamp-2 text-sm text-muted-foreground">{displayDescription}</p>
           <div className="mt-auto flex flex-wrap gap-1 pt-1">
             {book.available_languages.slice(0, 4).map((lang) => (
               <span

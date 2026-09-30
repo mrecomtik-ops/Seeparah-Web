@@ -21,7 +21,7 @@ const MAX_PAPER_PDF_BASE64_CHARS = Math.ceil(MAX_PAPER_PDF_RAW_BYTES / 3) * 4;
  * while it's still in a self-editable status. Never touches any other
  * field. */
 export const uploadPaperPdf = createServerFn({ method: "POST" })
-  .inputValidator((data) =>
+  .validator((data) =>
     withToken({
       paperId: z.string(),
       filename: z.string().min(1).max(200),
@@ -43,7 +43,7 @@ export const uploadPaperPdf = createServerFn({ method: "POST" })
   });
 
 export const removePaperPdf = createServerFn({ method: "POST" })
-  .inputValidator((data) => withToken({ paperId: z.string() }).parse(data))
+  .validator((data) => withToken({ paperId: z.string() }).parse(data))
   .handler(async ({ data }) => {
     const userId = await requireUserId(data.accessToken);
     const { removePaperPdf: run } = await import("@/lib/research.server");
@@ -55,7 +55,7 @@ export const removePaperPdf = createServerFn({ method: "POST" })
  * draft/pending version, enforced in downloadPublishedPaperPdf itself. No
  * auth required, matching the paper's own public readability. */
 export const downloadPaperPdf = createServerFn({ method: "POST" })
-  .inputValidator((data) => z.object({ paperId: z.string() }).parse(data))
+  .validator((data) => z.object({ paperId: z.string() }).parse(data))
   .handler(async ({ data }) => {
     const { downloadPublishedPaperPdf } = await import("@/lib/research.server");
     return downloadPublishedPaperPdf(data.paperId);
@@ -65,7 +65,7 @@ export const downloadPaperPdf = createServerFn({ method: "POST" })
  * (same as reportTranslationIssue for books), lands in the real
  * support_tickets admin queue via createTicket. */
 export const reportResearchPaperProblem = createServerFn({ method: "POST" })
-  .inputValidator((data) =>
+  .validator((data) =>
     withToken({
       paperId: z.string(),
       paperTitle: z.string().min(1),

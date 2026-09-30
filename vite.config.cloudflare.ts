@@ -22,7 +22,6 @@ import { defineConfig, loadEnv, mergeConfig } from "vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import { cloudflare } from "@cloudflare/vite-plugin";
 import tailwindcss from "@tailwindcss/vite";
-import tsConfigPaths from "vite-tsconfig-paths";
 import viteReact from "@vitejs/plugin-react";
 
 export default defineConfig(async ({ mode }) => {
@@ -41,6 +40,7 @@ export default defineConfig(async ({ mode }) => {
       define: envDefine,
       css: { transformer: "lightningcss" as const },
       resolve: {
+        tsconfigPaths: true,
         alias: { "@": `${process.cwd()}/src` },
         dedupe: [
           "react",
@@ -71,7 +71,6 @@ export default defineConfig(async ({ mode }) => {
         // lives in, rather than the plugin's own single-Worker default.
         cloudflare({ viteEnvironment: { name: "ssr" } }),
         tailwindcss(),
-        tsConfigPaths({ projects: ["./tsconfig.json"] }),
         tanstackStart({
           importProtection: {
             behavior: "error",

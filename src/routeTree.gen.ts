@@ -17,11 +17,6 @@ import { Route as CopyrightRouteImport } from './routes/copyright'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as LegalRouteImport } from './routes/legal'
 import { Route as LibraryRouteImport } from './routes/library'
-import { Route as SitemapXmlRouteImport } from './routes/sitemap[.]xml'
-import { Route as InsightsIndexRouteImport } from './routes/insights/index'
-import { Route as InsightsSlugRouteImport } from './routes/insights/$slug'
-import { Route as SacredTextsIndexRouteImport } from './routes/sacred-texts/index'
-import { Route as SacredTextsBookIdRouteImport } from './routes/sacred-texts/$bookId'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as SubscribeRouteImport } from './routes/subscribe'
@@ -40,11 +35,15 @@ import { Route as AuthorAuthorIdRouteImport } from './routes/author/$authorId'
 import { Route as AuthorAnalyticsRouteImport } from './routes/author.analytics'
 import { Route as AuthorPublishRouteImport } from './routes/author.publish'
 import { Route as BookBookIdRouteImport } from './routes/book.$bookId'
+import { Route as InsightsIndexRouteImport } from './routes/insights/index'
+import { Route as InsightsSlugRouteImport } from './routes/insights/$slug'
 import { Route as ReadBookIdRouteImport } from './routes/read.$bookId'
 import { Route as ResearchIndexRouteImport } from './routes/research/index'
 import { Route as ResearchPaperIdRouteImport } from './routes/research/$paperId'
 import { Route as ResearchMineRouteImport } from './routes/research/mine'
 import { Route as ResearchSubmitRouteImport } from './routes/research/submit'
+import { Route as SacredTextsIndexRouteImport } from './routes/sacred-texts/index'
+import { Route as SacredTextsBookIdRouteImport } from './routes/sacred-texts/$bookId'
 import { Route as AdminBooksIndexRouteImport } from './routes/admin/books/index'
 import { Route as AdminBooksBookIdRouteImport } from './routes/admin/books/$bookId'
 import { Route as AdminBooksNewRouteImport } from './routes/admin/books/new'
@@ -92,31 +91,6 @@ const LegalRoute = LegalRouteImport.update({
 const LibraryRoute = LibraryRouteImport.update({
   id: '/library',
   path: '/library',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SitemapXmlRoute = SitemapXmlRouteImport.update({
-  id: '/sitemap.xml',
-  path: '/sitemap.xml',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const InsightsIndexRoute = InsightsIndexRouteImport.update({
-  id: '/insights/',
-  path: '/insights/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const InsightsSlugRoute = InsightsSlugRouteImport.update({
-  id: '/insights/$slug',
-  path: '/insights/$slug',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SacredTextsIndexRoute = SacredTextsIndexRouteImport.update({
-  id: '/sacred-texts/',
-  path: '/sacred-texts/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SacredTextsBookIdRoute = SacredTextsBookIdRouteImport.update({
-  id: '/sacred-texts/$bookId',
-  path: '/sacred-texts/$bookId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PrivacyRoute = PrivacyRouteImport.update({
@@ -210,6 +184,16 @@ const BookBookIdRoute = BookBookIdRouteImport.update({
   path: '/book/$bookId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const InsightsIndexRoute = InsightsIndexRouteImport.update({
+  id: '/insights/',
+  path: '/insights/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InsightsSlugRoute = InsightsSlugRouteImport.update({
+  id: '/insights/$slug',
+  path: '/insights/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ReadBookIdRoute = ReadBookIdRouteImport.update({
   id: '/read/$bookId',
   path: '/read/$bookId',
@@ -233,6 +217,16 @@ const ResearchMineRoute = ResearchMineRouteImport.update({
 const ResearchSubmitRoute = ResearchSubmitRouteImport.update({
   id: '/research/submit',
   path: '/research/submit',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SacredTextsIndexRoute = SacredTextsIndexRouteImport.update({
+  id: '/sacred-texts/',
+  path: '/sacred-texts/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SacredTextsBookIdRoute = SacredTextsBookIdRouteImport.update({
+  id: '/sacred-texts/$bookId',
+  path: '/sacred-texts/$bookId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminBooksIndexRoute = AdminBooksIndexRouteImport.update({
@@ -285,11 +279,6 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRoute
   '/legal': typeof LegalRoute
   '/library': typeof LibraryRoute
-  '/sitemap.xml': typeof SitemapXmlRoute
-  '/insights/$slug': typeof InsightsSlugRoute
-  '/sacred-texts/$bookId': typeof SacredTextsBookIdRoute
-  '/insights/': typeof InsightsIndexRoute
-  '/sacred-texts/': typeof SacredTextsIndexRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/subscribe': typeof SubscribeRoute
@@ -306,13 +295,17 @@ export interface FileRoutesByFullPath {
   '/author/analytics': typeof AuthorAnalyticsRoute
   '/author/publish': typeof AuthorPublishRoute
   '/book/$bookId': typeof BookBookIdRoute
+  '/insights/$slug': typeof InsightsSlugRoute
   '/read/$bookId': typeof ReadBookIdRoute
   '/research/$paperId': typeof ResearchPaperIdRoute
   '/research/mine': typeof ResearchMineRoute
   '/research/submit': typeof ResearchSubmitRoute
+  '/sacred-texts/$bookId': typeof SacredTextsBookIdRoute
   '/admin/': typeof AdminIndexRoute
   '/author/': typeof AuthorIndexRoute
+  '/insights/': typeof InsightsIndexRoute
   '/research/': typeof ResearchIndexRoute
+  '/sacred-texts/': typeof SacredTextsIndexRoute
   '/admin/books/$bookId': typeof AdminBooksBookIdRoute
   '/admin/books/new': typeof AdminBooksNewRoute
   '/admin/research/$paperId': typeof AdminResearchPaperIdRoute
@@ -329,11 +322,6 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardRoute
   '/legal': typeof LegalRoute
   '/library': typeof LibraryRoute
-  '/sitemap.xml': typeof SitemapXmlRoute
-  '/insights/$slug': typeof InsightsSlugRoute
-  '/sacred-texts/$bookId': typeof SacredTextsBookIdRoute
-  '/insights': typeof InsightsIndexRoute
-  '/sacred-texts': typeof SacredTextsIndexRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/subscribe': typeof SubscribeRoute
@@ -350,13 +338,17 @@ export interface FileRoutesByTo {
   '/author/analytics': typeof AuthorAnalyticsRoute
   '/author/publish': typeof AuthorPublishRoute
   '/book/$bookId': typeof BookBookIdRoute
+  '/insights/$slug': typeof InsightsSlugRoute
   '/read/$bookId': typeof ReadBookIdRoute
   '/research/$paperId': typeof ResearchPaperIdRoute
   '/research/mine': typeof ResearchMineRoute
   '/research/submit': typeof ResearchSubmitRoute
+  '/sacred-texts/$bookId': typeof SacredTextsBookIdRoute
   '/admin': typeof AdminIndexRoute
   '/author': typeof AuthorIndexRoute
+  '/insights': typeof InsightsIndexRoute
   '/research': typeof ResearchIndexRoute
+  '/sacred-texts': typeof SacredTextsIndexRoute
   '/admin/books/$bookId': typeof AdminBooksBookIdRoute
   '/admin/books/new': typeof AdminBooksNewRoute
   '/admin/research/$paperId': typeof AdminResearchPaperIdRoute
@@ -376,11 +368,6 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRoute
   '/legal': typeof LegalRoute
   '/library': typeof LibraryRoute
-  '/sitemap.xml': typeof SitemapXmlRoute
-  '/insights/$slug': typeof InsightsSlugRoute
-  '/sacred-texts/$bookId': typeof SacredTextsBookIdRoute
-  '/insights/': typeof InsightsIndexRoute
-  '/sacred-texts/': typeof SacredTextsIndexRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/subscribe': typeof SubscribeRoute
@@ -397,13 +384,17 @@ export interface FileRoutesById {
   '/author/analytics': typeof AuthorAnalyticsRoute
   '/author/publish': typeof AuthorPublishRoute
   '/book/$bookId': typeof BookBookIdRoute
+  '/insights/$slug': typeof InsightsSlugRoute
   '/read/$bookId': typeof ReadBookIdRoute
   '/research/$paperId': typeof ResearchPaperIdRoute
   '/research/mine': typeof ResearchMineRoute
   '/research/submit': typeof ResearchSubmitRoute
+  '/sacred-texts/$bookId': typeof SacredTextsBookIdRoute
   '/admin/': typeof AdminIndexRoute
   '/author/': typeof AuthorIndexRoute
+  '/insights/': typeof InsightsIndexRoute
   '/research/': typeof ResearchIndexRoute
+  '/sacred-texts/': typeof SacredTextsIndexRoute
   '/admin/books/$bookId': typeof AdminBooksBookIdRoute
   '/admin/books/new': typeof AdminBooksNewRoute
   '/admin/research/$paperId': typeof AdminResearchPaperIdRoute
@@ -424,11 +415,6 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/legal'
     | '/library'
-    | '/sitemap.xml'
-    | '/insights/$slug'
-    | '/sacred-texts/$bookId'
-    | '/insights/'
-    | '/sacred-texts/'
     | '/privacy'
     | '/profile'
     | '/subscribe'
@@ -445,13 +431,17 @@ export interface FileRouteTypes {
     | '/author/analytics'
     | '/author/publish'
     | '/book/$bookId'
+    | '/insights/$slug'
     | '/read/$bookId'
     | '/research/$paperId'
     | '/research/mine'
     | '/research/submit'
+    | '/sacred-texts/$bookId'
     | '/admin/'
     | '/author/'
+    | '/insights/'
     | '/research/'
+    | '/sacred-texts/'
     | '/admin/books/$bookId'
     | '/admin/books/new'
     | '/admin/research/$paperId'
@@ -468,11 +458,6 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/legal'
     | '/library'
-    | '/sitemap.xml'
-    | '/insights/$slug'
-    | '/sacred-texts/$bookId'
-    | '/insights'
-    | '/sacred-texts'
     | '/privacy'
     | '/profile'
     | '/subscribe'
@@ -489,13 +474,17 @@ export interface FileRouteTypes {
     | '/author/analytics'
     | '/author/publish'
     | '/book/$bookId'
+    | '/insights/$slug'
     | '/read/$bookId'
     | '/research/$paperId'
     | '/research/mine'
     | '/research/submit'
+    | '/sacred-texts/$bookId'
     | '/admin'
     | '/author'
+    | '/insights'
     | '/research'
+    | '/sacred-texts'
     | '/admin/books/$bookId'
     | '/admin/books/new'
     | '/admin/research/$paperId'
@@ -514,11 +503,6 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/legal'
     | '/library'
-    | '/sitemap.xml'
-    | '/insights/$slug'
-    | '/sacred-texts/$bookId'
-    | '/insights/'
-    | '/sacred-texts/'
     | '/privacy'
     | '/profile'
     | '/subscribe'
@@ -535,13 +519,17 @@ export interface FileRouteTypes {
     | '/author/analytics'
     | '/author/publish'
     | '/book/$bookId'
+    | '/insights/$slug'
     | '/read/$bookId'
     | '/research/$paperId'
     | '/research/mine'
     | '/research/submit'
+    | '/sacred-texts/$bookId'
     | '/admin/'
     | '/author/'
+    | '/insights/'
     | '/research/'
+    | '/sacred-texts/'
     | '/admin/books/$bookId'
     | '/admin/books/new'
     | '/admin/research/$paperId'
@@ -561,22 +549,21 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRoute
   LegalRoute: typeof LegalRoute
   LibraryRoute: typeof LibraryRoute
-  SitemapXmlRoute: typeof SitemapXmlRoute
-  InsightsSlugRoute: typeof InsightsSlugRoute
-  SacredTextsBookIdRoute: typeof SacredTextsBookIdRoute
-  InsightsIndexRoute: typeof InsightsIndexRoute
-  SacredTextsIndexRoute: typeof SacredTextsIndexRoute
   PrivacyRoute: typeof PrivacyRoute
   ProfileRoute: typeof ProfileRoute
   SubscribeRoute: typeof SubscribeRoute
   SupportRoute: typeof SupportRoute
   TermsRoute: typeof TermsRoute
   BookBookIdRoute: typeof BookBookIdRoute
+  InsightsSlugRoute: typeof InsightsSlugRoute
   ReadBookIdRoute: typeof ReadBookIdRoute
   ResearchPaperIdRoute: typeof ResearchPaperIdRoute
   ResearchMineRoute: typeof ResearchMineRoute
   ResearchSubmitRoute: typeof ResearchSubmitRoute
+  SacredTextsBookIdRoute: typeof SacredTextsBookIdRoute
+  InsightsIndexRoute: typeof InsightsIndexRoute
   ResearchIndexRoute: typeof ResearchIndexRoute
+  SacredTextsIndexRoute: typeof SacredTextsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -635,41 +622,6 @@ declare module '@tanstack/react-router' {
       path: '/library'
       fullPath: '/library'
       preLoaderRoute: typeof LibraryRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/sitemap.xml': {
-      id: '/sitemap.xml'
-      path: '/sitemap.xml'
-      fullPath: '/sitemap.xml'
-      preLoaderRoute: typeof SitemapXmlRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/insights/': {
-      id: '/insights/'
-      path: '/insights'
-      fullPath: '/insights/'
-      preLoaderRoute: typeof InsightsIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/insights/$slug': {
-      id: '/insights/$slug'
-      path: '/insights/$slug'
-      fullPath: '/insights/$slug'
-      preLoaderRoute: typeof InsightsSlugRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/sacred-texts/': {
-      id: '/sacred-texts/'
-      path: '/sacred-texts'
-      fullPath: '/sacred-texts/'
-      preLoaderRoute: typeof SacredTextsIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/sacred-texts/$bookId': {
-      id: '/sacred-texts/$bookId'
-      path: '/sacred-texts/$bookId'
-      fullPath: '/sacred-texts/$bookId'
-      preLoaderRoute: typeof SacredTextsBookIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/privacy': {
@@ -798,6 +750,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BookBookIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/insights/': {
+      id: '/insights/'
+      path: '/insights'
+      fullPath: '/insights/'
+      preLoaderRoute: typeof InsightsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/insights/$slug': {
+      id: '/insights/$slug'
+      path: '/insights/$slug'
+      fullPath: '/insights/$slug'
+      preLoaderRoute: typeof InsightsSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/read/$bookId': {
       id: '/read/$bookId'
       path: '/read/$bookId'
@@ -831,6 +797,20 @@ declare module '@tanstack/react-router' {
       path: '/research/submit'
       fullPath: '/research/submit'
       preLoaderRoute: typeof ResearchSubmitRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sacred-texts/': {
+      id: '/sacred-texts/'
+      path: '/sacred-texts'
+      fullPath: '/sacred-texts/'
+      preLoaderRoute: typeof SacredTextsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sacred-texts/$bookId': {
+      id: '/sacred-texts/$bookId'
+      path: '/sacred-texts/$bookId'
+      fullPath: '/sacred-texts/$bookId'
+      preLoaderRoute: typeof SacredTextsBookIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/books/': {
@@ -969,22 +949,21 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRoute,
   LegalRoute: LegalRoute,
   LibraryRoute: LibraryRoute,
-  SitemapXmlRoute: SitemapXmlRoute,
-  InsightsSlugRoute: InsightsSlugRoute,
-  SacredTextsBookIdRoute: SacredTextsBookIdRoute,
-  InsightsIndexRoute: InsightsIndexRoute,
-  SacredTextsIndexRoute: SacredTextsIndexRoute,
   PrivacyRoute: PrivacyRoute,
   ProfileRoute: ProfileRoute,
   SubscribeRoute: SubscribeRoute,
   SupportRoute: SupportRoute,
   TermsRoute: TermsRoute,
   BookBookIdRoute: BookBookIdRoute,
+  InsightsSlugRoute: InsightsSlugRoute,
   ReadBookIdRoute: ReadBookIdRoute,
   ResearchPaperIdRoute: ResearchPaperIdRoute,
   ResearchMineRoute: ResearchMineRoute,
   ResearchSubmitRoute: ResearchSubmitRoute,
+  SacredTextsBookIdRoute: SacredTextsBookIdRoute,
+  InsightsIndexRoute: InsightsIndexRoute,
   ResearchIndexRoute: ResearchIndexRoute,
+  SacredTextsIndexRoute: SacredTextsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

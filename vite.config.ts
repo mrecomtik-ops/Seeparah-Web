@@ -14,7 +14,6 @@
 import { defineConfig, loadEnv, mergeConfig } from "vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import tailwindcss from "@tailwindcss/vite";
-import tsConfigPaths from "vite-tsconfig-paths";
 import viteReact from "@vitejs/plugin-react";
 import { nitro } from "nitro/vite";
 
@@ -23,7 +22,6 @@ export default defineConfig(async ({ command, mode }) => {
 
   const plugins = [
     tailwindcss(),
-    tsConfigPaths({ projects: ["./tsconfig.json"] }),
     // Redirect TanStack Start's bundled server entry to src/server.ts (the
     // app's own SSR error wrapper) — matches the previous vite.config.ts's
     // one piece of non-default config exactly.
@@ -72,7 +70,8 @@ export default defineConfig(async ({ command, mode }) => {
         : {}),
       css: { transformer: "lightningcss" as const },
       resolve: {
-        alias: { "@": `${process.cwd()}/src` }, // redundant with tsconfig.json's own "@/*" path (kept for parity)
+        tsconfigPaths: true,
+        alias: { "@": `${process.cwd()}/src` }, // explicit alias retained for parity with existing imports
         dedupe: [
           "react",
           "react-dom",

@@ -11,6 +11,7 @@ import { createHash } from "node:crypto";
 import { parseManuscript } from "@/lib/manuscript";
 import { parseEpub, EpubValidationError } from "@/lib/admin/epub.server";
 import { isRequestableTranslationLanguage } from "@/lib/data";
+import { isPlaceholderBookDescription } from "@/lib/book-description";
 
 async function admin() {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -79,6 +80,7 @@ export interface PublishGateBook {
   content_classification?: string | null;
   source_url?: string | null;
   source_edition_id?: string | null;
+  description?: string | null;
 }
 
 export function computePublishGate(
@@ -97,6 +99,9 @@ export function computePublishGate(
   }
   if (book.cleanup_review_status !== "approved") {
     reasons.push("Text cleanup review is not yet approved");
+  }
+  if (isPlaceholderBookDescription(book.description)) {
+    reasons.push("Book summary is missing or still contains the import-review placeholder");
   }
   if (isPlaceholderRightsText(book.rights_basis)) {
     reasons.push("Rights basis is unresolved or looks like placeholder/review text");
@@ -303,6 +308,22 @@ function isPlausibleEvidenceUrl(value: string | null | undefined): boolean {
   }
 }
 
+export interface BookReviewStages {
+  rights_status: string | null | undefined;
+  edition_review_status: string | null | undefined;
+  structure_review_status: string | null | undefined;
+  cleanup_review_status: string | null | undefined;
+}
+
+export function allBookReviewStagesApproved(stages: BookReviewStages): boolean {
+  return (
+    stages.rights_status === "approved" &&
+    stages.edition_review_status === "approved" &&
+    stages.structure_review_status === "approved" &&
+    stages.cleanup_review_status === "approved"
+  );
+}
+
 export async function reviewRights(params: {
   bookId: string;
   decision: "approved" | "rejected";
@@ -313,7 +334,7 @@ export async function reviewRights(params: {
   const { data: before } = await db
     .from("books")
     .select(
-      "rights_status, edition_review_status, status, rights_basis, rights_evidence_url, rights_risk_acknowledged_at",
+      "rights_status, edition_review_status, structure_review_status, cleanup_review_status, status, rights_basis, rights_evidence_url, rights_risk_acknowledged_at",
     )
     .eq("id", params.bookId)
     .single();
@@ -335,12 +356,18 @@ export async function reviewRights(params: {
       );
     }
   }
-  const bothApproved =
-    params.decision === "approved" && before?.edition_review_status === "approved";
+  const allApprovedAfterDecision =
+    params.decision === "approved" &&
+    allBookReviewStagesApproved({
+      rights_status: "approved",
+      edition_review_status: before?.edition_review_status,
+      structure_review_status: before?.structure_review_status,
+      cleanup_review_status: before?.cleanup_review_status,
+    });
   const statusPatch =
     params.decision === "rejected"
       ? { status: "rejected", rejection_reason: params.notes ?? "Rights not approved" }
-      : bothApproved && isReviewableStatus(before?.status)
+      : allApprovedAfterDecision && isReviewableStatus(before?.status)
         ? { status: "approved" }
         : {};
   const { error } = await db
@@ -387,28 +414,44 @@ export async function reviewReaderQuality(params: {
   notes?: string | undefined;
 }) {
   const db = await admin();
-  const column =
-    params.target === "structure" ? "structure_review_status" : "cleanup_review_status";
   const { data: before, error: beforeError } = await db
     .from("books")
-    .select("status, structure_review_status, cleanup_review_status")
+    .select(
+      "status, rights_status, edition_review_status, structure_review_status, cleanup_review_status",
+    )
     .eq("id", params.bookId)
     .single();
   if (beforeError || !before) throw new Error(beforeError?.message ?? "Book not found");
 
-  const nextStatus = params.decision;
+  const nextStages: BookReviewStages = {
+    rights_status: before.rights_status,
+    edition_review_status: before.edition_review_status,
+    structure_review_status:
+      params.target === "structure" ? params.decision : before.structure_review_status,
+    cleanup_review_status:
+      params.target === "cleanup" ? params.decision : before.cleanup_review_status,
+  };
+  const lifecyclePatch =
+    params.decision === "rejected"
+      ? {
+          status: "rejected",
+          rejection_reason: params.notes ?? `Reader ${params.target} review rejected`,
+        }
+      : params.decision === "changes_requested"
+        ? { status: "changes_requested" }
+        : allBookReviewStagesApproved(nextStages) && isReviewableStatus(before.status)
+          ? { status: "approved" }
+          : {};
   const common = {
     review_notes: params.notes ?? null,
     reviewed_by: params.reviewerId,
     reviewed_at: new Date().toISOString(),
-    ...(params.decision !== "approved" && before.status === "approved"
-      ? { status: "changes_requested" }
-      : {}),
+    ...lifecyclePatch,
   };
   const patch =
     params.target === "structure"
-      ? { structure_review_status: nextStatus, ...common }
-      : { cleanup_review_status: nextStatus, ...common };
+      ? { structure_review_status: params.decision, ...common }
+      : { cleanup_review_status: params.decision, ...common };
 
   const { error } = await db.from("books").update(patch).eq("id", params.bookId);
   if (error) throw new Error(error.message);
@@ -550,6 +593,52 @@ export async function bulkApproveBookReviews(params: {
   return results;
 }
 
+export interface BulkBookChangeRequestResult {
+  bookId: string;
+  title: string;
+  ok: boolean;
+  error?: string;
+}
+
+export async function bulkRequestBookChanges(params: {
+  bookIds: string[];
+  reviewerId: string;
+  notes?: string | undefined;
+}): Promise<BulkBookChangeRequestResult[]> {
+  const db = await admin();
+  const results: BulkBookChangeRequestResult[] = [];
+  for (const bookId of [...new Set(params.bookIds)]) {
+    try {
+      const { data: book, error } = await db
+        .from("books")
+        .select("title,status")
+        .eq("id", bookId)
+        .single();
+      if (error || !book) throw new Error(error?.message ?? "Book not found");
+      if (!["in_review", "approved", "changes_requested"].includes(book.status)) {
+        throw new Error(
+          `Book is ${book.status.replaceAll("_", " ")} and is not in the review queue.`,
+        );
+      }
+      await reviewEdition({
+        bookId,
+        decision: "changes_requested",
+        reviewerId: params.reviewerId,
+        notes: params.notes ?? "Changes requested from Admin Catalog bulk review",
+      });
+      results.push({ bookId, title: book.title, ok: true });
+    } catch (error) {
+      results.push({
+        bookId,
+        title: "Unknown book",
+        ok: false,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+  return results;
+}
+
 export async function reviewEdition(params: {
   bookId: string;
   decision: "approved" | "changes_requested" | "rejected";
@@ -559,16 +648,25 @@ export async function reviewEdition(params: {
   const db = await admin();
   const { data: before } = await db
     .from("books")
-    .select("rights_status, edition_review_status, status")
+    .select(
+      "rights_status, edition_review_status, structure_review_status, cleanup_review_status, status",
+    )
     .eq("id", params.bookId)
     .single();
-  const bothApproved = params.decision === "approved" && before?.rights_status === "approved";
+  const allApprovedAfterDecision =
+    params.decision === "approved" &&
+    allBookReviewStagesApproved({
+      rights_status: before?.rights_status,
+      edition_review_status: "approved",
+      structure_review_status: before?.structure_review_status,
+      cleanup_review_status: before?.cleanup_review_status,
+    });
   const statusPatch =
     params.decision === "changes_requested"
       ? { status: "changes_requested" }
       : params.decision === "rejected"
         ? { status: "rejected", rejection_reason: params.notes ?? "Edition not approved" }
-        : bothApproved && isReviewableStatus(before?.status)
+        : allApprovedAfterDecision && isReviewableStatus(before?.status)
           ? { status: "approved" }
           : {};
   const { error } = await db
@@ -1158,6 +1256,7 @@ export interface AdminBookInput {
   translationPermission: boolean;
   importKey?: string | null | undefined;
   manuscriptText: string; // already-extracted plain text (from .txt paste or EPUB extraction)
+  preserveLineation?: boolean; // true for EPUB text where semantic <br>/verse lineation was preserved
 }
 
 function checksumOf(text: string): string {
@@ -1217,7 +1316,7 @@ export async function adminCreateBook(
 
   const religious = (input.categories ?? []).includes("Religious");
   const parsed = parseManuscript(input.manuscriptText, {
-    preserveLineation: religious,
+    preserveLineation: religious || input.preserveLineation === true,
   });
   const chunks = parsed.chunks;
   const warnings: string[] = [];

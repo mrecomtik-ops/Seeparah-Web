@@ -33,6 +33,7 @@ import {
 } from "@/lib/admin/catalog.functions";
 import type { BookDeletionImpact, SacredReferenceManifestNode } from "@/lib/admin/catalog.server";
 import { friendlyTranslationError } from "@/lib/translation-error";
+import { parseReadableBlocks } from "@/lib/reader-structure";
 
 export const Route = createFileRoute("/admin/books/$bookId")({
   component: AdminBookDetail,
@@ -128,20 +129,16 @@ function AdminBookDetail() {
       adminGetCatalogBook({ data: { accessToken: await getAccessToken(), bookId } }),
   });
 
+  const detailBook = detailQuery.data?.book;
+
   useEffect(() => {
-    const loaded = detailQuery.data?.book;
-    if (!loaded) return;
+    if (!detailBook) return;
     setContentPolicyDraft({
-      classification: loaded.content_classification === "religious" ? "religious" : "general",
-      typographyProfile: loaded.typography_profile ?? "standard",
-      authenticityNotes: loaded.authenticity_notes ?? "",
+      classification: detailBook.content_classification === "religious" ? "religious" : "general",
+      typographyProfile: detailBook.typography_profile ?? "standard",
+      authenticityNotes: detailBook.authenticity_notes ?? "",
     });
-  }, [
-    detailQuery.data?.book?.id,
-    detailQuery.data?.book?.content_classification,
-    detailQuery.data?.book?.typography_profile,
-    detailQuery.data?.book?.authenticity_notes,
-  ]);
+  }, [detailBook]);
 
   async function refresh() {
     await queryClient.invalidateQueries({ queryKey: ["admin-book", bookId] });
@@ -2032,8 +2029,8 @@ function AdminBookDetail() {
                   <Loader2 className="h-6 w-6 animate-spin text-primary" />
                 </div>
               ) : (
-                <article className="mx-auto max-w-2xl whitespace-pre-wrap font-serif text-[17px] leading-8 text-foreground">
-                  {previewContent || "No text on this page."}
+                <article className="mx-auto max-w-3xl rounded-xl border border-border bg-card px-6 py-8 font-serif text-[18px] leading-[1.75] text-foreground sm:px-10">
+                  <AdminReadablePreview content={previewContent} />
                 </article>
               )}
             </div>
@@ -2414,6 +2411,70 @@ function AdminBookDetail() {
 
 function formatPublicationYear(year: number): string {
   return year < 0 ? `${Math.abs(year)} BCE` : String(year);
+}
+
+function AdminReadablePreview({ content }: { content: string }) {
+  const blocks = parseReadableBlocks(content);
+  if (blocks.length === 0) {
+    return <p className="text-muted-foreground">No text on this page.</p>;
+  }
+  return (
+    <div>
+      {blocks.map((block, index) => {
+        const spacing = index === 0 ? undefined : { marginTop: "1.25rem" };
+        if (block.kind === "heading") {
+          const cls =
+            block.level === 1
+              ? "font-display text-3xl font-semibold leading-tight"
+              : block.level === 2
+                ? "font-display text-2xl font-semibold leading-snug"
+                : "font-display text-xl font-semibold leading-snug";
+          const Tag = block.level === 1 ? "h2" : block.level === 2 ? "h3" : "h4";
+          return (
+            <Tag key={index} style={spacing} className={cls}>
+              {block.text}
+            </Tag>
+          );
+        }
+        if (block.kind === "principle") {
+          return (
+            <aside
+              key={index}
+              style={spacing}
+              className="rounded-xl border border-primary/20 bg-primary/5 px-5 py-4 font-semibold leading-relaxed"
+            >
+              {block.text}
+            </aside>
+          );
+        }
+        if (block.kind === "quote") {
+          return (
+            <blockquote
+              key={index}
+              style={spacing}
+              className="whitespace-pre-line border-l-4 border-primary/40 pl-5 italic text-muted-foreground"
+            >
+              {block.text}
+            </blockquote>
+          );
+        }
+        if (block.kind === "list") {
+          return (
+            <ul key={index} style={spacing} className="list-disc space-y-2 pl-6">
+              {(block.items ?? []).map((item, itemIndex) => (
+                <li key={itemIndex}>{item}</li>
+              ))}
+            </ul>
+          );
+        }
+        return (
+          <p key={index} style={spacing} className="whitespace-pre-line">
+            {block.text}
+          </p>
+        );
+      })}
+    </div>
+  );
 }
 
 function Row({ label, value }: { label: string; value: string }) {

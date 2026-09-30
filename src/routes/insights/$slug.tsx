@@ -1,6 +1,7 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { ArrowLeft, ArrowRight, Clock3 } from "lucide-react";
 import { getInsightArticle, INSIGHT_ARTICLES } from "@/lib/insights";
+import { safeJsonLd } from "@/lib/seo";
 
 export const Route = createFileRoute("/insights/$slug")({
   loader: ({ params }) => {
@@ -57,10 +58,7 @@ function InsightArticlePage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
-      />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(schema) }} />
       <main className="mx-auto max-w-4xl px-4 pb-24 pt-10 sm:px-6">
         <Link
           to="/insights"
@@ -78,7 +76,9 @@ function InsightArticlePage() {
               <Clock3 className="mr-1 inline h-3.5 w-3.5" />
               {article.readingMinutes} min read
             </span>
-            <span>Published {new Date(article.publishedAt + "T00:00:00Z").toLocaleDateString()}</span>
+            <span>
+              Published {new Date(article.publishedAt + "T00:00:00Z").toLocaleDateString()}
+            </span>
           </div>
           <h1 className="mt-4 font-display text-4xl font-semibold leading-tight tracking-tight text-foreground sm:text-5xl">
             {article.title}
@@ -131,7 +131,8 @@ function InsightArticlePage() {
                   {item.title}
                 </p>
                 <span className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-primary">
-                  Read <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                  Read{" "}
+                  <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
                 </span>
               </Link>
             ))}

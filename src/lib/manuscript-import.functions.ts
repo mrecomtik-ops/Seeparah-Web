@@ -27,7 +27,7 @@ export const MAX_EPUB_RAW_BYTES = 3 * 1024 * 1024;
 const MAX_EPUB_BASE64_CHARS = Math.ceil(MAX_EPUB_RAW_BYTES / 3) * 4;
 
 export const importEpubManuscript = createServerFn({ method: "POST" })
-  .inputValidator((data) =>
+  .validator((data) =>
     z
       .object({
         accessToken: z.string(),

@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 export const getSacredTextReferenceIndex = createServerFn({ method: "GET" })
-  .inputValidator((data) =>
+  .validator((data) =>
     z
       .object({
         bookId: z.string().uuid(),

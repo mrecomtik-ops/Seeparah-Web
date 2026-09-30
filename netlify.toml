@@ -31,3 +31,18 @@
 # older values — this file takes precedence over the dashboard UI once
 # present, so it corrects that regardless of what's currently configured
 # there.
+
+# Long-lived browser caching for content-addressed build assets.
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+    X-Content-Type-Options = "nosniff"
+
+# Generated cover filenames are stable candidate IDs and may be replaced
+# during editorial work, so cache them aggressively but not immutably.
+[[headers]]
+  for = "/book-covers/generated/*"
+  [headers.values]
+    Cache-Control = "public, max-age=86400, stale-while-revalidate=604800"
+    X-Content-Type-Options = "nosniff"

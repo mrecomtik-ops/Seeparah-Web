@@ -8,7 +8,7 @@ const withToken = <T extends z.ZodRawShape>(shape: T) =>
   z.object({ accessToken: z.string(), ...shape });
 
 export const adminGetHealthSnapshot = createServerFn({ method: "POST" })
-  .inputValidator((data) => withToken({}).parse(data))
+  .validator((data) => withToken({}).parse(data))
   .handler(async ({ data }) => {
     await requireAdmin(data.accessToken, "health.read");
     const { getHealthSnapshot } = await import("@/lib/admin/health.server");
@@ -16,7 +16,7 @@ export const adminGetHealthSnapshot = createServerFn({ method: "POST" })
   });
 
 export const adminRecoverRetryJob = createServerFn({ method: "POST" })
-  .inputValidator((data) => withToken({ jobId: z.string() }).parse(data))
+  .validator((data) => withToken({ jobId: z.string() }).parse(data))
   .handler(async ({ data }) => {
     const { userId, role } = await requireAdmin(data.accessToken, "health.recover");
     await enforceRateLimit({
@@ -39,7 +39,7 @@ export const adminRecoverRetryJob = createServerFn({ method: "POST" })
   });
 
 export const adminRecoverResumeJob = createServerFn({ method: "POST" })
-  .inputValidator((data) => withToken({ jobId: z.string() }).parse(data))
+  .validator((data) => withToken({ jobId: z.string() }).parse(data))
   .handler(async ({ data }) => {
     const { userId, role } = await requireAdmin(data.accessToken, "health.recover");
     await enforceRateLimit({
@@ -62,7 +62,7 @@ export const adminRecoverResumeJob = createServerFn({ method: "POST" })
   });
 
 export const adminMarkErrorResolved = createServerFn({ method: "POST" })
-  .inputValidator((data) => withToken({ errorId: z.string() }).parse(data))
+  .validator((data) => withToken({ errorId: z.string() }).parse(data))
   .handler(async ({ data }) => {
     const { userId, role } = await requireAdmin(data.accessToken, "health.recover");
     const { markErrorResolved } = await import("@/lib/admin/health.server");

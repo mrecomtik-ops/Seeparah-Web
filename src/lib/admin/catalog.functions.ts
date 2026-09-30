@@ -19,7 +19,7 @@ export const MAX_UPLOAD_RAW_BYTES = 3 * 1024 * 1024;
 const MAX_UPLOAD_BASE64_CHARS = Math.ceil(MAX_UPLOAD_RAW_BYTES / 3) * 4;
 
 export const adminListCatalog = createServerFn({ method: "POST" })
-  .inputValidator((data) =>
+  .validator((data) =>
     withToken({
       status: z.string().optional(),
       query: z.string().optional(),
@@ -39,7 +39,7 @@ export const adminListCatalog = createServerFn({ method: "POST" })
   });
 
 export const adminGetCatalogBook = createServerFn({ method: "POST" })
-  .inputValidator((data) => withToken({ bookId: z.string() }).parse(data))
+  .validator((data) => withToken({ bookId: z.string() }).parse(data))
   .handler(async ({ data }) => {
     await requireAdmin(data.accessToken, "catalog.read_unpublished");
     const { adminGetBook, evaluatePublishGate, listBookEditions, scanBookRightsSignals } =
@@ -54,7 +54,7 @@ export const adminGetCatalogBook = createServerFn({ method: "POST" })
   });
 
 export const adminReviewBookRights = createServerFn({ method: "POST" })
-  .inputValidator((data) =>
+  .validator((data) =>
     withToken({
       bookId: z.string(),
       decision: z.enum(["approved", "rejected"]),
@@ -84,7 +84,7 @@ export const adminReviewBookRights = createServerFn({ method: "POST" })
   });
 
 export const adminReviewBookEdition = createServerFn({ method: "POST" })
-  .inputValidator((data) =>
+  .validator((data) =>
     withToken({
       bookId: z.string(),
       decision: z.enum(["approved", "changes_requested", "rejected"]),
@@ -114,7 +114,7 @@ export const adminReviewBookEdition = createServerFn({ method: "POST" })
   });
 
 export const adminAcknowledgeBookRightsSignals = createServerFn({ method: "POST" })
-  .inputValidator((data) => withToken({ bookId: z.string() }).parse(data))
+  .validator((data) => withToken({ bookId: z.string() }).parse(data))
   .handler(async ({ data }) => {
     const { userId, role } = await requireAdmin(data.accessToken, "catalog.review");
     const { acknowledgeRightsRiskSignals } = await import("@/lib/admin/catalog.server");
@@ -135,7 +135,7 @@ export const adminAcknowledgeBookRightsSignals = createServerFn({ method: "POST"
   });
 
 export const adminReviewBookReaderQuality = createServerFn({ method: "POST" })
-  .inputValidator((data) =>
+  .validator((data) =>
     withToken({
       bookId: z.string(),
       target: z.enum(["structure", "cleanup"]),
@@ -167,7 +167,7 @@ export const adminReviewBookReaderQuality = createServerFn({ method: "POST" })
   });
 
 export const adminBulkApproveBookReviews = createServerFn({ method: "POST" })
-  .inputValidator((data) =>
+  .validator((data) =>
     withToken({
       bookIds: z.array(z.string()).min(1).max(200),
       notes: z.string().max(4000).optional(),
@@ -196,8 +196,39 @@ export const adminBulkApproveBookReviews = createServerFn({ method: "POST" })
     return results;
   });
 
+export const adminBulkRequestBookChanges = createServerFn({ method: "POST" })
+  .validator((data) =>
+    withToken({
+      bookIds: z.array(z.string()).min(1).max(200),
+      notes: z.string().min(3).max(4000),
+    }).parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { userId, role } = await requireAdmin(data.accessToken, "catalog.review");
+    const { bulkRequestBookChanges } = await import("@/lib/admin/catalog.server");
+    const results = await bulkRequestBookChanges({
+      bookIds: data.bookIds,
+      reviewerId: userId,
+      notes: data.notes,
+    });
+    await recordAudit({
+      actorId: userId,
+      actorRole: role,
+      action: "catalog.bulk_request_changes",
+      entityType: "book_batch",
+      entityId: `batch:${Date.now()}`,
+      reason: data.notes,
+      after: {
+        requested: data.bookIds.length,
+        succeeded: results.filter((result) => result.ok).length,
+        failed: results.filter((result) => !result.ok).length,
+      },
+    });
+    return results;
+  });
+
 export const adminPublishCatalogBook = createServerFn({ method: "POST" })
-  .inputValidator((data) => withToken({ bookId: z.string() }).parse(data))
+  .validator((data) => withToken({ bookId: z.string() }).parse(data))
   .handler(async ({ data }) => {
     const { userId, role } = await requireAdmin(data.accessToken, "catalog.publish");
     const { publishBook } = await import("@/lib/admin/catalog.server");
@@ -215,7 +246,7 @@ export const adminPublishCatalogBook = createServerFn({ method: "POST" })
   });
 
 export const adminSetBookLifecycle = createServerFn({ method: "POST" })
-  .inputValidator((data) =>
+  .validator((data) =>
     withToken({
       bookId: z.string(),
       status: z.enum(["unpublished", "archived"]),
@@ -246,7 +277,7 @@ export const adminSetBookLifecycle = createServerFn({ method: "POST" })
 const ACCESS_TYPE = z.enum(["free", "paid"]);
 
 export const adminSetBookAccessType = createServerFn({ method: "POST" })
-  .inputValidator((data) => withToken({ bookId: z.string(), accessType: ACCESS_TYPE }).parse(data))
+  .validator((data) => withToken({ bookId: z.string(), accessType: ACCESS_TYPE }).parse(data))
   .handler(async ({ data }) => {
     const { userId, role } = await requireAdmin(data.accessToken, "catalog.publish");
     const { setBookAccessType } = await import("@/lib/admin/catalog.server");
@@ -264,7 +295,7 @@ export const adminSetBookAccessType = createServerFn({ method: "POST" })
   });
 
 export const adminSetEditionAccessType = createServerFn({ method: "POST" })
-  .inputValidator((data) =>
+  .validator((data) =>
     withToken({ bookId: z.string(), language: z.string(), accessType: ACCESS_TYPE }).parse(data),
   )
   .handler(async ({ data }) => {
@@ -292,7 +323,7 @@ export const adminSetEditionAccessType = createServerFn({ method: "POST" })
  * result so a partial failure (e.g. one target is an edition that was
  * never published) doesn't hide whether the rest actually succeeded. */
 export const adminBulkSetAccessType = createServerFn({ method: "POST" })
-  .inputValidator((data) =>
+  .validator((data) =>
     withToken({
       targets: z
         .array(z.object({ bookId: z.string(), language: z.string().nullable() }))
@@ -340,7 +371,7 @@ const rightsInputShape = {
 };
 
 export const adminUploadPlainTextBook = createServerFn({ method: "POST" })
-  .inputValidator((data) =>
+  .validator((data) =>
     withToken({ ...rightsInputShape, manuscriptText: z.string().min(1) }).parse(data),
   )
   .handler(async ({ data }) => {
@@ -361,7 +392,7 @@ export const adminUploadPlainTextBook = createServerFn({ method: "POST" })
   });
 
 export const adminUploadEpubBook = createServerFn({ method: "POST" })
-  .inputValidator((data) =>
+  .validator((data) =>
     withToken({
       ...rightsInputShape,
       fileBase64: z.string().min(1).max(MAX_UPLOAD_BASE64_CHARS),
@@ -376,7 +407,10 @@ export const adminUploadEpubBook = createServerFn({ method: "POST" })
     const { accessToken: _t, fileBase64: _f, ...rest } = data;
     void _t;
     void _f;
-    const result = await adminCreateBook({ ...rest, manuscriptText: text }, userId);
+    const result = await adminCreateBook(
+      { ...rest, manuscriptText: text, preserveLineation: true },
+      userId,
+    );
     await recordAudit({
       actorId: userId,
       actorRole: role,
@@ -389,7 +423,7 @@ export const adminUploadEpubBook = createServerFn({ method: "POST" })
   });
 
 export const adminParseCsvManifest = createServerFn({ method: "POST" })
-  .inputValidator((data) => withToken({ csvText: z.string().min(1) }).parse(data))
+  .validator((data) => withToken({ csvText: z.string().min(1) }).parse(data))
   .handler(async ({ data }) => {
     await requireAdmin(data.accessToken, "catalog.upload");
     const { parseCsvManifest } = await import("@/lib/admin/catalog.server");
@@ -397,7 +431,7 @@ export const adminParseCsvManifest = createServerFn({ method: "POST" })
   });
 
 export const adminRunBatchImport = createServerFn({ method: "POST" })
-  .inputValidator((data) =>
+  .validator((data) =>
     withToken({
       csvText: z.string().min(1),
       dryRun: z.boolean(),
@@ -425,7 +459,7 @@ export const adminRunBatchImport = createServerFn({ method: "POST" })
   });
 
 export const adminProcessTranslationJobBatch = createServerFn({ method: "POST" })
-  .inputValidator((data) => withToken({ jobId: z.string() }).parse(data))
+  .validator((data) => withToken({ jobId: z.string() }).parse(data))
   .handler(async ({ data }) => {
     const { userId, role } = await requireAdmin(data.accessToken, "translation.jobs.manage");
     const { processTranslationJobBatch } = await import("@/lib/translation.server");
@@ -442,7 +476,7 @@ export const adminProcessTranslationJobBatch = createServerFn({ method: "POST" }
   });
 
 export const adminReviewAndPublishTranslationEdition = createServerFn({ method: "POST" })
-  .inputValidator((data) => withToken({ jobId: z.string() }).parse(data))
+  .validator((data) => withToken({ jobId: z.string() }).parse(data))
   .handler(async ({ data }) => {
     const { userId, role } = await requireAdmin(data.accessToken, "translation.jobs.manage");
     const { publishReviewedEdition } = await import("@/lib/translation.server");
@@ -467,7 +501,7 @@ export const adminReviewAndPublishTranslationEdition = createServerFn({ method: 
  * calls Gemini itself — only creates job/section rows for the worker.
  */
 export const adminQueueTranslationJob = createServerFn({ method: "POST" })
-  .inputValidator((data) => withToken({ bookId: z.string(), language: z.string() }).parse(data))
+  .validator((data) => withToken({ bookId: z.string(), language: z.string() }).parse(data))
   .handler(async ({ data }) => {
     const { userId, role } = await requireAdmin(data.accessToken, "translation.jobs.manage");
     const { ensureTranslationJob } = await import("@/lib/translation.server");
@@ -491,7 +525,7 @@ export const adminQueueTranslationJob = createServerFn({ method: "POST" })
 // Rights & provenance editing (admin)
 // ============================================================================
 export const adminUpdateBookRightsProvenance = createServerFn({ method: "POST" })
-  .inputValidator((data) =>
+  .validator((data) =>
     withToken({
       bookId: z.string(),
       rightsBasis: z.string().min(1).max(4000),
@@ -529,7 +563,7 @@ export const adminUpdateBookRightsProvenance = createServerFn({ method: "POST" }
   });
 
 export const adminSetBookContentPolicy = createServerFn({ method: "POST" })
-  .inputValidator((data) =>
+  .validator((data) =>
     withToken({
       bookId: z.string(),
       classification: z.enum(["general", "religious"]),
@@ -572,7 +606,7 @@ export const adminSetBookContentPolicy = createServerFn({ method: "POST" })
   });
 
 export const adminImportVerifiedSourcedEdition = createServerFn({ method: "POST" })
-  .inputValidator((data) =>
+  .validator((data) =>
     withToken({
       bookId: z.string(),
       language: z.string().min(1),
@@ -672,7 +706,7 @@ const SACRED_REFERENCE_NODE = z.object({
 });
 
 export const adminReplaceSacredReferenceManifest = createServerFn({ method: "POST" })
-  .inputValidator((data) =>
+  .validator((data) =>
     withToken({
       bookId: z.string().uuid(),
       language: z.string().trim().min(1).max(80),
@@ -703,7 +737,7 @@ export const adminReplaceSacredReferenceManifest = createServerFn({ method: "POS
 // Book metadata editing (admin)
 // ============================================================================
 export const adminUpdateBookMetadata = createServerFn({ method: "POST" })
-  .inputValidator((data) =>
+  .validator((data) =>
     withToken({
       bookId: z.string(),
       title: z.string().min(1).optional(),
@@ -757,7 +791,7 @@ export const adminUpdateBookMetadata = createServerFn({ method: "POST" })
 // this is a content-quality action, not a catalog-lifecycle one.
 // ============================================================================
 export const adminGetChunkForEdit = createServerFn({ method: "POST" })
-  .inputValidator((data) =>
+  .validator((data) =>
     withToken({
       bookId: z.string(),
       language: z.string(),
@@ -775,7 +809,7 @@ export const adminGetChunkForEdit = createServerFn({ method: "POST" })
   });
 
 export const adminStageChunkContentEdit = createServerFn({ method: "POST" })
-  .inputValidator((data) =>
+  .validator((data) =>
     withToken({
       bookId: z.string(),
       language: z.string(),
@@ -806,7 +840,7 @@ export const adminStageChunkContentEdit = createServerFn({ method: "POST" })
   });
 
 export const adminPublishChunkContentEdit = createServerFn({ method: "POST" })
-  .inputValidator((data) =>
+  .validator((data) =>
     withToken({
       bookId: z.string(),
       language: z.string(),
@@ -834,7 +868,7 @@ export const adminPublishChunkContentEdit = createServerFn({ method: "POST" })
   });
 
 export const adminDiscardChunkContentEdit = createServerFn({ method: "POST" })
-  .inputValidator((data) =>
+  .validator((data) =>
     withToken({
       bookId: z.string(),
       language: z.string(),
@@ -867,7 +901,7 @@ export const adminDiscardChunkContentEdit = createServerFn({ method: "POST" })
 // catalog.delete_permanent (owner/administrator only, never editor).
 // ============================================================================
 export const adminGetBookDeletionImpact = createServerFn({ method: "POST" })
-  .inputValidator((data) => withToken({ bookId: z.string() }).parse(data))
+  .validator((data) => withToken({ bookId: z.string() }).parse(data))
   .handler(async ({ data }) => {
     await requireAdmin(data.accessToken, "catalog.delete_permanent");
     const { getBookDeletionImpact } = await import("@/lib/admin/catalog.server");
@@ -875,7 +909,7 @@ export const adminGetBookDeletionImpact = createServerFn({ method: "POST" })
   });
 
 export const adminDeleteBookPermanently = createServerFn({ method: "POST" })
-  .inputValidator((data) =>
+  .validator((data) =>
     withToken({ bookId: z.string(), confirmTitle: z.string().min(1) }).parse(data),
   )
   .handler(async ({ data }) => {
@@ -908,7 +942,7 @@ export const adminDeleteBookPermanently = createServerFn({ method: "POST" })
 // content_settings["categories"]; individual and bulk.
 // ============================================================================
 export const adminSetBookCategories = createServerFn({ method: "POST" })
-  .inputValidator((data) =>
+  .validator((data) =>
     withToken({ bookId: z.string(), categories: z.array(z.string()) }).parse(data),
   )
   .handler(async ({ data }) => {
@@ -928,7 +962,7 @@ export const adminSetBookCategories = createServerFn({ method: "POST" })
   });
 
 export const adminBulkPatchBookCategory = createServerFn({ method: "POST" })
-  .inputValidator((data) =>
+  .validator((data) =>
     withToken({
       bookIds: z.array(z.string()).min(1),
       category: z.string().min(1),
@@ -958,7 +992,7 @@ export const adminBulkPatchBookCategory = createServerFn({ method: "POST" })
   });
 
 export const adminListCategorySuggestions = createServerFn({ method: "POST" })
-  .inputValidator((data) => withToken({ status: z.string().optional() }).parse(data))
+  .validator((data) => withToken({ status: z.string().optional() }).parse(data))
   .handler(async ({ data }) => {
     await requireAdmin(data.accessToken, "catalog.categories.manage");
     const { listCategorySuggestions } = await import("@/lib/admin/catalog.server");
@@ -966,7 +1000,7 @@ export const adminListCategorySuggestions = createServerFn({ method: "POST" })
   });
 
 export const adminDecideCategorySuggestion = createServerFn({ method: "POST" })
-  .inputValidator((data) =>
+  .validator((data) =>
     withToken({
       suggestionId: z.string(),
       decision: z.enum(["approved", "declined"]),

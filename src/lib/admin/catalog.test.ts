@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { parseCsvManifest, computePublishGate } from "@/lib/admin/catalog.server";
+import {
+  allBookReviewStagesApproved,
+  computePublishGate,
+  parseCsvManifest,
+} from "@/lib/admin/catalog.server";
 
 const HEADER =
   "title,author,source_language,description,rights_basis,manuscript_text,translation_permission";
@@ -60,6 +64,8 @@ describe("computePublishGate", () => {
     content_classification: "general",
     source_url: null,
     source_edition_id: null,
+    description:
+      "A complete reader-facing summary that describes the book without using import-review placeholder text.",
   };
 
   it("allows publishing an approved original-language edition with NO translations at all", () => {
@@ -191,10 +197,7 @@ describe("computePublishGate", () => {
   });
 
   it("blocks publishing when the rights evidence URL is missing or invalid", () => {
-    const missing = computePublishGate(
-      { ...approved, rights_evidence_url: null },
-      new Set(),
-    );
+    const missing = computePublishGate({ ...approved, rights_evidence_url: null }, new Set());
     const invalid = computePublishGate(
       { ...approved, rights_evidence_url: "not-a-url" },
       new Set(),
@@ -216,5 +219,27 @@ describe("computePublishGate", () => {
       true,
     );
     expect(allowed.canPublish).toBe(true);
+  });
+});
+
+describe("allBookReviewStagesApproved", () => {
+  it("requires all four review stages", () => {
+    expect(
+      allBookReviewStagesApproved({
+        rights_status: "approved",
+        edition_review_status: "approved",
+        structure_review_status: "approved",
+        cleanup_review_status: "approved",
+      }),
+    ).toBe(true);
+
+    expect(
+      allBookReviewStagesApproved({
+        rights_status: "approved",
+        edition_review_status: "approved",
+        structure_review_status: "pending",
+        cleanup_review_status: "approved",
+      }),
+    ).toBe(false);
   });
 });

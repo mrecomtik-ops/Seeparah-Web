@@ -9,9 +9,7 @@ const withToken = <T extends z.ZodRawShape>(shape: T) =>
  * translation job for a book+language. Never translates synchronously —
  * this only creates the job/section rows; a worker processes them later. */
 export const requestTranslationJob = createServerFn({ method: "POST" })
-  .inputValidator((data) =>
-    withToken({ bookId: z.string(), language: z.string() }).parse(data),
-  )
+  .validator((data) => withToken({ bookId: z.string(), language: z.string() }).parse(data))
   .handler(async ({ data }) => {
     const userId = await requireUserId(data.accessToken);
     const { requestTranslationJob: run } = await import("@/lib/translation.server");
@@ -22,7 +20,7 @@ export const requestTranslationJob = createServerFn({ method: "POST" })
  * returns; call it again (or wait for the cron worker) to make further
  * progress. Never runs a whole book in one request. */
 export const processTranslationBatch = createServerFn({ method: "POST" })
-  .inputValidator((data) => withToken({ jobId: z.string() }).parse(data))
+  .validator((data) => withToken({ jobId: z.string() }).parse(data))
   .handler(async ({ data }) => {
     const userId = await requireUserId(data.accessToken);
     const { processTranslationJobBatchForAuthor } = await import("@/lib/translation.server");
@@ -30,7 +28,7 @@ export const processTranslationBatch = createServerFn({ method: "POST" })
   });
 
 export const reviewAndPublishTranslation = createServerFn({ method: "POST" })
-  .inputValidator((data) => withToken({ jobId: z.string() }).parse(data))
+  .validator((data) => withToken({ jobId: z.string() }).parse(data))
   .handler(async ({ data }) => {
     const userId = await requireUserId(data.accessToken);
     const { reviewAndPublishJob } = await import("@/lib/translation.server");
@@ -38,7 +36,7 @@ export const reviewAndPublishTranslation = createServerFn({ method: "POST" })
   });
 
 export const retryFailedTranslationSections = createServerFn({ method: "POST" })
-  .inputValidator((data) => withToken({ jobId: z.string() }).parse(data))
+  .validator((data) => withToken({ jobId: z.string() }).parse(data))
   .handler(async ({ data }) => {
     const userId = await requireUserId(data.accessToken);
     const { retryFailedSections } = await import("@/lib/translation.server");
@@ -46,7 +44,7 @@ export const retryFailedTranslationSections = createServerFn({ method: "POST" })
   });
 
 export const cancelTranslationJob = createServerFn({ method: "POST" })
-  .inputValidator((data) => withToken({ jobId: z.string() }).parse(data))
+  .validator((data) => withToken({ jobId: z.string() }).parse(data))
   .handler(async ({ data }) => {
     const userId = await requireUserId(data.accessToken);
     const { cancelTranslationJob: run } = await import("@/lib/translation.server");
@@ -59,21 +57,21 @@ export const cancelTranslationJob = createServerFn({ method: "POST" })
  * available" for a language that already has an active job, without ever
  * implying it's readable yet. */
 export const getPublicBookEditions = createServerFn({ method: "GET" })
-  .inputValidator((data) => z.object({ bookId: z.string() }).parse(data))
+  .validator((data) => z.object({ bookId: z.string() }).parse(data))
   .handler(async ({ data }) => {
     const { getPublicBookEditions: run } = await import("@/lib/translation.server");
     return run(data.bookId);
   });
 
 export const getBookTranslationLanguageStatus = createServerFn({ method: "GET" })
-  .inputValidator((data) => z.object({ bookId: z.string() }).parse(data))
+  .validator((data) => z.object({ bookId: z.string() }).parse(data))
   .handler(async ({ data }) => {
     const { getBookTranslationLanguageStatus: run } = await import("@/lib/translation.server");
     return run(data.bookId);
   });
 
 export const getBookTranslationStatus = createServerFn({ method: "POST" })
-  .inputValidator((data) => withToken({ bookId: z.string() }).parse(data))
+  .validator((data) => withToken({ bookId: z.string() }).parse(data))
   .handler(async ({ data }) => {
     const userId = await requireUserId(data.accessToken);
     const { getBookTranslationStatus: run } = await import("@/lib/translation.server");
@@ -81,7 +79,7 @@ export const getBookTranslationStatus = createServerFn({ method: "POST" })
   });
 
 export const saveTranslationGuide = createServerFn({ method: "POST" })
-  .inputValidator((data) =>
+  .validator((data) =>
     withToken({
       bookId: z.string(),
       voiceAndRegister: z.string().optional(),
@@ -110,7 +108,7 @@ export const saveTranslationGuide = createServerFn({ method: "POST" })
   });
 
 export const reportTranslationIssue = createServerFn({ method: "POST" })
-  .inputValidator((data) =>
+  .validator((data) =>
     withToken({
       bookId: z.string(),
       language: z.string(),

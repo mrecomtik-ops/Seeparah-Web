@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, BookOpenText, Clock3, Search } from "lucide-react";
 import { INSIGHT_ARTICLES, INSIGHT_CATEGORIES } from "@/lib/insights";
+import { safeJsonLd } from "@/lib/seo";
 
 export const Route = createFileRoute("/insights/")({
   head: () => ({
@@ -37,10 +38,7 @@ function InsightsPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
-      />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(schema) }} />
       <main className="mx-auto max-w-6xl px-4 pb-24 pt-10 sm:px-6">
         <div className="max-w-3xl">
           <p className="inline-flex items-center gap-2 text-sm font-semibold text-primary">

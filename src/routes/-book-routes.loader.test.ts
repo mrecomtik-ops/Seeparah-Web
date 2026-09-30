@@ -1,7 +1,7 @@
 // Loader contract for /book/$bookId and /read/$bookId: garbage IDs and
 // missing/unpublished books must throw TanStack notFound() (→ HTTP 404 on
 // SSR) without ever calling getBook for non-UUIDs; a published book passes.
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { isNotFound } from "@tanstack/react-router";
 
 const getBookMock = vi.fn();
@@ -36,10 +36,15 @@ async function expectNotFound(p: Promise<unknown>) {
 }
 
 describe("book/read route loaders", () => {
+  let routeLoaders: Awaited<ReturnType<typeof loaders>>;
+
+  beforeAll(async () => {
+    routeLoaders = await loaders();
+  }, 15_000);
   beforeEach(() => getBookMock.mockReset());
 
   it("throws notFound for non-UUID ids without querying", async () => {
-    for (const [, loader] of await loaders()) {
+    for (const [, loader] of routeLoaders) {
       for (const id of ["garbage", "123", "demo", "../etc", ""]) {
         await expectNotFound(loader({ params: { bookId: id } }));
       }
@@ -49,7 +54,7 @@ describe("book/read route loaders", () => {
 
   it("throws notFound when the public book lookup returns null (missing/archived)", async () => {
     getBookMock.mockResolvedValue(null);
-    for (const [, loader] of await loaders()) {
+    for (const [, loader] of routeLoaders) {
       await expectNotFound(loader({ params: { bookId: VALID } }));
     }
     expect(getBookMock).toHaveBeenCalledTimes(2);
@@ -58,7 +63,7 @@ describe("book/read route loaders", () => {
   it("returns the book for a published UUID", async () => {
     const book = { id: VALID, title: "T", status: "published" };
     getBookMock.mockResolvedValue(book);
-    for (const [, loader] of await loaders()) {
+    for (const [, loader] of routeLoaders) {
       await expect(loader({ params: { bookId: VALID } })).resolves.toEqual({ book });
     }
   });

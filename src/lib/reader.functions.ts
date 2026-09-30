@@ -5,7 +5,7 @@ import { z } from "zod";
  * resolves the real user id from the token server-side — never trust a
  * client-supplied userId for the access decision. */
 export const getReaderChunk = createServerFn({ method: "POST" })
-  .inputValidator((data) =>
+  .validator((data) =>
     z
       .object({
         bookId: z.string(),
@@ -35,7 +35,7 @@ export const getReaderChunk = createServerFn({ method: "POST" })
   });
 
 export const getReaderNavigation = createServerFn({ method: "POST" })
-  .inputValidator((data) =>
+  .validator((data) =>
     z
       .object({
         bookId: z.string(),
@@ -59,7 +59,7 @@ export const getReaderNavigation = createServerFn({ method: "POST" })
   });
 
 export const searchReaderBook = createServerFn({ method: "POST" })
-  .inputValidator((data) =>
+  .validator((data) =>
     z
       .object({
         bookId: z.string(),

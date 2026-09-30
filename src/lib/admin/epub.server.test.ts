@@ -6,7 +6,9 @@ const CONTAINER_XML = `<?xml version="1.0"?>
 <container><rootfiles><rootfile full-path="OEBPS/content.opf"/></rootfiles></container>`;
 
 function opf(spineIds: string[], manifestExtra = "") {
-  const manifestItems = spineIds.map((id) => `<item id="${id}" href="${id}.xhtml" media-type="application/xhtml+xml"/>`).join("\n");
+  const manifestItems = spineIds
+    .map((id) => `<item id="${id}" href="${id}.xhtml" media-type="application/xhtml+xml"/>`)
+    .join("\n");
   const spineItems = spineIds.map((id) => `<itemref idref="${id}"/>`).join("\n");
   return `<?xml version="1.0"?>
 <package><manifest>${manifestItems}${manifestExtra}</manifest><spine>${spineItems}</spine></package>`;
@@ -51,7 +53,9 @@ describe("parseEpub", () => {
   });
 
   it("rejects a file that isn't a zip archive at all", async () => {
-    await expect(parseEpub(new TextEncoder().encode("not a zip"))).rejects.toThrow(EpubValidationError);
+    await expect(parseEpub(new TextEncoder().encode("not a zip"))).rejects.toThrow(
+      EpubValidationError,
+    );
   });
 
   it("rejects an epub with no spine (no reading order)", async () => {
@@ -75,7 +79,6 @@ describe("parseEpub", () => {
     await expect(parseEpub(bytes)).rejects.toThrow(/OCR/);
   });
 });
-
 
 describe("EPUB text fidelity", () => {
   it("decodes numeric entities and common named punctuation entities", async () => {
@@ -102,5 +105,23 @@ describe("EPUB text fidelity", () => {
     });
     const result = await parseEpub(bytes);
     expect(result.chapters[0]?.text).toContain("First line\nSecond line");
+  });
+});
+
+describe("EPUB semantic line breaks", () => {
+  it("collapses XHTML source formatting whitespace but preserves explicit br lineation", async () => {
+    const bytes = await buildEpub({
+      ch1: `<html>
+        <body>
+          <p>This prose is
+             split only by source formatting.</p>
+          <p>First verse line<br/>Second verse line<br/>Third verse line</p>
+        </body>
+      </html>`,
+    });
+    const result = await parseEpub(bytes);
+    const text = result.chapters[0]?.text ?? "";
+    expect(text).toContain("This prose is split only by source formatting.");
+    expect(text).toContain("First verse line\nSecond verse line\nThird verse line");
   });
 });

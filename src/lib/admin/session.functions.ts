@@ -7,7 +7,7 @@ import { z } from "zod";
  * authorize a mutation — every mutation calls requireAdmin itself.
  */
 export const adminWhoAmI = createServerFn({ method: "POST" })
-  .inputValidator((data) => z.object({ accessToken: z.string() }).parse(data))
+  .validator((data) => z.object({ accessToken: z.string() }).parse(data))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: claimsData, error } = await supabaseAdmin.auth.getClaims(data.accessToken);

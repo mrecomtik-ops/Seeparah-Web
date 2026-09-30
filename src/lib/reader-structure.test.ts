@@ -12,6 +12,9 @@ describe("reader structure helpers", () => {
       kind: "chapter",
       level: 2,
     });
+    expect(classifyHeading("SAMPSON.")).toBeNull();
+    expect(classifyHeading("FIRST SERVANT.")).toBeNull();
+    expect(classifyHeading("SCENE II. A garden.")).toEqual({ kind: "section", level: 3 });
     expect(classifyHeading("This is an ordinary sentence in the book.")).toBeNull();
   });
 
@@ -32,7 +35,8 @@ describe("reader structure helpers", () => {
         "This is an ordinary paragraph that should remain ordinary.",
         "PRINCIPLE 1\nRemember the person's name.",
         "- First point\n- Second point",
-        "\"A short quotation.\"",
+        '"Ordinary dialogue stays a paragraph."',
+        "> A deliberately formatted quotation.",
       ].join("\n\n"),
     );
     expect(blocks.map((b) => b.kind)).toEqual([
@@ -40,6 +44,7 @@ describe("reader structure helpers", () => {
       "paragraph",
       "principle",
       "list",
+      "paragraph",
       "quote",
     ]);
   });
@@ -69,10 +74,10 @@ describe("reader structure helpers", () => {
   });
 });
 
-
 describe("printed contents and wrapped headings", () => {
   it("rejects printed-contents dot leaders as navigation headings", async () => {
-    const { classifyHeading, looksLikePrintedContentsLine } = await import("@/lib/reader-structure");
+    const { classifyHeading, looksLikePrintedContentsLine } =
+      await import("@/lib/reader-structure");
     expect(looksLikePrintedContentsLine("Preface To Revised Edition........ 4")).toBe(true);
     expect(classifyHeading("Preface To Revised Edition........ 4")).toBeNull();
     expect(classifyHeading("PART TWO ........ 133")).toBeNull();
@@ -80,7 +85,7 @@ describe("printed contents and wrapped headings", () => {
 
   it("joins a wrapped chapter title into one semantic heading", () => {
     const blocks = parseReadableBlocks(
-      "CHAPTER I\n\nIF YOU WANT TO GATHER HONEY, DON'T KICK OVER\n\nTHE BEEHIVE."
+      "CHAPTER I\n\nIF YOU WANT TO GATHER HONEY, DON'T KICK OVER\n\nTHE BEEHIVE.",
     );
     expect(blocks[0]).toEqual(
       expect.objectContaining({

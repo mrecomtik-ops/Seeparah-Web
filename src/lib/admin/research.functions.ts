@@ -7,7 +7,7 @@ const withToken = <T extends z.ZodRawShape>(shape: T) =>
   z.object({ accessToken: z.string(), ...shape });
 
 export const adminListResearchPapers = createServerFn({ method: "POST" })
-  .inputValidator((data) => withToken({ status: z.string().optional() }).parse(data))
+  .validator((data) => withToken({ status: z.string().optional() }).parse(data))
   .handler(async ({ data }) => {
     await requireAdmin(data.accessToken, "research.read_unpublished");
     const { adminListResearchPapers: run } = await import("@/lib/research.server");
@@ -15,7 +15,7 @@ export const adminListResearchPapers = createServerFn({ method: "POST" })
   });
 
 export const adminGetResearchPaper = createServerFn({ method: "POST" })
-  .inputValidator((data) => withToken({ paperId: z.string() }).parse(data))
+  .validator((data) => withToken({ paperId: z.string() }).parse(data))
   .handler(async ({ data }) => {
     await requireAdmin(data.accessToken, "research.read_unpublished");
     const { adminGetResearchPaper: run } = await import("@/lib/research.server");
@@ -23,7 +23,7 @@ export const adminGetResearchPaper = createServerFn({ method: "POST" })
   });
 
 export const adminReviewResearchPaper = createServerFn({ method: "POST" })
-  .inputValidator((data) =>
+  .validator((data) =>
     withToken({
       paperId: z.string(),
       decision: z.enum(["changes_requested", "approved", "rejected"]),
@@ -53,7 +53,7 @@ export const adminReviewResearchPaper = createServerFn({ method: "POST" })
   });
 
 export const adminPublishResearchPaper = createServerFn({ method: "POST" })
-  .inputValidator((data) => withToken({ paperId: z.string() }).parse(data))
+  .validator((data) => withToken({ paperId: z.string() }).parse(data))
   .handler(async ({ data }) => {
     const { userId, role } = await requireAdmin(data.accessToken, "research.publish");
     const { publishPaperVersion } = await import("@/lib/research.server");
@@ -70,7 +70,7 @@ export const adminPublishResearchPaper = createServerFn({ method: "POST" })
   });
 
 export const adminWithdrawResearchPaper = createServerFn({ method: "POST" })
-  .inputValidator((data) => withToken({ paperId: z.string(), reason: z.string().min(3) }).parse(data))
+  .validator((data) => withToken({ paperId: z.string(), reason: z.string().min(3) }).parse(data))
   .handler(async ({ data }) => {
     const { userId, role } = await requireAdmin(data.accessToken, "research.publish");
     const { withdrawPublishedPaper } = await import("@/lib/research.server");

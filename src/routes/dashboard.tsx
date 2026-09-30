@@ -12,6 +12,7 @@ import { currentStreak, readingDays } from "@/lib/shelves";
 import { getPrefs } from "@/lib/prefs";
 import { getPublicContentSettings } from "@/lib/admin/settings.functions";
 import { countPagesRead } from "@/lib/reading-stats";
+import { formatAuthorName } from "@/lib/author-name";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
@@ -34,7 +35,7 @@ export const Route = createFileRoute("/dashboard")({
 });
 
 function DashboardPage() {
-  const { userId, displayName, isDemo } = useAuth();
+  const { userId, displayName, isDemo, loading: authLoading } = useAuth();
   const [streak, setStreak] = useState(0);
   const [daysThisWeek, setDaysThisWeek] = useState(0);
   const [goal, setGoal] = useState(40);
@@ -52,6 +53,7 @@ function DashboardPage() {
   const progressQuery = useQuery({
     queryKey: ["progress", userId],
     queryFn: () => listProgress(userId),
+    enabled: !authLoading,
   });
   const shelvesQuery = useShelves();
   const settingsQuery = useQuery({
@@ -60,8 +62,8 @@ function DashboardPage() {
   });
   const monetizationEnabled = settingsQuery.data?.["monetization_enabled"] === true;
 
-  const books = booksQuery.data ?? [];
-  const progress = progressQuery.data ?? [];
+  const books = useMemo(() => booksQuery.data ?? [], [booksQuery.data]);
+  const progress = useMemo(() => progressQuery.data ?? [], [progressQuery.data]);
 
   const latest = useMemo(
     () => [...progress].sort((a, b) => (b.updated_at ?? "").localeCompare(a.updated_at ?? ""))[0],
@@ -89,7 +91,9 @@ function DashboardPage() {
     <div className="min-h-screen bg-background">
       <main className="mx-auto max-w-6xl px-4 pb-24 pt-8 sm:px-6">
         <p className="text-sm font-medium text-muted-foreground">
-          {isDemo ? (
+          {authLoading ? (
+            "Loading your reading room…"
+          ) : isDemo ? (
             <>
               Reading in demo mode —{" "}
               <Link
@@ -128,7 +132,7 @@ function DashboardPage() {
                   </p>
                   <h2 className="mt-2 font-display text-2xl font-semibold">{currentBook.title}</h2>
                   <p className="mt-1 text-sm opacity-80">
-                    {currentBook.author} · {latest?.language} · page{" "}
+                    {formatAuthorName(currentBook.author)} · {latest?.language} · page{" "}
                     {(latest?.last_chunk_index ?? 0) + 1} of {currentBook.total_chunks}
                   </p>
                   <div className="mt-4 h-1.5 w-full overflow-hidden rounded-full bg-primary-foreground/20">
@@ -161,7 +165,9 @@ function DashboardPage() {
                   {hasReadingHistory ? "Your reading history is safe" : "Start here"}
                 </p>
                 <h2 className="mt-2 font-display text-2xl font-semibold">
-                  {hasReadingHistory ? "New reviewed editions are coming soon" : "Open your first book"}
+                  {hasReadingHistory
+                    ? "New reviewed editions are coming soon"
+                    : "Open your first book"}
                 </h2>
                 <p className="mt-2 max-w-md text-sm opacity-90">
                   {hasReadingHistory
@@ -193,7 +199,9 @@ function DashboardPage() {
                 />
               </div>
               <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs">
-                <span className={goalReached ? "font-semibold text-primary" : "text-muted-foreground"}>
+                <span
+                  className={goalReached ? "font-semibold text-primary" : "text-muted-foreground"}
+                >
                   {goalReached
                     ? `Goal reached · +${Math.max(0, pagesRead - goal)} pages`
                     : `${Math.max(0, goal - pagesRead)} pages to go`}
