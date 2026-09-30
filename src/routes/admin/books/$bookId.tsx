@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { ArrowLeft, Loader2, Pencil, Trash2 } from "lucide-react";
+import { ArrowLeft, Eye, Loader2, Pencil, Trash2 } from "lucide-react";
 import { GENRES, LANGUAGES } from "@/lib/data";
 import { getAccessToken, useResolvedAdminSession, can } from "@/lib/admin/use-admin-session";
 import { getPublicContentSettings } from "@/lib/admin/settings.functions";
@@ -31,12 +31,8 @@ import {
   adminDiscardChunkContentEdit,
   adminSetBookCategories,
 } from "@/lib/admin/catalog.functions";
-import type {
-  BookDeletionImpact,
-  SacredReferenceManifestNode,
-} from "@/lib/admin/catalog.server";
+import type { BookDeletionImpact, SacredReferenceManifestNode } from "@/lib/admin/catalog.server";
 import { friendlyTranslationError } from "@/lib/translation-error";
-
 
 export const Route = createFileRoute("/admin/books/$bookId")({
   component: AdminBookDetail,
@@ -49,6 +45,10 @@ function AdminBookDetail() {
   const queryClient = useQueryClient();
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewChunkIndex, setPreviewChunkIndex] = useState(0);
+  const [previewContent, setPreviewContent] = useState("");
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   const [editOpen, setEditOpen] = useState(false);
   const [editDraft, setEditDraft] = useState({
@@ -104,9 +104,7 @@ function AdminBookDetail() {
   const [sourcedEditionDraft, setSourcedEditionDraft] = useState({
     language: "",
     provenanceType: "human_translation" as
-      | "human_translation"
-      | "licensed_translation"
-      | "public_domain_translation",
+      "human_translation" | "licensed_translation" | "public_domain_translation",
     typographyProfile: "facsimile_preserving",
     editionTitle: "",
     translator: "",
@@ -121,7 +119,8 @@ function AdminBookDetail() {
     queryKey: ["public-content-settings"],
     queryFn: () => getPublicContentSettings(),
   });
-  const masterCategories = (masterCategoriesQuery.data?.["categories"] as string[] | undefined) ?? [];
+  const masterCategories =
+    (masterCategoriesQuery.data?.["categories"] as string[] | undefined) ?? [];
 
   const detailQuery = useQuery({
     queryKey: ["admin-book", bookId],
@@ -133,8 +132,7 @@ function AdminBookDetail() {
     const loaded = detailQuery.data?.book;
     if (!loaded) return;
     setContentPolicyDraft({
-      classification:
-        loaded.content_classification === "religious" ? "religious" : "general",
+      classification: loaded.content_classification === "religious" ? "religious" : "general",
       typographyProfile: loaded.typography_profile ?? "standard",
       authenticityNotes: loaded.authenticity_notes ?? "",
     });
@@ -432,9 +430,7 @@ function AdminBookDetail() {
           ...(readerV2SchemaAvailable
             ? {
                 editionTitle: editDraft.editionTitle.trim() || null,
-                editionYear: editDraft.editionYear.trim()
-                  ? Number(editDraft.editionYear)
-                  : null,
+                editionYear: editDraft.editionYear.trim() ? Number(editDraft.editionYear) : null,
                 publisher: editDraft.publisher.trim() || null,
                 isbn: editDraft.isbn.trim() || null,
                 sourceScanId: editDraft.sourceScanId.trim() || null,
@@ -485,7 +481,9 @@ function AdminBookDetail() {
           permittedTerritories,
         },
       });
-      toast.success("Rights & provenance saved — approve the rights review when the evidence is verified.");
+      toast.success(
+        "Rights & provenance saved — approve the rights review when the evidence is verified.",
+      );
       setRightsEditOpen(false);
     });
   }
@@ -529,6 +527,36 @@ function AdminBookDetail() {
       setPermDeleteOpen(false);
       navigate({ to: "/admin/books" });
     });
+  }
+
+  async function loadPreviewChunk(index: number) {
+    const safeIndex = Math.min(Math.max(index, 0), Math.max(0, book.total_chunks - 1));
+    setPreviewLoading(true);
+    try {
+      const chunk = await adminGetChunkForEdit({
+        data: {
+          accessToken: await getAccessToken(),
+          bookId,
+          language: book.source_language,
+          chunkIndex: safeIndex,
+        },
+      });
+      if (!chunk) {
+        toast.error("That page could not be loaded.");
+        return;
+      }
+      setPreviewChunkIndex(safeIndex);
+      setPreviewContent(chunk.pending_content ?? chunk.content);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Couldn't preview this page");
+    } finally {
+      setPreviewLoading(false);
+    }
+  }
+
+  async function openPreview() {
+    setPreviewOpen(true);
+    await loadPreviewChunk(0);
   }
 
   async function loadChunkForEdit() {
@@ -644,6 +672,14 @@ function AdminBookDetail() {
         </div>
         {canPublish && (
           <div className="flex flex-wrap gap-2">
+            {canReview && (
+              <button
+                onClick={() => void openPreview()}
+                className="inline-flex items-center gap-1.5 min-h-10 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground hover:opacity-90"
+              >
+                <Eye className="h-3.5 w-3.5" /> Preview book
+              </button>
+            )}
             <button
               onClick={openEdit}
               className="inline-flex items-center gap-1.5 min-h-10 rounded-lg border border-border px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary"
@@ -735,9 +771,7 @@ function AdminBookDetail() {
                     <span className="font-semibold text-foreground">
                       {signal.label} · section {signal.chunkIndex + 1}
                     </span>
-                    <p className="mt-1 leading-relaxed text-muted-foreground">
-                      {signal.snippet}
-                    </p>
+                    <p className="mt-1 leading-relaxed text-muted-foreground">{signal.snippet}</p>
                   </li>
                 ))}
               </ul>
@@ -767,8 +801,9 @@ function AdminBookDetail() {
           )}
           {canReview && book.rights_status !== "approved" && (
             <p className="mt-3 rounded-lg bg-secondary/60 px-3 py-2 text-xs text-muted-foreground">
-              Approval requires a substantive rights basis and a real http(s) evidence URL for
-              this exact edition. Placeholder or unresolved text such as “hh”, “test”, “unknown”, “PENDING”, or “do not approve” is rejected.
+              Approval requires a substantive rights basis and a real http(s) evidence URL for this
+              exact edition. Placeholder or unresolved text such as “hh”, “test”, “unknown”,
+              “PENDING”, or “do not approve” is rejected.
             </p>
           )}
           {canReview && ["pending", "unverified", "rejected"].includes(book.rights_status) && (
@@ -831,7 +866,10 @@ function AdminBookDetail() {
             {readerV2SchemaAvailable && (
               <>
                 <Row label="Edition" value={book.edition_title ?? "—"} />
-                <Row label="Edition year" value={book.edition_year ? String(book.edition_year) : "—"} />
+                <Row
+                  label="Edition year"
+                  value={book.edition_year ? String(book.edition_year) : "—"}
+                />
                 <Row label="Publisher" value={book.publisher ?? "—"} />
                 <Row label="ISBN / source ID" value={book.isbn ?? book.source_scan_id ?? "—"} />
                 <Row
@@ -849,9 +887,7 @@ function AdminBookDetail() {
                 <Row
                   label="Estimated reading time"
                   value={
-                    book.estimated_reading_minutes
-                      ? `${book.estimated_reading_minutes} min`
-                      : "—"
+                    book.estimated_reading_minutes ? `${book.estimated_reading_minutes} min` : "—"
                   }
                 />
                 <Row label="Structure review" value={book.structure_review_status ?? "—"} />
@@ -1024,38 +1060,76 @@ function AdminBookDetail() {
         <div className="mt-3 space-y-2 text-sm">
           <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-background px-3 py-2">
             <span className="text-foreground">Rights review</span>
-            <span className={book.rights_status === "approved" ? "font-semibold text-emerald-600" : "font-semibold text-amber-600"}>
+            <span
+              className={
+                book.rights_status === "approved"
+                  ? "font-semibold text-emerald-600"
+                  : "font-semibold text-amber-600"
+              }
+            >
               {book.rights_status === "approved" ? "✓ Approved" : "○ Approval required"}
             </span>
           </div>
           <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-background px-3 py-2">
             <span className="text-foreground">Edition quality review</span>
-            <span className={book.edition_review_status === "approved" ? "font-semibold text-emerald-600" : "font-semibold text-amber-600"}>
+            <span
+              className={
+                book.edition_review_status === "approved"
+                  ? "font-semibold text-emerald-600"
+                  : "font-semibold text-amber-600"
+              }
+            >
               {book.edition_review_status === "approved" ? "✓ Approved" : "○ Approval required"}
             </span>
           </div>
           <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-background px-3 py-2">
             <span className="text-foreground">Structure review</span>
-            <span className={book.structure_review_status === "approved" ? "font-semibold text-emerald-600" : "font-semibold text-amber-600"}>
+            <span
+              className={
+                book.structure_review_status === "approved"
+                  ? "font-semibold text-emerald-600"
+                  : "font-semibold text-amber-600"
+              }
+            >
               {book.structure_review_status === "approved" ? "✓ Approved" : "○ Approval required"}
             </span>
           </div>
           <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-background px-3 py-2">
             <span className="text-foreground">Text cleanup review</span>
-            <span className={book.cleanup_review_status === "approved" ? "font-semibold text-emerald-600" : "font-semibold text-amber-600"}>
+            <span
+              className={
+                book.cleanup_review_status === "approved"
+                  ? "font-semibold text-emerald-600"
+                  : "font-semibold text-amber-600"
+              }
+            >
               {book.cleanup_review_status === "approved" ? "✓ Approved" : "○ Approval required"}
             </span>
           </div>
           <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-background px-3 py-2">
             <span className="text-foreground">Exact-edition metadata</span>
-            <span className={editionMetadataComplete ? "font-semibold text-emerald-600" : "font-semibold text-amber-600"}>
+            <span
+              className={
+                editionMetadataComplete
+                  ? "font-semibold text-emerald-600"
+                  : "font-semibold text-amber-600"
+              }
+            >
               {editionMetadataComplete ? "✓ Complete" : "○ Complete metadata required"}
             </span>
           </div>
           <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-background px-3 py-2">
             <span className="text-foreground">Rights-risk clues</span>
-            <span className={rightsRiskReviewed ? "font-semibold text-emerald-600" : "font-semibold text-amber-600"}>
-              {rightsRiskReviewed ? "✓ Reviewed / none detected" : "○ Review acknowledgment required"}
+            <span
+              className={
+                rightsRiskReviewed
+                  ? "font-semibold text-emerald-600"
+                  : "font-semibold text-amber-600"
+              }
+            >
+              {rightsRiskReviewed
+                ? "✓ Reviewed / none detected"
+                : "○ Review acknowledgment required"}
             </span>
           </div>
         </div>
@@ -1111,7 +1185,11 @@ function AdminBookDetail() {
           {canPublish && book.status !== "published" && (
             <button
               disabled={busy || !gate.canPublish}
-              title={!gate.canPublish ? gate.reasons.join(" • ") : "Publish this book to the public catalog"}
+              title={
+                !gate.canPublish
+                  ? gate.reasons.join(" • ")
+                  : "Publish this book to the public catalog"
+              }
               onClick={() =>
                 withBusy(async () => {
                   await adminPublishCatalogBook({
@@ -1181,10 +1259,10 @@ function AdminBookDetail() {
               Content policy & typography
             </h2>
             <p className="mt-1 max-w-2xl text-xs leading-relaxed text-muted-foreground">
-              Religious books are permanently free, never sent to the AI translation pipeline,
-              and use verified sourced editions only. A General book cannot be reclassified until
-              any AI-assisted editions/jobs are resolved. Typography and authenticity notes travel
-              with the catalog record so the reader can preserve the edition's script conventions.
+              Religious books are permanently free, never sent to the AI translation pipeline, and
+              use verified sourced editions only. A General book cannot be reclassified until any
+              AI-assisted editions/jobs are resolved. Typography and authenticity notes travel with
+              the catalog record so the reader can preserve the edition's script conventions.
             </p>
           </div>
           <span
@@ -1225,7 +1303,9 @@ function AdminBookDetail() {
                 >
                   General book
                 </option>
-                <option value="religious">Religious — always free, sourced translations only</option>
+                <option value="religious">
+                  Religious — always free, sourced translations only
+                </option>
               </select>
               {book.content_classification === "religious" && (
                 <span className="mt-1 block text-[11px] leading-relaxed text-muted-foreground">
@@ -1254,9 +1334,7 @@ function AdminBookDetail() {
               </select>
             </label>
             <label className="block md:col-span-2">
-              <span className="text-xs font-medium text-muted-foreground">
-                Authenticity notes
-              </span>
+              <span className="text-xs font-medium text-muted-foreground">Authenticity notes</span>
               <textarea
                 rows={3}
                 value={contentPolicyDraft.authenticityNotes}
@@ -1292,7 +1370,8 @@ function AdminBookDetail() {
             </p>
             <div className="mt-3 rounded-xl border border-border bg-background p-3 text-xs">
               <p>
-                <strong>Public source URL:</strong> {book.source_url || "Missing — edit Rights & provenance"}
+                <strong>Public source URL:</strong>{" "}
+                {book.source_url || "Missing — edit Rights & provenance"}
               </p>
               <p className="mt-1">
                 <strong>Source edition ID:</strong>{" "}
@@ -1312,13 +1391,14 @@ function AdminBookDetail() {
                     disabled={book.status === "published"}
                     className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm disabled:opacity-60"
                   >
-                    {[book.source_language, ...book.available_languages.filter((l) => l !== book.source_language)].map(
-                      (language) => (
-                        <option key={language} value={language}>
-                          {language}
-                        </option>
-                      ),
-                    )}
+                    {[
+                      book.source_language,
+                      ...book.available_languages.filter((l) => l !== book.source_language),
+                    ].map((language) => (
+                      <option key={language} value={language}>
+                        {language}
+                      </option>
+                    ))}
                   </select>
                 </label>
                 <label className="block">
@@ -1330,7 +1410,9 @@ function AdminBookDetail() {
                     value={referenceManifestText}
                     onChange={(e) => setReferenceManifestText(e.target.value)}
                     disabled={book.status === "published"}
-                    placeholder={'[{"nodeKey":"ref-1","nodeType":"section","title":"…","ordinal":0,"depth":0,"startChunkIndex":0,"endChunkIndex":0,"canonicalRef":"…","referenceLabel":"…","referenceKind":"verse","referencePath":[{"kind":"chapter","label":"Chapter","value":"1"},{"kind":"verse","label":"Verse","value":"1"}]}]'}
+                    placeholder={
+                      '[{"nodeKey":"ref-1","nodeType":"section","title":"…","ordinal":0,"depth":0,"startChunkIndex":0,"endChunkIndex":0,"canonicalRef":"…","referenceLabel":"…","referenceKind":"verse","referencePath":[{"kind":"chapter","label":"Chapter","value":"1"},{"kind":"verse","label":"Verse","value":"1"}]}]'
+                    }
                     className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 font-mono text-xs leading-relaxed disabled:opacity-60"
                   />
                 </label>
@@ -1423,19 +1505,26 @@ function AdminBookDetail() {
         )}
         {editions.length === 0 && (
           <p className="mt-2 text-xs text-muted-foreground">
-            No published translated editions yet — access settings appear here once one is
-            reviewed and published below.
+            No published translated editions yet — access settings appear here once one is reviewed
+            and published below.
           </p>
         )}
       </section>
 
       {canPublish && (
         <section className="mt-6 rounded-2xl border border-border bg-card p-5 card-shadow">
-          <h2 className="font-display text-base font-semibold text-foreground">Categories</h2>
-          <p className="mt-1 text-xs text-muted-foreground">
-            A book may belong to more than one category. Only categories already in the master
-            list (Admin Settings → categories) can be assigned here.
-          </p>
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <h2 className="font-display text-base font-semibold text-foreground">Categories</h2>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Click a category to add or remove it from this book. Author-selected categories can
+                be corrected here before publication. Only categories in Admin Settings can be used.
+              </p>
+            </div>
+            <span className="rounded-full bg-secondary px-2.5 py-1 text-[11px] font-semibold text-secondary-foreground">
+              {(book.categories ?? []).length} selected
+            </span>
+          </div>
           {masterCategories.length === 0 ? (
             <p className="mt-3 text-xs text-muted-foreground">
               No categories defined yet — add some to the "categories" setting in Admin Settings
@@ -1478,8 +1567,8 @@ function AdminBookDetail() {
         </h2>
         <p className="mt-1 text-xs text-muted-foreground">
           Approved jobs are processed automatically by the translation worker. “Process next batch”
-          is a manual fallback. Before publishing an awaiting-review edition, inspect every translated
-          section below in Edit page content.
+          is a manual fallback. Before publishing an awaiting-review edition, inspect every
+          translated section below in Edit page content.
         </p>
         <ul className="mt-3 space-y-2">
           {jobs.map((j) => (
@@ -1504,35 +1593,33 @@ function AdminBookDetail() {
                 )}
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                {canManageTranslations &&
-                  ["pending", "processing"].includes(j.status) && (
-                    <button
-                      disabled={busy}
-                      onClick={() =>
-                        withBusy(async () => {
-                          const result = await adminProcessTranslationJobBatch({
-                            data: { accessToken: await getAccessToken(), jobId: j.id },
-                          });
-                          if (result.failed > 0) {
-                            toast.error(
-                              result.errors[0] ??
-                                `${result.failed} translation section(s) failed`,
-                              { duration: 9000 },
-                            );
-                          } else {
-                            toast.success(
-                              result.jobStatus === "awaiting_review"
-                                ? `${j.language} translation is ready for review`
-                                : `Processed ${result.processed} section(s); status: ${result.jobStatus}`,
-                            );
-                          }
-                        })
-                      }
-                      className="min-h-10 rounded-lg border border-border px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary disabled:opacity-60"
-                    >
-                      Process next batch
-                    </button>
-                  )}
+                {canManageTranslations && ["pending", "processing"].includes(j.status) && (
+                  <button
+                    disabled={busy}
+                    onClick={() =>
+                      withBusy(async () => {
+                        const result = await adminProcessTranslationJobBatch({
+                          data: { accessToken: await getAccessToken(), jobId: j.id },
+                        });
+                        if (result.failed > 0) {
+                          toast.error(
+                            result.errors[0] ?? `${result.failed} translation section(s) failed`,
+                            { duration: 9000 },
+                          );
+                        } else {
+                          toast.success(
+                            result.jobStatus === "awaiting_review"
+                              ? `${j.language} translation is ready for review`
+                              : `Processed ${result.processed} section(s); status: ${result.jobStatus}`,
+                          );
+                        }
+                      })
+                    }
+                    className="min-h-10 rounded-lg border border-border px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary disabled:opacity-60"
+                  >
+                    Process next batch
+                  </button>
+                )}
                 {canManageTranslations && j.status === "failed" && (
                   <button
                     disabled={busy}
@@ -1654,9 +1741,7 @@ function AdminBookDetail() {
                     setSourcedEditionDraft((d) => ({
                       ...d,
                       provenanceType: e.target.value as
-                        | "human_translation"
-                        | "licensed_translation"
-                        | "public_domain_translation",
+                        "human_translation" | "licensed_translation" | "public_domain_translation",
                     }))
                   }
                   className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
@@ -1876,8 +1961,8 @@ function AdminBookDetail() {
               {editorPending && (
                 <p className="mb-2 rounded-lg bg-gold/10 px-3 py-2 text-xs text-gold-foreground">
                   Pending edit staged
-                  {editorPending.at ? ` ${new Date(editorPending.at).toLocaleString()}` : ""} —
-                  not yet visible to readers.
+                  {editorPending.at ? ` ${new Date(editorPending.at).toLocaleString()}` : ""} — not
+                  yet visible to readers.
                 </p>
               )}
               <textarea
@@ -1918,6 +2003,65 @@ function AdminBookDetail() {
         </section>
       )}
 
+      {previewOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3 sm:p-6">
+          <div className="flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-border bg-card card-shadow-lg">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-4">
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Admin review preview · {book.source_language}
+                </p>
+                <h2 className="truncate font-display text-xl font-semibold text-foreground">
+                  {book.title}
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  Page {previewChunkIndex + 1} of {book.total_chunks}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPreviewOpen(false)}
+                className="rounded-lg border border-border px-3 py-2 text-xs font-semibold hover:bg-secondary"
+              >
+                Close preview
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto bg-background px-5 py-6 sm:px-10">
+              {previewLoading ? (
+                <div className="flex min-h-64 items-center justify-center">
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                </div>
+              ) : (
+                <article className="mx-auto max-w-2xl whitespace-pre-wrap font-serif text-[17px] leading-8 text-foreground">
+                  {previewContent || "No text on this page."}
+                </article>
+              )}
+            </div>
+            <div className="flex items-center justify-between border-t border-border px-5 py-3">
+              <button
+                type="button"
+                disabled={previewLoading || previewChunkIndex <= 0}
+                onClick={() => void loadPreviewChunk(previewChunkIndex - 1)}
+                className="rounded-lg border border-border px-4 py-2 text-xs font-semibold hover:bg-secondary disabled:opacity-40"
+              >
+                Previous page
+              </button>
+              <span className="text-xs text-muted-foreground">
+                Review the actual stored text before approving quality.
+              </span>
+              <button
+                type="button"
+                disabled={previewLoading || previewChunkIndex >= book.total_chunks - 1}
+                onClick={() => void loadPreviewChunk(previewChunkIndex + 1)}
+                className="rounded-lg border border-border px-4 py-2 text-xs font-semibold hover:bg-secondary disabled:opacity-40"
+              >
+                Next page
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {rightsEditOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-xl rounded-2xl border border-border bg-card p-6 card-shadow-lg">
@@ -1926,17 +2070,15 @@ function AdminBookDetail() {
             </h2>
             <p className="mt-1 text-xs text-muted-foreground">
               Record only evidence you have actually verified for this exact edition. Saving does
-              not approve the book; the rights review remains pending/unverified until you approve it
-              separately.
+              not approve the book; the rights review remains pending/unverified until you approve
+              it separately.
             </p>
             <div className="mt-4 space-y-3">
               <label className="block">
                 <span className="text-xs font-medium text-muted-foreground">Rights basis *</span>
                 <textarea
                   value={rightsDraft.rightsBasis}
-                  onChange={(e) =>
-                    setRightsDraft((d) => ({ ...d, rightsBasis: e.target.value }))
-                  }
+                  onChange={(e) => setRightsDraft((d) => ({ ...d, rightsBasis: e.target.value }))}
                   rows={4}
                   placeholder="Explain what establishes permission for this exact edition…"
                   className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -1971,9 +2113,7 @@ function AdminBookDetail() {
                 <span className="text-xs font-medium text-muted-foreground">Attribution</span>
                 <textarea
                   value={rightsDraft.attribution}
-                  onChange={(e) =>
-                    setRightsDraft((d) => ({ ...d, attribution: e.target.value }))
-                  }
+                  onChange={(e) => setRightsDraft((d) => ({ ...d, attribution: e.target.value }))}
                   rows={2}
                   placeholder="Required credit or attribution, if any"
                   className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -2110,9 +2250,7 @@ function AdminBookDetail() {
                     </div>
                     <input
                       value={editDraft.publisher}
-                      onChange={(e) =>
-                        setEditDraft((d) => ({ ...d, publisher: e.target.value }))
-                      }
+                      onChange={(e) => setEditDraft((d) => ({ ...d, publisher: e.target.value }))}
                       placeholder="Publisher"
                       className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
                     />
@@ -2167,10 +2305,10 @@ function AdminBookDetail() {
               Delete “{book.title}”?
             </h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              This archives the book — it stops being published and disappears from the catalog,
-              but nothing is erased. Chunks, translations, editions, reader highlights and
-              progress, requests, and audit history all stay intact, and this can be reversed from
-              here anytime. For irreversible deletion, use "Delete permanently" instead (owner/
+              This archives the book — it stops being published and disappears from the catalog, but
+              nothing is erased. Chunks, translations, editions, reader highlights and progress,
+              requests, and audit history all stay intact, and this can be reversed from here
+              anytime. For irreversible deletion, use "Delete permanently" instead (owner/
               administrator only).
             </p>
             <div className="mt-4 flex justify-end gap-2">
@@ -2227,12 +2365,14 @@ function AdminBookDetail() {
               Moderation and audit history for this book cannot be erased and is not affected by
               this action.
             </p>
-            {permDeleteImpact && permDeleteImpact.status !== "archived" && permDeleteImpact.status !== "unpublished" && (
-              <p className="mt-2 rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">
-                This book is still {permDeleteImpact.status} — take it down (Delete/archive) first,
-                then permanently delete it as a separate step.
-              </p>
-            )}
+            {permDeleteImpact &&
+              permDeleteImpact.status !== "archived" &&
+              permDeleteImpact.status !== "unpublished" && (
+                <p className="mt-2 rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                  This book is still {permDeleteImpact.status} — take it down (Delete/archive)
+                  first, then permanently delete it as a separate step.
+                </p>
+              )}
             <label className="mt-3 block">
               <span className="text-xs font-medium text-muted-foreground">
                 Type the exact title to confirm: <strong>{book.title}</strong>
@@ -2256,7 +2396,8 @@ function AdminBookDetail() {
                   busy ||
                   !permDeleteImpact ||
                   permDeleteConfirmText !== book.title ||
-                  (permDeleteImpact.status !== "archived" && permDeleteImpact.status !== "unpublished")
+                  (permDeleteImpact.status !== "archived" &&
+                    permDeleteImpact.status !== "unpublished")
                 }
                 onClick={() => void confirmPermDelete()}
                 className="rounded-lg bg-destructive px-4 py-2 text-sm font-semibold text-destructive-foreground disabled:opacity-60"
