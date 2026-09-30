@@ -240,8 +240,9 @@ export async function evaluatePublishGate(
       row.metadata && typeof row.metadata === "object" && !Array.isArray(row.metadata)
         ? (row.metadata as Record<string, unknown>)
         : null;
-    return typeof metadata?.["canonical_ref"] === "string" &&
-      metadata["canonical_ref"].trim().length > 0;
+    return (
+      typeof metadata?.["canonical_ref"] === "string" && metadata["canonical_ref"].trim().length > 0
+    );
   });
 
   return computePublishGate(
@@ -281,7 +282,11 @@ export function isPlaceholderRightsText(value: string | null | undefined): boole
   if (/^(.)\1*$/.test(trimmed)) return true;
   if (PLACEHOLDER_RIGHTS_TEXT.has(trimmed.toLowerCase())) return true;
   if (/lorem ipsum/i.test(trimmed)) return true;
-  if (/\b(?:pending|do\s+not\s+approve|not\s+verified|awaiting\s+rights|rights\s+unknown)\b/i.test(trimmed)) {
+  if (
+    /\b(?:pending|do\s+not\s+approve|not\s+verified|awaiting\s+rights|rights\s+unknown)\b/i.test(
+      trimmed,
+    )
+  ) {
     return true;
   }
   return false;
@@ -352,10 +357,7 @@ export async function reviewRights(params: {
   return { before, after: { rights_status: params.decision, ...statusPatch } };
 }
 
-export async function acknowledgeRightsRiskSignals(params: {
-  bookId: string;
-  reviewerId: string;
-}) {
+export async function acknowledgeRightsRiskSignals(params: { bookId: string; reviewerId: string }) {
   const signals = await scanBookRightsSignals(params.bookId);
   if (signals.length === 0) {
     throw new Error("No rights-risk clues were detected for this manuscript.");
@@ -418,6 +420,134 @@ export async function reviewReaderQuality(params: {
  * or archived just because someone re-runs a review action on it. */
 function isReviewableStatus(status: string | undefined): boolean {
   return status === "in_review" || status === "approved" || status === "changes_requested";
+}
+
+export interface BulkBookReviewResult {
+  bookId: string;
+  title: string;
+  ok: boolean;
+  approvedSteps: Array<"rights" | "edition" | "structure" | "cleanup">;
+  blockers: string[];
+}
+
+export async function bulkApproveBookReviews(params: {
+  bookIds: string[];
+  reviewerId: string;
+  notes?: string | undefined;
+}): Promise<BulkBookReviewResult[]> {
+  const db = await admin();
+  const results: BulkBookReviewResult[] = [];
+
+  for (const bookId of [...new Set(params.bookIds)]) {
+    const approvedSteps: BulkBookReviewResult["approvedSteps"] = [];
+    const blockers: string[] = [];
+    try {
+      const { data: book, error } = await db
+        .from("books")
+        .select(
+          "title,status,rights_status,edition_review_status,structure_review_status,cleanup_review_status",
+        )
+        .eq("id", bookId)
+        .single();
+      if (error || !book) throw new Error(error?.message ?? "Book not found");
+
+      if (!["in_review", "changes_requested", "approved"].includes(book.status)) {
+        results.push({
+          bookId,
+          title: book.title,
+          ok: false,
+          approvedSteps,
+          blockers: [`Book is ${book.status.replaceAll("_", " ")} and is not in the review queue.`],
+        });
+        continue;
+      }
+
+      if (book.structure_review_status !== "approved") {
+        await reviewReaderQuality({
+          bookId,
+          target: "structure",
+          decision: "approved",
+          reviewerId: params.reviewerId,
+          notes: params.notes,
+        });
+        approvedSteps.push("structure");
+      }
+
+      if (book.cleanup_review_status !== "approved") {
+        await reviewReaderQuality({
+          bookId,
+          target: "cleanup",
+          decision: "approved",
+          reviewerId: params.reviewerId,
+          notes: params.notes,
+        });
+        approvedSteps.push("cleanup");
+      }
+
+      if (book.edition_review_status !== "approved") {
+        await reviewEdition({
+          bookId,
+          decision: "approved",
+          reviewerId: params.reviewerId,
+          notes: params.notes,
+        });
+        approvedSteps.push("edition");
+      }
+
+      if (book.rights_status !== "approved") {
+        try {
+          await reviewRights({
+            bookId,
+            decision: "approved",
+            reviewerId: params.reviewerId,
+            notes: params.notes,
+          });
+          approvedSteps.push("rights");
+        } catch (rightsError) {
+          blockers.push(
+            rightsError instanceof Error
+              ? rightsError.message
+              : "Rights review still needs individual attention.",
+          );
+        }
+      }
+
+      const { data: final, error: finalError } = await db
+        .from("books")
+        .select("rights_status,edition_review_status,structure_review_status,cleanup_review_status")
+        .eq("id", bookId)
+        .single();
+      if (finalError || !final)
+        throw new Error(finalError?.message ?? "Could not verify review state");
+
+      const incomplete: string[] = [];
+      if (final.rights_status !== "approved") incomplete.push("rights");
+      if (final.edition_review_status !== "approved") incomplete.push("edition");
+      if (final.structure_review_status !== "approved") incomplete.push("structure");
+      if (final.cleanup_review_status !== "approved") incomplete.push("text cleanup");
+      if (incomplete.length) {
+        blockers.push(`Still pending: ${incomplete.join(", ")}.`);
+      }
+
+      results.push({
+        bookId,
+        title: book.title,
+        ok: blockers.length === 0,
+        approvedSteps,
+        blockers: [...new Set(blockers)],
+      });
+    } catch (error) {
+      results.push({
+        bookId,
+        title: "Unknown book",
+        ok: false,
+        approvedSteps,
+        blockers: [error instanceof Error ? error.message : String(error)],
+      });
+    }
+  }
+
+  return results;
 }
 
 export async function reviewEdition(params: {
@@ -613,7 +743,8 @@ export interface BookEditionRow {
   book_id: string;
   language: string;
   access_type: EditionAccessType;
-  provenance_type: "ai_assisted" | "human_translation" | "licensed_translation" | "public_domain_translation";
+  provenance_type:
+    "ai_assisted" | "human_translation" | "licensed_translation" | "public_domain_translation";
   typography_profile: string;
   authenticity_notes: string | null;
   edition_title: string | null;
@@ -659,7 +790,9 @@ export async function setBookContentPolicy(params: {
   const db = await admin();
   const { data: before, error: beforeError } = await db
     .from("books")
-    .select("status, content_classification, translation_generation_policy, typography_profile, authenticity_notes, categories, access_type")
+    .select(
+      "status, content_classification, translation_generation_policy, typography_profile, authenticity_notes, categories, access_type",
+    )
     .eq("id", params.bookId)
     .single();
   if (beforeError || !before) throw new Error(beforeError?.message ?? "Book not found");
@@ -670,19 +803,21 @@ export async function setBookContentPolicy(params: {
     before.content_classification !== "religious" && params.classification === "religious";
 
   if (isReligiousUpgrade) {
-    const [{ count: aiEditionCount, error: aiEditionError }, { count: activeJobCount, error: activeJobError }] =
-      await Promise.all([
-        db
-          .from("book_editions")
-          .select("language", { count: "exact", head: true })
-          .eq("book_id", params.bookId)
-          .eq("provenance_type", "ai_assisted"),
-        db
-          .from("book_translation_jobs")
-          .select("id", { count: "exact", head: true })
-          .eq("book_id", params.bookId)
-          .in("status", ["pending", "processing", "awaiting_review", "published"]),
-      ]);
+    const [
+      { count: aiEditionCount, error: aiEditionError },
+      { count: activeJobCount, error: activeJobError },
+    ] = await Promise.all([
+      db
+        .from("book_editions")
+        .select("language", { count: "exact", head: true })
+        .eq("book_id", params.bookId)
+        .eq("provenance_type", "ai_assisted"),
+      db
+        .from("book_translation_jobs")
+        .select("id", { count: "exact", head: true })
+        .eq("book_id", params.bookId)
+        .in("status", ["pending", "processing", "awaiting_review", "published"]),
+    ]);
     if (aiEditionError) throw new Error(aiEditionError.message);
     if (activeJobError) throw new Error(activeJobError.message);
     if ((aiEditionCount ?? 0) > 0 || (activeJobCount ?? 0) > 0) {
@@ -763,9 +898,7 @@ export async function setBookContentPolicy(params: {
 }
 
 export type SourcedEditionProvenance =
-  | "human_translation"
-  | "licensed_translation"
-  | "public_domain_translation";
+  "human_translation" | "licensed_translation" | "public_domain_translation";
 
 export async function importVerifiedSourcedEdition(params: {
   bookId: string;
@@ -865,1040 +998,3 @@ const SACRED_REFERENCE_NODE_TYPES = new Set<SacredReferenceManifestNode["nodeTyp
   "chapter",
   "story",
   "section",
-  "act",
-  "scene",
-  "poem",
-  "canto",
-  "stanza",
-  "paragraph",
-  "footnote",
-  "endnote",
-  "back_matter",
-]);
-
-/**
- * Replaces the semantic/reference structure for one Religious edition.
- *
- * This is deliberately separate from manuscript text: canonical references
- * are metadata sourced from the verified scripture edition and must never be
- * injected into or inferred from the sacred text itself. The book must be
- * unpublished while this map is replaced, so a half-reviewed reference map
- * can never become public.
- */
-export async function replaceSacredReferenceManifest(params: {
-  bookId: string;
-  language: string;
-  nodes: SacredReferenceManifestNode[];
-}): Promise<{ count: number; language: string }> {
-  const db = await admin();
-  const { data: book, error: bookError } = await db
-    .from("books")
-    .select(
-      "id,status,content_classification,translation_generation_policy,source_language,available_languages,source_version,total_chunks",
-    )
-    .eq("id", params.bookId)
-    .single();
-  if (bookError || !book) throw new Error("Book not found");
-  if (
-    book.content_classification !== "religious" ||
-    book.translation_generation_policy !== "source_only"
-  ) {
-    throw new Error("Canonical scripture reference manifests are reserved for Religious/source-only books.");
-  }
-  if (book.status === "published") {
-    throw new Error("Unpublish the Religious book before replacing its canonical reference map.");
-  }
-
-  const allowedLanguages = new Set([book.source_language, ...(book.available_languages ?? [])]);
-  if (!allowedLanguages.has(params.language)) {
-    throw new Error("Import the sourced edition before adding a reference map for this language.");
-  }
-  if (params.nodes.length === 0) {
-    throw new Error("The canonical reference manifest cannot be empty.");
-  }
-
-  const seenKeys = new Set<string>();
-  const seenRefs = new Set<string>();
-  for (const node of params.nodes) {
-    if (!node.nodeKey.trim()) throw new Error("Every reference node needs a nodeKey.");
-    if (seenKeys.has(node.nodeKey)) throw new Error(`Duplicate nodeKey: ${node.nodeKey}`);
-    seenKeys.add(node.nodeKey);
-
-    if (!SACRED_REFERENCE_NODE_TYPES.has(node.nodeType)) {
-      throw new Error(`Unsupported semantic node type: ${node.nodeType}`);
-    }
-    if (!node.canonicalRef.trim()) throw new Error("Every reference node needs canonicalRef.");
-    if (!node.referenceLabel.trim()) throw new Error("Every reference node needs referenceLabel.");
-    if (!node.referenceKind.trim()) throw new Error("Every reference node needs referenceKind.");
-    if (seenRefs.has(node.canonicalRef)) {
-      throw new Error(`Duplicate canonicalRef: ${node.canonicalRef}`);
-    }
-    seenRefs.add(node.canonicalRef);
-
-    if (!Number.isInteger(node.ordinal) || node.ordinal < 0) {
-      throw new Error(`Invalid ordinal for ${node.nodeKey}`);
-    }
-    if (!Number.isInteger(node.depth) || node.depth < 0) {
-      throw new Error(`Invalid depth for ${node.nodeKey}`);
-    }
-    if (
-      !Number.isInteger(node.startChunkIndex) ||
-      !Number.isInteger(node.endChunkIndex) ||
-      node.startChunkIndex < 0 ||
-      node.endChunkIndex < node.startChunkIndex ||
-      node.endChunkIndex >= book.total_chunks
-    ) {
-      throw new Error(`Invalid chunk range for ${node.nodeKey}`);
-    }
-    for (const part of node.referencePath ?? []) {
-      if (!part.kind.trim() || !part.label.trim() || !part.value.trim()) {
-        throw new Error(`Invalid referencePath entry for ${node.nodeKey}`);
-      }
-    }
-  }
-
-  const { error: deleteError } = await db
-    .from("book_structure_nodes")
-    .delete()
-    .eq("book_id", params.bookId)
-    .eq("language", params.language)
-    .eq("source_version", book.source_version);
-  if (deleteError) throw new Error(deleteError.message);
-
-  const { error: insertError } = await db.from("book_structure_nodes").insert(
-    params.nodes.map((node) => ({
-      book_id: params.bookId,
-      language: params.language,
-      source_version: book.source_version,
-      node_key: node.nodeKey.trim(),
-      parent_node_key: node.parentNodeKey?.trim() || null,
-      node_type: node.nodeType,
-      title: node.title?.trim() || null,
-      ordinal: node.ordinal,
-      depth: node.depth,
-      start_chunk_index: node.startChunkIndex,
-      end_chunk_index: node.endChunkIndex,
-      metadata: {
-        canonical_ref: node.canonicalRef.trim(),
-        reference_label: node.referenceLabel.trim(),
-        reference_kind: node.referenceKind.trim(),
-        reference_path: (node.referencePath ?? []).map((part) => ({
-          kind: part.kind.trim(),
-          label: part.label.trim(),
-          value: part.value.trim(),
-        })),
-      },
-    })),
-  );
-  if (insertError) throw new Error(insertError.message);
-
-  const { error: reviewResetError } = await db
-    .from("books")
-    .update({ structure_review_status: "pending" })
-    .eq("id", params.bookId);
-  if (reviewResetError) throw new Error(reviewResetError.message);
-
-  return { count: params.nodes.length, language: params.language };
-}
-
-// ---------------------------------------------------------------------------
-// Admin upload / batch import
-// ---------------------------------------------------------------------------
-
-export interface AdminBookInput {
-  title: string;
-  author: string;
-  sourceLanguage: string;
-  description: string;
-  genre?: string | null | undefined;
-  categories?: string[] | undefined;
-  translator?: string | null | undefined;
-  coverUrl?: string | null | undefined;
-  sourceUrl?: string | null | undefined;
-  sourceEditionId?: string | null | undefined;
-  rightsBasis: string;
-  rightsEvidenceUrl?: string | null | undefined;
-  attribution?: string | null | undefined;
-  permittedTerritories?: string[] | undefined;
-  translationPermission: boolean;
-  importKey?: string | null | undefined;
-  manuscriptText: string; // already-extracted plain text (from .txt paste or EPUB extraction)
-}
-
-function checksumOf(text: string): string {
-  return createHash("sha256").update(text, "utf8").digest("hex");
-}
-
-export interface AdminUploadResult {
-  bookId: string;
-  created: boolean;
-  reason?: string;
-  chapterCount: number;
-  warnings: string[];
-}
-
-/**
- * Creates one admin-uploaded book as a draft awaiting review. Idempotent by
- * import_key (if provided, e.g. a CSV row id) and by content checksum
- * (protects against re-running the same batch/file twice even without an
- * explicit key) — a retry returns the existing book instead of duplicating.
- */
-export async function adminCreateBook(
-  input: AdminBookInput,
-  uploaderId: string,
-): Promise<AdminUploadResult> {
-  const db = await admin();
-  const checksum = checksumOf(input.manuscriptText);
-
-  if (input.importKey) {
-    const { data: existing } = await db
-      .from("books")
-      .select("id")
-      .eq("import_key", input.importKey)
-      .maybeSingle();
-    if (existing)
-      return {
-        bookId: existing.id,
-        created: false,
-        reason: "import_key already used",
-        chapterCount: 0,
-        warnings: [],
-      };
-  }
-  const { data: byChecksum } = await db
-    .from("books")
-    .select("id")
-    .eq("checksum", checksum)
-    .maybeSingle();
-  if (byChecksum) {
-    return {
-      bookId: byChecksum.id,
-      created: false,
-      reason: "identical manuscript already imported",
-      chapterCount: 0,
-      warnings: [],
-    };
-  }
-
-  const religious = (input.categories ?? []).includes("Religious");
-  const parsed = parseManuscript(input.manuscriptText, {
-    preserveLineation: religious,
-  });
-  const chunks = parsed.chunks;
-  const warnings: string[] = [];
-  const { data: book, error } = await db
-    .from("books")
-    .insert({
-      title: input.title,
-      author: input.author,
-      author_id: null,
-      source_language: input.sourceLanguage,
-      available_languages: [input.sourceLanguage],
-      total_chunks: chunks.length,
-      description: input.description,
-      genre: input.genre ?? "",
-      categories: input.categories ?? [],
-      content_classification: religious ? "religious" : "general",
-      translation_generation_policy: religious ? "source_only" : "ai_allowed",
-      typography_profile: religious ? "facsimile_preserving" : "standard",
-      translator: input.translator ?? null,
-      cover_url: input.coverUrl ?? null,
-      source_url: input.sourceUrl ?? null,
-      source_edition_id: input.sourceEditionId ?? null,
-      rights_basis: input.rightsBasis,
-      rights_evidence_url: input.rightsEvidenceUrl ?? null,
-      attribution: input.attribution ?? null,
-      permitted_territories: input.permittedTerritories ?? [],
-      translation_permission: religious ? false : input.translationPermission,
-      import_key: input.importKey ?? null,
-      checksum,
-      status: "in_review",
-      rights_status: "pending",
-      edition_review_status: "pending",
-      access_type: "free",
-    })
-    .select("id")
-    .single();
-  if (error || !book) throw new Error(error?.message ?? "Could not create book");
-
-  const { error: chunkError } = await db.from("book_chunks").insert(
-    chunks.map((content, i) => ({
-      book_id: book.id,
-      language: input.sourceLanguage,
-      chunk_index: i,
-      content,
-      status: "published",
-    })),
-  );
-  if (chunkError)
-    throw new Error(`Book created, but manuscript text failed to save: ${chunkError.message}`);
-
-  // Reader V2 is additive. Once migration 0017 is present we persist the
-  // semantic navigation overlay generated from the manuscript; before that
-  // the book remains usable through the reader's legacy fallback TOC.
-  if (parsed.structure.length > 0) {
-    const { error: structureError } = await db.from("book_structure_nodes").insert(
-      parsed.structure.map((node) => ({
-        book_id: book.id,
-        language: input.sourceLanguage,
-        source_version: 1,
-        node_key: node.nodeKey,
-        parent_node_key: node.parentNodeKey,
-        node_type: node.nodeType,
-        title: node.title,
-        ordinal: node.ordinal,
-        depth: node.depth,
-        start_chunk_index: node.startChunkIndex,
-        end_chunk_index: node.endChunkIndex,
-      })),
-    );
-    if (structureError) {
-      warnings.push(
-        structureError.code === "42P01" || /book_structure_nodes/i.test(structureError.message)
-          ? "Reader V2 semantic structure was not stored because migration 0017 is not applied yet."
-          : `Semantic structure needs review: ${structureError.message}`,
-      );
-    }
-  }
-
-  const { error: readerMetadataError } = await db
-    .from("books")
-    .update({
-      word_count: parsed.wordCount,
-      estimated_reading_minutes: parsed.estimatedReadingMinutes,
-      structure_review_status: parsed.structure.length > 0 ? "pending" : "changes_requested",
-      cleanup_review_status: "pending",
-    })
-    .eq("id", book.id);
-  if (readerMetadataError) {
-    if (
-      readerMetadataError.code !== "42703" &&
-      !/word_count|estimated_reading_minutes|structure_review_status|cleanup_review_status/i.test(
-        readerMetadataError.message,
-      )
-    ) {
-      warnings.push(`Reader quality metadata needs review: ${readerMetadataError.message}`);
-    }
-  }
-
-  return { bookId: book.id, created: true, chapterCount: chunks.length, warnings };
-}
-
-export interface CsvRow {
-  rowNumber: number;
-  data: Record<string, string>;
-  errors: string[];
-}
-
-const REQUIRED_CSV_COLUMNS = [
-  "title",
-  "author",
-  "source_language",
-  "description",
-  "rights_basis",
-  "manuscript_text",
-];
-
-/** Parses a CSV manifest (header row + data rows) with per-row validation.
- * Deliberately simple (no quoted-comma support) — documented in the operator
- * guide; malformed rows are reported, not silently skipped. */
-export function parseCsvManifest(csvText: string): { rows: CsvRow[]; columns: string[] } {
-  const lines = csvText.split(/\r?\n/).filter((l) => l.trim().length > 0);
-  const header = lines[0];
-  if (!header) return { rows: [], columns: [] };
-  const columns = header.split(",").map((c) => c.trim());
-  const rows: CsvRow[] = [];
-  for (let i = 1; i < lines.length; i++) {
-    const line = lines[i];
-    if (line === undefined) continue;
-    const cells = line.split(",");
-    const data: Record<string, string> = {};
-    columns.forEach((col, idx) => {
-      data[col] = (cells[idx] ?? "").trim();
-    });
-    const errors: string[] = [];
-    for (const required of REQUIRED_CSV_COLUMNS) {
-      if (!data[required]) errors.push(`Missing required column "${required}"`);
-    }
-    const permissionCell = data["translation_permission"];
-    if (permissionCell && !["true", "false", ""].includes(permissionCell.toLowerCase())) {
-      errors.push('translation_permission must be "true" or "false"');
-    }
-    rows.push({ rowNumber: i + 1, data, errors });
-  }
-  return { rows, columns };
-}
-
-export interface BatchImportRowResult {
-  rowNumber: number;
-  ok: boolean;
-  bookId?: string;
-  created?: boolean;
-  error?: string;
-}
-
-export async function adminBatchImport(params: {
-  rows: CsvRow[];
-  uploaderId: string;
-  dryRun: boolean;
-}): Promise<BatchImportRowResult[]> {
-  const results: BatchImportRowResult[] = [];
-  for (const row of params.rows) {
-    if (row.errors.length > 0) {
-      results.push({ rowNumber: row.rowNumber, ok: false, error: row.errors.join("; ") });
-      continue;
-    }
-    if (params.dryRun) {
-      results.push({ rowNumber: row.rowNumber, ok: true });
-      continue;
-    }
-    try {
-      const d = row.data;
-      const manuscriptText = d["manuscript_text"] ?? "";
-      const categoriesCell = d["categories"];
-      const territoriesCell = d["permitted_territories"];
-      const result = await adminCreateBook(
-        {
-          title: d["title"] ?? "",
-          author: d["author"] ?? "",
-          sourceLanguage: d["source_language"] ?? "",
-          description: d["description"] ?? "",
-          genre: d["genre"] || null,
-          categories: categoriesCell ? categoriesCell.split("|").map((s) => s.trim()) : [],
-          translator: d["translator"] || null,
-          coverUrl: d["cover_url"] || null,
-          sourceUrl: d["source_url"] || null,
-          sourceEditionId: d["source_edition_id"] || null,
-          rightsBasis: d["rights_basis"] ?? "",
-          rightsEvidenceUrl: d["rights_evidence_url"] || null,
-          attribution: d["attribution"] || null,
-          permittedTerritories: territoriesCell
-            ? territoriesCell.split("|").map((s) => s.trim())
-            : [],
-          translationPermission: d["translation_permission"]?.toLowerCase() === "true",
-          importKey:
-            d["import_key"] || `csv:${row.rowNumber}:${checksumOf(manuscriptText).slice(0, 16)}`,
-          manuscriptText,
-        },
-        params.uploaderId,
-      );
-      results.push({
-        rowNumber: row.rowNumber,
-        ok: true,
-        bookId: result.bookId,
-        created: result.created,
-      });
-    } catch (error) {
-      results.push({
-        rowNumber: row.rowNumber,
-        ok: false,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
-  }
-  return results;
-}
-
-export async function extractEpubToManuscriptText(
-  fileBytes: Uint8Array,
-): Promise<{ text: string; warnings: string[] }> {
-  try {
-    const parsed = await parseEpub(fileBytes);
-    const text = parsed.chapters
-      .map((c) => (c.title ? `${c.title}\n\n${c.text}` : c.text))
-      .filter(Boolean)
-      .join("\n\n");
-    return { text, warnings: parsed.warnings };
-  } catch (error) {
-    if (error instanceof EpubValidationError) throw error;
-    throw new Error(error instanceof Error ? error.message : "Could not read this EPUB file");
-  }
-}
-
-// ============================================================================
-// Rights & provenance editing (admin)
-//
-// Rights evidence is deliberately editable separately from ordinary metadata.
-// Any substantive change invalidates a previous rights approval unless the
-// book was never reviewed ("pending"). Published books must be unpublished
-// before their legal/provenance record can be changed, so we never leave a
-// publicly visible book carrying newly-unverified rights data.
-// ============================================================================
-export interface BookRightsProvenancePatch {
-  rightsBasis: string;
-  rightsEvidenceUrl: string | null;
-  sourceUrl: string | null;
-  attribution: string | null;
-  translationPermission: boolean;
-  permittedTerritories: string[];
-}
-
-export async function updateBookRightsProvenance(params: {
-  bookId: string;
-  patch: BookRightsProvenancePatch;
-}): Promise<{ before: Record<string, unknown> | null; after: Record<string, unknown> }> {
-  const db = await admin();
-  const { data: before, error: beforeError } = await db
-    .from("books")
-    .select(
-      "status, rights_status, rights_basis, rights_evidence_url, source_url, attribution, translation_permission, permitted_territories",
-    )
-    .eq("id", params.bookId)
-    .single();
-  if (beforeError) throw new Error(beforeError.message);
-  if (!before) throw new Error("Book not found");
-  if (before.status === "published") {
-    throw new Error(
-      "Unpublish this book before editing rights & provenance. Rights changes must be re-reviewed before the book can go public again.",
-    );
-  }
-
-  const nextRightsStatus = before.rights_status === "pending" ? "pending" : "unverified";
-  const payload = {
-    rights_basis: params.patch.rightsBasis.trim(),
-    rights_evidence_url: params.patch.rightsEvidenceUrl,
-    source_url: params.patch.sourceUrl,
-    attribution: params.patch.attribution,
-    translation_permission: params.patch.translationPermission,
-    permitted_territories: params.patch.permittedTerritories,
-    rights_status: nextRightsStatus,
-    rights_risk_acknowledged_at: null,
-    rights_risk_acknowledged_by: null,
-  };
-
-  const { error } = await db.from("books").update(payload).eq("id", params.bookId);
-  if (error) throw new Error(error.message);
-  return { before, after: payload };
-}
-
-// ============================================================================
-// Book metadata editing (admin) — title/author/description/genre/cover only.
-// Never touches status, access_type, subscription_price_usd, or any rights/
-// review column — those all go through the dedicated review/access
-// functions above, each with their own gate. An admin editing metadata
-// keeps the book at whatever status it's already at (unlike an author's
-// self-edit, which must force a published book back into review — see
-// editBookMetadata in src/lib/library.ts): the admin IS the reviewer, so
-// their own edit doesn't need to re-request their own approval.
-// ============================================================================
-export interface BookMetadataPatch {
-  title?: string | undefined;
-  author?: string | undefined;
-  description?: string | undefined;
-  genre?: string | null | undefined;
-  coverUrl?: string | null | undefined;
-  editionTitle?: string | null | undefined;
-  editionYear?: number | null | undefined;
-  publisher?: string | null | undefined;
-  isbn?: string | null | undefined;
-  sourceScanId?: string | null | undefined;
-  originalPublicationYear?: number | null | undefined;
-}
-
-export async function updateBookMetadata(params: {
-  bookId: string;
-  patch: BookMetadataPatch;
-}): Promise<{ before: Record<string, unknown> | null; after: Record<string, unknown> }> {
-  const db = await admin();
-  const { data: before, error: beforeError } = await db
-    .from("books")
-    .select("*")
-    .eq("id", params.bookId)
-    .single();
-  if (beforeError) throw new Error(beforeError.message);
-  const payload: {
-    title?: string;
-    author?: string;
-    description?: string;
-    genre?: string | null;
-    cover_url?: string | null;
-    edition_title?: string | null;
-    edition_year?: number | null;
-    publisher?: string | null;
-    isbn?: string | null;
-    source_scan_id?: string | null;
-    original_publication_year?: number | null;
-  } = {
-    ...(params.patch.title !== undefined ? { title: params.patch.title } : {}),
-    ...(params.patch.author !== undefined ? { author: params.patch.author } : {}),
-    ...(params.patch.description !== undefined ? { description: params.patch.description } : {}),
-    ...(params.patch.genre !== undefined ? { genre: params.patch.genre } : {}),
-    ...(params.patch.coverUrl !== undefined ? { cover_url: params.patch.coverUrl } : {}),
-    ...(params.patch.editionTitle !== undefined ? { edition_title: params.patch.editionTitle } : {}),
-    ...(params.patch.editionYear !== undefined ? { edition_year: params.patch.editionYear } : {}),
-    ...(params.patch.publisher !== undefined ? { publisher: params.patch.publisher } : {}),
-    ...(params.patch.isbn !== undefined ? { isbn: params.patch.isbn } : {}),
-    ...(params.patch.sourceScanId !== undefined ? { source_scan_id: params.patch.sourceScanId } : {}),
-    ...(params.patch.originalPublicationYear !== undefined
-      ? { original_publication_year: params.patch.originalPublicationYear }
-      : {}),
-  };
-  if (Object.keys(payload).length === 0) {
-    throw new Error("No metadata fields were provided to update.");
-  }
-  const { error } = await db.from("books").update(payload).eq("id", params.bookId);
-  if (error) throw new Error(error.message);
-  return { before, after: payload };
-}
-
-// ============================================================================
-// Staged content editing (admin) — see migration 0013's header for the full
-// rationale. An edit never touches `content` directly; it lands in
-// `pending_content` until a separate publish action promotes it. Works for
-// any language, original or translated, since it's just editing an
-// existing (book_id, language, chunk_index) row's text — language/edition
-// association can never drift because no new row is ever created.
-// ============================================================================
-export interface ChunkForEdit {
-  content: string;
-  pending_content: string | null;
-  pending_content_by: string | null;
-  pending_content_at: string | null;
-}
-
-export async function getChunkForEdit(params: {
-  bookId: string;
-  language: string;
-  chunkIndex: number;
-}): Promise<ChunkForEdit | null> {
-  const db = await admin();
-  const { data, error } = await db
-    .from("book_chunks")
-    .select("content, pending_content, pending_content_by, pending_content_at")
-    .eq("book_id", params.bookId)
-    .eq("language", params.language)
-    .eq("chunk_index", params.chunkIndex)
-    .maybeSingle();
-  if (error) throw new Error(error.message);
-  return (data as ChunkForEdit | null) ?? null;
-}
-
-export async function stageChunkContentEdit(params: {
-  bookId: string;
-  language: string;
-  chunkIndex: number;
-  newContent: string;
-  editorId: string;
-}): Promise<{ before: string; after: string }> {
-  if (!params.newContent.trim()) {
-    throw new Error("Edited content cannot be empty.");
-  }
-  const db = await admin();
-  const { data: before, error: beforeError } = await db
-    .from("book_chunks")
-    .select("content")
-    .eq("book_id", params.bookId)
-    .eq("language", params.language)
-    .eq("chunk_index", params.chunkIndex)
-    .maybeSingle();
-  if (beforeError) throw new Error(beforeError.message);
-  if (!before) throw new Error("That page doesn't exist for this book and language.");
-  const { error } = await db
-    .from("book_chunks")
-    .update({
-      pending_content: params.newContent,
-      pending_content_by: params.editorId,
-      pending_content_at: new Date().toISOString(),
-    })
-    .eq("book_id", params.bookId)
-    .eq("language", params.language)
-    .eq("chunk_index", params.chunkIndex);
-  if (error) throw new Error(error.message);
-  return { before: before.content, after: params.newContent };
-}
-
-export async function publishChunkContentEdit(params: {
-  bookId: string;
-  language: string;
-  chunkIndex: number;
-}): Promise<{ before: string; after: string }> {
-  const db = await admin();
-  const { data: row, error: rowError } = await db
-    .from("book_chunks")
-    .select("content, pending_content")
-    .eq("book_id", params.bookId)
-    .eq("language", params.language)
-    .eq("chunk_index", params.chunkIndex)
-    .maybeSingle();
-  if (rowError) throw new Error(rowError.message);
-  if (!row || !row.pending_content) {
-    throw new Error("There is no pending edit to publish for this page.");
-  }
-  const { error } = await db
-    .from("book_chunks")
-    .update({
-      content: row.pending_content,
-      pending_content: null,
-      pending_content_by: null,
-      pending_content_at: null,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("book_id", params.bookId)
-    .eq("language", params.language)
-    .eq("chunk_index", params.chunkIndex);
-  if (error) throw new Error(error.message);
-  return { before: row.content, after: row.pending_content };
-}
-
-export async function discardChunkContentEdit(params: {
-  bookId: string;
-  language: string;
-  chunkIndex: number;
-}): Promise<{ discarded: string | null }> {
-  const db = await admin();
-  const { data: row } = await db
-    .from("book_chunks")
-    .select("pending_content")
-    .eq("book_id", params.bookId)
-    .eq("language", params.language)
-    .eq("chunk_index", params.chunkIndex)
-    .maybeSingle();
-  const { error } = await db
-    .from("book_chunks")
-    .update({ pending_content: null, pending_content_by: null, pending_content_at: null })
-    .eq("book_id", params.bookId)
-    .eq("language", params.language)
-    .eq("chunk_index", params.chunkIndex);
-  if (error) throw new Error(error.message);
-  return { discarded: row?.pending_content ?? null };
-}
-
-// ============================================================================
-// Deletion — reversible by default (setBookLifecycleStatus's 'archived',
-// above), permanent as a separate, explicit, owner/administrator-only
-// action gated by catalog.delete_permanent (see catalog.functions.ts).
-// ============================================================================
-export interface BookDeletionImpact {
-  bookId: string;
-  title: string;
-  status: string;
-  chunkCount: number;
-  editionCount: number;
-  translationJobCount: number;
-  progressCount: number;
-  highlightCount: number;
-  shelfCount: number;
-  subscriptionCount: number;
-  translationRequestCount: number;
-  translationReportCount: number;
-  relatedSupportTicketCount: number;
-}
-
-type DeletionImpactTable =
-  | "book_chunks"
-  | "book_editions"
-  | "book_translation_jobs"
-  | "reading_progress"
-  | "book_highlights"
-  | "book_shelves"
-  | "user_subscriptions"
-  | "translation_requests"
-  | "translation_reports"
-  | "support_tickets";
-
-async function countWhere(
-  db: Awaited<ReturnType<typeof admin>>,
-  table: DeletionImpactTable,
-  column: string,
-  bookId: string,
-): Promise<number> {
-  const { count, error } = await db
-    .from(table)
-    .select("*", { count: "exact", head: true })
-    .eq(column, bookId);
-  if (error) throw new Error(`Couldn't count ${table}: ${error.message}`);
-  return count ?? 0;
-}
-
-export async function getBookDeletionImpact(bookId: string): Promise<BookDeletionImpact> {
-  const db = await admin();
-  const { data: book, error: bookError } = await db
-    .from("books")
-    .select("title, status")
-    .eq("id", bookId)
-    .single();
-  if (bookError || !book) throw new Error("Book not found.");
-
-  const [
-    chunkCount,
-    editionCount,
-    translationJobCount,
-    progressCount,
-    highlightCount,
-    shelfCount,
-    subscriptionCount,
-    translationRequestCount,
-    translationReportCount,
-    relatedSupportTicketCount,
-  ] = await Promise.all([
-    countWhere(db, "book_chunks", "book_id", bookId),
-    countWhere(db, "book_editions", "book_id", bookId),
-    countWhere(db, "book_translation_jobs", "book_id", bookId),
-    countWhere(db, "reading_progress", "book_id", bookId),
-    countWhere(db, "book_highlights", "book_id", bookId),
-    countWhere(db, "book_shelves", "book_id", bookId),
-    countWhere(db, "user_subscriptions", "book_id", bookId),
-    countWhere(db, "translation_requests", "book_id", bookId),
-    countWhere(db, "translation_reports", "book_id", bookId),
-    countWhere(db, "support_tickets", "related_book_id", bookId),
-  ]);
-
-  return {
-    bookId,
-    title: book.title,
-    status: book.status,
-    chunkCount,
-    editionCount,
-    translationJobCount,
-    progressCount,
-    highlightCount,
-    shelfCount,
-    subscriptionCount,
-    translationRequestCount,
-    translationReportCount,
-    relatedSupportTicketCount,
-  };
-}
-
-export async function deleteBookPermanently(params: {
-  bookId: string;
-}): Promise<{ impact: BookDeletionImpact }> {
-  const impact = await getBookDeletionImpact(params.bookId);
-  if (impact.status !== "archived" && impact.status !== "unpublished") {
-    throw new Error(
-      "Permanent deletion requires the book to already be archived or unpublished — take it down first (reversible), then delete it permanently as a separate step.",
-    );
-  }
-  const db = await admin();
-  // support_tickets.related_book_id has no ON DELETE cascade, by design —
-  // a support ticket is a moderation/audit record and must survive the
-  // book it references being deleted, never disappearing along with it.
-  // Detach the reference explicitly so the DELETE below doesn't fail
-  // against this one non-cascading FK; every other related table (chunks,
-  // editions, jobs, progress, highlights, shelves, subscriptions,
-  // requests, reports) cascades automatically.
-  if (impact.relatedSupportTicketCount > 0) {
-    const { error: detachError } = await db
-      .from("support_tickets")
-      .update({ related_book_id: null })
-      .eq("related_book_id", params.bookId);
-    if (detachError) {
-      throw new Error(`Couldn't detach related support tickets: ${detachError.message}`);
-    }
-  }
-  const { error } = await db.from("books").delete().eq("id", params.bookId);
-  if (error) throw new Error(error.message);
-  return { impact };
-}
-
-// ============================================================================
-// Book categories — admin-managed assignment against the controlled
-// vocabulary published at content_settings["categories"] (already a legal
-// settings key, already public/versioned/audited — reused as-is, not
-// duplicated). A book may belong to more than one category
-// (books.categories text[], migration 0005) — never a new book record.
-// ============================================================================
-async function getMasterCategories(): Promise<string[]> {
-  const { getSetting } = await import("@/lib/admin/settings.server");
-  const row = await getSetting("categories");
-  const value = row?.value;
-  return Array.isArray(value) ? (value.filter((v) => typeof v === "string") as string[]) : [];
-}
-
-function validateCategoriesAgainstMasterList(categories: string[], master: string[]): void {
-  const invalid = categories.filter((c) => !master.includes(c));
-  if (invalid.length > 0) {
-    throw new Error(
-      `Not in the category list: ${invalid.join(", ")}. Add ${invalid.length === 1 ? "it" : "them"} to the master list in Admin Settings first, or pick an existing category.`,
-    );
-  }
-}
-
-export async function setBookCategories(params: {
-  bookId: string;
-  categories: string[];
-}): Promise<{ before: string[]; after: string[] }> {
-  const master = await getMasterCategories();
-  const deduped = [...new Set(params.categories.map((c) => c.trim()).filter(Boolean))];
-  validateCategoriesAgainstMasterList(deduped, master);
-  const db = await admin();
-  const { data: before, error: beforeError } = await db
-    .from("books")
-    .select("categories, content_classification")
-    .eq("id", params.bookId)
-    .single();
-  if (beforeError) throw new Error(beforeError.message);
-  const wasReligious = before?.content_classification === "religious";
-  const hasReligious = deduped.includes("Religious");
-  if (wasReligious && !hasReligious) {
-    throw new Error(
-      'The protected "Religious" category cannot be removed directly. Use the owner-only content-policy downgrade workflow.',
-    );
-  }
-  if (!wasReligious && hasReligious) {
-    throw new Error(
-      'Religious is a protected content classification, not a normal tag. Use "Content policy & typography" to classify this book as Religious.',
-    );
-  }
-  const { error } = await db.from("books").update({ categories: deduped }).eq("id", params.bookId);
-  if (error) throw new Error(error.message);
-  return { before: (before?.categories as string[] | null) ?? [], after: deduped };
-}
-
-export interface BulkCategoryResult {
-  bookId: string;
-  ok: boolean;
-  error?: string;
-}
-
-/** Adds OR removes a single category across many books at once — safe to
- * do in bulk because each book's own array is patched independently (no
- * shared state, no risk of one book's failure corrupting another's), the
- * same resilience pattern as bulkSetAccessType. */
-export async function bulkPatchBookCategory(params: {
-  bookIds: string[];
-  category: string;
-  action: "add" | "remove";
-}): Promise<BulkCategoryResult[]> {
-  if (params.category === "Religious") {
-    throw new Error(
-      params.action === "remove"
-        ? 'The protected "Religious" category cannot be removed in bulk. Change a Religious book classification only through the owner-only content-policy workflow.'
-        : 'Religious cannot be added as a bulk tag. Classify each book through "Content policy & typography" so source-only translation and free-access safeguards are applied deliberately.',
-    );
-  }
-  const master = await getMasterCategories();
-  if (params.action === "add") {
-    validateCategoriesAgainstMasterList([params.category], master);
-  }
-  const db = await admin();
-  const results: BulkCategoryResult[] = [];
-  for (const bookId of params.bookIds) {
-    try {
-      const { data: row, error: readError } = await db
-        .from("books")
-        .select("categories")
-        .eq("id", bookId)
-        .single();
-      if (readError) throw new Error(readError.message);
-      const current = (row?.categories as string[] | null) ?? [];
-      const next =
-        params.action === "add"
-          ? current.includes(params.category)
-            ? current
-            : [...current, params.category]
-          : current.filter((c) => c !== params.category);
-      const { error: writeError } = await db
-        .from("books")
-        .update({ categories: next })
-        .eq("id", bookId);
-      if (writeError) throw new Error(writeError.message);
-      results.push({ bookId, ok: true });
-    } catch (error) {
-      results.push({ bookId, ok: false, error: error instanceof Error ? error.message : String(error) });
-    }
-  }
-  return results;
-}
-
-export async function suggestCategory(params: {
-  contentType: "book" | "research_paper";
-  contentId: string;
-  suggestedBy: string;
-  category: string;
-}): Promise<{ id: string }> {
-  if (!params.category.trim()) throw new Error("Enter a category to suggest.");
-  const db = await admin();
-  // Ownership is re-verified here even though RLS also enforces it on the
-  // client-facing insert path — this function is called from a server
-  // function that (like every other admin-adjacent one in this codebase)
-  // uses the service-role client, which bypasses RLS entirely, so this
-  // check IS the enforcement for this specific call path, not a redundant
-  // extra.
-  const table = params.contentType === "book" ? "books" : "research_papers";
-  const { data: owned, error: ownError } = await db
-    .from(table)
-    .select("author_id")
-    .eq("id", params.contentId)
-    .maybeSingle();
-  if (ownError) throw new Error(ownError.message);
-  if (!owned || owned.author_id !== params.suggestedBy) {
-    throw new Error("You can only suggest a category for your own submission.");
-  }
-  const { data, error } = await db
-    .from("category_suggestions")
-    .insert({
-      content_type: params.contentType,
-      content_id: params.contentId,
-      suggested_by: params.suggestedBy,
-      suggested_category: params.category.trim(),
-    })
-    .select("id")
-    .single();
-  if (error) throw new Error(error.message);
-  return { id: data.id as string };
-}
-
-export interface CategorySuggestionRow {
-  id: string;
-  content_type: "book" | "research_paper";
-  content_id: string;
-  suggested_category: string;
-  suggested_by: string;
-  status: "pending" | "approved" | "declined";
-  decision_note: string | null;
-  decided_by: string | null;
-  decided_at: string | null;
-  created_at: string;
-}
-
-// Explicit return type — without it, since category_suggestions isn't in
-// the generated Supabase types until migration 0014 is applied, TS falls
-// back to a polluted union of unrelated table row shapes (content_settings,
-// admin_action_events, ...) that leaks into every caller, same class of bug
-// as listBookEditions had in an earlier pass.
-export async function listCategorySuggestions(status?: string): Promise<CategorySuggestionRow[]> {
-  const db = await admin();
-  let query = db
-    .from("category_suggestions")
-    .select("*")
-    .order("created_at", { ascending: false });
-  if (status) query = query.eq("status", status);
-  const { data, error } = await query;
-  if (error) throw new Error(error.message);
-  return (data ?? []) as unknown as CategorySuggestionRow[];
-}
-
-/** Deciding a suggestion NEVER itself changes books.categories or the
- * master list — "approved" only means "an admin agrees this is a
- * reasonable category," recorded for reference. Actually adding it to a
- * book (setBookCategories) or to the master vocabulary (a separate
- * content_settings["categories"] publish) is always a distinct, later,
- * deliberate admin action — this is what keeps "an author must not
- * publish a new public category or bypass review" true regardless of how
- * this decision comes out. */
-export async function decideCategorySuggestion(params: {
-  suggestionId: string;
-  decision: "approved" | "declined";
-  decidedBy: string;
-  note?: string | undefined;
-}): Promise<{ before: Record<string, unknown> | null }> {
-  const db = await admin();
-  const { data: before, error: beforeError } = await db
-    .from("category_suggestions")
-    .select("*")
-    .eq("id", params.suggestionId)
-    .single();
-  if (beforeError) throw new Error(beforeError.message);
-  const { error } = await db
-    .from("category_suggestions")
-    .update({
-      status: params.decision,
-      decided_by: params.decidedBy,
-      decided_at: new Date().toISOString(),
-      decision_note: params.note ?? null,
-    })
-    .eq("id", params.suggestionId);
-  if (error) throw new Error(error.message);
-  return { before };
-}
