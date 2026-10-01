@@ -43,3 +43,20 @@ npm run deploy:cloudflare
 ```
 
 After deployment verify `https://seeparah.com`, security headers, public catalog visibility, reader routes, authentication, and the admin surface.
+
+## Browser Supabase configuration invariant
+
+The browser must always have the production Supabase project URL and the
+`sb_publishable_*` client key. They are public client configuration, not
+secrets, and are intentionally retained in
+`src/config/public-supabase.ts` as a committed fallback.
+
+The client may prefer `VITE_SUPABASE_URL` and
+`VITE_SUPABASE_PUBLISHABLE_KEY` when a build environment provides them, but a
+missing Vite environment must never make the browser bundle unusable.
+
+Every `npm run build` runs
+`scripts/verify-client-supabase-config.mjs` after Vite. The build fails if the
+production Supabase URL or publishable key is absent from the generated browser
+JavaScript. Do not remove this guard. The service-role key remains server-only
+and must never be placed in browser configuration.
