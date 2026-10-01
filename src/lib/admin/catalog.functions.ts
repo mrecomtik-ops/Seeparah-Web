@@ -2,6 +2,10 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/admin/require-admin.server";
 import { recordAudit } from "@/lib/admin/audit.server";
+import {
+  CATEGORY_ADMIN_WORKER_BATCH_SIZE,
+  HEAVY_ADMIN_WORKER_BATCH_SIZE,
+} from "@/lib/admin/worker-batching";
 
 const withToken = <T extends z.ZodRawShape>(shape: T) =>
   z.object({ accessToken: z.string(), ...shape });
@@ -164,7 +168,7 @@ export const adminReviewBookReaderQuality = createServerFn({ method: "POST" })
 export const adminBulkApproveBookReviews = createServerFn({ method: "POST" })
   .validator((data) =>
     withToken({
-      bookIds: z.array(z.string()).min(1).max(200),
+      bookIds: z.array(z.string()).min(1).max(HEAVY_ADMIN_WORKER_BATCH_SIZE),
       notes: z.string().max(4000).optional(),
     }).parse(data),
   )
@@ -194,7 +198,7 @@ export const adminBulkApproveBookReviews = createServerFn({ method: "POST" })
 export const adminBulkRequestBookChanges = createServerFn({ method: "POST" })
   .validator((data) =>
     withToken({
-      bookIds: z.array(z.string()).min(1).max(200),
+      bookIds: z.array(z.string()).min(1).max(HEAVY_ADMIN_WORKER_BATCH_SIZE),
       notes: z.string().min(3).max(4000),
     }).parse(data),
   )
@@ -243,7 +247,7 @@ export const adminPublishCatalogBook = createServerFn({ method: "POST" })
 export const adminBulkPublishCatalogBooks = createServerFn({ method: "POST" })
   .validator((data) =>
     withToken({
-      bookIds: z.array(z.string()).min(1).max(200),
+      bookIds: z.array(z.string()).min(1).max(HEAVY_ADMIN_WORKER_BATCH_SIZE),
     }).parse(data),
   )
   .handler(async ({ data }) => {
@@ -987,7 +991,7 @@ export const adminSetBookCategories = createServerFn({ method: "POST" })
 export const adminBulkPatchBookCategory = createServerFn({ method: "POST" })
   .validator((data) =>
     withToken({
-      bookIds: z.array(z.string()).min(1),
+      bookIds: z.array(z.string()).min(1).max(CATEGORY_ADMIN_WORKER_BATCH_SIZE),
       category: z.string().min(1),
       action: z.enum(["add", "remove"]),
     }).parse(data),

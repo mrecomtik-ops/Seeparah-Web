@@ -14,6 +14,11 @@ import {
   adminBulkPublishCatalogBooks,
   adminBulkRequestBookChanges,
 } from "@/lib/admin/catalog.functions";
+import {
+  CATEGORY_ADMIN_WORKER_BATCH_SIZE,
+  HEAVY_ADMIN_WORKER_BATCH_SIZE,
+  splitIntoWorkerBatches,
+} from "@/lib/admin/worker-batching";
 
 export const Route = createFileRoute("/admin/books/")({
   component: AdminBooksList,
@@ -154,12 +159,21 @@ function AdminBooksList() {
     if (publishableSelected.length === 0) return;
     setPublishBusy(true);
     try {
-      const results = await adminBulkPublishCatalogBooks({
-        data: {
-          accessToken: await getAccessToken(),
-          bookIds: publishableSelected.map((book) => book.id),
-        },
-      });
+      const accessToken = await getAccessToken();
+      const results = [];
+      for (const bookIds of splitIntoWorkerBatches(
+        publishableSelected.map((book) => book.id),
+        HEAVY_ADMIN_WORKER_BATCH_SIZE,
+      )) {
+        results.push(
+          ...(await adminBulkPublishCatalogBooks({
+            data: {
+              accessToken,
+              bookIds,
+            },
+          })),
+        );
+      }
       const failed = results.filter((result) => !result.ok);
       const published = results.length - failed.length;
       if (failed.length === 0) {
@@ -188,13 +202,19 @@ function AdminBooksList() {
     if (selected.size === 0) return;
     setReviewBusy(true);
     try {
-      const results = await adminBulkApproveBookReviews({
-        data: {
-          accessToken: await getAccessToken(),
-          bookIds: [...selected],
-          notes: "Bulk review approval from Admin Catalog",
-        },
-      });
+      const accessToken = await getAccessToken();
+      const results = [];
+      for (const bookIds of splitIntoWorkerBatches([...selected], HEAVY_ADMIN_WORKER_BATCH_SIZE)) {
+        results.push(
+          ...(await adminBulkApproveBookReviews({
+            data: {
+              accessToken,
+              bookIds,
+              notes: "Bulk review approval from Admin Catalog",
+            },
+          })),
+        );
+      }
       const complete = results.filter((result) => result.ok).length;
       const needsAttention = results.length - complete;
       if (needsAttention === 0) {
@@ -230,13 +250,19 @@ function AdminBooksList() {
     }
     setChangeRequestBusy(true);
     try {
-      const results = await adminBulkRequestBookChanges({
-        data: {
-          accessToken: await getAccessToken(),
-          bookIds: [...selected],
-          notes,
-        },
-      });
+      const accessToken = await getAccessToken();
+      const results = [];
+      for (const bookIds of splitIntoWorkerBatches([...selected], HEAVY_ADMIN_WORKER_BATCH_SIZE)) {
+        results.push(
+          ...(await adminBulkRequestBookChanges({
+            data: {
+              accessToken,
+              bookIds,
+              notes,
+            },
+          })),
+        );
+      }
       const failed = results.filter((result) => !result.ok);
       if (failed.length === 0) {
         toast.success(`Changes requested for ${results.length} book(s).`);
@@ -266,14 +292,23 @@ function AdminBooksList() {
     if (!bulkCategory || selected.size === 0) return;
     setCategoryBusy(true);
     try {
-      const results = await adminBulkPatchBookCategory({
-        data: {
-          accessToken: await getAccessToken(),
-          bookIds: [...selected],
-          category: bulkCategory,
-          action,
-        },
-      });
+      const accessToken = await getAccessToken();
+      const results = [];
+      for (const bookIds of splitIntoWorkerBatches(
+        [...selected],
+        CATEGORY_ADMIN_WORKER_BATCH_SIZE,
+      )) {
+        results.push(
+          ...(await adminBulkPatchBookCategory({
+            data: {
+              accessToken,
+              bookIds,
+              category: bulkCategory,
+              action,
+            },
+          })),
+        );
+      }
       const failed = results.filter((r) => !r.ok);
       if (failed.length === 0) {
         toast.success(
