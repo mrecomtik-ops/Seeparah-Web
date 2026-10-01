@@ -683,19 +683,77 @@ export async function reviewEdition(params: {
   return { before, after: { edition_review_status: params.decision, ...statusPatch } };
 }
 
+export function isPublishableLifecycleStatus(status: string | null | undefined): boolean {
+  return status === "approved" || status === "unpublished";
+}
+
 export async function publishBook(bookId: string, reviewerId: string) {
+  const db = await admin();
+  const { data: before, error: beforeError } = await db
+    .from("books")
+    .select("title,status")
+    .eq("id", bookId)
+    .single();
+  if (beforeError || !before) throw new Error(beforeError?.message ?? "Book not found");
+  if (!isPublishableLifecycleStatus(before.status)) {
+    throw new Error(
+      `Cannot publish while book status is ${before.status.replaceAll("_", " ")}. Approve the book first, or use an unpublished book for republishing.`,
+    );
+  }
+
   const gate = await evaluatePublishGate(bookId);
   if (!gate.canPublish) {
     throw new Error(`Cannot publish: ${gate.reasons.join("; ")}`);
   }
-  const db = await admin();
-  const { data: before } = await db.from("books").select("status").eq("id", bookId).single();
   const { error } = await db
     .from("books")
     .update({ status: "published", reviewed_by: reviewerId, reviewed_at: new Date().toISOString() })
     .eq("id", bookId);
   if (error) throw new Error(error.message);
   return { before, after: { status: "published" } };
+}
+
+export interface BulkBookPublishResult {
+  bookId: string;
+  title: string;
+  ok: boolean;
+  error?: string;
+}
+
+export async function bulkPublishBooks(params: {
+  bookIds: string[];
+  reviewerId: string;
+}): Promise<BulkBookPublishResult[]> {
+  const results: BulkBookPublishResult[] = [];
+
+  for (const bookId of [...new Set(params.bookIds)]) {
+    let title = "Unknown book";
+    try {
+      const diff = await publishBook(bookId, params.reviewerId);
+      title = diff.before?.title ?? title;
+      results.push({ bookId, title, ok: true });
+    } catch (error) {
+      try {
+        const db = await admin();
+        const { data: book } = await db
+          .from("books")
+          .select("title")
+          .eq("id", bookId)
+          .maybeSingle();
+        title = book?.title ?? title;
+      } catch {
+        // Keep the fallback title; the original publish error is the useful result.
+      }
+      results.push({
+        bookId,
+        title,
+        ok: false,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  return results;
 }
 
 export async function setBookLifecycleStatus(params: {

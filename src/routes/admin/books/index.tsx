@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { CheckCheck, Loader2, Plus, Trash2 } from "lucide-react";
+import { Archive, CheckCheck, Globe2, Loader2, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { getAccessToken, useResolvedAdminSession, can } from "@/lib/admin/use-admin-session";
 import { getPublicContentSettings } from "@/lib/admin/settings.functions";
@@ -11,6 +11,7 @@ import {
   adminSetBookLifecycle,
   adminBulkPatchBookCategory,
   adminBulkApproveBookReviews,
+  adminBulkPublishCatalogBooks,
   adminBulkRequestBookChanges,
 } from "@/lib/admin/catalog.functions";
 
@@ -40,13 +41,20 @@ function catalogActionLabel(book: {
   status: string;
   rights_status: string | null;
   edition_review_status: string | null;
+  structure_review_status: string | null;
+  cleanup_review_status: string | null;
 }) {
   if (book.status === "published") return "Manage";
   if (book.status === "archived") return "Review archive";
-  if (book.rights_status !== "approved" || book.edition_review_status !== "approved") {
+  if (
+    book.rights_status !== "approved" ||
+    book.edition_review_status !== "approved" ||
+    book.structure_review_status !== "approved" ||
+    book.cleanup_review_status !== "approved"
+  ) {
     return "Review blockers";
   }
-  if (book.status === "approved") return "Review & publish";
+  if (book.status === "approved" || book.status === "unpublished") return "Review & publish";
   return "Continue review";
 }
 
@@ -60,6 +68,8 @@ function AdminBooksList() {
   const [bulkCategory, setBulkCategory] = useState("");
   const [categoryBusy, setCategoryBusy] = useState(false);
   const [reviewBusy, setReviewBusy] = useState(false);
+  const [publishBusy, setPublishBusy] = useState(false);
+  const [publishConfirmOpen, setPublishConfirmOpen] = useState(false);
   const [changeRequestBusy, setChangeRequestBusy] = useState(false);
   const [bulkChangeNote, setBulkChangeNote] = useState("");
   const queryClient = useQueryClient();
@@ -89,7 +99,13 @@ function AdminBooksList() {
   });
 
   const books = booksQuery.data?.books ?? [];
+  const total = booksQuery.data?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / 20));
   const selectedBooks = books.filter((b) => selected.has(b.id));
+  const publishableSelected = selectedBooks.filter(
+    (book) => book.status === "approved" || book.status === "unpublished",
+  );
+  const nonPublishableSelectedCount = selectedBooks.length - publishableSelected.length;
 
   useEffect(() => {
     setSelected(new Set());
@@ -121,16 +137,50 @@ function AdminBooksList() {
           accessToken: await getAccessToken(),
           bookId: deleteTarget.id,
           status: "archived",
-          reason: "Deleted (reversible) from the admin catalog list",
+          reason: "Archived from the admin catalog list",
         },
       });
       toast.success("Archived — reversible from the book's detail page anytime.");
       setDeleteTarget(null);
       await queryClient.invalidateQueries({ queryKey: ["admin-books"] });
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Couldn't delete this book");
+      toast.error(error instanceof Error ? error.message : "Couldn't archive this book");
     } finally {
       setDeleting(false);
+    }
+  }
+
+  async function publishSelected() {
+    if (publishableSelected.length === 0) return;
+    setPublishBusy(true);
+    try {
+      const results = await adminBulkPublishCatalogBooks({
+        data: {
+          accessToken: await getAccessToken(),
+          bookIds: publishableSelected.map((book) => book.id),
+        },
+      });
+      const failed = results.filter((result) => !result.ok);
+      const published = results.length - failed.length;
+      if (failed.length === 0) {
+        toast.success(`Published ${published} book(s).`);
+      } else {
+        const details = failed
+          .slice(0, 5)
+          .map((result) => `${result.title}: ${result.error ?? "Publish gate blocked this book"}`)
+          .join(" • ");
+        toast.error(
+          `${published} published; ${failed.length} blocked.${details ? ` ${details}` : ""}`,
+          { duration: 14000 },
+        );
+      }
+      setPublishConfirmOpen(false);
+      setSelected(new Set());
+      await queryClient.invalidateQueries({ queryKey: ["admin-books"] });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Bulk publish failed");
+    } finally {
+      setPublishBusy(false);
     }
   }
 
@@ -162,6 +212,7 @@ function AdminBooksList() {
           { duration: 12000 },
         );
       }
+      setSelected(new Set());
       await queryClient.invalidateQueries({ queryKey: ["admin-books"] });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Bulk review failed");
@@ -202,6 +253,7 @@ function AdminBooksList() {
           { duration: 12000 },
         );
       }
+      setSelected(new Set());
       await queryClient.invalidateQueries({ queryKey: ["admin-books"] });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Bulk change request failed");
@@ -280,9 +332,35 @@ function AdminBooksList() {
         />
       </div>
 
+      {!booksQuery.isLoading && !booksQuery.isError && (
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+          <span>
+            {total} matching {total === 1 ? "book" : "books"}
+            {totalPages > 1 ? ` · Page ${page} of ${totalPages}` : ""}
+          </span>
+          <span>Select book checkboxes to reveal bulk review, publish, and category actions.</span>
+        </div>
+      )}
+
       {selected.size > 0 && (
         <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-4 py-2.5 text-sm">
           <span className="font-semibold text-foreground">{selected.size} selected</span>
+          {canPublish && publishableSelected.length > 0 && (
+            <button
+              disabled={publishBusy}
+              onClick={() => setPublishConfirmOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-60"
+              title="Every selected book is rechecked against the complete publish gate before it becomes public."
+            >
+              <Globe2 className="h-3.5 w-3.5" />
+              Publish selected ({publishableSelected.length})
+            </button>
+          )}
+          {nonPublishableSelectedCount > 0 && (
+            <span className="text-xs text-muted-foreground">
+              {nonPublishableSelectedCount} selected not yet approved
+            </span>
+          )}
           {canReview && (
             <button
               disabled={reviewBusy}
@@ -387,7 +465,9 @@ function AdminBooksList() {
                 <th className="px-4 py-2">Status</th>
                 <th className="px-4 py-2">Original access</th>
                 <th className="px-4 py-2">Rights</th>
-                <th className="px-4 py-2">Edition review</th>
+                <th className="px-4 py-2">Edition</th>
+                <th className="px-4 py-2">Structure</th>
+                <th className="px-4 py-2">Cleanup</th>
                 <th className="px-4 py-2">Actions</th>
               </tr>
             </thead>
@@ -447,7 +527,15 @@ function AdminBooksList() {
                     </span>
                   </td>
                   <td className="px-4 py-2 text-xs">{b.rights_status}</td>
-                  <td className="px-4 py-2 text-xs">{b.edition_review_status}</td>
+                  <td className="px-4 py-2 text-xs">
+                    {statusLabel(b.edition_review_status ?? "")}
+                  </td>
+                  <td className="px-4 py-2 text-xs">
+                    {statusLabel(b.structure_review_status ?? "")}
+                  </td>
+                  <td className="px-4 py-2 text-xs">
+                    {statusLabel(b.cleanup_review_status ?? "")}
+                  </td>
                   <td className="px-4 py-2 text-xs">
                     <div className="flex items-center gap-2">
                       <Link
@@ -462,7 +550,7 @@ function AdminBooksList() {
                           onClick={() => setDeleteTarget({ id: b.id, title: b.title })}
                           className="inline-flex items-center gap-1 text-destructive hover:underline"
                         >
-                          <Trash2 className="h-3 w-3" /> Delete
+                          <Archive className="h-3 w-3" /> Archive
                         </button>
                       )}
                     </div>
@@ -471,7 +559,7 @@ function AdminBooksList() {
               ))}
               {books.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="px-4 py-8 text-center text-sm text-muted-foreground">
+                  <td colSpan={11} className="px-4 py-8 text-center text-sm text-muted-foreground">
                     No books match.
                   </td>
                 </tr>
@@ -489,26 +577,80 @@ function AdminBooksList() {
           Previous
         </button>
         <button
-          disabled={books.length < 20}
-          onClick={() => setPage((p) => p + 1)}
+          disabled={page >= totalPages}
+          onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
           className="rounded-lg border border-border px-3 py-1.5 text-xs disabled:opacity-40"
         >
           Next
         </button>
+        <span className="self-center text-xs text-muted-foreground">
+          {total > 0 ? `Page ${page} of ${totalPages} · ${total} total` : "0 books"}
+        </span>
       </div>
+
+      {publishConfirmOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-lg rounded-2xl border border-border bg-card p-6 card-shadow-lg">
+            <h2 className="font-display text-lg font-semibold text-foreground">
+              Publish {publishableSelected.length} selected{" "}
+              {publishableSelected.length === 1 ? "book" : "books"}?
+            </h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Each book will be rechecked for rights, edition quality, structure, cleanup, summary,
+              exact-edition metadata, and any protected content requirements. A blocked book stays
+              unpublished and will be reported; eligible books become public immediately.
+            </p>
+            {publishableSelected.length > 0 && (
+              <div className="mt-3 max-h-40 overflow-y-auto rounded-xl bg-secondary/50 p-3 text-xs text-foreground">
+                {publishableSelected.slice(0, 12).map((book) => (
+                  <div key={book.id}>• {book.title}</div>
+                ))}
+                {publishableSelected.length > 12 && (
+                  <div className="mt-1 text-muted-foreground">
+                    + {publishableSelected.length - 12} more
+                  </div>
+                )}
+              </div>
+            )}
+            {nonPublishableSelectedCount > 0 && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                {nonPublishableSelectedCount} other selected book(s) are not Approved/Unpublished
+                and will not be sent to the publish operation.
+              </p>
+            )}
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                onClick={() => setPublishConfirmOpen(false)}
+                disabled={publishBusy}
+                className="rounded-lg border border-border px-4 py-2 text-sm font-semibold hover:bg-secondary disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => void publishSelected()}
+                disabled={publishBusy || publishableSelected.length === 0}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+              >
+                <Globe2 className="h-4 w-4" />
+                {publishBusy ? "Publishing…" : "Publish eligible books"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {deleteTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 card-shadow-lg">
             <h2 className="font-display text-lg font-semibold text-foreground">
-              Delete “{deleteTarget.title}”?
+              Archive “{deleteTarget.title}”?
             </h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              This archives the book — it stops being published and disappears from the catalog, but
-              nothing is erased. Chunks, translations, editions, reader highlights and progress,
-              requests, and audit history all stay intact, and this can be reversed from the book's
-              detail page anytime. For irreversible deletion, open the book and use "Delete
-              permanently" (owner/administrator only).
+              This removes the book from public availability without erasing it. Chunks,
+              translations, editions, reader highlights and progress, requests, and audit history
+              all stay intact, and this can be reversed from the book's detail page anytime. For
+              irreversible deletion, open the book and use "Delete permanently" (owner/administrator
+              only).
             </p>
             <div className="mt-4 flex justify-end gap-2">
               <button
@@ -523,7 +665,7 @@ function AdminBooksList() {
                 disabled={deleting}
                 className="rounded-lg bg-destructive px-4 py-2 text-sm font-semibold text-destructive-foreground disabled:opacity-60"
               >
-                {deleting ? "Archiving…" : "Delete (archive)"}
+                {deleting ? "Archiving…" : "Archive book"}
               </button>
             </div>
           </div>

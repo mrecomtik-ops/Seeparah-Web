@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   allBookReviewStagesApproved,
   computePublishGate,
+  isPublishableLifecycleStatus,
   parseCsvManifest,
 } from "@/lib/admin/catalog.server";
 
@@ -241,5 +242,17 @@ describe("allBookReviewStagesApproved", () => {
         cleanup_review_status: "approved",
       }),
     ).toBe(false);
+  });
+});
+
+describe("isPublishableLifecycleStatus", () => {
+  it("only allows approved books and explicitly unpublished books to enter published state", () => {
+    expect(isPublishableLifecycleStatus("approved")).toBe(true);
+    expect(isPublishableLifecycleStatus("unpublished")).toBe(true);
+    expect(isPublishableLifecycleStatus("in_review")).toBe(false);
+    expect(isPublishableLifecycleStatus("changes_requested")).toBe(false);
+    expect(isPublishableLifecycleStatus("rejected")).toBe(false);
+    expect(isPublishableLifecycleStatus("archived")).toBe(false);
+    expect(isPublishableLifecycleStatus("published")).toBe(false);
   });
 });

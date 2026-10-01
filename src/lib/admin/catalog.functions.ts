@@ -240,6 +240,34 @@ export const adminPublishCatalogBook = createServerFn({ method: "POST" })
     return { ok: true as const };
   });
 
+export const adminBulkPublishCatalogBooks = createServerFn({ method: "POST" })
+  .validator((data) =>
+    withToken({
+      bookIds: z.array(z.string()).min(1).max(200),
+    }).parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { userId, role } = await requireAdmin(data.accessToken, "catalog.publish");
+    const { bulkPublishBooks } = await import("@/lib/admin/catalog.server");
+    const results = await bulkPublishBooks({
+      bookIds: data.bookIds,
+      reviewerId: userId,
+    });
+    await recordAudit({
+      actorId: userId,
+      actorRole: role,
+      action: "catalog.bulk_publish",
+      entityType: "book_batch",
+      entityId: `batch:${Date.now()}`,
+      after: {
+        requested: data.bookIds.length,
+        published: results.filter((result) => result.ok).length,
+        failed: results.filter((result) => !result.ok).length,
+      },
+    });
+    return results;
+  });
+
 export const adminSetBookLifecycle = createServerFn({ method: "POST" })
   .validator((data) =>
     withToken({
