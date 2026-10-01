@@ -5,15 +5,10 @@ import { requireUserId } from "@/lib/require-user.server";
 const withToken = <T extends z.ZodRawShape>(shape: T) =>
   z.object({ accessToken: z.string(), ...shape });
 
-// Same 6MB Netlify Functions payload ceiling as book EPUB uploads (see
-// MAX_UPLOAD_RAW_BYTES in src/lib/admin/catalog.functions.ts) — a research
-// paper PDF goes through this same base64-over-server-function path since
-// sending raw bytea through the direct client REST call is unreliable, not
-// because papers need a different limit. Most real papers (a
-// double-spaced humanities essay, even at 30+ pages) comfortably fit well
-// under this; a larger PDF needs a dedicated object-storage upload path,
-// which this project does not have yet — flagged as a known follow-up,
-// not silently worked around here.
+// Match the conservative app-level cap used for EPUB uploads. Research
+// PDFs use the same base64-over-server-function path; larger files should
+// move to a dedicated object-storage upload path rather than increasing
+// request memory and encoding overhead.
 export const MAX_PAPER_PDF_RAW_BYTES = 3 * 1024 * 1024;
 const MAX_PAPER_PDF_BASE64_CHARS = Math.ceil(MAX_PAPER_PDF_RAW_BYTES / 3) * 4;
 

@@ -5,7 +5,7 @@
 #
 # In production these same names are set via `wrangler secret put NAME`
 # (secrets) or the `vars` block in wrangler.jsonc (non-secret config) --
-# see the migration report for which is which. Unlike Netlify, Cloudflare
+# see the migration report for which is which. Cloudflare Workers
 # has no tracked .env with public defaults baked in, so every server-side
 # name below has to be set explicitly, even the Supabase project id/URL.
 

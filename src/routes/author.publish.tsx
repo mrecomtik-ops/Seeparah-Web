@@ -42,8 +42,8 @@ export const Route = createFileRoute("/author/publish")({
 const ACCEPTED_UPLOAD_TYPES = ".txt,.md,text/plain,.epub";
 const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 // Matches MAX_EPUB_RAW_BYTES in manuscript-import.functions.ts — the real
-// ceiling is Netlify's 6MB Functions request-payload limit (a platform
-// constraint, not this app's choice), not an arbitrary "20MB" figure.
+// ceiling is an app-level limit for the current encoded upload path (a
+// deliberate safety bound), not an arbitrary "20MB" figure.
 const MAX_EPUB_BYTES = MAX_EPUB_RAW_BYTES;
 
 function PublishPage() {

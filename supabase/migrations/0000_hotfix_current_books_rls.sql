@@ -29,7 +29,7 @@
 -- through automated sequential `supabase migration list` ordering (no
 -- session working on this project has ever had a working path to that;
 -- see docs/seeparah-backend-recovery-plan.md and
--- docs/lovable-final-handoff.md). A leading-zero filename that sorts
+-- docs/cloudflare-production-handoff.md). A leading-zero filename that sorts
 -- before "0000" is not reliably parseable by this project's own tooling
 -- (confirmed this session: `supabase migration new` only recognizes a
 -- purely numeric, typically 14-digit timestamp prefix) — so this file
@@ -77,7 +77,7 @@
 --     silent total-deny for every role including the owner, not a safe
 --     default to leave implicit.
 --   - Does not seed any data. The new project starts empty by design —
---     see docs/lovable-final-handoff.md and the owner's explicit
+--     see docs/cloudflare-production-handoff.md and the owner's explicit
 --     instruction: "Start with fresh accounts and an empty production
 --     catalogue."
 --

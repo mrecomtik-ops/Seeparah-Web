@@ -17,12 +17,10 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireUserId } from "@/lib/require-user.server";
 
-// This request travels over Netlify's synchronous Functions transport
-// (AWS Lambda), which has a hard 6MB request payload limit that Netlify
-// cannot raise. A larger ceiling here would be silently unreachable in
-// production: Netlify's edge rejects the request before this function
-// (or its own Zod validator) ever runs. See src/lib/admin/catalog.functions.ts
-// for the matching limit on the admin upload path.
+// Keep this aligned with the admin EPUB upload cap. The file is encoded
+// into a server-function request, so a conservative app-level ceiling
+// keeps memory and base64/JSON overhead predictable. Larger imports
+// should move to a direct object-storage upload flow.
 export const MAX_EPUB_RAW_BYTES = 3 * 1024 * 1024;
 const MAX_EPUB_BASE64_CHARS = Math.ceil(MAX_EPUB_RAW_BYTES / 3) * 4;
 

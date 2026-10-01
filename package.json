@@ -11,10 +11,10 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "test": "vitest run",
-    "dev:cloudflare": "vite dev -c vite.config.cloudflare.ts",
-    "build:cloudflare": "vite build -c vite.config.cloudflare.ts",
-    "preview:cloudflare": "vite preview -c vite.config.cloudflare.ts",
-    "deploy:cloudflare": "npm run build:cloudflare && wrangler deploy",
+    "dev:cloudflare": "npm run dev",
+    "build:cloudflare": "npm run build",
+    "preview:cloudflare": "npm run preview",
+    "deploy:cloudflare": "npm run build && wrangler deploy",
     "cf-typegen": "wrangler types"
   },
   "overrides": {
@@ -92,7 +92,6 @@
     "globals": "^15.15.0",
     "happy-dom": "^20.14.5",
     "lightningcss": "^1.30.0",
-    "nitro": "3.0.260603-beta",
     "postgres": "^3.4.9",
     "prettier": "^3.7.3",
     "typescript": "^5.8.3",

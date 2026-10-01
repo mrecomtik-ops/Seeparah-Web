@@ -57,7 +57,7 @@ export function LandingPage() {
     setGoogleError(null);
     // Native Supabase OAuth (see src/routes/auth.tsx for the full
     // explanation of why the previous Lovable-broker call 404'd on this
-    // standalone Netlify deployment). This redirects the browser itself;
+    // standalone production deployment). This redirects the browser itself;
     // there is no further navigation to do here on success.
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",

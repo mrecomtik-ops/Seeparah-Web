@@ -13,7 +13,6 @@ dist-ssr
 .output
 .vinxi
 .tanstack/**
-.nitro
 *.local
 
 # Wrangler / Cloudflare
@@ -31,8 +30,6 @@ dist-ssr
 *.sln
 *.sw?
 
-# Local Netlify folder
-.netlify
 
 # Supabase CLI local link/cache state (project ref, pooler host, version
 # cache) — regenerated per machine by `supabase link`, never meant to be

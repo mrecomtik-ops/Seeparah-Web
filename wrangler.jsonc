@@ -1,13 +1,6 @@
-// Cloudflare Workers deployment config for Seeparah, using the CURRENT
-// official TanStack Start Cloudflare architecture: the app is built with
-// @cloudflare/vite-plugin (see vite.config.cloudflare.ts) instead of Nitro
-// — Nitro remains the build backend for the existing Netlify path
-// (vite.config.ts / netlify.toml / `npm run build`), which this file does
-// not touch or replace.
-//
-// seeparah.com and www.seeparah.com are now live in production on this
-// Worker (see the `routes` block below for why they're declared here,
-// in code, rather than left as dashboard-only Custom Domains).
+// Cloudflare Workers production configuration for Seeparah.
+// The application uses @cloudflare/vite-plugin through vite.config.ts.
+// Production custom domains are declared here so local and remote routing stay aligned.
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "seeparah-web",

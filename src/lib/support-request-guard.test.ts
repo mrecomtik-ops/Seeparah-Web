@@ -47,11 +47,11 @@ describe("isSameOriginRequest", () => {
     expect(isSameOriginRequest()).toBe(false);
   });
 
-  it("prefers x-forwarded-host when present (behind Netlify's proxy)", () => {
+  it("prefers x-forwarded-host when present behind a reverse proxy", () => {
     mockHeaders = {
-      origin: "https://worktree-new-backend-setup--seeparah.netlify.app",
-      host: "internal-lb.netlify",
-      "x-forwarded-host": "worktree-new-backend-setup--seeparah.netlify.app",
+      origin: "https://preview.seeparah.com",
+      host: "internal-worker",
+      "x-forwarded-host": "preview.seeparah.com",
     };
     expect(isSameOriginRequest()).toBe(true);
   });

@@ -59,7 +59,7 @@ function AuthPage() {
     // called Lovable's own hosted OAuth broker (`@lovable.dev/cloud-auth-js`,
     // see src/integrations/lovable/index.ts), which sends the browser to a
     // same-origin path (`/~oauth/initiate`) that only Lovable's own hosting
-    // platform intercepts. On this standalone Netlify deployment nothing
+    // platform intercepts. On the standalone production deployment nothing
     // handles that path, so the app's own router 404'd on it. `redirectTo`
     // must be present in this Supabase project's Authentication > URL
     // Configuration > Redirect URLs allow-list (see deployment documentation) or

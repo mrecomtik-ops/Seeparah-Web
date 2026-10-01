@@ -46,7 +46,7 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
     // (`window.__lovableEvents`), which never exists outside Lovable's own
     // iframe and was already a silent no-op on the real site. Plain
     // console.error is the honest replacement until a real error-monitoring
-    // sink (e.g. Sentry) is wired up — see docs/lovable-final-handoff.md §5.
+    // sink (e.g. Sentry) is wired up — see docs/cloudflare-production-handoff.md §5.
     console.error(error);
   }, [error]);
 
