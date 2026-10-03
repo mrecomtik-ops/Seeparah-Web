@@ -136,8 +136,20 @@ export function resolveReaderAccess(
 export interface ReaderNavigationItem {
   index: number;
   title: string;
-  kind: "part" | "chapter" | "section" | "front_matter" | "reading";
+  kind:
+    | "part"
+    | "book"
+    | "chapter"
+    | "act"
+    | "scene"
+    | "section"
+    | "poem"
+    | "canto"
+    | "front_matter"
+    | "back_matter"
+    | "reading";
   depth: number;
+  readerStart?: boolean;
 }
 
 export async function getReaderNavigation(params: {
@@ -148,7 +160,9 @@ export async function getReaderNavigation(params: {
   const db = await admin();
   const { data: book, error: bookError } = await db
     .from("books")
-    .select("id, status, access_type, author_id, source_language, source_version, content_classification")
+    .select(
+      "id, status, access_type, author_id, source_language, source_version, content_classification",
+    )
     .eq("id", params.bookId)
     .single();
   if (bookError || !book) return [];
@@ -209,7 +223,7 @@ export async function getReaderNavigation(params: {
     try {
       const { data: nodes, error: nodesError } = await db
         .from("book_structure_nodes")
-        .select("node_type, title, depth, start_chunk_index, ordinal")
+        .select("node_type, title, depth, start_chunk_index, ordinal, metadata")
         .eq("book_id", params.bookId)
         .eq("language", params.language)
         .eq("source_version", book.source_version ?? 1)
@@ -229,28 +243,54 @@ export async function getReaderNavigation(params: {
           "poem",
           "canto",
           "front_matter",
+          "back_matter",
         ]);
         return nodes
-          .filter((node) => node.title && allowed.has(node.node_type))
+          .filter((node) => {
+            if (!node.title || !allowed.has(node.node_type)) return false;
+            const metadata =
+              node.metadata && typeof node.metadata === "object" && !Array.isArray(node.metadata)
+                ? (node.metadata as Record<string, unknown>)
+                : {};
+            return metadata["toc_visible"] !== false;
+          })
           .map((node) => {
             const type = node.node_type as string;
+            const metadata =
+              node.metadata && typeof node.metadata === "object" && !Array.isArray(node.metadata)
+                ? (node.metadata as Record<string, unknown>)
+                : {};
             const kind: ReaderNavigationItem["kind"] =
-              type === "part" || type === "book" || type === "volume"
+              type === "volume" || type === "part"
                 ? "part"
-                : type === "chapter" ||
-                    type === "story" ||
-                    type === "act" ||
-                    type === "poem" ||
-                    type === "canto"
-                  ? "chapter"
-                  : type === "front_matter"
-                    ? "front_matter"
-                    : "section";
+                : type === "book"
+                  ? "book"
+                  : type === "act"
+                    ? "act"
+                    : type === "scene"
+                      ? "scene"
+                      : type === "poem"
+                        ? "poem"
+                        : type === "canto"
+                          ? "canto"
+                          : type === "front_matter"
+                            ? "front_matter"
+                            : type === "back_matter"
+                              ? "back_matter"
+                              : type === "chapter" || type === "story"
+                                ? "chapter"
+                                : "section";
+            const displayTitle =
+              typeof metadata["display_title"] === "string" &&
+              metadata["display_title"].trim().length > 0
+                ? metadata["display_title"].trim()
+                : (node.title as string);
             return {
               index: node.start_chunk_index,
-              title: node.title as string,
+              title: displayTitle,
               kind,
               depth: Math.max(0, Math.min(3, Number(node.depth ?? 0))),
+              readerStart: metadata["reader_start"] === true,
             };
           });
       }
@@ -298,7 +338,9 @@ export async function searchReaderBook(params: {
   const db = await admin();
   const { data: book, error: bookError } = await db
     .from("books")
-    .select("id, status, access_type, author_id, source_language, source_version, content_classification")
+    .select(
+      "id, status, access_type, author_id, source_language, source_version, content_classification",
+    )
     .eq("id", params.bookId)
     .single();
   if (bookError || !book) return [];
@@ -396,7 +438,9 @@ export async function getReaderChunk(params: {
   const db = await admin();
   const { data: book, error: bookError } = await db
     .from("books")
-    .select("id, status, access_type, author_id, source_language, source_version, content_classification, typography_profile")
+    .select(
+      "id, status, access_type, author_id, source_language, source_version, content_classification, typography_profile",
+    )
     .eq("id", params.bookId)
     .single();
   if (bookError || !book) return { content: null, locked: false, reason: "not_available" };
@@ -474,7 +518,7 @@ export async function getReaderChunk(params: {
     content: chunk?.content ?? null,
     locked: false,
     typographyProfile: isSourceLanguage
-      ? book.typography_profile ?? "standard"
-      : editionTypographyProfile ?? "standard",
+      ? (book.typography_profile ?? "standard")
+      : (editionTypographyProfile ?? "standard"),
   };
 }

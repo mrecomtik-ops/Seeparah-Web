@@ -52,6 +52,87 @@ export const adminGetCatalogBook = createServerFn({ method: "POST" })
     return { ...detail, gate, editions, rightsSignals };
   });
 
+const BOOK_ORGANIZER_NODE_TYPE = z.enum([
+  "front_matter",
+  "part",
+  "book",
+  "volume",
+  "chapter",
+  "story",
+  "section",
+  "act",
+  "scene",
+  "poem",
+  "canto",
+  "footnote",
+  "endnote",
+  "back_matter",
+]);
+
+export const adminUpdateBookStructureNode = createServerFn({ method: "POST" })
+  .validator((data) =>
+    withToken({
+      bookId: z.string(),
+      nodeKey: z.string().min(1),
+      nodeType: BOOK_ORGANIZER_NODE_TYPE.optional(),
+      displayTitle: z.string().max(1000).nullable().optional(),
+      tocVisible: z.boolean().optional(),
+      readerStart: z.boolean().optional(),
+    }).parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { userId, role } = await requireAdmin(data.accessToken, "catalog.review");
+    const { updateBookStructureNode } = await import("@/lib/admin/catalog.server");
+    const diff = await updateBookStructureNode({
+      bookId: data.bookId,
+      nodeKey: data.nodeKey,
+      ...(data.nodeType !== undefined ? { nodeType: data.nodeType } : {}),
+      ...(data.displayTitle !== undefined ? { displayTitle: data.displayTitle } : {}),
+      ...(data.tocVisible !== undefined ? { tocVisible: data.tocVisible } : {}),
+      ...(data.readerStart !== undefined ? { readerStart: data.readerStart } : {}),
+    });
+    await recordAudit({
+      actorId: userId,
+      actorRole: role,
+      action: "catalog.structure_node_update",
+      entityType: "book",
+      entityId: data.bookId,
+      reason: `Book Organizer node ${data.nodeKey}`,
+      before: diff.before,
+      after: diff.after,
+    });
+    return { ok: true as const };
+  });
+
+export const adminMoveBookStructureNode = createServerFn({ method: "POST" })
+  .validator((data) =>
+    withToken({
+      bookId: z.string(),
+      nodeKey: z.string().min(1),
+      direction: z.enum(["up", "down"]),
+    }).parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { userId, role } = await requireAdmin(data.accessToken, "catalog.review");
+    const { moveBookStructureNode } = await import("@/lib/admin/catalog.server");
+    const diff = await moveBookStructureNode({
+      bookId: data.bookId,
+      nodeKey: data.nodeKey,
+      direction: data.direction,
+    });
+    await recordAudit({
+      actorId: userId,
+      actorRole: role,
+      action: "catalog.structure_node_move",
+      entityType: "book",
+      entityId: data.bookId,
+      reason: `Book Organizer move ${data.nodeKey} ${data.direction}`,
+      before: diff.before,
+      after: diff.after,
+    });
+    return { ok: true as const };
+  });
+
 export const adminReviewBookRights = createServerFn({ method: "POST" })
   .validator((data) =>
     withToken({

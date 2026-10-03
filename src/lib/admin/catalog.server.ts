@@ -12,6 +12,7 @@ import { parseManuscript } from "@/lib/manuscript";
 import { parseEpub, EpubValidationError } from "@/lib/admin/epub.server";
 import { isRequestableTranslationLanguage } from "@/lib/data";
 import { isPlaceholderBookDescription } from "@/lib/book-description";
+import type { Json } from "@/integrations/supabase/types";
 
 async function admin() {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -43,12 +44,209 @@ export async function adminGetBook(bookId: string) {
   const db = await admin();
   const { data: book, error } = await db.from("books").select("*").eq("id", bookId).single();
   if (error || !book) throw new Error("Book not found");
-  const { data: jobs } = await db
-    .from("book_translation_jobs")
-    .select("*")
-    .eq("book_id", bookId)
-    .order("created_at", { ascending: false });
-  return { book, jobs: jobs ?? [] };
+  const [{ data: jobs }, { data: structureNodes, error: structureError }] = await Promise.all([
+    db
+      .from("book_translation_jobs")
+      .select("*")
+      .eq("book_id", bookId)
+      .order("created_at", { ascending: false }),
+    db
+      .from("book_structure_nodes")
+      .select(
+        "node_key,parent_node_key,node_type,title,ordinal,depth,start_chunk_index,end_chunk_index,metadata",
+      )
+      .eq("book_id", bookId)
+      .eq("language", book.source_language)
+      .eq("source_version", book.source_version ?? 1)
+      .order("ordinal", { ascending: true }),
+  ]);
+  if (structureError && structureError.code !== "42P01") {
+    throw new Error(`Couldn't load book structure: ${structureError.message}`);
+  }
+  return { book, jobs: jobs ?? [], structureNodes: structureNodes ?? [] };
+}
+
+export const BOOK_ORGANIZER_NODE_TYPES = [
+  "front_matter",
+  "part",
+  "book",
+  "volume",
+  "chapter",
+  "story",
+  "section",
+  "act",
+  "scene",
+  "poem",
+  "canto",
+  "footnote",
+  "endnote",
+  "back_matter",
+] as const;
+
+export type BookOrganizerNodeType = (typeof BOOK_ORGANIZER_NODE_TYPES)[number];
+
+function organizerMetadata(value: unknown): { [key: string]: Json | undefined } {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? { ...(value as { [key: string]: Json | undefined }) }
+    : {};
+}
+
+async function getEditableOrganizerBook(bookId: string) {
+  const db = await admin();
+  const { data: book, error } = await db
+    .from("books")
+    .select("id,status,source_language,source_version,structure_review_status")
+    .eq("id", bookId)
+    .single();
+  if (error || !book) throw new Error("Book not found");
+  if (book.status === "published") {
+    throw new Error("Unpublish this book before changing its reader structure.");
+  }
+  return { db, book };
+}
+
+export async function updateBookStructureNode(params: {
+  bookId: string;
+  nodeKey: string;
+  nodeType?: BookOrganizerNodeType;
+  displayTitle?: string | null;
+  tocVisible?: boolean;
+  readerStart?: boolean;
+}): Promise<{ before: Record<string, unknown>; after: Record<string, unknown> }> {
+  const { db, book } = await getEditableOrganizerBook(params.bookId);
+  const base = db
+    .from("book_structure_nodes")
+    .select(
+      "node_key,parent_node_key,node_type,title,ordinal,depth,start_chunk_index,end_chunk_index,metadata",
+    )
+    .eq("book_id", params.bookId)
+    .eq("language", book.source_language)
+    .eq("source_version", book.source_version ?? 1);
+
+  const { data: before, error } = await base.eq("node_key", params.nodeKey).single();
+  if (error || !before) throw new Error("Structure node not found");
+
+  const metadata = organizerMetadata(before.metadata);
+  if (params.displayTitle !== undefined) {
+    const next = params.displayTitle?.trim();
+    if (next) metadata["display_title"] = next;
+    else delete metadata["display_title"];
+  }
+  if (params.tocVisible !== undefined) metadata["toc_visible"] = params.tocVisible;
+  if (params.readerStart !== undefined) metadata["reader_start"] = params.readerStart;
+
+  if (params.readerStart === true) {
+    const { data: starts, error: startsError } = await db
+      .from("book_structure_nodes")
+      .select("node_key,metadata")
+      .eq("book_id", params.bookId)
+      .eq("language", book.source_language)
+      .eq("source_version", book.source_version ?? 1)
+      .contains("metadata", { reader_start: true });
+    if (startsError) throw new Error(startsError.message);
+    for (const start of starts ?? []) {
+      if (start.node_key === params.nodeKey) continue;
+      const previousMetadata = organizerMetadata(start.metadata);
+      previousMetadata["reader_start"] = false;
+      const { error: clearError } = await db
+        .from("book_structure_nodes")
+        .update({ metadata: previousMetadata })
+        .eq("book_id", params.bookId)
+        .eq("language", book.source_language)
+        .eq("source_version", book.source_version ?? 1)
+        .eq("node_key", start.node_key);
+      if (clearError) throw new Error(clearError.message);
+    }
+  }
+
+  const payload: { metadata: Json; node_type?: string } = { metadata };
+  if (params.nodeType !== undefined) payload.node_type = params.nodeType;
+  const { data: after, error: updateError } = await db
+    .from("book_structure_nodes")
+    .update(payload)
+    .eq("book_id", params.bookId)
+    .eq("language", book.source_language)
+    .eq("source_version", book.source_version ?? 1)
+    .eq("node_key", params.nodeKey)
+    .select(
+      "node_key,parent_node_key,node_type,title,ordinal,depth,start_chunk_index,end_chunk_index,metadata",
+    )
+    .single();
+  if (updateError || !after) throw new Error(updateError?.message ?? "Couldn't update structure");
+
+  const { error: reviewError } = await db
+    .from("books")
+    .update({ structure_review_status: "pending" })
+    .eq("id", params.bookId);
+  if (reviewError) throw new Error(reviewError.message);
+
+  return {
+    before: before as unknown as Record<string, unknown>,
+    after: after as unknown as Record<string, unknown>,
+  };
+}
+
+export async function moveBookStructureNode(params: {
+  bookId: string;
+  nodeKey: string;
+  direction: "up" | "down";
+}): Promise<{ before: Record<string, unknown>; after: Record<string, unknown> }> {
+  const { db, book } = await getEditableOrganizerBook(params.bookId);
+  const { data: nodes, error } = await db
+    .from("book_structure_nodes")
+    .select("node_key,parent_node_key,ordinal,depth")
+    .eq("book_id", params.bookId)
+    .eq("language", book.source_language)
+    .eq("source_version", book.source_version ?? 1)
+    .order("ordinal", { ascending: true });
+  if (error) throw new Error(error.message);
+
+  const current = (nodes ?? []).find((node) => node.node_key === params.nodeKey);
+  if (!current) throw new Error("Structure node not found");
+  const siblings = (nodes ?? []).filter(
+    (node) =>
+      node.depth === current.depth &&
+      (node.parent_node_key ?? null) === (current.parent_node_key ?? null),
+  );
+  const index = siblings.findIndex((node) => node.node_key === params.nodeKey);
+  const target = siblings[index + (params.direction === "up" ? -1 : 1)];
+  if (!target)
+    throw new Error(
+      `This node is already at the ${params.direction === "up" ? "top" : "bottom"} of its group.`,
+    );
+
+  const before = { current: { ...current }, target: { ...target } };
+  // Use an out-of-band temporary ordinal so a future uniqueness constraint
+  // cannot make a sibling swap fail halfway through.
+  const temporaryOrdinal = -1000000 - Math.abs(current.ordinal);
+  const updates = [
+    { key: current.node_key, ordinal: temporaryOrdinal },
+    { key: target.node_key, ordinal: current.ordinal },
+    { key: current.node_key, ordinal: target.ordinal },
+  ];
+  for (const update of updates) {
+    const { error: moveError } = await db
+      .from("book_structure_nodes")
+      .update({ ordinal: update.ordinal })
+      .eq("book_id", params.bookId)
+      .eq("language", book.source_language)
+      .eq("source_version", book.source_version ?? 1)
+      .eq("node_key", update.key);
+    if (moveError) throw new Error(moveError.message);
+  }
+  const { error: reviewError } = await db
+    .from("books")
+    .update({ structure_review_status: "pending" })
+    .eq("id", params.bookId);
+  if (reviewError) throw new Error(reviewError.message);
+
+  return {
+    before: before as unknown as Record<string, unknown>,
+    after: {
+      current: { ...current, ordinal: target.ordinal },
+      target: { ...target, ordinal: current.ordinal },
+    } as unknown as Record<string, unknown>,
+  };
 }
 
 /**
@@ -1596,8 +1794,20 @@ export async function extractEpubToManuscriptText(
 ): Promise<{ text: string; warnings: string[] }> {
   try {
     const parsed = await parseEpub(fileBytes);
+    const normalizeHeading = (value: string) =>
+      value
+        .normalize("NFKD")
+        .replace(/\p{M}+/gu, "")
+        .toLowerCase()
+        .replace(/[^\p{L}\p{N}]+/gu, "");
     const text = parsed.chapters
-      .map((c) => (c.title ? `${c.title}\n\n${c.text}` : c.text))
+      .map((c) => {
+        if (!c.title) return c.text;
+        const firstBlock = c.text.split(/\n\s*\n/u)[0] ?? "";
+        return normalizeHeading(firstBlock) === normalizeHeading(c.title)
+          ? c.text
+          : `${c.title}\n\n${c.text}`;
+      })
       .filter(Boolean)
       .join("\n\n");
     return { text, warnings: parsed.warnings };

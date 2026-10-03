@@ -12,6 +12,7 @@ const MAX_COMPRESSION_RATIO = 200; // a genuine text-heavy epub rarely exceeds ~
 
 export interface ParsedEpub {
   chapters: { title: string | null; text: string }[];
+  navigation: { title: string; href: string | null }[];
   warnings: string[];
 }
 
@@ -62,10 +63,21 @@ function stripTagsToText(xhtml: string): string {
   const LINE_BREAK = "\uE000";
   const BLOCK_BREAK = "\uE001";
   const LIST_BREAK = "\uE002";
+  const IMAGE_TEXT = "\uE003";
 
   const stripped = xhtml
+    // <head><title> is metadata, not manuscript content. Keeping it used to
+    // inject the book title at the start of every spine item.
+    .replace(/<head\b[\s\S]*?<\/head>/gi, "")
     .replace(/<script[\s\S]*?<\/script>/gi, "")
     .replace(/<style[\s\S]*?<\/style>/gi, "")
+    // Gutenberg and other EPUBs sometimes encode a drop-cap or textual
+    // symbol as an image. Preserve its alt text instead of silently losing
+    // a real character.
+    .replace(
+      /<img\b[^>]*\balt\s*=\s*(["'])([\s\S]*?)\1[^>]*>/gi,
+      (_match, _quote: string, alt: string) => `${IMAGE_TEXT}${alt}`,
+    )
     .replace(/<br\s*\/?>/gi, LINE_BREAK)
     .replace(
       /<span\b[^>]*(?:class\s*=\s*["'][^"']*(?:verse|line|stanza|poetry)[^"']*["']|epub:type\s*=\s*["'][^"']*(?:verse|poem)[^"']*["'])[^>]*>/gi,
@@ -76,24 +88,44 @@ function stripTagsToText(xhtml: string): string {
       return /<span\b[^>]*(?:verse|line|stanza|poetry|epub:type)/i.test(before) ? LINE_BREAK : "";
     })
     .replace(/<\/(h1|h2|h3|h4|h5|h6|p|div|section|article|blockquote|pre)>/gi, BLOCK_BREAK)
+    .replace(/<\/tr>/gi, BLOCK_BREAK)
+    .replace(/<\/(td|th)>/gi, " ")
     .replace(/<\/li>/gi, LIST_BREAK)
     .replace(/<[^>]+>/g, "");
 
-  return (
-    decodeHtmlEntities(stripped)
-      .replace(new RegExp(`\\s*${LINE_BREAK}\\s*`, "g"), LINE_BREAK)
-      .replace(new RegExp(`\\s*${BLOCK_BREAK}\\s*`, "g"), BLOCK_BREAK)
-      .replace(new RegExp(`\\s*${LIST_BREAK}\\s*`, "g"), LIST_BREAK)
-      // XHTML source formatting is not reader lineation. Collapse it first,
-      // then restore only the semantic sentinels above.
-      .replace(/\s+/g, " ")
-      .replaceAll(BLOCK_BREAK, "\n\n")
-      .replaceAll(LIST_BREAK, "\n")
-      .replaceAll(LINE_BREAK, "\n")
-      .replace(/[ \t]+\n/g, "\n")
-      .replace(/\n{3,}/g, "\n\n")
-      .trim()
+  let text = decodeHtmlEntities(stripped)
+    .replace(new RegExp(`\\s*${LINE_BREAK}\\s*`, "g"), LINE_BREAK)
+    .replace(new RegExp(`\\s*${BLOCK_BREAK}\\s*`, "g"), BLOCK_BREAK)
+    .replace(new RegExp(`\\s*${LIST_BREAK}\\s*`, "g"), LIST_BREAK)
+    // XHTML source formatting is not reader lineation. Collapse it first,
+    // then restore only the semantic sentinels above.
+    .replace(/\s+/g, " ")
+    .replaceAll(BLOCK_BREAK, "\n\n")
+    .replaceAll(LIST_BREAK, "\n")
+    .replaceAll(LINE_BREAK, "\n")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n");
+
+  // Merge image-text initials into the following word when the source
+  // separated the image into its own block. For I/A, distinguish a one-
+  // letter fragment ("I" + "t is") from an article/pronoun followed by a
+  // full word ("I" + "will").
+  text = text.replace(
+    new RegExp(`${IMAGE_TEXT}([\\p{L}])\\n\\n(?=([\\p{Ll}]+))`, "gu"),
+    (_match, initial: string, nextWord: string) =>
+      /^[IA]$/u.test(initial) && nextWord.length > 1 ? `${initial} ` : initial,
   );
+  text = text.replaceAll(IMAGE_TEXT, "");
+
+  // Gutenberg wrapper markers are distribution metadata, never literary
+  // text. Keep the work between START/END while removing the wrappers.
+  text = text.replace(
+    /^[\s\S]*?\*{3}\s*START OF (?:THE |THIS )?PROJECT GUTENBERG[^\n]*\*{3}\s*/i,
+    "",
+  );
+  text = text.replace(/\*{3}\s*END OF (?:THE |THIS )?PROJECT GUTENBERG[\s\S]*$/i, "");
+
+  return text.trim();
 }
 
 function resolveRelativePath(basePath: string, relative: string): string {
@@ -182,6 +214,37 @@ export async function parseEpub(fileBytes: Uint8Array): Promise<ParsedEpub> {
 
   const warnings: string[] = [];
   const chapters: { title: string | null; text: string }[] = [];
+  const navigation: { title: string; href: string | null }[] = [];
+
+  // Preserve the EPUB's authored navigation labels when an NCX is present.
+  // The reader/import pipeline can use these as structure evidence instead
+  // of guessing every heading from flattened text.
+  const ncxEntry = [...manifest.entries()].find(
+    ([id, href]) => /ncx/i.test(id) || /\.ncx(?:$|[?#])/i.test(href),
+  );
+  if (ncxEntry) {
+    const ncxPath = resolveRelativePath(opfPath, ncxEntry[1]);
+    const ncxFile = zip.file(ncxPath);
+    if (ncxFile) {
+      const ncxXml = await ncxFile.async("string");
+      totalUncompressed += ncxXml.length;
+      if (totalUncompressed > MAX_UNCOMPRESSED_BYTES) {
+        throw new EpubValidationError(
+          `EPUB expands past ${Math.floor(MAX_UNCOMPRESSED_BYTES / 1024 / 1024)}MB of text — refusing (possible zip bomb)`,
+        );
+      }
+      const navLabelRegex =
+        /<navLabel\b[^>]*>[\s\S]*?<text\b[^>]*>([\s\S]*?)<\/text>[\s\S]*?<\/navLabel>/gi;
+      let navMatch: RegExpExecArray | null;
+      while ((navMatch = navLabelRegex.exec(ncxXml))) {
+        const rawTitle = navMatch[1] ?? "";
+        const title = decodeHtmlEntities(rawTitle.replace(/<[^>]+>/g, ""))
+          .replace(/\s+/g, " ")
+          .trim();
+        if (title) navigation.push({ title, href: null });
+      }
+    }
+  }
 
   for (const id of spineIds) {
     const href = manifest.get(id);
@@ -247,5 +310,5 @@ export async function parseEpub(fileBytes: Uint8Array): Promise<ParsedEpub> {
     );
   }
 
-  return { chapters, warnings };
+  return { chapters, navigation, warnings };
 }

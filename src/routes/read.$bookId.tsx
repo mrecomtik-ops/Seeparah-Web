@@ -295,12 +295,13 @@ function ReaderPage() {
   // view had already landed.
   const seedKey = `${bookId}:${userId}`;
   useEffect(() => {
-    if (!book || !progressQuery.data) return;
+    if (!book || !progressQuery.data || navigationQuery.isLoading) return;
     if (seededKeyState === seedKey) return;
     const saved = progressQuery.data.find((p) => p.book_id === bookId && p.language === language);
     const requestedIndex = page ? page - 1 : null;
+    const organizedReaderStart = navigationQuery.data?.find((item) => item.readerStart)?.index ?? 0;
     const startIndex = Math.min(
-      Math.max(0, requestedIndex ?? saved?.last_chunk_index ?? 0),
+      Math.max(0, requestedIndex ?? saved?.last_chunk_index ?? organizedReaderStart),
       Math.max(0, book.total_chunks - 1),
     );
     setIndex(startIndex);
@@ -313,7 +314,19 @@ function ReaderPage() {
         replace: true,
       });
     }
-  }, [book, progressQuery.data, bookId, language, seedKey, seededKeyState, page, lang, navigate]);
+  }, [
+    book,
+    progressQuery.data,
+    navigationQuery.data,
+    navigationQuery.isLoading,
+    bookId,
+    language,
+    seedKey,
+    seededKeyState,
+    page,
+    lang,
+    navigate,
+  ]);
 
   const chunkQuery = useQuery({
     queryKey: ["reader-chunk", bookId, language, index],

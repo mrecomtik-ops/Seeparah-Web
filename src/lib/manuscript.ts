@@ -63,6 +63,18 @@ function reflowHardWrappedBlock(block: string): string {
   const indentedLines = rawLines.filter((line) => /^\s{2,}\S/u.test(line)).length;
   if (indentedLines >= Math.ceil(rawLines.length / 2)) return rawLines.join("\n").trim();
 
+  // Some EPUB/PDF extracts preserve verse as short unindented lines. Avoid
+  // flattening that lineation when the block strongly looks poetic: at
+  // least three short lines, most beginning as intentional new lines, and
+  // not a sequence of sentence-terminated prose lines.
+  const likelyVerse =
+    trimmed.length >= 3 &&
+    trimmed.every((line) => line.length <= 90) &&
+    trimmed.filter((line) => /^\p{Lu}/u.test(line)).length >= Math.ceil(trimmed.length * 0.66) &&
+    trimmed.filter((line) => /[.!?][”"')\]]?$/u.test(line)).length <=
+      Math.floor(trimmed.length / 2);
+  if (likelyVerse) return rawLines.join("\n").trim();
+
   let out = trimmed[0] ?? "";
   for (let i = 1; i < trimmed.length; i++) {
     const next = trimmed[i]!;
@@ -237,6 +249,39 @@ export function parseManuscript(
   }
 
   const headings = blocks.map((block) => classifyHeading(firstLine(block)));
+
+  // Printed contents often repeat the same chapter labels that later appear
+  // in the body. When a Contents heading is followed by structural labels
+  // and we later encounter the first repeated label, treat the earlier
+  // copies as navigation/front matter rather than real chapter boundaries.
+  const contentsIndex = blocks.findIndex((block) =>
+    /^(?:contents|table of contents)\.?$/iu.test(firstLine(block)),
+  );
+  if (contentsIndex >= 0) {
+    const seenContentsHeadings = new Map<string, number>();
+    let bodyStart = -1;
+    for (let i = contentsIndex + 1; i < blocks.length; i++) {
+      const heading = headings[i];
+      if (!heading || heading.kind === "front_matter") continue;
+      const identity = firstLine(blocks[i] ?? "")
+        .normalize("NFKD")
+        .replace(/\p{M}+/gu, "")
+        .toLowerCase()
+        .replace(/[^\p{L}\p{N}]+/gu, "");
+      if (!identity) continue;
+      if (seenContentsHeadings.has(identity)) {
+        bodyStart = i;
+        break;
+      }
+      seenContentsHeadings.set(identity, i);
+    }
+    if (bodyStart > contentsIndex + 1 && seenContentsHeadings.size >= 2) {
+      for (let i = contentsIndex + 1; i < bodyStart; i++) {
+        if (headings[i] && headings[i]!.kind !== "front_matter") headings[i] = null;
+      }
+    }
+  }
+
   const structured = structuredGroups(blocks, headings);
   const groups = structured
     ? subdivideStructuredGroups(blocks, structured)

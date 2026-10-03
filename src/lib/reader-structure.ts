@@ -7,11 +7,25 @@ export interface ReaderBlock {
   items?: string[];
 }
 
+export type ReaderNavigationKind =
+  | "part"
+  | "book"
+  | "chapter"
+  | "act"
+  | "scene"
+  | "section"
+  | "poem"
+  | "canto"
+  | "front_matter"
+  | "back_matter"
+  | "reading";
+
 export interface ReaderNavigationItem {
   index: number;
   title: string;
-  kind: "part" | "chapter" | "section" | "front_matter" | "reading";
+  kind: ReaderNavigationKind;
   depth: number;
+  readerStart?: boolean;
 }
 
 const TERM_BOUNDARY = "(?=$|[\\s:.\\-—–0-9IVXLCDM])";
@@ -29,7 +43,7 @@ const SECTION_HEADING = new RegExp(
   "iu",
 );
 const FRONT_MATTER_HEADING = new RegExp(
-  `^(?:preface|foreword|introduction|dedication|prologue|contents|préface|avant-propos|dédicace|table des matières|prefacio|prólogo|introducción|dedicatoria|índice|prefazione|introduzione|dedica|prologo|indice|vorwort|einleitung|widmung|inhalt|предисловие|введение|посвящение|содержание|المقدمة|الإهداء|الفهرس|مقدمہ|دیباچہ|انتساب|فہرست|प्रस्तावना|भूमिका|समर्पण|विषय-सूची)${TERM_BOUNDARY}`,
+  `^(?:title page|copyright|edition|publisher(?:'s)? note|editor(?:'s)? note|translator(?:'s)? note|preface|foreword|introduction|dedication|prologue|contents|table of contents|list of illustrations|illustrations|dramatis personae|dramatis personæ|characters|préface|avant-propos|dédicace|table des matières|prefacio|prólogo|introducción|dedicatoria|índice|prefazione|introduzione|dedica|prologo|indice|vorwort|einleitung|widmung|inhalt|предисловие|введение|посвящение|содержание|المقدمة|الإهداء|الفهرس|مقدمہ|دیباچہ|انتساب|فہرست|प्रस्तावना|भूमिका|समर्पण|विषय-सूची)${TERM_BOUNDARY}`,
   "iu",
 );
 const OTHER_STRUCTURAL_HEADING = new RegExp(
@@ -44,15 +58,26 @@ function cleanLine(value: string): string {
   return value.replace(/\s+/g, " ").trim();
 }
 
-export function looksLikePrintedContentsLine(value: string): boolean {
+function hasPrintedContentsPageSignal(value: string): boolean {
   const raw = value.trim();
   if (!raw) return false;
-  // Printed TOCs commonly use dot leaders / ellipses plus a terminal page
-  // number or roman numeral. They are navigation text, not real headings in
-  // the reading flow, and must never become Reader V2 structure nodes.
   if (/(?:\.{3,}|…{2,}|·{3,})\s*(?:\d+|[ivxlcdm]+)\.?$/iu.test(raw)) return true;
   if (/\s{3,}(?:\d+|[ivxlcdm]+)\.?$/iu.test(raw)) return true;
   return false;
+}
+
+export function looksLikePrintedContentsLine(value: string): boolean {
+  const raw = value.trim();
+  if (!raw) return false;
+  if (hasPrintedContentsPageSignal(raw)) return true;
+
+  // A source TOC may omit printed page numbers entirely. These are only
+  // candidates; classifyHeading still treats the same wording as a real
+  // heading when it appears in the body. parseManuscript uses surrounding
+  // Contents context to decide which occurrence is navigation text.
+  return /^(?:chapter|chap\.|scene|act|book|part|stave|canto)\s+(?:[ivxlcdm]+|\d+)\.?\s+\S/iu.test(
+    raw,
+  );
 }
 
 function isAllCapsHeading(value: string): boolean {
@@ -79,11 +104,15 @@ export function classifyHeading(value: string): {
   level: 1 | 2 | 3;
 } | null {
   const line = cleanLine(value);
-  if (!line || line.length > 140 || looksLikePrintedContentsLine(value)) return null;
+  if (!line || line.length > 140 || hasPrintedContentsPageSignal(value)) return null;
   if (PART_HEADING.test(line) || CJK_PART_HEADING.test(line)) {
     return { kind: "part", level: 1 };
   }
-  if (CHAPTER_HEADING.test(line) || CJK_CHAPTER_HEADING.test(line)) {
+  if (
+    CHAPTER_HEADING.test(line) ||
+    CJK_CHAPTER_HEADING.test(line) ||
+    /^[IVXLCDM]+\.?$/u.test(line)
+  ) {
     return { kind: "chapter", level: 2 };
   }
   if (SECTION_HEADING.test(line)) return { kind: "section", level: 3 };
@@ -93,7 +122,7 @@ export function classifyHeading(value: string): {
   if (OTHER_STRUCTURAL_HEADING.test(line)) {
     return { kind: "section", level: 3 };
   }
-  if (isAllCapsHeading(line) && !looksLikeDramaSpeakerCue(line)) {
+  if (isAllCapsHeading(line) && (/[‐‑‒–—-]/u.test(line) || !looksLikeDramaSpeakerCue(line))) {
     return { kind: "section", level: 3 };
   }
   return null;
@@ -194,18 +223,22 @@ export function parseReadableBlocks(content: string): ReaderBlock[] {
   return result;
 }
 
-function bestHeadingFromChunk(content: string): {
+function headingsFromChunk(content: string): Array<{
   title: string;
   kind: ReaderNavigationItem["kind"];
   depth: number;
-} | null {
+}> {
   const blocks = content
     .replace(/\r\n/g, "\n")
     .split(/\n\s*\n/)
     .map((block) => block.trim())
-    .filter(Boolean)
-    .slice(0, 6);
+    .filter(Boolean);
 
+  const headings: Array<{
+    title: string;
+    kind: ReaderNavigationItem["kind"];
+    depth: number;
+  }> = [];
   for (let i = 0; i < blocks.length; i++) {
     const block = blocks[i]!;
     const first = cleanLine(block.split("\n")[0] ?? "");
@@ -213,9 +246,14 @@ function bestHeadingFromChunk(content: string): {
     if (!match) continue;
 
     const wrapped = collectWrappedHeadingTitle(blocks, i, first, match.kind);
-    return { title: wrapped.title, kind: match.kind, depth: match.level - 1 };
+    headings.push({
+      title: wrapped.title,
+      kind: match.kind,
+      depth: match.level - 1,
+    });
+    i += wrapped.consumed;
   }
-  return null;
+  return headings;
 }
 
 /**
@@ -232,17 +270,17 @@ export function buildFallbackNavigation(
   let previousTitle = "";
 
   for (const row of sorted) {
-    const heading = bestHeadingFromChunk(row.content);
-    if (!heading) continue;
-    const normalized = heading.title.toLowerCase();
-    if (normalized === previousTitle) continue;
-    previousTitle = normalized;
-    detected.push({
-      index: row.chunk_index,
-      title: heading.title,
-      kind: heading.kind,
-      depth: heading.depth,
-    });
+    for (const heading of headingsFromChunk(row.content)) {
+      const normalized = heading.title.toLowerCase();
+      if (normalized === previousTitle) continue;
+      previousTitle = normalized;
+      detected.push({
+        index: row.chunk_index,
+        title: heading.title,
+        kind: heading.kind,
+        depth: heading.depth,
+      });
+    }
   }
 
   if (detected.length >= 2) {
