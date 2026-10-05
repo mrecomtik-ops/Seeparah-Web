@@ -994,9 +994,9 @@ body.reader-sepia {
 }
 
 .reader-v3-flow {
-  text-align: justify;
+  text-align: left;
   text-align-last: left;
-  text-justify: inter-word;
+  text-justify: auto;
   hyphens: auto;
   -webkit-hyphens: auto;
   hyphenate-limit-chars: 6 3 3;
