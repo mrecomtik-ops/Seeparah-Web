@@ -5,7 +5,7 @@ import {
   useNavigate,
   useRouterState,
 } from "@tanstack/react-router";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -69,12 +69,18 @@ import {
   type ReaderTheme,
 } from "@/lib/prefs";
 import { parseReadableBlocks, type ReaderNavigationItem } from "@/lib/reader-structure";
+import {
+  blockStartsFreshBookPage,
+  buildReaderFrontPages,
+  type ReaderFrontPage,
+} from "@/lib/reader-pagination";
 import { getPublicContentSettings } from "@/lib/admin/settings.functions";
 import { formatAuthorName } from "@/lib/author-name";
 
 const searchSchema = z.object({
   lang: z.string().optional(),
   page: z.coerce.number().int().min(1).optional(),
+  leaf: z.coerce.number().int().min(1).optional(),
 });
 
 export const Route = createFileRoute("/read/$bookId")({
@@ -163,7 +169,7 @@ function ReaderBookNotFoundPage() {
 
 function ReaderPage() {
   const { bookId } = Route.useParams();
-  const { lang, page } = Route.useSearch();
+  const { lang, page, leaf } = Route.useSearch();
   const { book: initialBook } = Route.useLoaderData();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -186,6 +192,10 @@ function ReaderPage() {
     "English";
 
   const [index, setIndex] = useState(0);
+  const [leafPage, setLeafPage] = useState(0);
+  const [leafPageCount, setLeafPageCount] = useState(1);
+  const [frontPageIndex, setFrontPageIndex] = useState<number | null>(null);
+  const previousChunkNeedsLastLeaf = useRef<number | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showToc, setShowToc] = useState(false);
   const [showHighlights, setShowHighlights] = useState(false);
@@ -196,7 +206,7 @@ function ReaderPage() {
   const [fontFamily, setFontFamily] = useState<ReaderFontFamily>(prefs.fontFamily);
   const [contentWidth, setContentWidth] = useState<ReaderContentWidth>(prefs.contentWidth);
   const [paragraphSpacing, setParagraphSpacing] = useState(prefs.paragraphSpacing);
-  const [presentation, setPresentation] = useState<ReaderPresentation>(prefs.presentation);
+  const [presentation, setPresentation] = useState<ReaderPresentation>("book");
   const [highlightSaved, setHighlightSaved] = useState(false);
   const readerTextRef = useRef<HTMLDivElement | null>(null);
   const highlightFeedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -262,6 +272,16 @@ function ReaderPage() {
     enabled: Boolean(book),
     staleTime: 5 * 60 * 1000,
   });
+  const navigationItems = useMemo(
+    () => (navigationQuery.data ?? []) as ReaderNavigationItem[],
+    [navigationQuery.data],
+  );
+  const frontPages = useMemo(
+    () => buildReaderFrontPages(book?.description, navigationItems),
+    [book?.description, navigationItems],
+  );
+  const contentStartIndex =
+    navigationItems.find((item) => item.readerStart)?.index ?? navigationItems[0]?.index ?? 0;
 
   // Reader's own supported languages translation-request status for this book, so
   // the UI can show "requested" / "declined" / "revoked" accurately instead
@@ -299,18 +319,20 @@ function ReaderPage() {
     if (seededKeyState === seedKey) return;
     const saved = progressQuery.data.find((p) => p.book_id === bookId && p.language === language);
     const requestedIndex = page ? page - 1 : null;
-    const organizedReaderStart = navigationQuery.data?.find((item) => item.readerStart)?.index ?? 0;
     const startIndex = Math.min(
-      Math.max(0, requestedIndex ?? saved?.last_chunk_index ?? organizedReaderStart),
+      Math.max(0, requestedIndex ?? saved?.last_chunk_index ?? contentStartIndex),
       Math.max(0, book.total_chunks - 1),
     );
+    const requestedLeaf = Math.max(0, (leaf ?? 1) - 1);
     setIndex(startIndex);
+    setLeafPage(requestedLeaf);
+    setFrontPageIndex(requestedIndex === null && !saved && frontPages.length > 0 ? 0 : null);
     setSeededKeyState(seedKey);
-    if (page !== startIndex + 1 || lang !== language) {
+    if (page !== startIndex + 1 || lang !== language || (leaf ?? 1) !== requestedLeaf + 1) {
       void navigate({
         to: "/read/$bookId",
         params: { bookId },
-        search: { lang: language, page: startIndex + 1 },
+        search: { lang: language, page: startIndex + 1, leaf: requestedLeaf + 1 },
         replace: true,
       });
     }
@@ -321,9 +343,12 @@ function ReaderPage() {
     navigationQuery.isLoading,
     bookId,
     language,
+    contentStartIndex,
+    frontPages.length,
     seedKey,
     seededKeyState,
     page,
+    leaf,
     lang,
     navigate,
   ]);
@@ -391,7 +416,11 @@ function ReaderPage() {
   }, [language, typographyProfile]);
 
   const total = book?.total_chunks ?? 1;
-  const pct = Math.round(((index + 1) / total) * 100);
+  const activeFrontPage = frontPageIndex === null ? null : (frontPages[frontPageIndex] ?? null);
+  const pct =
+    frontPageIndex !== null
+      ? 0
+      : Math.round(((index + (leafPage + 1) / Math.max(1, leafPageCount)) / total) * 100);
   // A language counts as "available" for the purpose of NOT showing the
   // generic "pick another language" dead-end if either a reviewed edition
   // already exists, OR it's one of the languages a reader can actually
@@ -449,33 +478,112 @@ function ReaderPage() {
   }
 
   const setReaderPosition = useCallback(
-    (nextIndex: number, replace = true) => {
+    (nextIndex: number, nextLeaf = 0, replace = true) => {
       const next = Math.min(total - 1, Math.max(0, nextIndex));
+      const safeLeaf = Math.max(0, nextLeaf);
+      setFrontPageIndex(null);
+      if (next !== index) setLeafPageCount(1);
       setIndex(next);
+      setLeafPage(safeLeaf);
       void navigate({
         to: "/read/$bookId",
         params: { bookId },
-        search: { lang: language, page: next + 1 },
+        search: { lang: language, page: next + 1, leaf: safeLeaf + 1 },
         replace,
       });
     },
-    [bookId, language, navigate, total],
+    [bookId, index, language, navigate, total],
   );
 
   const go = useCallback(
     (delta: number) => {
-      const next = Math.min(total - 1, Math.max(0, index + delta));
-      if (next === index) return;
-      setReaderPosition(next);
+      if (frontPageIndex !== null) {
+        const nextFront = frontPageIndex + delta;
+        if (nextFront >= 0 && nextFront < frontPages.length) {
+          setFrontPageIndex(nextFront);
+          return;
+        }
+        if (delta > 0 && nextFront >= frontPages.length) {
+          setReaderPosition(contentStartIndex, 0);
+        }
+        return;
+      }
+
+      if (delta > 0) {
+        if (leafPage < leafPageCount - 1) {
+          setReaderPosition(index, leafPage + 1);
+          return;
+        }
+        if (index < total - 1) setReaderPosition(index + 1, 0);
+        return;
+      }
+
+      if (leafPage > 0) {
+        setReaderPosition(index, leafPage - 1);
+        return;
+      }
+      if (index === contentStartIndex && frontPages.length > 0) {
+        setFrontPageIndex(frontPages.length - 1);
+        return;
+      }
+      if (index > 0) {
+        const previousIndex = index - 1;
+        previousChunkNeedsLastLeaf.current = previousIndex;
+        setReaderPosition(previousIndex, 0);
+      }
     },
-    [index, setReaderPosition, total],
+    [
+      contentStartIndex,
+      frontPageIndex,
+      frontPages.length,
+      index,
+      leafPage,
+      leafPageCount,
+      setReaderPosition,
+      total,
+    ],
+  );
+
+  const handlePhysicalPageCount = useCallback(
+    (nextCount: number) => {
+      const safeCount = Math.max(1, nextCount);
+      setLeafPageCount(safeCount);
+      if (previousChunkNeedsLastLeaf.current === index) {
+        previousChunkNeedsLastLeaf.current = null;
+        const targetLeaf = safeCount - 1;
+        setLeafPage(targetLeaf);
+        void navigate({
+          to: "/read/$bookId",
+          params: { bookId },
+          search: { lang: language, page: index + 1, leaf: targetLeaf + 1 },
+          replace: true,
+        });
+        return;
+      }
+      setLeafPage((current) => {
+        const clamped = Math.min(current, safeCount - 1);
+        if (clamped !== current) {
+          void navigate({
+            to: "/read/$bookId",
+            params: { bookId },
+            search: { lang: language, page: index + 1, leaf: clamped + 1 },
+            replace: true,
+          });
+        }
+        return clamped;
+      });
+    },
+    [bookId, index, language, navigate],
   );
 
   function switchLanguage(l: string) {
+    setFrontPageIndex(null);
+    setLeafPage(0);
+    setLeafPageCount(1);
     void navigate({
       to: "/read/$bookId",
       params: { bookId },
-      search: { lang: l, page: index + 1 },
+      search: { lang: l, page: index + 1, leaf: 1 },
     });
   }
 
@@ -653,7 +761,6 @@ function ReaderPage() {
   const pageHighlights = bookHighlights.filter(
     (highlight) => highlight.language === language && highlight.chunk_index === index,
   );
-  const navigationItems = (navigationQuery.data ?? []) as ReaderNavigationItem[];
   const currentNavigationItem =
     [...navigationItems].reverse().find((item) => item.index <= index) ??
     navigationItems[0] ??
@@ -662,6 +769,12 @@ function ReaderPage() {
   const lockReason = chunkQuery.data?.reason;
   const myRequestForLanguage = myRequestStatusByLanguage.get(language);
   const myRequestStatus = myRequestForLanguage?.status as string | undefined;
+  const atBeginning =
+    frontPageIndex !== null
+      ? frontPageIndex === 0
+      : leafPage === 0 && index === 0 && (frontPages.length === 0 || contentStartIndex !== 0);
+  const atEnd =
+    frontPageIndex === null && index >= total - 1 && leafPage >= Math.max(0, leafPageCount - 1);
 
   if (bookQuery.isLoading) {
     return (
@@ -706,8 +819,9 @@ function ReaderPage() {
               <p className="truncate text-xs text-muted-foreground">
                 {formatAuthorName(book.author)} ·{" "}
                 <span dir="ltr" className="inline-block">
-                  {currentNavigationItem?.title ?? `Reading section ${index + 1}`} · {index + 1}/
-                  {total}
+                  {activeFrontPage
+                    ? `${activeFrontPage.title} · front page ${(frontPageIndex ?? 0) + 1}/${frontPages.length}`
+                    : `${currentNavigationItem?.title ?? `Reading section ${index + 1}`} · section ${index + 1}/${total} · page ${leafPage + 1}/${Math.max(1, leafPageCount)}`}
                 </span>
               </p>
             </Link>
@@ -855,6 +969,13 @@ function ReaderPage() {
               ))}
             </div>
           </div>
+        ) : activeFrontPage ? (
+          <ReaderFrontMatterPage
+            page={activeFrontPage}
+            bookTitle={book.title}
+            author={formatAuthorName(book.author)}
+            onSelectChapter={(chunkIndex) => setReaderPosition(chunkIndex, 0)}
+          />
         ) : locked ? (
           <div className="mt-8 rounded-2xl border border-gold/50 bg-card p-8 text-center card-shadow">
             <Lock className="mx-auto h-9 w-9 text-gold" />
@@ -958,24 +1079,13 @@ function ReaderPage() {
         ) : content ? (
           <>
             <article
-              key={`${language}:${index}:${presentation}`}
+              key={`${language}:${index}:book`}
               dir={rtl ? "rtl" : "ltr"}
               lang={languageToBcp47(language)}
               style={{
                 fontSize: `${isUrdu ? Math.max(fontSize, 20) : fontSize}px`,
                 lineHeight: isUrdu ? Math.max(lineHeight, 2.2) : lineHeight,
-                maxWidth:
-                  presentation === "continuous"
-                    ? contentWidth === "narrow"
-                      ? "55ch"
-                      : contentWidth === "wide"
-                        ? "72ch"
-                        : "65ch"
-                    : contentWidth === "narrow"
-                      ? "42rem"
-                      : contentWidth === "wide"
-                        ? "60rem"
-                        : "48rem",
+                maxWidth: "48rem",
                 fontFamily:
                   protectedFontFamily ??
                   (fontFamily === "sans"
@@ -984,33 +1094,33 @@ function ReaderPage() {
                       ? "ui-serif, Georgia, Cambria, serif"
                       : "Georgia, 'Times New Roman', ui-serif, serif"),
               }}
-              className={`mx-auto mt-8 text-card-foreground ${
-                presentation === "book"
-                  ? "book-page-surface reader-page-enter px-4 py-8 sm:px-14 sm:py-14 md:px-16"
-                  : "rounded-2xl border border-border bg-card p-6 card-shadow sm:p-10"
-              } ${isUrdu ? "urdu-reading-block" : ""} ${
-                religious ? "religious-reading-block" : ""
-              } ${
+              className={`mx-auto mt-8 flex w-full flex-col book-page-surface reader-page-enter px-4 py-6 text-card-foreground sm:px-12 sm:py-10 md:px-14 ${
+                isUrdu ? "urdu-reading-block" : ""
+              } ${religious ? "religious-reading-block" : ""} ${
                 typographyProfile === "facsimile_preserving" ? "source-lineation-preserving" : ""
               }`}
             >
-              {presentation === "book" && (
-                <div className="mb-8 flex items-center justify-between gap-4 border-b border-border/60 pb-3 text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-                  <span className="truncate">{currentNavigationItem?.title ?? book.title}</span>
-                  <span className="shrink-0">{formatAuthorName(book.author)}</span>
-                </div>
-              )}
-              <ReadableChunk
+              <div className="mb-5 flex shrink-0 items-center justify-between gap-4 border-b border-border/60 pb-3 text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                <span className="truncate">{currentNavigationItem?.title ?? book.title}</span>
+                <span className="shrink-0">{formatAuthorName(book.author)}</span>
+              </div>
+              <PaginatedReadableChunk
                 blocks={readableBlocks}
                 paragraphSpacing={paragraphSpacing}
                 highlights={pageHighlights}
                 contentRef={readerTextRef}
+                page={leafPage}
+                rtl={rtl}
+                layoutKey={`${language}:${index}:${fontSize}:${lineHeight}:${paragraphSpacing}:${fontFamily}:${contentWidth}:${typographyProfile}`}
+                onPageCount={handlePhysicalPageCount}
               />
-              {presentation === "book" && (
-                <footer className="mt-12 border-t border-border/50 pt-4 text-center text-xs text-muted-foreground">
-                  <span aria-label={`Reading section ${index + 1} of ${total}`}>{index + 1}</span>
-                </footer>
-              )}
+              <footer className="mt-4 shrink-0 border-t border-border/50 pt-3 text-center text-xs text-muted-foreground">
+                <span
+                  aria-label={`Physical page ${leafPage + 1} of ${Math.max(1, leafPageCount)} in reading section ${index + 1}`}
+                >
+                  {leafPage + 1} / {Math.max(1, leafPageCount)}
+                </span>
+              </footer>
             </article>
             <div className="mt-4 flex flex-wrap justify-center gap-4 text-xs">
               <button
@@ -1061,7 +1171,7 @@ function ReaderPage() {
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <button
             onClick={() => go(-1)}
-            disabled={index === 0}
+            disabled={atBeginning}
             className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-semibold text-foreground disabled:opacity-40"
           >
             <ChevronLeft className="h-4 w-4" /> Previous
@@ -1093,7 +1203,7 @@ function ReaderPage() {
           </div>
           <button
             onClick={() => go(1)}
-            disabled={index >= total - 1}
+            disabled={atEnd}
             className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-40"
           >
             Next <ChevronRight className="h-4 w-4" />
@@ -1325,6 +1435,162 @@ function SheetShell({
   );
 }
 
+function ReaderFrontMatterPage({
+  page,
+  bookTitle,
+  author,
+  onSelectChapter,
+}: {
+  page: ReaderFrontPage;
+  bookTitle: string;
+  author: string;
+  onSelectChapter: (chunkIndex: number) => void;
+}) {
+  return (
+    <article className="book-page-surface reader-page-enter mx-auto mt-8 flex w-full max-w-3xl flex-col px-5 py-7 text-card-foreground sm:px-12 sm:py-10 md:px-14">
+      <div className="mb-5 flex shrink-0 items-center justify-between gap-4 border-b border-border/60 pb-3 text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+        <span className="truncate">{bookTitle}</span>
+        <span className="shrink-0">{author}</span>
+      </div>
+      <div className="min-h-0 flex-1 overflow-hidden">
+        <h2 className="font-display text-3xl font-semibold tracking-tight text-foreground">
+          {page.title}
+        </h2>
+        {page.kind === "summary" ? (
+          <div className="mt-8 space-y-5 font-display text-[1.05rem] leading-8 text-foreground">
+            {page.body
+              .split(/\n\s*\n/u)
+              .map((paragraph) => paragraph.trim())
+              .filter(Boolean)
+              .map((paragraph, i) => (
+                <p key={i}>{paragraph}</p>
+              ))}
+          </div>
+        ) : (
+          <div className="mt-6 grid gap-1.5">
+            {page.items.map((item, i) => (
+              <button
+                key={`${item.index}:${item.title}:${i}`}
+                onClick={() => onSelectChapter(item.index)}
+                className="flex w-full items-baseline gap-3 rounded-md px-2 py-1.5 text-left text-sm text-foreground hover:bg-secondary"
+                style={{ paddingInlineStart: `${0.5 + item.depth * 0.8}rem` }}
+              >
+                <span className="min-w-0 flex-1 truncate font-medium">{item.title}</span>
+                <span className="shrink-0 text-[11px] text-muted-foreground">{item.index + 1}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      <footer className="mt-4 shrink-0 border-t border-border/50 pt-3 text-center text-xs text-muted-foreground">
+        {page.pageCount > 1
+          ? `${page.pageNumber + 1} / ${page.pageCount}`
+          : page.kind === "summary"
+            ? "Book summary"
+            : "Contents"}
+      </footer>
+    </article>
+  );
+}
+
+function PaginatedReadableChunk({
+  blocks,
+  paragraphSpacing,
+  highlights,
+  contentRef,
+  page,
+  rtl,
+  layoutKey,
+  onPageCount,
+}: {
+  blocks: ReturnType<typeof parseReadableBlocks>;
+  paragraphSpacing: number;
+  highlights: Highlight[];
+  contentRef: React.RefObject<HTMLDivElement | null>;
+  page: number;
+  rtl: boolean;
+  layoutKey: string;
+  onPageCount: (count: number) => void;
+}) {
+  const viewportRef = useRef<HTMLDivElement | null>(null);
+  const flowRef = useRef<HTMLDivElement | null>(null);
+  const [size, setSize] = useState({ width: 0, height: 0 });
+
+  useLayoutEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+
+    let frame = 0;
+    const update = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const width = Math.max(1, Math.floor(viewport.clientWidth));
+        const height = Math.max(1, Math.floor(viewport.clientHeight));
+        setSize((current) =>
+          current.width === width && current.height === height ? current : { width, height },
+        );
+      });
+    };
+
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(viewport);
+    void document.fonts?.ready.then(update);
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
+  }, [layoutKey]);
+
+  useLayoutEffect(() => {
+    const flow = flowRef.current;
+    if (!flow || size.width <= 0 || size.height <= 0) return;
+
+    let frame = 0;
+    const measure = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const count = Math.max(1, Math.ceil(flow.scrollWidth / size.width));
+        onPageCount(count);
+      });
+    };
+
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(flow);
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
+  }, [blocks, layoutKey, onPageCount, size.height, size.width]);
+
+  const offset = size.width > 0 ? (rtl ? page * size.width : -page * size.width) : 0;
+
+  return (
+    <div ref={viewportRef} className="reader-page-content-viewport">
+      <div
+        ref={flowRef}
+        className="reader-column-flow"
+        style={{
+          width: size.width > 0 ? `${size.width}px` : "100%",
+          height: size.height > 0 ? `${size.height}px` : "100%",
+          columnWidth: size.width > 0 ? `${size.width}px` : undefined,
+          columnGap: "0px",
+          columnFill: "auto",
+          transform: `translate3d(${offset}px, 0, 0)`,
+        }}
+      >
+        <ReadableChunk
+          blocks={blocks}
+          paragraphSpacing={paragraphSpacing}
+          highlights={highlights}
+          contentRef={contentRef}
+        />
+      </div>
+    </div>
+  );
+}
+
 function ReadableChunk({
   blocks,
   paragraphSpacing,
@@ -1366,13 +1632,14 @@ function ReadableChunk({
     <div ref={contentRef} data-reader-text-root="true">
       {blocks.map((block, i) => {
         const spacing = i === 0 ? undefined : { marginTop: `${paragraphSpacing}rem` };
+        const freshPageClass = blockStartsFreshBookPage(block, i) ? "reader-forced-page-break" : "";
         if (block.kind === "heading") {
           if (block.level === 1) {
             return (
               <h2
                 key={i}
                 style={spacing}
-                className="font-display text-3xl font-semibold leading-tight tracking-tight text-foreground"
+                className={`${freshPageClass} font-display text-3xl font-semibold leading-tight tracking-tight text-foreground`}
               >
                 {anchoredText(block.text)}
               </h2>
@@ -1383,7 +1650,7 @@ function ReadableChunk({
               <h3
                 key={i}
                 style={spacing}
-                className="font-display text-2xl font-semibold leading-snug text-foreground"
+                className={`${freshPageClass} font-display text-2xl font-semibold leading-snug text-foreground`}
               >
                 {anchoredText(block.text)}
               </h3>
@@ -1393,7 +1660,7 @@ function ReadableChunk({
             <h4
               key={i}
               style={spacing}
-              className="font-display text-xl font-semibold leading-snug text-foreground"
+              className={`${freshPageClass} font-display text-xl font-semibold leading-snug text-foreground`}
             >
               {anchoredText(block.text)}
             </h4>
@@ -1500,30 +1767,16 @@ function ReaderSettingsSheet({
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Reading style
           </p>
-          <div className="mt-2 grid grid-cols-2 gap-2">
-            {(
-              [
-                ["book", "Book page"],
-                ["continuous", "Continuous"],
-              ] as const
-            ).map(([value, label]) => (
-              <button
-                key={value}
-                onClick={() => onChange({ presentation: value })}
-                aria-pressed={presentation === value}
-                className={`rounded-xl border px-3 py-2.5 text-sm font-semibold ${
-                  presentation === value
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : "border-border bg-background text-foreground hover:bg-secondary"
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          <button
+            onClick={() => onChange({ presentation: "book" })}
+            aria-pressed={presentation === "book"}
+            className="mt-2 w-full rounded-xl border border-primary bg-primary px-3 py-2.5 text-sm font-semibold text-primary-foreground"
+          >
+            Fixed book pages
+          </button>
           <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
-            Book page gives each reading section a paper-page shape with generous inner margins and
-            a page number.
+            Every visible page keeps the same vertical size. Long chapters continue across
+            additional pages, and each new chapter starts on a fresh page.
           </p>
         </div>
 

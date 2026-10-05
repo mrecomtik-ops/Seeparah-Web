@@ -4,6 +4,7 @@ export interface ReaderBlock {
   kind: ReaderBlockKind;
   text: string;
   level?: 1 | 2 | 3;
+  navigationKind?: ReaderNavigationItem["kind"];
   items?: string[];
 }
 
@@ -190,6 +191,7 @@ export function parseReadableBlocks(content: string): ReaderBlock[] {
         kind: "heading",
         text: wrapped.title,
         level: heading.level,
+        navigationKind: heading.kind,
       });
       i += wrapped.consumed;
       continue;

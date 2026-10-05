@@ -293,14 +293,15 @@
   background-size: 22px 22px;
 }
 
-/* Reader V2 book-page presentation. The page is intentionally not given a
-   fixed height: real chapters/sections vary in length, so a rigid A5/A4 box
-   would either clip text or manufacture awkward blank pages. Instead this
-   keeps the familiar physical-book proportions through width, minimum
-   height, inner margins, a subtle binding shadow, and paper grain while
-   allowing the source text to flow naturally. */
+/* Reader V2 physical-page presentation. Every visible leaf has the same
+   responsive height on a given device. Long chapters flow horizontally into
+   additional equal-height columns/pages; structural chapter/part headings can
+   force a new column so a new chapter never starts halfway down a page. */
 @utility book-page-surface {
   position: relative;
+  height: clamp(30rem, calc(100dvh - 12rem), 52rem);
+  min-height: clamp(30rem, calc(100dvh - 12rem), 52rem);
+  max-height: clamp(30rem, calc(100dvh - 12rem), 52rem);
   overflow: hidden;
   border: 1px solid var(--color-border);
   border-radius: 0.45rem;
@@ -366,5 +367,42 @@ body.reader-sepia {
     box-shadow:
       0 1px 1px oklch(0.25 0.02 90 / 0.06),
       0 12px 30px -18px oklch(0.25 0.02 90 / 0.2);
+  }
+}
+
+.reader-page-content-viewport {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  overflow: hidden;
+}
+
+.reader-column-flow {
+  overflow: visible;
+  will-change: transform;
+  transition: transform 180ms ease-out;
+}
+
+.reader-column-flow > [data-reader-text-root="true"] {
+  min-height: 100%;
+}
+
+.reader-column-flow h2,
+.reader-column-flow h3,
+.reader-column-flow h4,
+.reader-column-flow aside,
+.reader-column-flow ul,
+.reader-column-flow blockquote {
+  break-inside: avoid-column;
+}
+
+.reader-forced-page-break {
+  break-before: column;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reader-column-flow {
+    transition: none;
   }
 }
