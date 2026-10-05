@@ -1648,7 +1648,9 @@ function ReadableChunk({
     <div ref={contentRef} data-reader-text-root="true">
       {blocks.map((block, i) => {
         const spacing = i === 0 ? undefined : { marginTop: `${paragraphSpacing}rem` };
-        const freshPageClass = blockStartsFreshBookPage(block, i) ? "reader-forced-page-break" : "";
+        const freshPageClass = blockStartsFreshBookPage(block, i, physicalPageBreakTitles)
+          ? "reader-forced-page-break"
+          : "";
         if (block.kind === "heading") {
           if (block.level === 1) {
             return (

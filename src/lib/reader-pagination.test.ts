@@ -55,4 +55,15 @@ describe("reader pagination", () => {
     ).toBe(false);
     expect(blockStartsFreshBookPage({ kind: "paragraph", text: "Body" }, 4)).toBe(false);
   });
+
+  it("does not force printed contents entries unless they are real navigation starts", () => {
+    const chapter = {
+      kind: "heading" as const,
+      text: "CHAPTER I.",
+      level: 2 as const,
+      navigationKind: "chapter" as const,
+    };
+    expect(blockStartsFreshBookPage(chapter, 5, ["CHAPTER II."])).toBe(false);
+    expect(blockStartsFreshBookPage(chapter, 5, ["  chapter   i.  "])).toBe(true);
+  });
 });

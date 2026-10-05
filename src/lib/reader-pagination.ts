@@ -87,12 +87,26 @@ export function buildReaderFrontPages(
   return pages;
 }
 
-export function blockStartsFreshBookPage(block: ReaderBlock, blockIndex: number): boolean {
+function normalizeHeadingTitle(value: string): string {
+  return value.replace(/\s+/gu, " ").trim().toLocaleLowerCase();
+}
+
+export function blockStartsFreshBookPage(
+  block: ReaderBlock,
+  blockIndex: number,
+  semanticPageBreakTitles?: string[],
+): boolean {
   if (blockIndex === 0 || block.kind !== "heading") return false;
-  return (
+  const structuralHeading =
     block.navigationKind === "chapter" ||
     block.navigationKind === "part" ||
     block.navigationKind === "book" ||
-    block.navigationKind === "act"
+    block.navigationKind === "act";
+  if (!structuralHeading) return false;
+  if (!semanticPageBreakTitles) return true;
+
+  const normalizedBlockTitle = normalizeHeadingTitle(block.text);
+  return semanticPageBreakTitles.some(
+    (title) => normalizeHeadingTitle(title) === normalizedBlockTitle,
   );
 }
