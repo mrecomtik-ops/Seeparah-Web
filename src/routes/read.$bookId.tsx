@@ -765,6 +765,16 @@ function ReaderPage() {
     [...navigationItems].reverse().find((item) => item.index <= index) ??
     navigationItems[0] ??
     null;
+  const physicalPageBreakTitles = navigationItems
+    .filter(
+      (item) =>
+        item.index === index &&
+        (item.kind === "chapter" ||
+          item.kind === "part" ||
+          item.kind === "book" ||
+          item.kind === "act"),
+    )
+    .map((item) => item.title);
   const locked = chunkQuery.data?.locked ?? false;
   const lockReason = chunkQuery.data?.reason;
   const myRequestForLanguage = myRequestStatusByLanguage.get(language);
@@ -1113,6 +1123,7 @@ function ReaderPage() {
                 rtl={rtl}
                 layoutKey={`${language}:${index}:${fontSize}:${lineHeight}:${paragraphSpacing}:${fontFamily}:${contentWidth}:${typographyProfile}`}
                 onPageCount={handlePhysicalPageCount}
+                physicalPageBreakTitles={physicalPageBreakTitles}
               />
               <footer className="mt-4 shrink-0 border-t border-border/50 pt-3 text-center text-xs text-muted-foreground">
                 <span
@@ -1502,6 +1513,7 @@ function PaginatedReadableChunk({
   rtl,
   layoutKey,
   onPageCount,
+  physicalPageBreakTitles,
 }: {
   blocks: ReturnType<typeof parseReadableBlocks>;
   paragraphSpacing: number;
@@ -1511,6 +1523,7 @@ function PaginatedReadableChunk({
   rtl: boolean;
   layoutKey: string;
   onPageCount: (count: number) => void;
+  physicalPageBreakTitles: string[];
 }) {
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const flowRef = useRef<HTMLDivElement | null>(null);
@@ -1585,6 +1598,7 @@ function PaginatedReadableChunk({
           paragraphSpacing={paragraphSpacing}
           highlights={highlights}
           contentRef={contentRef}
+          physicalPageBreakTitles={physicalPageBreakTitles}
         />
       </div>
     </div>
@@ -1596,11 +1610,13 @@ function ReadableChunk({
   paragraphSpacing,
   highlights,
   contentRef,
+  physicalPageBreakTitles = [],
 }: {
   blocks: ReturnType<typeof parseReadableBlocks>;
   paragraphSpacing: number;
   highlights: Highlight[];
   contentRef: React.RefObject<HTMLDivElement | null>;
+  physicalPageBreakTitles?: string[];
 }) {
   if (blocks.length === 0) return null;
 
