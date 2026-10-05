@@ -47,6 +47,7 @@ import { requestBookTranslationAccess } from "@/lib/admin/translation-access.fun
 import { supabase } from "@/integrations/supabase/client";
 
 const CONTENTS_PER_PAGE = 8;
+const PHYSICAL_PAGE_GUTTER = 10;
 
 type FrontPage =
   | { kind: "title" }
@@ -356,6 +357,7 @@ export function BookReaderV3({
   const [chapterStartPages, setChapterStartPages] = useState<number[]>([]);
   const [pageSize, setPageSize] = useState({ width: 360, height: 540 });
   const [contentSize, setContentSize] = useState({ width: 280, height: 410 });
+  const pageStride = contentSize.width + PHYSICAL_PAGE_GUTTER;
   const [mobileViewport, setMobileViewport] = useState(false);
   const [turning, setTurning] = useState<"next" | "prev" | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
@@ -470,8 +472,8 @@ export function BookReaderV3({
       const firstBoundary = textBoundaryAt(anchor, 0);
       const lastBoundary = textBoundaryAt(anchor, Math.max(0, length - 1));
       if (!firstBoundary || !lastBoundary) continue;
-      const firstPage = pageForBoundary(flow, firstBoundary, contentSize.width);
-      const lastPage = pageForBoundary(flow, lastBoundary, contentSize.width);
+      const firstPage = pageForBoundary(flow, firstBoundary, pageStride);
+      const lastPage = pageForBoundary(flow, lastBoundary, pageStride);
       if (bodyPage < firstPage || bodyPage > lastPage) continue;
       let lo = 0,
         hi = Math.max(0, length - 1);
@@ -479,7 +481,7 @@ export function BookReaderV3({
         const mid = Math.floor((lo + hi) / 2);
         const boundary = textBoundaryAt(anchor, mid);
         if (!boundary) break;
-        if (pageForBoundary(flow, boundary, contentSize.width) < bodyPage) lo = mid + 1;
+        if (pageForBoundary(flow, boundary, pageStride) < bodyPage) lo = mid + 1;
         else hi = mid;
       }
       const position = {
@@ -497,7 +499,7 @@ export function BookReaderV3({
     };
     positionRef.current = fallback;
     return fallback;
-  }, [bodyPage, chapters, contentSize.width, currentChapterIndex]);
+  }, [bodyPage, chapters, contentSize.width, currentChapterIndex, pageStride]);
 
   const restorePosition = useCallback(
     (position: ReaderPosition) => {
@@ -527,9 +529,9 @@ export function BookReaderV3({
       );
       const boundary = textBoundaryAt(target, relative);
       if (!boundary) return;
-      setBodyPage(Math.min(bodyPageCount - 1, pageForBoundary(flow, boundary, contentSize.width)));
+      setBodyPage(Math.min(bodyPageCount - 1, pageForBoundary(flow, boundary, pageStride)));
     },
-    [bodyPageCount, chapterStartPages, contentSize.width],
+    [bodyPageCount, chapterStartPages, contentSize.width, pageStride],
   );
 
   useLayoutEffect(() => {
@@ -540,7 +542,8 @@ export function BookReaderV3({
       const width = Math.max(1, Math.floor(viewport.clientWidth));
       const height = Math.max(1, Math.floor(viewport.clientHeight));
       setContentSize({ width, height });
-      setBodyPageCount(Math.max(1, Math.ceil(flow.scrollWidth / width)));
+      const stride = width + PHYSICAL_PAGE_GUTTER;
+      setBodyPageCount(Math.max(1, Math.ceil((flow.scrollWidth + PHYSICAL_PAGE_GUTTER) / stride)));
       const flowRect = flow.getBoundingClientRect();
       setChapterStartPages(
         chapters.map((_, index) => {
@@ -550,7 +553,7 @@ export function BookReaderV3({
           return opening
             ? Math.max(
                 0,
-                Math.round((opening.getBoundingClientRect().left - flowRect.left) / width),
+                Math.round((opening.getBoundingClientRect().left - flowRect.left) / stride),
               )
             : 0;
         }),
@@ -899,9 +902,9 @@ export function BookReaderV3({
                   width: contentSize.width,
                   height: contentSize.height,
                   columnWidth: contentSize.width,
-                  columnGap: 0,
+                  columnGap: PHYSICAL_PAGE_GUTTER,
                   columnFill: "auto",
-                  transform: "translate3d(" + String(-bodyPage * contentSize.width) + "px,0,0)",
+                  transform: "translate3d(" + String(-bodyPage * pageStride) + "px,0,0)",
                   fontSize: String(mobileViewport ? Math.min(17, fontSize) : fontSize) + "px",
                 }}
               >
