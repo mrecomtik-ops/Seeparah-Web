@@ -429,6 +429,104 @@ export async function searchReaderBook(params: {
   return results;
 }
 
+export interface ReaderBookContentResult {
+  chunks: Array<{ chunkIndex: number; content: string }>;
+  locked: boolean;
+  typographyProfile?: string;
+  reason?: ReaderChunkResult["reason"];
+}
+
+export async function getReaderBookContent(params: {
+  bookId: string;
+  language: string;
+  userId: string | null;
+}): Promise<ReaderBookContentResult> {
+  const db = await admin();
+  const { data: book, error: bookError } = await db
+    .from("books")
+    .select(
+      "id, status, access_type, author_id, source_language, source_version, content_classification, typography_profile",
+    )
+    .eq("id", params.bookId)
+    .single();
+
+  if (bookError || !book) {
+    return { chunks: [], locked: false, reason: "not_available" };
+  }
+
+  const isOwner = params.userId != null && book.author_id === params.userId;
+  const monetizationEnabled = await isMonetizationEnabled();
+  let hasActiveSubscription = false;
+  if (params.userId && monetizationEnabled) {
+    const { data: subs } = await db
+      .from("user_subscriptions")
+      .select("status, expires_at")
+      .eq("user_id", params.userId)
+      .eq("status", "active");
+    hasActiveSubscription = (subs ?? []).some(
+      (s) => !s.expires_at || new Date(s.expires_at) > new Date(),
+    );
+  }
+
+  const isSourceLanguage = params.language === book.source_language;
+  let editionAccessType: "free" | "paid" | undefined;
+  let editionTypographyProfile: string | undefined;
+  if (!isSourceLanguage) {
+    const { data: edition } = await db
+      .from("book_editions")
+      .select("access_type, typography_profile")
+      .eq("book_id", params.bookId)
+      .eq("language", params.language)
+      .maybeSingle();
+    editionAccessType = (edition?.access_type as "free" | "paid" | undefined) ?? undefined;
+    editionTypographyProfile = edition?.typography_profile ?? undefined;
+  }
+
+  const fullAccess = resolveReaderAccess({
+    book: {
+      status: book.status,
+      accessType: book.access_type,
+      sourceLanguage: book.source_language,
+      contentClassification: book.content_classification as "general" | "religious" | null,
+    },
+    language: params.language,
+    chunkIndex: 1,
+    userId: params.userId,
+    isOwner,
+    monetizationEnabled,
+    hasActiveSubscription,
+    editionAccessType,
+  });
+
+  const maxChunk = fullAccess.locked ? 0 : null;
+  let query = db
+    .from("book_chunks")
+    .select("chunk_index, content")
+    .eq("book_id", params.bookId)
+    .eq("language", params.language)
+    .eq("status", "published")
+    .eq("source_version", book.source_version ?? 1)
+    .order("chunk_index", { ascending: true });
+  if (maxChunk !== null) query = query.eq("chunk_index", maxChunk);
+
+  const { data: rows, error } = await query;
+  if (error) {
+    return { chunks: [], locked: true, reason: "not_available" };
+  }
+
+  return {
+    chunks: (rows ?? []).map((row) => ({
+      chunkIndex: Number(row.chunk_index),
+      content: String(row.content ?? ""),
+    })),
+    locked: fullAccess.locked,
+    reason: fullAccess.locked ? fullAccess.reason : undefined,
+    typographyProfile: isSourceLanguage
+      ? (book.typography_profile ?? "standard")
+      : (editionTypographyProfile ?? "standard"),
+  };
+}
+
 export async function getReaderChunk(params: {
   bookId: string;
   language: string;

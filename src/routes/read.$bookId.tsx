@@ -76,6 +76,7 @@ import {
 } from "@/lib/reader-pagination";
 import { getPublicContentSettings } from "@/lib/admin/settings.functions";
 import { formatAuthorName } from "@/lib/author-name";
+import { BookReaderV3 } from "@/components/reader/BookReaderV3";
 
 const searchSchema = z.object({
   lang: z.string().optional(),
@@ -111,7 +112,7 @@ export const Route = createFileRoute("/read/$bookId")({
       { name: "robots", content: "noindex" },
     ],
   }),
-  component: ReaderPage,
+  component: ReaderPageV3,
 });
 
 const THEME_CLASS: Record<ReaderTheme, string> = {
@@ -165,6 +166,12 @@ function ReaderBookNotFoundPage() {
       </Link>
     </div>
   );
+}
+
+function ReaderPageV3() {
+  const { book } = Route.useLoaderData();
+  const { lang } = Route.useSearch();
+  return <BookReaderV3 book={book} initialLanguage={lang} />;
 }
 
 function ReaderPage() {
