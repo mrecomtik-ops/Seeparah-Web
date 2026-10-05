@@ -537,9 +537,13 @@ export function BookReaderV3({
   const activeLogicalPage = useMemo(() => {
     if (!bodyPageCount) return 0;
     let candidate = Math.min(bodyPage, bodyPageCount - 1);
+    if (spreadMode && candidate > 0) {
+      const leftPage = candidate - 1;
+      if (logicalPages[leftPage]?.rawPage != null) candidate = leftPage;
+    }
     if (logicalPages[candidate]?.rawPage == null && candidate > 0) candidate -= 1;
     return Math.max(0, candidate);
-  }, [bodyPage, bodyPageCount, logicalPages]);
+  }, [bodyPage, bodyPageCount, logicalPages, spreadMode]);
   const currentChapterIndex = chapterIndexForLogicalPage(activeLogicalPage);
   const storageKey = "seeparah:reader-v3:" + userId + ":" + book.id + ":" + language;
   const seedKey = userId + ":" + book.id + ":" + language;
