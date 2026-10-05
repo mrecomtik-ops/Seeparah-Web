@@ -21,7 +21,7 @@ async function makePackage(key, title, xhtmlFiles, ncx) {
   zip.file("META-INF/container.xml", `<?xml version="1.0"?><container><rootfiles><rootfile full-path="OEBPS/content.opf"/></rootfiles></container>`);
   const items = xhtmlFiles.map((_, i) => `<item id="f${i}" href="f${i}.xhtml" media-type="application/xhtml+xml"/>`).join("");
   const spine = xhtmlFiles.map((_, i) => `<itemref idref="f${i}"/>`).join("");
-  zip.file("OEBPS/content.opf", `<?xml version="1.0"?><package xmlns:dc="http://purl.org/dc/elements/1.1/"><metadata><dc:title>${title}</dc:title></metadata><manifest>${items}<item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/></manifest><spine>${spine}</spine></package>`);
+  zip.file("OEBPS/content.opf", `<?xml version="1.0"?><package xmlns="http://www.idpf.org/2007/opf" xmlns:dc="http://purl.org/dc/elements/1.1/"><metadata><dc:title>${title}</dc:title></metadata><manifest>${items}<item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/></manifest><spine>${spine}</spine></package>`);
   zip.file("OEBPS/toc.ncx", `<?xml version="1.0"?><ncx><navMap>${ncx.map((t, i) => `<navPoint id="n${i}"><navLabel><text>${t}</text></navLabel><content src="f0.xhtml"/></navPoint>`).join("")}</navMap></ncx>`);
   xhtmlFiles.forEach((body, i) => zip.file(`OEBPS/f${i}.xhtml`, `<html><head><title>${title}</title></head><body>${body}</body></html>`));
   fs.writeFileSync(path.join(dir, `${key}-images.epub`), await zip.generateAsync({ type: "nodebuffer" }));
