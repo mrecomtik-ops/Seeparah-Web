@@ -452,7 +452,7 @@ export function BookReaderV3({
     const observer = new ResizeObserver(update);
     observer.observe(stage);
     return () => observer.disconnect();
-  }, []);
+  }, [chapters.length]);
 
   const capturePosition = useCallback((): ReaderPosition | null => {
     const flow = flowRef.current;
@@ -774,6 +774,10 @@ export function BookReaderV3({
     toast.success("Highlighted");
   }
 
+  const pagePadding = `${Math.round(pageSize.width * 0.07)}px ${Math.round(
+    pageSize.width * 0.09,
+  )}px ${Math.round(pageSize.width * 0.055)}px`;
+
   const pageLabel =
     frontIndex !== null
       ? "Front matter " + toRoman(frontIndex + 1)
@@ -875,7 +879,7 @@ export function BookReaderV3({
       >
         <article
           className={"reader-v3-page reader-v3-page-turn-" + (turning ?? "idle")}
-          style={{ width: pageSize.width, height: pageSize.height }}
+          style={{ width: pageSize.width, height: pageSize.height, padding: pagePadding }}
           lang={languageToBcp47(language)}
           dir={RTL_LANGUAGES.has(language) ? "rtl" : "ltr"}
         >
@@ -914,7 +918,7 @@ export function BookReaderV3({
             <div className="reader-v3-page-number">{bodyPage + 1}</div>
           </div>
           {frontPage && (
-            <div className="reader-v3-front-overlay">
+            <div className="reader-v3-front-overlay" style={{ padding: pagePadding }}>
               <FrontMatterPage
                 page={frontPage}
                 frontNumber={toRoman((frontIndex ?? 0) + 1)}
