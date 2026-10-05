@@ -46,8 +46,89 @@ import {
 import { requestBookTranslationAccess } from "@/lib/admin/translation-access.functions";
 import { supabase } from "@/integrations/supabase/client";
 
-const CONTENTS_PER_PAGE = 8;
+const CONTENTS_PER_PAGE = 14;
 const PHYSICAL_PAGE_GUTTER = 10;
+const SPREAD_SPINE_GAP = 10;
+
+type LogicalBookPage = { rawPage: number | null };
+
+function clamp(value: number, minimum: number, maximum: number): number {
+  return Math.min(maximum, Math.max(minimum, value));
+}
+
+function displayTitleCase(value: string): string {
+  const small = new Set([
+    "a",
+    "an",
+    "and",
+    "as",
+    "at",
+    "but",
+    "by",
+    "for",
+    "in",
+    "nor",
+    "of",
+    "on",
+    "or",
+    "per",
+    "the",
+    "to",
+    "up",
+    "via",
+  ]);
+  const honorifics = new Map([
+    ["dr.", "Dr."],
+    ["mr.", "Mr."],
+    ["mrs.", "Mrs."],
+    ["ms.", "Ms."],
+    ["st.", "St."],
+  ]);
+  const words = value.trim().split(/\s+/u);
+  return words
+    .map((word, index) => {
+      const lower = word.toLocaleLowerCase();
+      const honorific = honorifics.get(lower);
+      if (honorific) return honorific;
+      if (index > 0 && index < words.length - 1 && small.has(lower)) return lower;
+      return lower.replace(
+        /(^|[-—–(\x5b{"'“‘])([\p{L}\p{N}])/gu,
+        (_, lead: string, char: string) => lead + char.toLocaleUpperCase(),
+      );
+    })
+    .join(" ");
+}
+
+function buildLogicalBookPages(
+  rawPageCount: number,
+  rawChapterStarts: number[],
+): {
+  pages: LogicalBookPage[];
+  chapterStarts: number[];
+  rawToLogical: number[];
+} {
+  const pages: LogicalBookPage[] = [];
+  const chapterStarts = Array.from({ length: rawChapterStarts.length }, () => 0);
+  const rawToLogical = Array.from({ length: rawPageCount }, () => 0);
+  const chapterAtRaw = new Map<number, number[]>();
+  rawChapterStarts.forEach((rawPage, chapterIndex) => {
+    const existing = chapterAtRaw.get(rawPage) ?? [];
+    existing.push(chapterIndex);
+    chapterAtRaw.set(rawPage, existing);
+  });
+
+  for (let rawPage = 0; rawPage < rawPageCount; rawPage += 1) {
+    const startingChapters = chapterAtRaw.get(rawPage) ?? [];
+    if (startingChapters.length && pages.length % 2 === 1) pages.push({ rawPage: null });
+    startingChapters.forEach((chapterIndex) => {
+      chapterStarts[chapterIndex] = pages.length;
+    });
+    rawToLogical[rawPage] = pages.length;
+    pages.push({ rawPage });
+  }
+
+  return { pages, chapterStarts, rawToLogical };
+}
 
 type FrontPage =
   | { kind: "title" }
@@ -325,6 +406,9 @@ function ChapterBlocks(props: {
         if (block.kind === "principle") return <aside key={key}>{anchor}</aside>;
         return <p key={key}>{anchor}</p>;
       })}
+      <div className="reader-v3-chapter-ornament" aria-hidden="true">
+        ❧
+      </div>
     </>
   );
 }
@@ -353,12 +437,14 @@ export function BookReaderV3({
   const [requestingTranslation, setRequestingTranslation] = useState(false);
   const [frontIndex, setFrontIndex] = useState<number | null>(0);
   const [bodyPage, setBodyPage] = useState(0);
-  const [bodyPageCount, setBodyPageCount] = useState(1);
-  const [chapterStartPages, setChapterStartPages] = useState<number[]>([]);
+  const [rawPageCount, setRawPageCount] = useState(1);
+  const [rawChapterStartPages, setRawChapterStartPages] = useState<number[]>([]);
   const [pageSize, setPageSize] = useState({ width: 360, height: 540 });
   const [contentSize, setContentSize] = useState({ width: 280, height: 410 });
   const pageStride = contentSize.width + PHYSICAL_PAGE_GUTTER;
   const [mobileViewport, setMobileViewport] = useState(false);
+  const [spreadMode, setSpreadMode] = useState(false);
+  const [layoutMeasured, setLayoutMeasured] = useState(false);
   const [turning, setTurning] = useState<"next" | "prev" | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
   const viewportRef = useRef<HTMLDivElement | null>(null);
@@ -404,6 +490,15 @@ export function BookReaderV3({
     [book.available_languages, book.source_language],
   );
 
+  const logicalLayout = useMemo(
+    () => buildLogicalBookPages(rawPageCount, rawChapterStartPages),
+    [rawChapterStartPages, rawPageCount],
+  );
+  const logicalPages = logicalLayout.pages;
+  const chapterStartPages = logicalLayout.chapterStarts;
+  const bodyPageCount = logicalPages.length;
+  const displayBookTitle = useMemo(() => displayTitleCase(book.title), [book.title]);
+
   const frontPages = useMemo<FrontPage[]>(() => {
     const pages: FrontPage[] = [{ kind: "title" }];
     for (let start = 0; start < chapters.length; start += CONTENTS_PER_PAGE) {
@@ -428,15 +523,24 @@ export function BookReaderV3({
     return pages;
   }, [book.description, chapterStartPages, chapters]);
 
-  const currentChapterIndex = useMemo(() => {
-    let match = 0;
-    chapterStartPages.forEach((start, index) => {
-      if (start <= bodyPage) match = index;
-    });
-    return Math.min(match, Math.max(0, chapters.length - 1));
-  }, [bodyPage, chapterStartPages, chapters.length]);
-  const currentChapter = chapters[currentChapterIndex];
-  const chapterOpeningPage = chapterStartPages[currentChapterIndex] === bodyPage;
+  const chapterIndexForLogicalPage = useCallback(
+    (logicalPage: number) => {
+      let match = 0;
+      chapterStartPages.forEach((start, index) => {
+        if (start <= logicalPage) match = index;
+      });
+      return Math.min(match, Math.max(0, chapters.length - 1));
+    },
+    [chapterStartPages, chapters.length],
+  );
+
+  const activeLogicalPage = useMemo(() => {
+    if (!bodyPageCount) return 0;
+    let candidate = Math.min(bodyPage, bodyPageCount - 1);
+    if (logicalPages[candidate]?.rawPage == null && candidate > 0) candidate -= 1;
+    return Math.max(0, candidate);
+  }, [bodyPage, bodyPageCount, logicalPages]);
+  const currentChapterIndex = chapterIndexForLogicalPage(activeLogicalPage);
   const storageKey = "seeparah:reader-v3:" + userId + ":" + book.id + ":" + language;
   const seedKey = userId + ":" + book.id + ":" + language;
 
@@ -446,8 +550,13 @@ export function BookReaderV3({
     const update = () => {
       const availableWidth = Math.max(220, stage.clientWidth - 32);
       const availableHeight = Math.max(330, stage.clientHeight - 24);
+      const nextSpread = stage.clientWidth >= 900 && window.innerWidth > window.innerHeight;
+      setSpreadMode(nextSpread);
       setMobileViewport(stage.clientWidth < 640);
-      const width = Math.floor(Math.min(560, availableWidth, (availableHeight * 2) / 3));
+      const widthByLayout = nextSpread
+        ? Math.max(220, (availableWidth - SPREAD_SPINE_GAP) / 2)
+        : availableWidth;
+      const width = Math.floor(Math.min(560, widthByLayout, (availableHeight * 2) / 3));
       setPageSize({ width, height: Math.floor(width * 1.5) });
     };
     update();
@@ -456,9 +565,16 @@ export function BookReaderV3({
     return () => observer.disconnect();
   }, [chapters.length]);
 
+  useEffect(() => {
+    if (!spreadMode || frontIndex !== null) return;
+    setBodyPage((page) => (page % 2 === 0 ? page : page + 1));
+  }, [frontIndex, spreadMode]);
+
   const capturePosition = useCallback((): ReaderPosition | null => {
     const flow = flowRef.current;
-    if (!flow || contentSize.width <= 0 || !chapters.length) return positionRef.current;
+    const rawBodyPage = logicalPages[activeLogicalPage]?.rawPage;
+    if (!flow || rawBodyPage == null || contentSize.width <= 0 || !chapters.length)
+      return positionRef.current;
     const selector =
       '[data-reader-chapter-index="' + String(currentChapterIndex) + '"][data-chapter-offset]';
     const anchors = Array.from(flow.querySelectorAll<HTMLElement>(selector));
@@ -474,14 +590,14 @@ export function BookReaderV3({
       if (!firstBoundary || !lastBoundary) continue;
       const firstPage = pageForBoundary(flow, firstBoundary, pageStride);
       const lastPage = pageForBoundary(flow, lastBoundary, pageStride);
-      if (bodyPage < firstPage || bodyPage > lastPage) continue;
+      if (rawBodyPage < firstPage || rawBodyPage > lastPage) continue;
       let lo = 0,
         hi = Math.max(0, length - 1);
       while (lo < hi) {
         const mid = Math.floor((lo + hi) / 2);
         const boundary = textBoundaryAt(anchor, mid);
         if (!boundary) break;
-        if (pageForBoundary(flow, boundary, pageStride) < bodyPage) lo = mid + 1;
+        if (pageForBoundary(flow, boundary, pageStride) < rawBodyPage) lo = mid + 1;
         else hi = mid;
       }
       const position = {
@@ -499,7 +615,14 @@ export function BookReaderV3({
     };
     positionRef.current = fallback;
     return fallback;
-  }, [bodyPage, chapters, contentSize.width, currentChapterIndex, pageStride]);
+  }, [
+    activeLogicalPage,
+    chapters,
+    contentSize.width,
+    currentChapterIndex,
+    logicalPages,
+    pageStride,
+  ]);
 
   const restorePosition = useCallback(
     (position: ReaderPosition) => {
@@ -529,23 +652,26 @@ export function BookReaderV3({
       );
       const boundary = textBoundaryAt(target, relative);
       if (!boundary) return;
-      setBodyPage(Math.min(bodyPageCount - 1, pageForBoundary(flow, boundary, pageStride)));
+      const rawPage = pageForBoundary(flow, boundary, pageStride);
+      const logicalPage = logicalLayout.rawToLogical[rawPage] ?? 0;
+      setBodyPage(spreadMode && logicalPage % 2 === 1 ? logicalPage + 1 : logicalPage);
     },
-    [bodyPageCount, chapterStartPages, contentSize.width, pageStride],
+    [chapterStartPages, contentSize.width, logicalLayout.rawToLogical, pageStride, spreadMode],
   );
 
   useLayoutEffect(() => {
     const viewport = viewportRef.current;
     const flow = flowRef.current;
     if (!viewport || !flow || !chapters.length) return;
+    setLayoutMeasured(false);
     const measure = () => {
       const width = Math.max(1, Math.floor(viewport.clientWidth));
       const height = Math.max(1, Math.floor(viewport.clientHeight));
       setContentSize({ width, height });
       const stride = width + PHYSICAL_PAGE_GUTTER;
-      setBodyPageCount(Math.max(1, Math.ceil((flow.scrollWidth + PHYSICAL_PAGE_GUTTER) / stride)));
+      setRawPageCount(Math.max(1, Math.ceil((flow.scrollWidth + PHYSICAL_PAGE_GUTTER) / stride)));
       const flowRect = flow.getBoundingClientRect();
-      setChapterStartPages(
+      setRawChapterStartPages(
         chapters.map((_, index) => {
           const opening = flow.querySelector<HTMLElement>(
             '[data-reader-chapter-opening="' + String(index) + '"]',
@@ -558,11 +684,7 @@ export function BookReaderV3({
             : 0;
         }),
       );
-      const pending = pendingRestoreRef.current;
-      if (pending) {
-        pendingRestoreRef.current = null;
-        requestAnimationFrame(() => restorePosition(pending));
-      }
+      setLayoutMeasured(true);
     };
     const frame = requestAnimationFrame(measure);
     const observer = new ResizeObserver(() => requestAnimationFrame(measure));
@@ -573,7 +695,15 @@ export function BookReaderV3({
       cancelAnimationFrame(frame);
       observer.disconnect();
     };
-  }, [chapters, fontSize, pageSize.height, pageSize.width, restorePosition]);
+  }, [chapters, fontSize, pageSize.height, pageSize.width]);
+
+  useLayoutEffect(() => {
+    const pending = pendingRestoreRef.current;
+    if (!layoutMeasured || !pending || !logicalPages.length) return;
+    pendingRestoreRef.current = null;
+    const frame = requestAnimationFrame(() => restorePosition(pending));
+    return () => cancelAnimationFrame(frame);
+  }, [layoutMeasured, logicalPages.length, restorePosition]);
 
   useEffect(() => {
     if (!chapters.length || !progressQuery.data || seededKeyRef.current === seedKey) return;
@@ -598,8 +728,24 @@ export function BookReaderV3({
       setFrontIndex(null);
       positionRef.current = restored;
       pendingRestoreRef.current = restored;
+      if (layoutMeasured) {
+        requestAnimationFrame(() => {
+          if (pendingRestoreRef.current !== restored) return;
+          pendingRestoreRef.current = null;
+          restorePosition(restored);
+        });
+      }
     }
-  }, [book.id, chapters, language, progressQuery.data, seedKey, storageKey]);
+  }, [
+    book.id,
+    chapters,
+    language,
+    layoutMeasured,
+    progressQuery.data,
+    restorePosition,
+    seedKey,
+    storageKey,
+  ]);
 
   useEffect(() => {
     if (frontIndex !== null || !chapters.length) return;
@@ -632,31 +778,74 @@ export function BookReaderV3({
     return () => document.body.classList.remove("reader-v3-body", "dark", "reader-sepia");
   }, [theme]);
 
+  const lastFrontSpreadAnchor =
+    frontPages.length <= 1 ? 0 : 1 + 2 * Math.floor((frontPages.length - 2) / 2);
+  const lastBodySpreadRight =
+    bodyPageCount <= 1 ? 0 : (bodyPageCount - 1) % 2 === 0 ? bodyPageCount - 1 : bodyPageCount;
+
   const goBodyPage = useCallback(
     (delta: number) => {
+      const direction = delta > 0 ? 1 : -1;
+      setTurning(direction > 0 ? "next" : "prev");
+
       if (frontIndex !== null) {
-        const next = frontIndex + delta;
-        if (next >= 0 && next < frontPages.length) {
-          setTurning(delta > 0 ? "next" : "prev");
-          setFrontIndex(next);
-        } else if (delta > 0 && next >= frontPages.length) {
-          setTurning("next");
-          setFrontIndex(null);
-          setBodyPage(0);
+        if (!spreadMode) {
+          const next = frontIndex + direction;
+          if (next >= 0 && next < frontPages.length) setFrontIndex(next);
+          else if (direction > 0) {
+            setFrontIndex(null);
+            setBodyPage(0);
+          }
+          return;
         }
+
+        if (direction < 0) {
+          if (frontIndex === 0) return;
+          setFrontIndex(frontIndex <= 1 ? 0 : Math.max(1, frontIndex - 2));
+          return;
+        }
+        if (frontIndex === 0 && frontPages.length > 1) {
+          setFrontIndex(1);
+          return;
+        }
+        const nextFront = frontIndex + 2;
+        if (nextFront < frontPages.length) {
+          setFrontIndex(nextFront);
+          return;
+        }
+        setFrontIndex(null);
+        setBodyPage(0);
         return;
       }
-      const next = bodyPage + delta;
-      if (delta < 0 && next < 0) {
-        setTurning("prev");
-        setFrontIndex(Math.max(0, frontPages.length - 1));
+
+      if (!spreadMode) {
+        const next = bodyPage + direction;
+        if (direction < 0 && next < 0) {
+          setFrontIndex(Math.max(0, frontPages.length - 1));
+          return;
+        }
+        if (next < 0 || next >= bodyPageCount) return;
+        setBodyPage(next);
         return;
       }
-      if (next < 0 || next >= bodyPageCount) return;
-      setTurning(delta > 0 ? "next" : "prev");
+
+      const next = bodyPage + direction * 2;
+      if (direction < 0 && next < 0) {
+        setFrontIndex(lastFrontSpreadAnchor);
+        return;
+      }
+      if (next < 0 || next > lastBodySpreadRight) return;
       setBodyPage(next);
     },
-    [bodyPage, bodyPageCount, frontIndex, frontPages.length],
+    [
+      bodyPage,
+      bodyPageCount,
+      frontIndex,
+      frontPages.length,
+      lastBodySpreadRight,
+      lastFrontSpreadAnchor,
+      spreadMode,
+    ],
   );
 
   useEffect(() => {
@@ -695,6 +884,7 @@ export function BookReaderV3({
       const position = capturePosition();
       if (position) pendingRestoreRef.current = position;
     }
+    setLayoutMeasured(false);
     setFontSize(next);
     setPrefs({ fontSize: next });
   };
@@ -703,6 +893,7 @@ export function BookReaderV3({
     seededKeyRef.current = null;
     setFrontIndex(0);
     setBodyPage(0);
+    setLayoutMeasured(false);
     setLanguage(next);
     setPrefs({ language: next });
   };
@@ -777,18 +968,173 @@ export function BookReaderV3({
     toast.success("Highlighted");
   }
 
-  const pagePadding = `${Math.round(pageSize.width * 0.07)}px ${Math.round(
-    pageSize.width * 0.09,
-  )}px ${Math.round(pageSize.width * 0.055)}px`;
+  const horizontalPadding = Math.round(pageSize.width * 0.065);
+  const topPadding = Math.round(pageSize.width * 0.035);
+  const bottomPadding = Math.round(pageSize.width * 0.03);
+  const pagePadding = `${topPadding}px ${horizontalPadding}px ${bottomPadding}px`;
+  const baseFontSize = spreadMode
+    ? clamp(pageSize.width / 32, 10.75, 16)
+    : mobileViewport
+      ? clamp(pageSize.width / 29, 13, 17)
+      : clamp(pageSize.width / 30, 12, 17);
+  const readerFontSize = Math.round(baseFontSize * (fontSize / 18) * 100) / 100;
+  const lineHeightPx = Math.round(readerFontSize * 1.45 * 4) / 4;
+  const runningHeadHeight = 11;
+  const runningHeadGap = lineHeightPx * 1.5;
+  const folioHeight = 14;
+  const innerPageHeight = pageSize.height - topPadding - bottomPadding - 2;
+  const availableGridHeight = Math.max(
+    lineHeightPx * 12,
+    innerPageHeight - runningHeadHeight - runningHeadGap - folioHeight,
+  );
+  const bodyGridHeight =
+    Math.max(12, Math.floor(availableGridHeight / lineHeightPx)) * lineHeightPx;
 
   const pageLabel =
     frontIndex !== null
-      ? "Front matter " + toRoman(frontIndex + 1)
-      : "Page " + String(bodyPage + 1) + " of " + String(bodyPageCount);
-  const progress = frontIndex !== null ? 0 : ((bodyPage + 1) / Math.max(1, bodyPageCount)) * 100;
-  const frontPage = frontIndex !== null ? frontPages[frontIndex] : null;
+      ? spreadMode && frontIndex > 0
+        ? frontIndex + 1 < frontPages.length
+          ? `Front matter ${toRoman(frontIndex + 1)}–${toRoman(frontIndex + 2)}`
+          : `Front matter ${toRoman(frontIndex + 1)}`
+        : "Front matter " + toRoman(frontIndex + 1)
+      : spreadMode
+        ? bodyPage === 0
+          ? `Page 1 of ${bodyPageCount}`
+          : bodyPage < bodyPageCount
+            ? `Pages ${bodyPage}–${bodyPage + 1} of ${bodyPageCount}`
+            : `Page ${bodyPage} of ${bodyPageCount}`
+        : "Page " + String(bodyPage + 1) + " of " + String(bodyPageCount);
+  const progress =
+    frontIndex !== null
+      ? 0
+      : (Math.min(bodyPage + 1, bodyPageCount) / Math.max(1, bodyPageCount)) * 100;
   const atBeginning = frontIndex === 0;
-  const atEnd = frontIndex === null && bodyPage >= bodyPageCount - 1;
+  const atEnd =
+    frontIndex === null &&
+    (spreadMode ? bodyPage >= lastBodySpreadRight : bodyPage >= bodyPageCount - 1);
+
+  const renderPhysicalPage = (options: {
+    logicalIndex?: number;
+    frontPageIndex?: number;
+    side: "left" | "right" | "single";
+    master?: boolean;
+  }) => {
+    const frontPageIndex = options.frontPageIndex;
+    const frontPage =
+      frontPageIndex != null && frontPageIndex >= 0 && frontPageIndex < frontPages.length
+        ? frontPages[frontPageIndex]
+        : null;
+    const logicalIndex = options.logicalIndex;
+    const logicalPage =
+      logicalIndex != null && logicalIndex >= 0 && logicalIndex < logicalPages.length
+        ? logicalPages[logicalIndex]
+        : null;
+    const rawPage = frontPage ? 0 : (logicalPage?.rawPage ?? null);
+    const blank = !frontPage && rawPage == null;
+    const chapterIndex =
+      logicalIndex != null && !blank ? chapterIndexForLogicalPage(logicalIndex) : 0;
+    const chapter = chapters[chapterIndex];
+    const chapterOpening =
+      logicalIndex != null && !blank && chapterStartPages[chapterIndex] === logicalIndex;
+    const runningHeadText =
+      options.side === "left" && spreadMode
+        ? displayBookTitle
+        : (chapter?.title ?? displayBookTitle);
+    const pageClass =
+      "reader-v3-page reader-v3-page-" +
+      options.side +
+      " reader-v3-page-turn-" +
+      (turning ?? "idle") +
+      (blank ? " reader-v3-page-blank" : "");
+
+    if (blank) {
+      return (
+        <article
+          className={pageClass}
+          style={{ width: pageSize.width, height: pageSize.height, padding: pagePadding }}
+          aria-hidden="true"
+        />
+      );
+    }
+
+    return (
+      <article
+        className={pageClass}
+        style={{ width: pageSize.width, height: pageSize.height, padding: pagePadding }}
+        lang={languageToBcp47(language)}
+        dir={RTL_LANGUAGES.has(language) ? "rtl" : "ltr"}
+        data-book-page={logicalIndex != null ? logicalIndex + 1 : undefined}
+        data-front-page={frontPageIndex != null ? frontPageIndex + 1 : undefined}
+      >
+        <div
+          className={"reader-v3-body-layer " + (frontPage ? "reader-v3-body-layer-hidden" : "")}
+          aria-hidden={frontPage ? true : undefined}
+        >
+          <div
+            className={
+              "reader-v3-running-head " +
+              (chapterOpening ? "reader-v3-running-head-hidden " : "") +
+              (spreadMode
+                ? "reader-v3-running-head-" + options.side
+                : "reader-v3-running-head-single")
+            }
+            style={{ height: runningHeadHeight, marginBottom: runningHeadGap }}
+          >
+            <span>{runningHeadText}</span>
+          </div>
+          <div
+            ref={options.master ? viewportRef : undefined}
+            className="reader-v3-content-viewport"
+            style={{ height: bodyGridHeight, flex: "0 0 auto" }}
+          >
+            <div
+              ref={options.master ? flowRef : undefined}
+              data-reader-master={options.master ? "true" : undefined}
+              className="reader-v3-flow"
+              style={{
+                width: contentSize.width,
+                height: bodyGridHeight,
+                columnWidth: contentSize.width,
+                columnGap: PHYSICAL_PAGE_GUTTER,
+                columnFill: "auto",
+                transform: "translate3d(" + String(-(rawPage ?? 0) * pageStride) + "px,0,0)",
+                fontSize: readerFontSize + "px",
+                lineHeight: lineHeightPx + "px",
+              }}
+            >
+              {chapters.map((readerChapter, chapterNumber) => (
+                <ChapterBlocks
+                  key={readerChapter.key}
+                  chapter={readerChapter}
+                  chapterIndex={chapterNumber}
+                  highlights={highlights}
+                />
+              ))}
+            </div>
+          </div>
+          <div
+            className={
+              "reader-v3-page-number " + (chapterOpening ? "reader-v3-page-number-hidden" : "")
+            }
+            style={{ height: folioHeight, minHeight: folioHeight }}
+          >
+            {logicalIndex != null ? logicalIndex + 1 : ""}
+          </div>
+        </div>
+        {frontPage && (
+          <div className="reader-v3-front-overlay" style={{ padding: pagePadding }}>
+            <FrontMatterPage
+              page={frontPage}
+              frontNumber={toRoman((frontPageIndex ?? 0) + 1)}
+              book={book}
+              displayBookTitle={displayBookTitle}
+              onChapter={jumpToChapter}
+            />
+          </div>
+        )}
+      </article>
+    );
+  };
 
   if (contentQuery.isLoading || navigationQuery.isLoading) {
     return (
@@ -821,7 +1167,7 @@ export function BookReaderV3({
           <span className="hidden sm:inline">Library</span>
         </Link>
         <div className="min-w-0 flex-1 text-center">
-          <div className="truncate font-display text-sm font-semibold">{book.title}</div>
+          <div className="truncate font-display text-sm font-semibold">{displayBookTitle}</div>
           <div className="text-[11px] text-muted-foreground">{pageLabel}</div>
         </div>
         <div className="flex items-center gap-1.5">
@@ -867,7 +1213,7 @@ export function BookReaderV3({
 
       <main
         ref={stageRef}
-        className="reader-v3-stage"
+        className={"reader-v3-stage " + (spreadMode ? "reader-v3-stage-spread" : "")}
         onTouchStart={(event) => {
           touchStartRef.current = event.touches[0]?.clientX ?? null;
         }}
@@ -880,57 +1226,43 @@ export function BookReaderV3({
           if (Math.abs(delta) >= 50) goBodyPage(delta < 0 ? 1 : -1);
         }}
       >
-        <article
-          className={"reader-v3-page reader-v3-page-turn-" + (turning ?? "idle")}
-          style={{ width: pageSize.width, height: pageSize.height, padding: pagePadding }}
-          lang={languageToBcp47(language)}
-          dir={RTL_LANGUAGES.has(language) ? "rtl" : "ltr"}
-        >
-          <div
-            className={"reader-v3-body-layer " + (frontPage ? "reader-v3-body-layer-hidden" : "")}
-            aria-hidden={frontPage ? true : undefined}
-          >
-            <div className={"reader-v3-running-head " + (chapterOpeningPage ? "invisible" : "")}>
-              <span>{currentChapter?.title ?? book.title}</span>
-              <span>{formatAuthorName(book.author)}</span>
-            </div>
-            <div ref={viewportRef} className="reader-v3-content-viewport">
-              <div
-                ref={flowRef}
-                className="reader-v3-flow"
-                style={{
-                  width: contentSize.width,
-                  height: contentSize.height,
-                  columnWidth: contentSize.width,
-                  columnGap: PHYSICAL_PAGE_GUTTER,
-                  columnFill: "auto",
-                  transform: "translate3d(" + String(-bodyPage * pageStride) + "px,0,0)",
-                  fontSize: String(mobileViewport ? Math.min(17, fontSize) : fontSize) + "px",
-                }}
-              >
-                {chapters.map((chapter, chapterIndex) => (
-                  <ChapterBlocks
-                    key={chapter.key}
-                    chapter={chapter}
-                    chapterIndex={chapterIndex}
-                    highlights={highlights}
-                  />
-                ))}
-              </div>
-            </div>
-            <div className="reader-v3-page-number">{bodyPage + 1}</div>
-          </div>
-          {frontPage && (
-            <div className="reader-v3-front-overlay" style={{ padding: pagePadding }}>
-              <FrontMatterPage
-                page={frontPage}
-                frontNumber={toRoman((frontIndex ?? 0) + 1)}
-                book={book}
-                onChapter={jumpToChapter}
-              />
-            </div>
+        <div className={spreadMode ? "reader-v3-spread" : "reader-v3-single"}>
+          {frontIndex !== null ? (
+            spreadMode ? (
+              <>
+                {frontIndex === 0
+                  ? renderPhysicalPage({ side: "left" })
+                  : renderPhysicalPage({
+                      frontPageIndex: frontIndex,
+                      side: "left",
+                      master: frontIndex + 1 >= frontPages.length,
+                    })}
+                {renderPhysicalPage({
+                  frontPageIndex: frontIndex === 0 ? 0 : frontIndex + 1,
+                  side: "right",
+                  master: frontIndex === 0 || frontIndex + 1 < frontPages.length,
+                })}
+              </>
+            ) : (
+              renderPhysicalPage({ frontPageIndex: frontIndex, side: "single", master: true })
+            )
+          ) : spreadMode ? (
+            <>
+              {renderPhysicalPage({
+                logicalIndex: bodyPage - 1,
+                side: "left",
+                master: bodyPage >= bodyPageCount,
+              })}
+              {renderPhysicalPage({
+                logicalIndex: bodyPage,
+                side: "right",
+                master: bodyPage < bodyPageCount,
+              })}
+            </>
+          ) : (
+            renderPhysicalPage({ logicalIndex: bodyPage, side: "single", master: true })
           )}
-        </article>
+        </div>
       </main>
 
       <footer className="reader-v3-bottombar">
@@ -1055,16 +1387,16 @@ function FrontMatterPage(props: {
   page: FrontPage;
   frontNumber: string;
   book: Book;
+  displayBookTitle: string;
   onChapter: (index: number) => void;
 }) {
   if (props.page.kind === "title") {
     return (
       <div className="reader-v3-front reader-v3-title-page">
         <div className="reader-v3-title-block">
-          <h1>{props.book.title}</h1>
+          <h1>{props.displayBookTitle}</h1>
           <div>{formatAuthorName(props.book.author)}</div>
         </div>
-        <div className="reader-v3-page-number">{props.frontNumber}</div>
       </div>
     );
   }

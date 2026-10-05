@@ -939,3 +939,115 @@ body.reader-sepia {
     padding: 0;
   }
 }
+
+/* Reader V3 print polish — spreads, density, baseline rhythm. */
+.reader-v3-spread,
+.reader-v3-single {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.reader-v3-spread {
+  gap: 10px;
+}
+
+.reader-v3-page-left {
+  border-radius: 0.15rem 0.05rem 0.05rem 0.15rem;
+  box-shadow:
+    inset -12px 0 18px -18px oklch(0.2 0.02 80 / 0.5),
+    0 1px 2px oklch(0.2 0.02 80 / 0.08),
+    0 12px 34px -16px oklch(0.2 0.02 80 / 0.2);
+}
+
+.reader-v3-page-right {
+  border-radius: 0.05rem 0.15rem 0.15rem 0.05rem;
+  box-shadow:
+    inset 12px 0 18px -18px oklch(0.2 0.02 80 / 0.5),
+    0 1px 2px oklch(0.2 0.02 80 / 0.08),
+    0 12px 34px -16px oklch(0.2 0.02 80 / 0.2);
+}
+
+.reader-v3-page-blank {
+  background: color-mix(in oklab, var(--color-card) 99%, var(--color-background));
+}
+
+.reader-v3-running-head {
+  min-height: 11px;
+  line-height: 11px;
+  justify-content: center;
+  font-size: 11px;
+  font-variant-caps: all-small-caps;
+  letter-spacing: 0.08em;
+  color: color-mix(in oklab, var(--color-card-foreground) 45%, transparent);
+}
+
+.reader-v3-running-head-left,
+.reader-v3-running-head-right,
+.reader-v3-running-head-single {
+  text-align: center;
+}
+
+.reader-v3-running-head-hidden,
+.reader-v3-page-number-hidden {
+  visibility: hidden;
+}
+
+.reader-v3-flow {
+  text-align: justify;
+  text-align-last: left;
+  text-justify: inter-word;
+  hyphens: auto;
+  -webkit-hyphens: auto;
+  hyphenate-limit-chars: 6 3 3;
+  hyphenate-limit-lines: 2;
+  hyphenate-limit-last: column;
+  -webkit-hyphenate-limit-before: 3;
+  -webkit-hyphenate-limit-after: 3;
+  -webkit-hyphenate-limit-lines: 2;
+}
+
+.reader-v3-flow p {
+  text-wrap: pretty;
+  hanging-punctuation: first last;
+}
+
+.reader-v3-chapter-ornament {
+  height: 1lh;
+  line-height: 1lh;
+  margin: 0;
+  break-inside: avoid-column;
+  text-align: center;
+  text-indent: 0;
+  font-size: 0.9em;
+  color: color-mix(in oklab, var(--color-card-foreground) 58%, transparent);
+}
+
+.reader-v3-toc {
+  gap: 0.14rem;
+}
+
+.reader-v3-toc-row {
+  min-height: 1.25rem;
+  padding: 0.06rem 0;
+  font-size: clamp(0.68rem, 2.35cqw, 0.84rem);
+  line-height: 1.08;
+}
+
+.reader-v3-front h2 {
+  margin-bottom: 0.8em;
+}
+
+.reader-v3-front-overlay {
+  background: var(--color-card);
+}
+
+@media (max-width: 899px), (orientation: portrait) {
+  .reader-v3-spread {
+    gap: 0;
+  }
+
+  .reader-v3-page-single {
+    border-radius: 0.1rem;
+  }
+}
