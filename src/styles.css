@@ -536,6 +536,7 @@ body.reader-sepia {
 
 .reader-v3-page {
   aspect-ratio: 2 / 3;
+  flex: 0 0 auto;
   box-sizing: border-box;
   overflow: hidden;
   position: relative;
