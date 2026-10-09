@@ -921,9 +921,12 @@ export function BookReaderV3({
   );
 
   const changeFontSize = (next: number) => {
-    if (frontIndex === null) {
+    if (frontIndex === null && layoutMeasured && !pendingRestoreRef.current) {
       const position = capturePosition();
-      if (position) pendingRestoreRef.current = position;
+      if (position) {
+        positionRef.current = position;
+        pendingRestoreRef.current = position;
+      }
     }
     setLayoutMeasured(false);
     setFontSize(next);
