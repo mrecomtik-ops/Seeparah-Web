@@ -1,4 +1,4 @@
-[Reading 1000 lines from start (total: 1588 lines, 588 remaining)]
+[Reading 1000 lines from start (total: 1627 lines, 627 remaining)]
 
 import { Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -674,16 +674,43 @@ export function BookReaderV3({
     const flow = flowRef.current;
     if (!viewport || !flow || !chapters.length) return;
     setLayoutMeasured(false);
+
+    let measureFrame = 0;
+    let settleFrame = 0;
+
     const measure = () => {
       const width = Math.max(1, Math.floor(viewport.clientWidth));
       const height = Math.max(1, Math.floor(viewport.clientHeight));
-      setContentSize({ width, height });
-      const stride = width + PHYSICAL_PAGE_GUTTER;
-      setRawPageCount(Math.max(1, Math.ceil((flow.scrollWidth + PHYSICAL_PAGE_GUTTER) / stride)));
-      const flowRect = flow.getBoundingClientRect();
-      setRawChapterStartPages(
-        chapters.map((_, index) => {
-          const opening = flow.querySelector<HTMLElement>(
+
+      // The multicolumn flow uses contentSize for both column width and stride.
+      // Never publish pagination from the same frame that changes contentSize:
+      // that would measure the old columns against the new page width and can
+      // transiently collapse a long book to "Page 1 of 1" during resize.
+      if (contentSize.width !== width || contentSize.height !== height) {
+        setContentSize({ width, height });
+        return;
+      }
+
+      settleFrame = requestAnimationFrame(() => {
+        const liveViewport = viewportRef.current;
+        const liveFlow = flowRef.current;
+        if (!liveViewport || !liveFlow) return;
+
+        const liveWidth = Math.max(1, Math.floor(liveViewport.clientWidth));
+        const liveHeight = Math.max(1, Math.floor(liveViewport.clientHeight));
+        if (liveWidth !== width || liveHeight !== height) {
+          setContentSize({ width: liveWidth, height: liveHeight });
+          return;
+        }
+
+        const stride = width + PHYSICAL_PAGE_GUTTER;
+        const nextRawPageCount = Math.max(
+          1,
+          Math.ceil((liveFlow.scrollWidth + PHYSICAL_PAGE_GUTTER) / stride),
+        );
+        const flowRect = liveFlow.getBoundingClientRect();
+        const nextChapterStarts = chapters.map((_, index) => {
+          const opening = liveFlow.querySelector<HTMLElement>(
             '[data-reader-chapter-opening="' + String(index) + '"]',
           );
           return opening
@@ -692,20 +719,32 @@ export function BookReaderV3({
                 Math.round((opening.getBoundingClientRect().left - flowRect.left) / stride),
               )
             : 0;
-        }),
-      );
-      setLayoutMeasured(true);
+        });
+
+        setRawPageCount(nextRawPageCount);
+        setRawChapterStartPages(nextChapterStarts);
+        setLayoutMeasured(true);
+      });
     };
-    const frame = requestAnimationFrame(measure);
-    const observer = new ResizeObserver(() => requestAnimationFrame(measure));
+
+    const queueMeasure = () => {
+      cancelAnimationFrame(measureFrame);
+      cancelAnimationFrame(settleFrame);
+      measureFrame = requestAnimationFrame(measure);
+    };
+
+    queueMeasure();
+    const observer = new ResizeObserver(queueMeasure);
     observer.observe(viewport);
     observer.observe(flow);
-    void document.fonts?.ready.then(() => requestAnimationFrame(measure));
+    void document.fonts?.ready.then(queueMeasure);
+
     return () => {
-      cancelAnimationFrame(frame);
+      cancelAnimationFrame(measureFrame);
+      cancelAnimationFrame(settleFrame);
       observer.disconnect();
     };
-  }, [chapters, fontSize, pageSize.height, pageSize.width]);
+  }, [chapters, contentSize.height, contentSize.width, fontSize, pageSize.height, pageSize.width]);
 
   useLayoutEffect(() => {
     const pending = pendingRestoreRef.current;
@@ -961,44 +1000,5 @@ export function BookReaderV3({
     if (fontApplyTimerRef.current != null) window.clearTimeout(fontApplyTimerRef.current);
     if (fontChangeTimerRef.current != null) {
       window.clearTimeout(fontChangeTimerRef.current);
-      fontChangeTimerRef.current = null;
-    }
-
-    fontApplyTimerRef.current = window.setTimeout(() => {
-      const anchor = fontChangeAnchorRef.current;
-      if (anchor) {
-        positionRef.current = anchor;
-        pendingRestoreRef.current = anchor;
-      }
-
-      setLayoutMeasured(false);
-      setFontSize(next);
-      setPrefs({ fontSize: next });
-      fontApplyTimerRef.current = null;
-
-      fontChangeTimerRef.current = window.setTimeout(() => {
-        const stableAnchor = fontChangeAnchorRef.current;
-        fontChangeAnchorRef.current = null;
-        fontChangeTimerRef.current = null;
-        if (!stableAnchor) return;
-        positionRef.current = stableAnchor;
-        try {
-          localStorage.setItem(storageKey, JSON.stringify(stableAnchor));
-        } catch {
-          // The precise local reading anchor is best-effort.
-        }
-        void saveProgress(userId, book.id, language, stableAnchor.chunkIndex);
-      }, 700);
-    }, 220);
-  };
-
-  const changeLanguage = (next: string) => {
-    seededKeyRef.current = null;
-    setFrontIndex(0);
-    setBodyPage(0);
-    setLayoutMeasured(false);
-    setLanguage(next);
-    setPrefs({ language: next });
-  };
 
 [executed on device: DESKTOP-VDOJS9H (d3e04abe-8ee0-48d4-927b-2b89ba48ace9)]
