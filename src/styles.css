@@ -1,3 +1,5 @@
+[Reading 1000 lines from start (total: 1137 lines, 137 remaining)]
+
 @import "tailwindcss" source(none);
 @source "../src";
 @import "tw-animate-css";
@@ -33,8 +35,8 @@
   --color-gold: var(--gold);
   --color-gold-foreground: var(--gold-foreground);
   --color-paper: var(--paper);
-  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
-  --font-sans: "Outfit", ui-sans-serif, system-ui, sans-serif;
+  --font-display: Georgia, "Times New Roman", serif;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-urdu: "Noto Nastaliq Urdu", "Noto Naskh Arabic", "Jameel Noori Nastaleeq", serif;
 }
 
@@ -998,140 +1000,5 @@ body.reader-sepia {
   text-align-last: left;
   text-justify: auto;
   hyphens: auto;
-  -webkit-hyphens: auto;
-  hyphenate-limit-chars: 6 3 3;
-  hyphenate-limit-lines: 2;
-  hyphenate-limit-last: column;
-  -webkit-hyphenate-limit-before: 3;
-  -webkit-hyphenate-limit-after: 3;
-  -webkit-hyphenate-limit-lines: 2;
-}
 
-.reader-v3-flow p {
-  text-wrap: pretty;
-  hanging-punctuation: first last;
-}
-
-.reader-v3-chapter-ornament {
-  height: 1lh;
-  line-height: 1lh;
-  margin: 0;
-  break-inside: avoid-column;
-  text-align: center;
-  text-indent: 0;
-  font-size: 0.9em;
-  color: color-mix(in oklab, var(--color-card-foreground) 58%, transparent);
-}
-
-.reader-v3-toc {
-  gap: 0.14rem;
-}
-
-.reader-v3-toc-row {
-  min-height: 1.25rem;
-  padding: 0.06rem 0;
-  font-size: clamp(0.68rem, 2.35cqw, 0.84rem);
-  line-height: 1.08;
-}
-
-.reader-v3-front h2 {
-  margin-bottom: 0.8em;
-}
-
-.reader-v3-front-overlay {
-  background: var(--color-card);
-}
-
-@media (max-width: 899px), (orientation: portrait) {
-  .reader-v3-spread {
-    gap: 0;
-  }
-
-  .reader-v3-page-single {
-    border-radius: 0.1rem;
-  }
-} /* Claude live-audit fixes */
-.reader-v3-flow {
-  text-align: justify;
-  text-align-last: left;
-  text-justify: inter-word;
-}
-
-.reader-v3-chapter-opening,
-.reader-v3-chapter-opening h2,
-.reader-v3-chapter-label,
-.reader-v3-internal-heading {
-  text-align: center;
-  text-align-last: center;
-}
-
-.reader-v3-chapter-label {
-  font-size: 0.78em;
-}
-
-.reader-v3-signature {
-  text-indent: 0 !important;
-  text-align: right !important;
-  text-align-last: right !important;
-  font-variant-caps: small-caps;
-  letter-spacing: 0.04em;
-}
-
-.reader-v3-chapter-ornament {
-  display: block;
-  width: 100%;
-  min-height: 1.2lh;
-  line-height: 1.2lh;
-  text-align: center !important;
-  text-align-last: center !important;
-  font-size: 1.15em;
-}
-
-.reader-v3-running-head {
-  font-size: 11.5px;
-  color: color-mix(in oklab, var(--color-card-foreground) 58%, transparent);
-}
-
-.reader-v3-page-number {
-  align-items: flex-end;
-  padding-top: 0.35rem;
-}
-
-.reader-v3-stage {
-  position: relative;
-}
-
-.reader-v3-stage-reflowing .reader-v3-spread,
-.reader-v3-stage-reflowing .reader-v3-single {
-  visibility: hidden;
-}
-
-.reader-v3-reflow-indicator {
-  position: absolute;
-  inset: 0;
-  z-index: 8;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.55rem;
-  color: var(--color-muted-foreground);
-  font-size: 0.82rem;
-}
-
-.reader-v3-finish-card {
-  width: min(26rem, calc(100vw - 2rem));
-  align-self: center;
-  margin: auto;
-  border: 1px solid var(--color-border);
-  border-radius: 1.25rem;
-  background: var(--color-card);
-  padding: 2rem;
-  text-align: center;
-  box-shadow: 0 24px 60px -30px oklch(0.1 0.02 80 / 0.5);
-}
-
-@media (max-width: 639px) {
-  .reader-v3-flow {
-    line-height: 1.5;
-  }
-}
+[executed on device: DESKTOP-VDOJS9H (d3e04abe-8ee0-48d4-927b-2b89ba48ace9)]
