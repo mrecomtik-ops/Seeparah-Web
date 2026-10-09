@@ -272,7 +272,10 @@ function sceneBreak(text: string): boolean {
 }
 
 function looksLikeLetterSignature(text: string): boolean {
-  const value = text.trim();
+  const value = text
+    .trim()
+    .replace(/^[“”"'‘’]+/u, "")
+    .replace(/[“”"'‘’]+$/u, "");
   return (
     value.length <= 48 &&
     /\.$/u.test(value) &&
