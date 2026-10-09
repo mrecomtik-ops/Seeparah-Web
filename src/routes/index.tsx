@@ -19,6 +19,8 @@ import logoUrl from "@/assets/seeparah-logo.png";
 import { coverFor } from "@/lib/covers";
 import { isReligiousBook } from "@/lib/data";
 import { INSIGHT_ARTICLES } from "@/lib/insights";
+import { formatAuthorName } from "@/lib/author-name";
+import { displayTitleCase } from "@/lib/display-text";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -94,6 +96,20 @@ export function LandingPage() {
               <p className="text-xs text-muted-foreground">Read world classics in your language</p>
             </div>
           </div>
+          <nav
+            className="hidden items-center gap-5 text-sm font-semibold text-muted-foreground md:flex"
+            aria-label="Primary"
+          >
+            <Link to="/library" className="hover:text-foreground">
+              Library
+            </Link>
+            <Link to="/sacred-texts" className="hover:text-foreground">
+              Sacred Texts
+            </Link>
+            <Link to="/insights" className="hover:text-foreground">
+              Insights
+            </Link>
+          </nav>
           {authLoading ? (
             <div
               className="h-[38px] w-[150px] animate-pulse rounded-full bg-secondary"
@@ -188,7 +204,7 @@ export function LandingPage() {
                   {featuredCover && (
                     <img
                       src={featuredCover}
-                      alt={`Cover of ${featured.title}`}
+                      alt={`Cover of ${displayTitleCase(featured.title)}`}
                       className="aspect-[2/3] w-full object-cover"
                       width={832}
                       height={1248}
@@ -199,10 +215,10 @@ export function LandingPage() {
                       Featured edition
                     </p>
                     <p className="mt-1 font-display text-lg font-semibold text-foreground">
-                      {featured.title}
+                      {displayTitleCase(featured.title)}
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      {featured.author} · reviewed reading edition
+                      {formatAuthorName(featured.author)} · reviewed reading edition
                     </p>
                   </div>
                 </Link>
@@ -320,14 +336,30 @@ export function LandingPage() {
             aria-label="Homepage footer"
             className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-2"
           >
-            <Link to="/library" className="hover:text-foreground hover:underline">Library</Link>
-            <Link to="/sacred-texts" className="hover:text-foreground hover:underline">Sacred Texts</Link>
-            <Link to="/insights" className="hover:text-foreground hover:underline">Insights</Link>
-            <Link to="/research" className="hover:text-foreground hover:underline">Research</Link>
-            <Link to="/legal" hash="privacy" className="hover:text-foreground hover:underline">Privacy</Link>
-            <Link to="/legal" hash="terms" className="hover:text-foreground hover:underline">Terms</Link>
-            <Link to="/legal" hash="copyright" className="hover:text-foreground hover:underline">Copyright</Link>
-            <Link to="/legal" hash="support" className="hover:text-foreground hover:underline">Support</Link>
+            <Link to="/library" className="hover:text-foreground hover:underline">
+              Library
+            </Link>
+            <Link to="/sacred-texts" className="hover:text-foreground hover:underline">
+              Sacred Texts
+            </Link>
+            <Link to="/insights" className="hover:text-foreground hover:underline">
+              Insights
+            </Link>
+            <Link to="/research" className="hover:text-foreground hover:underline">
+              Research
+            </Link>
+            <Link to="/legal" hash="privacy" className="hover:text-foreground hover:underline">
+              Privacy
+            </Link>
+            <Link to="/legal" hash="terms" className="hover:text-foreground hover:underline">
+              Terms
+            </Link>
+            <Link to="/legal" hash="copyright" className="hover:text-foreground hover:underline">
+              Copyright
+            </Link>
+            <Link to="/legal" hash="support" className="hover:text-foreground hover:underline">
+              Support
+            </Link>
           </nav>
         </footer>
       </div>

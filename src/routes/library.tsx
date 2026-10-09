@@ -16,7 +16,6 @@ import {
 } from "lucide-react";
 import {
   GENRES,
-  LANGUAGES,
   SAMPLE_EXCERPT_BOOK_IDS,
   DEMO_MANUSCRIPT_BOOK_IDS,
   isReligiousBook,
@@ -31,6 +30,7 @@ import { getPublicContentSettings } from "@/lib/admin/settings.functions";
 import { countPagesRead } from "@/lib/reading-stats";
 import { formatAuthorName } from "@/lib/author-name";
 import { publicBookDescription } from "@/lib/book-description";
+import { displayTitleCase } from "@/lib/display-text";
 
 const TABS = [
   { key: "all", label: "All books", icon: LibraryIcon },
@@ -123,7 +123,20 @@ function LibraryPage() {
     return map;
   }, [progressQuery.data]);
 
-  const authors = useMemo(() => [...new Set(books.map((b) => b.author))].sort(), [books]);
+  const authors = useMemo(() => {
+    const byDisplay = new Map<string, string>();
+    for (const book of books) {
+      const display = formatAuthorName(book.author);
+      if (!byDisplay.has(display)) byDisplay.set(display, book.author);
+    }
+    return [...byDisplay.entries()]
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([, raw]) => raw);
+  }, [books]);
+  const languagesInUse = useMemo(
+    () => [...new Set(books.flatMap((book) => book.available_languages))].sort(),
+    [books],
+  );
   const genresInUse = useMemo(
     () => [...new Set(books.map((b) => b.genre).filter(Boolean) as string[])],
     [books],
@@ -137,21 +150,14 @@ function LibraryPage() {
     }
     return counts;
   }, [books]);
-  const configuredCategories = useMemo(
-    () =>
-      Array.isArray(settingsQuery.data?.["categories"])
-        ? (settingsQuery.data?.["categories"] as string[])
-        : [],
-    [settingsQuery.data],
-  );
   const categoriesInUse = useMemo(() => {
-    const names = new Set([...configuredCategories, ...categoryCounts.keys()]);
-    return [...names].sort((a, b) => {
+    const names = [...categoryCounts.keys()].filter((name) => (categoryCounts.get(name) ?? 0) > 0);
+    return names.sort((a, b) => {
       if (a === "Religious") return -1;
       if (b === "Religious") return 1;
       return a.localeCompare(b);
     });
-  }, [configuredCategories, categoryCounts]);
+  }, [categoryCounts]);
 
   const shelfIds = useCallback(
     (kind: string) => new Set(shelves.filter((s) => s.shelf === kind).map((s) => s.book_id)),
@@ -285,7 +291,7 @@ function LibraryPage() {
                     className="rounded-xl border border-border bg-background p-4 hover:bg-secondary/50"
                   >
                     <p className="font-display text-base font-semibold text-foreground">
-                      {book.title}
+                      {displayTitleCase(book.title)}
                     </p>
                     <p className="mt-1 text-xs text-muted-foreground">
                       {book.source_language} original · source record available
@@ -304,7 +310,7 @@ function LibraryPage() {
                 {coverFor(featured.id, featured.cover_url) ? (
                   <img
                     src={coverFor(featured.id, featured.cover_url)!}
-                    alt={`Cover of ${featured.title}`}
+                    alt={`Cover of ${displayTitleCase(featured.title)}`}
                     loading="lazy"
                     className="absolute inset-0 h-full w-full object-cover"
                   />
@@ -320,7 +326,7 @@ function LibraryPage() {
                   {featuredIsSample ? " · Sample chapters" : featuredIsDemo ? " · Demo" : ""}
                 </p>
                 <h2 className="mt-2 font-display text-2xl font-semibold sm:text-3xl">
-                  {featured.title}
+                  {displayTitleCase(featured.title)}
                 </h2>
                 <p className="mt-1 text-sm opacity-80">{formatAuthorName(featured.author)}</p>
                 <p className="mt-4 max-w-xl leading-relaxed opacity-90">
@@ -403,17 +409,18 @@ function LibraryPage() {
           </div>
           {books.length > 0 && (
             <>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <Select
                   label="Language"
                   value={lang}
-                  options={[...LANGUAGES]}
+                  options={languagesInUse}
                   onChange={(v) => updateSearch({ lang: v ?? undefined })}
                 />
                 <Select
                   label="Author"
                   value={author}
                   options={authors}
+                  formatOption={formatAuthorName}
                   onChange={(v) => updateSearch({ author: v ?? undefined })}
                 />
                 <Select
@@ -584,6 +591,7 @@ function Select({
   value,
   options,
   onChange,
+  formatOption,
 }: {
   label: string;
   /** Text for the blank/"any value" option, e.g. "All categories". Naive
@@ -594,19 +602,20 @@ function Select({
   value: string | null;
   options: string[];
   onChange: (v: string | null) => void;
+  formatOption?: (value: string) => string;
 }) {
   return (
-    <label className="flex flex-col gap-1">
+    <label className="min-w-0 flex flex-col gap-1">
       <span className="text-xs font-medium text-muted-foreground">{label}</span>
       <select
         value={value ?? ""}
         onChange={(e) => onChange(e.target.value || null)}
-        className="rounded-xl border border-border bg-card px-3 py-2.5 text-sm text-foreground card-shadow outline-none focus:ring-2 focus:ring-ring"
+        className="min-w-0 w-full max-w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm text-foreground card-shadow outline-none focus:ring-2 focus:ring-ring"
       >
         <option value="">{allLabel ?? `All ${label.toLowerCase()}s`}</option>
         {options.map((o) => (
           <option key={o} value={o}>
-            {o}
+            {formatOption ? formatOption(o) : o}
           </option>
         ))}
       </select>

@@ -1050,4 +1050,88 @@ body.reader-sepia {
   .reader-v3-page-single {
     border-radius: 0.1rem;
   }
+} /* Claude live-audit fixes */
+.reader-v3-flow {
+  text-align: justify;
+  text-align-last: left;
+  text-justify: inter-word;
+}
+
+.reader-v3-chapter-opening,
+.reader-v3-chapter-opening h2,
+.reader-v3-chapter-label,
+.reader-v3-internal-heading {
+  text-align: center;
+  text-align-last: center;
+}
+
+.reader-v3-chapter-label {
+  font-size: 0.78em;
+}
+
+.reader-v3-signature {
+  text-indent: 0 !important;
+  text-align: right !important;
+  text-align-last: right !important;
+  font-variant-caps: small-caps;
+  letter-spacing: 0.04em;
+}
+
+.reader-v3-chapter-ornament {
+  display: block;
+  width: 100%;
+  min-height: 1.2lh;
+  line-height: 1.2lh;
+  text-align: center !important;
+  text-align-last: center !important;
+  font-size: 1.15em;
+}
+
+.reader-v3-running-head {
+  font-size: 11.5px;
+  color: color-mix(in oklab, var(--color-card-foreground) 58%, transparent);
+}
+
+.reader-v3-page-number {
+  align-items: flex-end;
+  padding-top: 0.35rem;
+}
+
+.reader-v3-stage {
+  position: relative;
+}
+
+.reader-v3-stage-reflowing .reader-v3-spread,
+.reader-v3-stage-reflowing .reader-v3-single {
+  visibility: hidden;
+}
+
+.reader-v3-reflow-indicator {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  color: var(--color-muted-foreground);
+  font-size: 0.82rem;
+}
+
+.reader-v3-finish-card {
+  width: min(26rem, calc(100vw - 2rem));
+  align-self: center;
+  margin: auto;
+  border: 1px solid var(--color-border);
+  border-radius: 1.25rem;
+  background: var(--color-card);
+  padding: 2rem;
+  text-align: center;
+  box-shadow: 0 24px 60px -30px oklch(0.1 0.02 80 / 0.5);
+}
+
+@media (max-width: 639px) {
+  .reader-v3-flow {
+    line-height: 1.5;
+  }
 }

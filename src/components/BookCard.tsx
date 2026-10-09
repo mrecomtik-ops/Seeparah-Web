@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+﻿import { Link } from "@tanstack/react-router";
 import { BookOpen, Crown, FlaskConical } from "lucide-react";
 import type { Book } from "@/lib/data";
 import { SAMPLE_EXCERPT_BOOK_IDS, DEMO_MANUSCRIPT_BOOK_IDS } from "@/lib/data";
@@ -7,6 +7,7 @@ import { ShelfButtons } from "@/components/ShelfButtons";
 import { getPrefs } from "@/lib/prefs";
 import { formatAuthorName } from "@/lib/author-name";
 import { publicBookDescription } from "@/lib/book-description";
+import { displayTitleCase } from "@/lib/display-text";
 
 export function BookCard({
   book,
@@ -19,7 +20,7 @@ export function BookCard({
   book: Book;
   progress?: number | null;
   withShelves?: boolean;
-  /** Language to open this book in — e.g. the library's active language
+  /** Language to open this book in â€” e.g. the library's active language
    * filter. Falls back to the reader's saved preference, then the book's
    * source language, so a book always opens in a language the reader
    * actually chose rather than always defaulting to the original. */
@@ -27,18 +28,19 @@ export function BookCard({
   /** The language this book's SAVED READING PROGRESS is actually keyed
    * under (from the caller's progress-by-book map), if any. Takes
    * priority over preferredLanguage/the device's generic language
-   * preference — a "Continue reading" link must reopen the same
+   * preference â€” a "Continue reading" link must reopen the same
    * (book, language) the reader was actually reading, or the reader route's
    * saved-progress lookup won't find a matching row and silently restarts
    * at page 1. See src/routes/read.$bookId.tsx's seeding effect. */
   progressLanguage?: string | null;
-  /** Defaults to false — a paid badge appears only when monetization is active, so a
+  /** Defaults to false â€” a paid badge appears only when monetization is active, so a
    * "Premium" badge must never render unless the caller has confirmed
    * monetization is actually on (see content_settings.monetization_enabled).
    * Never infer this from `book.access_type` alone. */
   monetizationEnabled?: boolean;
 }) {
   const displayAuthor = formatAuthorName(book.author);
+  const displayTitle = displayTitleCase(book.title);
   const displayDescription = publicBookDescription({
     title: book.title,
     author: displayAuthor,
@@ -81,7 +83,7 @@ export function BookCard({
           {listCover ? (
             <img
               src={listCover}
-              alt={`Cover of ${book.title}`}
+              alt={`Cover of ${displayTitle}`}
               loading="lazy"
               width={600}
               height={900}
@@ -91,7 +93,7 @@ export function BookCard({
             <div className="flex h-full flex-col items-center justify-center gap-2 paper-texture p-4 text-center">
               <BookOpen className="h-8 w-8 text-primary/50" />
               <span className="font-display text-lg font-semibold text-foreground">
-                {book.title}
+                {displayTitle}
               </span>
               <span className="text-xs text-muted-foreground">{displayAuthor}</span>
             </div>
@@ -110,7 +112,7 @@ export function BookCard({
         <div className="flex flex-1 flex-col gap-2 p-4">
           <div>
             <h3 className="font-display text-base font-semibold leading-snug text-foreground">
-              {book.title}
+              {displayTitle}
             </h3>
             <p className="text-sm text-muted-foreground">{displayAuthor}</p>
           </div>
@@ -156,7 +158,7 @@ export function BookCard({
                 />
               </div>
               <p className="mt-1 text-[11px] font-medium text-muted-foreground">
-                {pct}% read — continue
+                {pct}% read â€” continue
               </p>
             </div>
           )}

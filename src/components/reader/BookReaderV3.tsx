@@ -34,6 +34,7 @@ import {
   type ReaderSourceBlock,
 } from "@/lib/reader-book-layout";
 import { formatAuthorName } from "@/lib/author-name";
+import { displayTitleCase } from "@/lib/display-text";
 import { getPrefs, setPrefs, type ReaderTheme } from "@/lib/prefs";
 import { useAuth } from "@/lib/use-auth";
 import { ShelfButtons } from "@/components/ShelfButtons";
@@ -54,49 +55,6 @@ type LogicalBookPage = { rawPage: number | null };
 
 function clamp(value: number, minimum: number, maximum: number): number {
   return Math.min(maximum, Math.max(minimum, value));
-}
-
-function displayTitleCase(value: string): string {
-  const small = new Set([
-    "a",
-    "an",
-    "and",
-    "as",
-    "at",
-    "but",
-    "by",
-    "for",
-    "in",
-    "nor",
-    "of",
-    "on",
-    "or",
-    "per",
-    "the",
-    "to",
-    "up",
-    "via",
-  ]);
-  const honorifics = new Map([
-    ["dr.", "Dr."],
-    ["mr.", "Mr."],
-    ["mrs.", "Mrs."],
-    ["ms.", "Ms."],
-    ["st.", "St."],
-  ]);
-  const words = value.trim().split(/\s+/u);
-  return words
-    .map((word, index) => {
-      const lower = word.toLocaleLowerCase();
-      const honorific = honorifics.get(lower);
-      if (honorific) return honorific;
-      if (index > 0 && index < words.length - 1 && small.has(lower)) return lower;
-      return lower.replace(
-        /(^|[-—–(\x5b{"'“‘])([\p{L}\p{N}])/gu,
-        (_, lead: string, char: string) => lead + char.toLocaleUpperCase(),
-      );
-    })
-    .join(" ");
 }
 
 function buildLogicalBookPages(
@@ -313,6 +271,16 @@ function sceneBreak(text: string): boolean {
   return /^(?:\*\s*){3,}$|^⁂$/u.test(text.trim());
 }
 
+function looksLikeLetterSignature(text: string): boolean {
+  const value = text.trim();
+  return (
+    value.length <= 48 &&
+    /\.$/u.test(value) &&
+    /^[A-Z][A-Z .’'-]+\.$/u.test(value) &&
+    !/^(CHAPTER|BOOK|PART|ACT)\b/u.test(value)
+  );
+}
+
 function ReaderAnchor(props: {
   text: string;
   block: ReaderSourceBlock;
@@ -396,12 +364,19 @@ function ChapterBlocks(props: {
             highlights={props.highlights}
           />
         );
-        if (block.kind === "heading")
+        if (block.kind === "heading") {
+          if (looksLikeLetterSignature(block.text))
+            return (
+              <p key={key} className="reader-v3-signature">
+                {anchor}
+              </p>
+            );
           return (
             <h3 key={key} className="reader-v3-internal-heading">
               {anchor}
             </h3>
           );
+        }
         if (block.kind === "quote") return <blockquote key={key}>{anchor}</blockquote>;
         if (block.kind === "principle") return <aside key={key}>{anchor}</aside>;
         return <p key={key}>{anchor}</p>;
@@ -446,11 +421,15 @@ export function BookReaderV3({
   const [spreadMode, setSpreadMode] = useState(false);
   const [layoutMeasured, setLayoutMeasured] = useState(false);
   const [turning, setTurning] = useState<"next" | "prev" | null>(null);
+  const [contentsReturnPosition, setContentsReturnPosition] = useState<ReaderPosition | null>(null);
+  const [finishOpen, setFinishOpen] = useState(false);
   const stageRef = useRef<HTMLDivElement | null>(null);
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const flowRef = useRef<HTMLDivElement | null>(null);
   const positionRef = useRef<ReaderPosition | null>(null);
   const pendingRestoreRef = useRef<ReaderPosition | null>(null);
+  const capturePositionFnRef = useRef<(() => ReaderPosition | null) | null>(null);
+  const lastPageSizeRef = useRef({ width: 360, height: 540 });
   const touchStartRef = useRef<number | null>(null);
   const seededKeyRef = useRef<string | null>(null);
 
@@ -561,13 +540,26 @@ export function BookReaderV3({
         ? Math.max(220, (availableWidth - SPREAD_SPINE_GAP) / 2)
         : availableWidth;
       const width = Math.floor(Math.min(560, widthByLayout, (availableHeight * 2) / 3));
-      setPageSize({ width, height: Math.floor(width * 1.5) });
+      const nextSize = { width, height: Math.floor(width * 1.5) };
+      const previous = lastPageSizeRef.current;
+      if (previous.width === nextSize.width && previous.height === nextSize.height) return;
+
+      if (frontIndex === null && layoutMeasured) {
+        const position = capturePositionFnRef.current?.() ?? positionRef.current;
+        if (position) {
+          positionRef.current = position;
+          pendingRestoreRef.current = position;
+        }
+      }
+      lastPageSizeRef.current = nextSize;
+      setLayoutMeasured(false);
+      setPageSize(nextSize);
     };
     update();
     const observer = new ResizeObserver(update);
     observer.observe(stage);
     return () => observer.disconnect();
-  }, [chapters.length]);
+  }, [chapters.length, frontIndex, layoutMeasured]);
 
   useEffect(() => {
     if (!spreadMode || frontIndex !== null) return;
@@ -627,6 +619,13 @@ export function BookReaderV3({
     logicalPages,
     pageStride,
   ]);
+
+  useEffect(() => {
+    capturePositionFnRef.current = capturePosition;
+    return () => {
+      capturePositionFnRef.current = null;
+    };
+  }, [capturePosition]);
 
   const restorePosition = useCallback(
     (position: ReaderPosition) => {
@@ -787,6 +786,16 @@ export function BookReaderV3({
   const lastBodySpreadRight =
     bodyPageCount <= 1 ? 0 : (bodyPageCount - 1) % 2 === 0 ? bodyPageCount - 1 : bodyPageCount;
 
+  useEffect(() => {
+    if (!layoutMeasured || !bodyPageCount) return;
+    setBodyPage((page) => {
+      const maximum = spreadMode
+        ? Math.max(0, lastBodySpreadRight)
+        : Math.max(0, bodyPageCount - 1);
+      return Math.min(Math.max(0, page), maximum);
+    });
+  }, [bodyPageCount, layoutMeasured, lastBodySpreadRight, spreadMode]);
+
   const goBodyPage = useCallback(
     (delta: number) => {
       const direction = delta > 0 ? 1 : -1;
@@ -854,9 +863,12 @@ export function BookReaderV3({
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      const target = event.target as HTMLElement | null;
-      if (target?.matches("input,textarea,select") || target?.isContentEditable || settingsOpen)
-        return;
+      const target = event.target;
+      const editableTarget =
+        target instanceof Element &&
+        (target.matches("input,textarea,select,button,[role='button']") ||
+          (target instanceof HTMLElement && target.isContentEditable));
+      if (editableTarget || settingsOpen) return;
       if (event.key === "ArrowLeft") {
         event.preventDefault();
         goBodyPage(-1);
@@ -875,8 +887,33 @@ export function BookReaderV3({
     return () => window.clearTimeout(timer);
   }, [turning]);
 
+  const openContents = useCallback(() => {
+    if (frontIndex === null) {
+      const position = capturePosition();
+      if (position) setContentsReturnPosition(position);
+    }
+    setFrontIndex(Math.min(1, frontPages.length - 1));
+  }, [capturePosition, frontIndex, frontPages.length]);
+
+  const returnFromContents = useCallback(() => {
+    const position = contentsReturnPosition;
+    setContentsReturnPosition(null);
+    if (!position) return;
+    setFrontIndex(null);
+    positionRef.current = position;
+    pendingRestoreRef.current = position;
+    if (layoutMeasured) {
+      requestAnimationFrame(() => {
+        if (pendingRestoreRef.current !== position) return;
+        pendingRestoreRef.current = null;
+        restorePosition(position);
+      });
+    }
+  }, [contentsReturnPosition, layoutMeasured, restorePosition]);
+
   const jumpToChapter = useCallback(
     (chapterIndex: number) => {
+      setContentsReturnPosition(null);
       setFrontIndex(null);
       setBodyPage(chapterStartPages[chapterIndex] ?? 0);
     },
@@ -976,16 +1013,11 @@ export function BookReaderV3({
   const topPadding = Math.round(pageSize.width * 0.035);
   const bottomPadding = Math.round(pageSize.width * 0.03);
   const pagePadding = `${topPadding}px ${horizontalPadding}px ${bottomPadding}px`;
-  const baseFontSize = spreadMode
-    ? clamp(pageSize.width / 32, 10.75, 16)
-    : mobileViewport
-      ? clamp(pageSize.width / 29, 13, 17)
-      : clamp(pageSize.width / 30, 12, 17);
-  const readerFontSize = Math.round(baseFontSize * (fontSize / 18) * 100) / 100;
-  const lineHeightPx = Math.round(readerFontSize * 1.45 * 4) / 4;
-  const runningHeadHeight = 11;
+  const readerFontSize = clamp(fontSize, mobileViewport ? 15 : 16, 21);
+  const lineHeightPx = Math.round(readerFontSize * 1.5 * 4) / 4;
+  const runningHeadHeight = 12;
   const runningHeadGap = lineHeightPx * 1.5;
-  const folioHeight = 14;
+  const folioHeight = Math.round(lineHeightPx + 14);
   const innerPageHeight = pageSize.height - topPadding - bottomPadding - 2;
   const availableGridHeight = Math.max(
     lineHeightPx * 12,
@@ -1001,13 +1033,15 @@ export function BookReaderV3({
           ? `Front matter ${toRoman(frontIndex + 1)}–${toRoman(frontIndex + 2)}`
           : `Front matter ${toRoman(frontIndex + 1)}`
         : "Front matter " + toRoman(frontIndex + 1)
-      : spreadMode
-        ? bodyPage === 0
-          ? `Page 1 of ${bodyPageCount}`
-          : bodyPage < bodyPageCount
-            ? `Pages ${bodyPage}–${bodyPage + 1} of ${bodyPageCount}`
-            : `Page ${bodyPage} of ${bodyPageCount}`
-        : "Page " + String(bodyPage + 1) + " of " + String(bodyPageCount);
+      : !layoutMeasured
+        ? "Repaginating…"
+        : spreadMode
+          ? bodyPage === 0
+            ? `Page 1 of ${bodyPageCount}`
+            : bodyPage < bodyPageCount
+              ? `Pages ${bodyPage}–${bodyPage + 1} of ${bodyPageCount}`
+              : `Page ${bodyPage} of ${bodyPageCount}`
+          : "Page " + String(bodyPage + 1) + " of " + String(bodyPageCount);
   const progress =
     frontIndex !== null
       ? 0
@@ -1090,6 +1124,8 @@ export function BookReaderV3({
             ref={options.master ? viewportRef : undefined}
             className="reader-v3-content-viewport"
             style={{ height: bodyGridHeight, flex: "0 0 auto" }}
+            aria-hidden={!options.master ? true : undefined}
+            inert={!options.master}
           >
             <div
               ref={options.master ? flowRef : undefined}
@@ -1166,7 +1202,7 @@ export function BookReaderV3({
       }
     >
       <header className="reader-v3-topbar">
-        <Link to="/library" className="reader-v3-icon-label">
+        <Link to="/library" className="reader-v3-icon-label" aria-label="Back to library">
           <ArrowLeft className="h-4 w-4" />
           <span className="hidden sm:inline">Library</span>
         </Link>
@@ -1185,13 +1221,20 @@ export function BookReaderV3({
               <option key={item}>{item}</option>
             ))}
           </select>
-          <button
-            onClick={() => setFrontIndex(Math.min(1, frontPages.length - 1))}
-            className="reader-v3-icon"
-            aria-label="Contents"
-          >
-            <List className="h-4 w-4" />
-          </button>
+          {frontIndex !== null && contentsReturnPosition ? (
+            <button
+              onClick={returnFromContents}
+              className="reader-v3-icon-label"
+              aria-label="Back to reading position"
+            >
+              <ChevronRight className="h-4 w-4" />
+              <span className="hidden sm:inline">Back to reading</span>
+            </button>
+          ) : (
+            <button onClick={openContents} className="reader-v3-icon" aria-label="Contents">
+              <List className="h-4 w-4" />
+            </button>
+          )}
           <div className="hidden sm:block">
             <ShelfButtons bookId={book.id} />
           </div>
@@ -1217,7 +1260,12 @@ export function BookReaderV3({
 
       <main
         ref={stageRef}
-        className={"reader-v3-stage " + (spreadMode ? "reader-v3-stage-spread" : "")}
+        className={
+          "reader-v3-stage " +
+          (spreadMode ? "reader-v3-stage-spread " : "") +
+          (frontIndex === null && !layoutMeasured ? "reader-v3-stage-reflowing" : "")
+        }
+        aria-busy={frontIndex === null && !layoutMeasured}
         onTouchStart={(event) => {
           touchStartRef.current = event.touches[0]?.clientX ?? null;
         }}
@@ -1230,6 +1278,12 @@ export function BookReaderV3({
           if (Math.abs(delta) >= 50) goBodyPage(delta < 0 ? 1 : -1);
         }}
       >
+        {frontIndex === null && !layoutMeasured && (
+          <div className="reader-v3-reflow-indicator" role="status">
+            <Loader2 className="h-5 w-5 animate-spin" />
+            Repaginating…
+          </div>
+        )}
         <div className={spreadMode ? "reader-v3-spread" : "reader-v3-single"}>
           {frontIndex !== null ? (
             spreadMode ? (
@@ -1280,14 +1334,47 @@ export function BookReaderV3({
         </button>
         <div className="text-xs font-medium text-muted-foreground">{pageLabel}</div>
         <button
-          onClick={() => goBodyPage(1)}
-          disabled={atEnd}
+          onClick={() => (atEnd ? setFinishOpen(true) : goBodyPage(1))}
           className="reader-v3-nav-button reader-v3-next"
         >
-          Next
+          {atEnd ? "Finish" : "Next"}
           <ChevronRight className="h-4 w-4" />
         </button>
       </footer>
+
+      {finishOpen && (
+        <div className="reader-v3-settings-backdrop" onMouseDown={() => setFinishOpen(false)}>
+          <div
+            className="reader-v3-finish-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="reader-finish-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="text-3xl" aria-hidden="true">
+              ❧
+            </div>
+            <h2 id="reader-finish-title" className="mt-3 font-display text-2xl font-semibold">
+              Finished
+            </h2>
+            <p className="mt-2 text-sm text-muted-foreground">{displayBookTitle}</p>
+            <div className="mt-6 flex justify-center gap-3">
+              <button
+                onClick={() => setFinishOpen(false)}
+                className="rounded-xl border border-border px-4 py-2 text-sm font-semibold"
+              >
+                Keep reading
+              </button>
+              <Link
+                to="/library"
+                className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
+              >
+                Back to library
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
 
       {settingsOpen && (
         <div className="reader-v3-settings-backdrop" onMouseDown={() => setSettingsOpen(false)}>
@@ -1300,6 +1387,12 @@ export function BookReaderV3({
               >
                 Done
               </button>
+            </div>
+            <div className="mt-4 sm:hidden">
+              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Book actions
+              </div>
+              <ShelfButtons bookId={book.id} />
             </div>
             <label className="mt-5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Language
