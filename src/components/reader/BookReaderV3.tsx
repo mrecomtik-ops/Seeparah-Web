@@ -1,4 +1,4 @@
-[Reading 1000 lines from start (total: 1568 lines, 568 remaining)]
+[Reading 1000 lines from start (total: 1588 lines, 588 remaining)]
 
 import { Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -407,7 +407,9 @@ export function BookReaderV3({
         ? prefs.language
         : book.source_language,
   );
-  const [fontSize, setFontSize] = useState(Math.min(20, Math.max(16, prefs.fontSize || 18)));
+  const initialFontSize = Math.min(20, Math.max(16, prefs.fontSize || 18));
+  const [fontSize, setFontSize] = useState(initialFontSize);
+  const [fontSizeDraft, setFontSizeDraft] = useState(initialFontSize);
   const [theme, setTheme] = useState<ReaderTheme>(prefs.theme);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [requestLanguage, setRequestLanguage] = useState("");
@@ -432,6 +434,7 @@ export function BookReaderV3({
   const pendingRestoreRef = useRef<ReaderPosition | null>(null);
   const capturePositionFnRef = useRef<(() => ReaderPosition | null) | null>(null);
   const fontChangeAnchorRef = useRef<ReaderPosition | null>(null);
+  const fontApplyTimerRef = useRef<number | null>(null);
   const fontChangeTimerRef = useRef<number | null>(null);
   const lastPageSizeRef = useRef({ width: 360, height: 540 });
   const touchStartRef = useRef<number | null>(null);
@@ -789,6 +792,7 @@ export function BookReaderV3({
 
   useEffect(
     () => () => {
+      if (fontApplyTimerRef.current != null) window.clearTimeout(fontApplyTimerRef.current);
       if (fontChangeTimerRef.current != null) window.clearTimeout(fontChangeTimerRef.current);
     },
     [],
@@ -941,6 +945,8 @@ export function BookReaderV3({
   );
 
   const changeFontSize = (next: number) => {
+    setFontSizeDraft(next);
+
     if (frontIndex === null) {
       let anchor = fontChangeAnchorRef.current;
       if (!anchor && layoutMeasured) anchor = capturePosition();
@@ -952,24 +958,38 @@ export function BookReaderV3({
       }
     }
 
-    if (fontChangeTimerRef.current != null) window.clearTimeout(fontChangeTimerRef.current);
-    fontChangeTimerRef.current = window.setTimeout(() => {
-      const anchor = fontChangeAnchorRef.current;
-      fontChangeAnchorRef.current = null;
+    if (fontApplyTimerRef.current != null) window.clearTimeout(fontApplyTimerRef.current);
+    if (fontChangeTimerRef.current != null) {
+      window.clearTimeout(fontChangeTimerRef.current);
       fontChangeTimerRef.current = null;
-      if (!anchor) return;
-      positionRef.current = anchor;
-      try {
-        localStorage.setItem(storageKey, JSON.stringify(anchor));
-      } catch {
-        // The precise local reading anchor is best-effort.
-      }
-      void saveProgress(userId, book.id, language, anchor.chunkIndex);
-    }, 550);
+    }
 
-    setLayoutMeasured(false);
-    setFontSize(next);
-    setPrefs({ fontSize: next });
+    fontApplyTimerRef.current = window.setTimeout(() => {
+      const anchor = fontChangeAnchorRef.current;
+      if (anchor) {
+        positionRef.current = anchor;
+        pendingRestoreRef.current = anchor;
+      }
+
+      setLayoutMeasured(false);
+      setFontSize(next);
+      setPrefs({ fontSize: next });
+      fontApplyTimerRef.current = null;
+
+      fontChangeTimerRef.current = window.setTimeout(() => {
+        const stableAnchor = fontChangeAnchorRef.current;
+        fontChangeAnchorRef.current = null;
+        fontChangeTimerRef.current = null;
+        if (!stableAnchor) return;
+        positionRef.current = stableAnchor;
+        try {
+          localStorage.setItem(storageKey, JSON.stringify(stableAnchor));
+        } catch {
+          // The precise local reading anchor is best-effort.
+        }
+        void saveProgress(userId, book.id, language, stableAnchor.chunkIndex);
+      }, 700);
+    }, 220);
   };
 
   const changeLanguage = (next: string) => {
@@ -980,25 +1000,5 @@ export function BookReaderV3({
     setLanguage(next);
     setPrefs({ language: next });
   };
-
-  async function handleTranslationRequest() {
-    if (!requestLanguage || requestingTranslation) return;
-    setRequestingTranslation(true);
-    try {
-      const { data } = await supabase.auth.getSession();
-      const token = data.session?.access_token;
-      if (!token) {
-        toast.info("Sign in to request a translation.");
-        return;
-      }
-      await requestBookTranslationAccess({
-        data: {
-          accessToken: token,
-          bookId: book.id,
-          language: requestLanguage,
-        },
-      });
-      toast.success(`${requestLanguage} translation requested`);
-      setRequestLanguage("");
 
 [executed on device: DESKTOP-VDOJS9H (d3e04abe-8ee0-48d4-927b-2b89ba48ace9)]
