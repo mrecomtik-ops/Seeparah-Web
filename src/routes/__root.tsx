@@ -1,3 +1,5 @@
+[Reading 183 lines from start (total: 183 lines, 0 remaining)]
+
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Outlet,
@@ -57,8 +59,7 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
           This page didn't load
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Something went wrong on our end. You can try refreshing or head back
-          to the library.
+          Something went wrong on our end. You can try refreshing or head back to the library.
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
@@ -82,50 +83,38 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   );
 }
 
-export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
-  {
-    head: () => ({
-      meta: [
-        { charSet: "utf-8" },
-        { name: "viewport", content: "width=device-width, initial-scale=1" },
-        { title: "Seeparah — Read world classics in your language" },
-        {
-          name: "description",
-          content:
-            "Seeparah is a multilingual reading platform for original-language books and reviewed translated editions, with reading progress, highlights, categories, and source-preserving Religious editions.",
-        },
-        { property: "og:title", content: "Seeparah — Read world classics in your language" },
-        {
-          property: "og:description",
-          content:
-            "A warm, editorial reading platform. Read classics and new voices in English, Urdu, Hindi, Arabic, French and more.",
-        },
-        { property: "og:type", content: "website" },
-        { name: "twitter:card", content: "summary_large_image" },
-      ],
-      links: [
-        { rel: "stylesheet", href: appCss },
-        { rel: "icon", type: "image/png", href: "/favicon.png" },
-        { rel: "preconnect", href: "https://fonts.googleapis.com" },
-        {
-          rel: "preconnect",
-          href: "https://fonts.gstatic.com",
-          crossOrigin: "anonymous",
-        },
-        {
-          // Product fonts only. Script-specific reading fonts are loaded on demand
-          // inside Reader V2 so ordinary/admin/library pages do not pay for them.
-          rel: "stylesheet",
-          href: "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Outfit:wght@400;500;600;700&display=swap",
-        },
-      ],
-    }),
-    shellComponent: RootShell,
-    component: RootComponent,
-    notFoundComponent: NotFoundComponent,
-    errorComponent: ErrorComponent,
-  },
-);
+export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
+  head: () => ({
+    meta: [
+      { charSet: "utf-8" },
+      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { title: "Seeparah — Read world classics in your language" },
+      {
+        name: "description",
+        content:
+          "Seeparah is a multilingual reading platform for original-language books and reviewed translated editions, with reading progress, highlights, categories, and source-preserving Religious editions.",
+      },
+      { property: "og:title", content: "Seeparah — Read world classics in your language" },
+      {
+        property: "og:description",
+        content:
+          "A warm, editorial reading platform. Read classics and new voices in English, Urdu, Hindi, Arabic, French and more.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+    links: [
+      { rel: "stylesheet", href: appCss },
+      { rel: "icon", type: "image/png", href: "/favicon.png" },
+      // Keep the global shell independent of third-party font CDNs.
+      // Script-specific reader fonts are still loaded only when a book needs them.
+    ],
+  }),
+  shellComponent: RootShell,
+  component: RootComponent,
+  notFoundComponent: NotFoundComponent,
+  errorComponent: ErrorComponent,
+});
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
@@ -163,14 +152,30 @@ function RootComponent() {
             aria-label="Site footer"
             className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2"
           >
-            <Link to="/library" className="hover:text-foreground hover:underline">Library</Link>
-            <Link to="/sacred-texts" className="hover:text-foreground hover:underline">Sacred Texts</Link>
-            <Link to="/insights" className="hover:text-foreground hover:underline">Insights</Link>
-            <Link to="/research" className="hover:text-foreground hover:underline">Research</Link>
-            <Link to="/legal" hash="privacy" className="hover:text-foreground hover:underline">Privacy</Link>
-            <Link to="/legal" hash="terms" className="hover:text-foreground hover:underline">Terms</Link>
-            <Link to="/legal" hash="copyright" className="hover:text-foreground hover:underline">Copyright</Link>
-            <Link to="/legal" hash="support" className="hover:text-foreground hover:underline">Support</Link>
+            <Link to="/library" className="hover:text-foreground hover:underline">
+              Library
+            </Link>
+            <Link to="/sacred-texts" className="hover:text-foreground hover:underline">
+              Sacred Texts
+            </Link>
+            <Link to="/insights" className="hover:text-foreground hover:underline">
+              Insights
+            </Link>
+            <Link to="/research" className="hover:text-foreground hover:underline">
+              Research
+            </Link>
+            <Link to="/legal" hash="privacy" className="hover:text-foreground hover:underline">
+              Privacy
+            </Link>
+            <Link to="/legal" hash="terms" className="hover:text-foreground hover:underline">
+              Terms
+            </Link>
+            <Link to="/legal" hash="copyright" className="hover:text-foreground hover:underline">
+              Copyright
+            </Link>
+            <Link to="/legal" hash="support" className="hover:text-foreground hover:underline">
+              Support
+            </Link>
           </nav>
         </footer>
       )}
@@ -178,3 +183,5 @@ function RootComponent() {
     </QueryClientProvider>
   );
 }
+
+[executed on device: DESKTOP-VDOJS9H (d3e04abe-8ee0-48d4-927b-2b89ba48ace9)]
