@@ -1116,13 +1116,15 @@ export function BookReaderV3({
         });
 
         if (visible) {
-          child.dataset["readerVisibleBlock"] = "true";
+          child.setAttribute("data-reader-visible-block", "true");
           child.removeAttribute("aria-hidden");
           child.removeAttribute("inert");
+          child.style.visibility = "visible";
         } else {
-          delete child.dataset["readerVisibleBlock"];
+          child.removeAttribute("data-reader-visible-block");
           child.setAttribute("aria-hidden", "true");
           child.setAttribute("inert", "");
+          child.style.visibility = "hidden";
         }
       }
     }
