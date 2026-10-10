@@ -1174,3 +1174,8 @@ body.reader-sepia {
 .reader-v3-flow p {
   word-spacing: -0.01em;
 }
+
+/* Final body reading measure. */
+.reader-v3-flow {
+  font-family: "Times New Roman", Times, Georgia, serif;
+}

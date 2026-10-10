@@ -408,7 +408,7 @@ export function BookReaderV3({
         ? prefs.language
         : book.source_language,
   );
-  const initialFontSize = Math.min(20, Math.max(16, prefs.fontSize || 18));
+  const initialFontSize = Math.min(20, Math.max(16, prefs.fontSize || 16));
   const [fontSize, setFontSize] = useState(initialFontSize);
   const [fontSizeDraft, setFontSizeDraft] = useState(initialFontSize);
   const [theme, setTheme] = useState<ReaderTheme>(prefs.theme);
