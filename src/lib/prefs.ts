@@ -20,7 +20,7 @@ export interface ReaderPrefs {
 const DEFAULTS: ReaderPrefs = {
   language: "English",
   weeklyGoalPages: 40,
-  fontSize: 18,
+  fontSize: 16,
   lineHeight: 1.8,
   theme: "light",
   fontFamily: "literary",
@@ -29,7 +29,7 @@ const DEFAULTS: ReaderPrefs = {
   presentation: "book",
 };
 
-export const FONT_SIZE_RANGE = { min: 14, max: 28, step: 1 } as const;
+export const FONT_SIZE_RANGE = { min: 14, max: 20, step: 1 } as const;
 export const LINE_HEIGHT_RANGE = { min: 1.4, max: 2.4, step: 0.1 } as const;
 export const PARAGRAPH_SPACING_RANGE = { min: 0.5, max: 2, step: 0.1 } as const;
 
