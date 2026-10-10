@@ -904,63 +904,6 @@ export function BookReaderV3({
     });
   }, [bodyPageCount, layoutMeasured, lastBodySpreadRight, spreadMode]);
 
-  useLayoutEffect(() => {
-    if (frontIndex !== null || !layoutMeasured) return;
-    const stage = stageRef.current;
-    if (!stage) return;
-
-    const frame = requestAnimationFrame(() => {
-      const viewports = Array.from(
-        stage.querySelectorAll<HTMLElement>(".reader-v3-content-viewport"),
-      );
-      for (const viewport of viewports) {
-        const flow = viewport.querySelector<HTMLElement>(".reader-v3-flow");
-        if (!flow) continue;
-        const viewportRect = viewport.getBoundingClientRect();
-        const children = Array.from(flow.children).filter(
-          (node): node is HTMLElement => node instanceof HTMLElement,
-        );
-
-        for (const child of children) {
-          child.style.visibility = "";
-          child.removeAttribute("aria-hidden");
-          child.removeAttribute("inert");
-        }
-
-        for (const child of children) {
-          const fragments = Array.from(child.getClientRects());
-          const visible = fragments.some(
-            (rect) =>
-              rect.right > viewportRect.left + 1 &&
-              rect.left < viewportRect.right - 1 &&
-              rect.bottom > viewportRect.top + 1 &&
-              rect.top < viewportRect.bottom - 1,
-          );
-          if (visible) {
-            child.dataset["readerVisibleSlice"] = "true";
-          } else {
-            child.style.visibility = "hidden";
-            child.setAttribute("aria-hidden", "true");
-            child.setAttribute("inert", "");
-            child.dataset["readerVisibleSlice"] = "false";
-          }
-        }
-      }
-    });
-
-    return () => cancelAnimationFrame(frame);
-  }, [
-    bodyPage,
-    bodyPageCount,
-    contentSize.height,
-    contentSize.width,
-    frontIndex,
-    layoutMeasured,
-    pageSize.height,
-    pageSize.width,
-    spreadMode,
-  ]);
-
   const goBodyPage = useCallback(
     (delta: number) => {
       const direction = delta > 0 ? 1 : -1;
