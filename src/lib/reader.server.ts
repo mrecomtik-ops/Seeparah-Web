@@ -552,14 +552,13 @@ export async function getReaderBookPayload(params: {
     if (cached && cached.expiresAt > now) return cached.value;
     if (cached) readerBookPayloadCache.delete(cacheKey);
 
-    // Fast path for the launch catalogue: a published source-language edition
-    // is always free, so a guest request does not need the subscription,
-    // content-settings, or translated-edition checks. Fetch the book gate once,
-    // then retrieve text + semantic structure concurrently.
+    // Fast path for a published, explicitly free source-language edition.
+    // Paid or otherwise gated books fall through to the normal access resolver.
+    // Fetch the public book gate once, then retrieve text + structure concurrently.
     const db = await admin();
     const { data: book, error: bookError } = await db
       .from("books")
-      .select("id, status, source_language, source_version, typography_profile")
+      .select("id, status, access_type, source_language, source_version, typography_profile")
       .eq("id", params.bookId)
       .single();
 
@@ -567,6 +566,7 @@ export async function getReaderBookPayload(params: {
       !bookError &&
       book &&
       book.status === "published" &&
+      book.access_type === "free" &&
       params.language === book.source_language
     ) {
       const version = book.source_version ?? 1;

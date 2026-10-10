@@ -1054,7 +1054,7 @@ body.reader-sepia {
 .reader-v3-flow {
   text-align: justify;
   text-align-last: left;
-  text-justify: inter-word;
+  text-justify: inter-character;
 }
 
 .reader-v3-chapter-opening,
@@ -1172,7 +1172,8 @@ body.reader-sepia {
 }
 
 .reader-v3-flow p {
-  word-spacing: -0.01em;
+  word-spacing: normal;
+  letter-spacing: 0.005em;
 }
 
 /* Final body reading measure. */
