@@ -1101,7 +1101,12 @@ export function BookReaderV3({
 
       for (const child of Array.from(flow.children)) {
         if (!(child instanceof HTMLElement)) continue;
-        const rects = Array.from(child.getClientRects());
+        const range = document.createRange();
+        range.selectNodeContents(child);
+        const textRects = Array.from(range.getClientRects()).filter(
+          (rect) => rect.width > 0 && rect.height > 0,
+        );
+        const rects = textRects.length ? textRects : Array.from(child.getClientRects());
         const visible = rects.some((rect) => {
           const rawPage = Math.max(
             0,
