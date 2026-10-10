@@ -1180,3 +1180,12 @@ body.reader-sepia {
 .reader-v3-flow {
   font-family: "Times New Roman", Times, Georgia, serif;
 }
+
+/* Keep off-page book blocks in layout for pagination, but out of find/accessibility surfaces. */
+.reader-v3-flow[data-reader-visible-raw-page] > * {
+  visibility: hidden;
+}
+
+.reader-v3-flow[data-reader-visible-raw-page] > [data-reader-visible-block="true"] {
+  visibility: visible;
+}

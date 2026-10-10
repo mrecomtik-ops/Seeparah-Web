@@ -1085,6 +1085,44 @@ export function BookReaderV3({
     [chapterStartPages],
   );
 
+  useLayoutEffect(() => {
+    if (frontIndex !== null || !layoutMeasured) return;
+    const stage = stageRef.current;
+    if (!stage) return;
+
+    const flows = Array.from(
+      stage.querySelectorAll<HTMLElement>(".reader-v3-flow[data-reader-visible-raw-page]"),
+    );
+
+    for (const flow of flows) {
+      const targetRawPage = Number(flow.dataset["readerVisibleRawPage"]);
+      if (!Number.isFinite(targetRawPage)) continue;
+      const flowRect = flow.getBoundingClientRect();
+
+      for (const child of Array.from(flow.children)) {
+        if (!(child instanceof HTMLElement)) continue;
+        const rects = Array.from(child.getClientRects());
+        const visible = rects.some((rect) => {
+          const rawPage = Math.max(
+            0,
+            Math.round((rect.left - flowRect.left) / Math.max(1, pageStride)),
+          );
+          return rawPage === targetRawPage;
+        });
+
+        if (visible) {
+          child.dataset["readerVisibleBlock"] = "true";
+          child.removeAttribute("aria-hidden");
+          child.removeAttribute("inert");
+        } else {
+          delete child.dataset["readerVisibleBlock"];
+          child.setAttribute("aria-hidden", "true");
+          child.setAttribute("inert", "");
+        }
+      }
+    }
+  }, [bodyPage, frontIndex, layoutMeasured, logicalPages, pageStride, spreadMode]);
+
   const changeFontSize = (next: number) => {
     setFontSizeDraft(next);
 
@@ -1323,6 +1361,7 @@ export function BookReaderV3({
             <div
               ref={options.master ? flowRef : undefined}
               data-reader-master={options.master ? "true" : undefined}
+              data-reader-visible-raw-page={rawPage ?? undefined}
               className="reader-v3-flow"
               style={{
                 width: contentSize.width,
