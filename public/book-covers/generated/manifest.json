@@ -1,5 +1,3 @@
-[Reading 226 lines from start (total: 226 lines, 0 remaining)]
-
 [
   {
     "candidate_id": "SP-CAND-0022",
@@ -19,7 +17,7 @@
     "candidate_id": "SP-CAND-0008",
     "width": 1200,
     "height": 1800,
-    "bytes": 47044,
+    "bytes": 58318,
     "url": "/book-covers/generated/SP-CAND-0008.webp"
   },
   {
@@ -54,7 +52,7 @@
     "candidate_id": "SP-CAND-0030",
     "width": 1600,
     "height": 2400,
-    "bytes": 209652,
+    "bytes": 256544,
     "url": "/book-covers/generated/SP-CAND-0030.webp"
   },
   {
@@ -226,5 +224,3 @@
     "url": "/book-covers/generated/SP-CAND-0328.webp"
   }
 ]
-
-[executed on device: DESKTOP-VDOJS9H (d3e04abe-8ee0-48d4-927b-2b89ba48ace9)]

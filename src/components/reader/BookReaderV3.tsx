@@ -7,6 +7,7 @@ import {
   Highlighter,
   List,
   Loader2,
+  MoreHorizontal,
   Settings2,
 } from "lucide-react";
 import {
@@ -21,8 +22,7 @@ import {
 import { toast } from "sonner";
 import {
   addHighlight,
-  getReaderBookContent,
-  getReaderNavigation,
+  getReaderBookPayload,
   listHighlights,
   listProgress,
   saveProgress,
@@ -428,6 +428,7 @@ export function BookReaderV3({
   const [turning, setTurning] = useState<"next" | "prev" | null>(null);
   const [contentsReturnPosition, setContentsReturnPosition] = useState<ReaderPosition | null>(null);
   const [finishOpen, setFinishOpen] = useState(false);
+  const [mobileActionsOpen, setMobileActionsOpen] = useState(false);
   const stageRef = useRef<HTMLDivElement | null>(null);
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const flowRef = useRef<HTMLDivElement | null>(null);
@@ -441,13 +442,11 @@ export function BookReaderV3({
   const touchStartRef = useRef<number | null>(null);
   const seededKeyRef = useRef<string | null>(null);
 
-  const contentQuery = useQuery({
-    queryKey: ["reader-book-content", book.id, language],
-    queryFn: () => getReaderBookContent(book.id, language),
-  });
-  const navigationQuery = useQuery({
-    queryKey: ["reader-navigation", book.id, language],
-    queryFn: () => getReaderNavigation(book.id, language),
+  const payloadQuery = useQuery({
+    queryKey: ["reader-book-payload", book.id, language],
+    queryFn: () => getReaderBookPayload(book.id, language),
+    staleTime: 15 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
   });
   const progressQuery = useQuery({
     queryKey: ["progress", userId],
@@ -459,8 +458,12 @@ export function BookReaderV3({
   });
 
   const chapters = useMemo(
-    () => buildReaderChapters(contentQuery.data?.chunks ?? [], navigationQuery.data ?? []),
-    [contentQuery.data?.chunks, navigationQuery.data],
+    () =>
+      buildReaderChapters(
+        payloadQuery.data?.content.chunks ?? [],
+        payloadQuery.data?.navigation ?? [],
+      ),
+    [payloadQuery.data?.content.chunks, payloadQuery.data?.navigation],
   );
   const highlights = useMemo(
     () =>
@@ -540,7 +543,7 @@ export function BookReaderV3({
     if (!stage) return;
     const update = () => {
       const availableWidth = Math.max(220, stage.clientWidth - 32);
-      const availableHeight = Math.max(330, stage.clientHeight - 24);
+      const availableHeight = Math.max(330, stage.clientHeight - 4);
       const nextSpread = stage.clientWidth >= 900 && window.innerWidth > window.innerHeight;
       setSpreadMode(nextSpread);
       setMobileViewport(stage.clientWidth < 640);
@@ -901,6 +904,63 @@ export function BookReaderV3({
     });
   }, [bodyPageCount, layoutMeasured, lastBodySpreadRight, spreadMode]);
 
+  useLayoutEffect(() => {
+    if (frontIndex !== null || !layoutMeasured) return;
+    const stage = stageRef.current;
+    if (!stage) return;
+
+    const frame = requestAnimationFrame(() => {
+      const viewports = Array.from(
+        stage.querySelectorAll<HTMLElement>(".reader-v3-content-viewport"),
+      );
+      for (const viewport of viewports) {
+        const flow = viewport.querySelector<HTMLElement>(".reader-v3-flow");
+        if (!flow) continue;
+        const viewportRect = viewport.getBoundingClientRect();
+        const children = Array.from(flow.children).filter(
+          (node): node is HTMLElement => node instanceof HTMLElement,
+        );
+
+        for (const child of children) {
+          child.style.visibility = "";
+          child.removeAttribute("aria-hidden");
+          child.removeAttribute("inert");
+        }
+
+        for (const child of children) {
+          const fragments = Array.from(child.getClientRects());
+          const visible = fragments.some(
+            (rect) =>
+              rect.right > viewportRect.left + 1 &&
+              rect.left < viewportRect.right - 1 &&
+              rect.bottom > viewportRect.top + 1 &&
+              rect.top < viewportRect.bottom - 1,
+          );
+          if (visible) {
+            child.dataset["readerVisibleSlice"] = "true";
+          } else {
+            child.style.visibility = "hidden";
+            child.setAttribute("aria-hidden", "true");
+            child.setAttribute("inert", "");
+            child.dataset["readerVisibleSlice"] = "false";
+          }
+        }
+      }
+    });
+
+    return () => cancelAnimationFrame(frame);
+  }, [
+    bodyPage,
+    bodyPageCount,
+    contentSize.height,
+    contentSize.width,
+    frontIndex,
+    layoutMeasured,
+    pageSize.height,
+    pageSize.width,
+    spreadMode,
+  ]);
+
   const goBodyPage = useCallback(
     (delta: number) => {
       const direction = delta > 0 ? 1 : -1;
@@ -1138,11 +1198,11 @@ export function BookReaderV3({
     toast.success("Highlighted");
   }
 
-  const horizontalPadding = Math.round(pageSize.width * 0.065);
+  const horizontalPadding = Math.round(pageSize.width * (spreadMode ? 0.045 : 0.065));
   const topPadding = Math.round(pageSize.width * 0.035);
   const bottomPadding = Math.round(pageSize.width * 0.03);
   const pagePadding = `${topPadding}px ${horizontalPadding}px ${bottomPadding}px`;
-  const readerFontSize = clamp(fontSize, mobileViewport ? 15 : 16, 21);
+  const readerFontSize = clamp(fontSize, mobileViewport ? 15 : 16, 20);
   const lineHeightPx = Math.round(readerFontSize * 1.5 * 4) / 4;
   const runningHeadHeight = 12;
   const runningHeadGap = lineHeightPx * 1.5;
@@ -1179,6 +1239,12 @@ export function BookReaderV3({
   const atEnd =
     frontIndex === null &&
     (spreadMode ? bodyPage >= lastBodySpreadRight : bodyPage >= bodyPageCount - 1);
+  const trailingSingleLeaf =
+    frontIndex === null &&
+    spreadMode &&
+    bodyPageCount > 0 &&
+    bodyPageCount % 2 === 0 &&
+    bodyPage >= bodyPageCount;
 
   const renderPhysicalPage = (options: {
     logicalIndex?: number;
@@ -1253,8 +1319,6 @@ export function BookReaderV3({
             ref={options.master ? viewportRef : undefined}
             className="reader-v3-content-viewport"
             style={{ height: bodyGridHeight, flex: "0 0 auto" }}
-            aria-hidden={!options.master ? true : undefined}
-            inert={!options.master}
           >
             <div
               ref={options.master ? flowRef : undefined}
@@ -1305,12 +1369,64 @@ export function BookReaderV3({
     );
   };
 
-  if (contentQuery.isLoading || navigationQuery.isLoading) {
+  if (payloadQuery.isLoading) {
+    const loadingPageStyle = {
+      width: pageSize.width,
+      height: pageSize.height,
+    };
     return (
-      <div className="reader-v3-root">
-        <div className="flex h-full items-center justify-center">
-          <Loader2 className="h-6 w-6 animate-spin text-primary" />
-        </div>
+      <div
+        className={
+          "reader-v3-root " + (theme === "dark" ? "dark" : theme === "sepia" ? "reader-sepia" : "")
+        }
+      >
+        <header className="reader-v3-topbar">
+          <Link to="/library" className="reader-v3-icon-label" aria-label="Back to library">
+            <ArrowLeft className="h-4 w-4" />
+            <span className="hidden sm:inline">Library</span>
+          </Link>
+          <div className="min-w-0 flex-1 text-center">
+            <div className="truncate font-display text-sm font-semibold">{displayBookTitle}</div>
+            <div className="text-[11px] text-muted-foreground">Preparing book…</div>
+          </div>
+          <Loader2 className="h-5 w-5 shrink-0 animate-spin text-primary" aria-hidden="true" />
+        </header>
+        <main
+          ref={stageRef}
+          className={"reader-v3-stage " + (spreadMode ? "reader-v3-stage-spread" : "")}
+        >
+          <div className={spreadMode ? "reader-v3-spread" : "reader-v3-single"}>
+            {spreadMode && (
+              <article
+                className="reader-v3-page reader-v3-page-left reader-v3-page-blank"
+                style={loadingPageStyle}
+                aria-hidden="true"
+              />
+            )}
+            <article
+              className={
+                "reader-v3-page reader-v3-loading-title " +
+                (spreadMode ? "reader-v3-page-right" : "reader-v3-page-single")
+              }
+              style={loadingPageStyle}
+              aria-label="Book title page loading"
+            >
+              <div className="reader-v3-title-block">
+                <h1>{displayBookTitle}</h1>
+                <div>{formatAuthorName(book.author)}</div>
+              </div>
+              <div className="reader-v3-loading-status">
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                Loading reading edition…
+              </div>
+            </article>
+          </div>
+        </main>
+        <footer className="reader-v3-bottombar">
+          <div />
+          <div className="text-xs font-medium text-muted-foreground">Preparing book…</div>
+          <div />
+        </footer>
       </div>
     );
   }
@@ -1368,6 +1484,22 @@ export function BookReaderV3({
             <ShelfButtons bookId={book.id} />
           </div>
           <button
+            onClick={() => setMobileActionsOpen((open) => !open)}
+            className="reader-v3-icon sm:hidden"
+            aria-label="More book actions"
+            aria-expanded={mobileActionsOpen}
+          >
+            <MoreHorizontal className="h-4 w-4" />
+          </button>
+          {mobileActionsOpen && (
+            <div className="reader-v3-mobile-actions sm:hidden">
+              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Book actions
+              </div>
+              <ShelfButtons bookId={book.id} showLabels />
+            </div>
+          )}
+          <button
             onClick={handleHighlight}
             className="reader-v3-icon"
             aria-label="Highlight selection"
@@ -1413,7 +1545,9 @@ export function BookReaderV3({
             Repaginating…
           </div>
         )}
-        <div className={spreadMode ? "reader-v3-spread" : "reader-v3-single"}>
+        <div
+          className={spreadMode && !trailingSingleLeaf ? "reader-v3-spread" : "reader-v3-single"}
+        >
           {frontIndex !== null ? (
             spreadMode ? (
               <>
@@ -1433,7 +1567,7 @@ export function BookReaderV3({
             ) : (
               renderPhysicalPage({ frontPageIndex: frontIndex, side: "single", master: true })
             )
-          ) : spreadMode ? (
+          ) : spreadMode && !trailingSingleLeaf ? (
             <>
               {renderPhysicalPage({
                 logicalIndex: bodyPage - 1,
@@ -1447,7 +1581,11 @@ export function BookReaderV3({
               })}
             </>
           ) : (
-            renderPhysicalPage({ logicalIndex: bodyPage, side: "single", master: true })
+            renderPhysicalPage({
+              logicalIndex: trailingSingleLeaf ? bodyPage - 1 : bodyPage,
+              side: "single",
+              master: true,
+            })
           )}
         </div>
       </main>
@@ -1543,7 +1681,7 @@ export function BookReaderV3({
               <input
                 type="range"
                 min={16}
-                max={21}
+                max={20}
                 step={1}
                 value={fontSizeDraft}
                 onChange={(event) => changeFontSize(Number(event.target.value))}

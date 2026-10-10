@@ -1,7 +1,10 @@
 /** Convert catalogue-style creator strings to a reader-friendly primary author name.
  * The stored bibliographic value remains unchanged for provenance/audit use. */
 export function formatAuthorName(raw: string): string {
-  const primary = raw.split(";")[0]?.trim() ?? raw.trim();
+  const primary = (raw.split(";")[0]?.trim() ?? raw.trim())
+    .replace(/\b((?:[A-Z]\.\s*){1,4})\([^)]*\)\s*/gu, "$1")
+    .replace(/\s+/gu, " ")
+    .trim();
   if (!primary.includes(",")) return primary;
 
   const parts = primary

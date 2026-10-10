@@ -4,9 +4,7 @@ import { formatAuthorName } from "@/lib/author-name";
 describe("formatAuthorName", () => {
   it("turns catalogue surname-first names into natural display names", () => {
     expect(formatAuthorName("Brontë, Emily, 1818-1848")).toBe("Emily Brontë");
-    expect(formatAuthorName("Wells, H. G. (Herbert George), 1866-1946")).toBe(
-      "H. G. (Herbert George) Wells",
-    );
+    expect(formatAuthorName("Wells, H. G. (Herbert George), 1866-1946")).toBe("H. G. Wells");
   });
 
   it("uses the primary author and leaves ordinary names unchanged", () => {
@@ -14,5 +12,7 @@ describe("formatAuthorName", () => {
       formatAuthorName("Dickens, Charles, 1812-1870; Leech, John, 1817-1864 [Illustrator]"),
     ).toBe("Charles Dickens");
     expect(formatAuthorName("Seeparah")).toBe("Seeparah");
+    expect(formatAuthorName("H. G. (Herbert George) Wells")).toBe("H. G. Wells");
+    expect(formatAuthorName("L. M. (Lucy Maud) Montgomery")).toBe("L. M. Montgomery");
   });
 });

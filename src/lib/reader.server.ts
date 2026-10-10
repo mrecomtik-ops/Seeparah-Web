@@ -527,6 +527,196 @@ export async function getReaderBookContent(params: {
   };
 }
 
+export interface ReaderBookPayloadResult {
+  content: ReaderBookContentResult;
+  navigation: ReaderNavigationItem[];
+}
+
+const readerBookPayloadCache = new Map<
+  string,
+  { expiresAt: number; value: ReaderBookPayloadResult }
+>();
+const READER_PAYLOAD_CACHE_TTL_MS = 5 * 60 * 1000;
+const READER_PAYLOAD_CACHE_MAX_ENTRIES = 48;
+
+export async function getReaderBookPayload(params: {
+  bookId: string;
+  language: string;
+  userId: string | null;
+}): Promise<ReaderBookPayloadResult> {
+  const cacheKey = params.userId == null ? `${params.bookId}:${params.language}` : null;
+  const now = Date.now();
+
+  if (cacheKey) {
+    const cached = readerBookPayloadCache.get(cacheKey);
+    if (cached && cached.expiresAt > now) return cached.value;
+    if (cached) readerBookPayloadCache.delete(cacheKey);
+
+    // Fast path for the launch catalogue: a published source-language edition
+    // is always free, so a guest request does not need the subscription,
+    // content-settings, or translated-edition checks. Fetch the book gate once,
+    // then retrieve text + semantic structure concurrently.
+    const db = await admin();
+    const { data: book, error: bookError } = await db
+      .from("books")
+      .select("id, status, source_language, source_version, typography_profile")
+      .eq("id", params.bookId)
+      .single();
+
+    if (
+      !bookError &&
+      book &&
+      book.status === "published" &&
+      params.language === book.source_language
+    ) {
+      const version = book.source_version ?? 1;
+      const [chunkResult, nodeResult] = await Promise.all([
+        db
+          .from("book_chunks")
+          .select("chunk_index, content")
+          .eq("book_id", params.bookId)
+          .eq("language", params.language)
+          .eq("status", "published")
+          .eq("source_version", version)
+          .order("chunk_index", { ascending: true }),
+        db
+          .from("book_structure_nodes")
+          .select("node_type, title, depth, start_chunk_index, ordinal, metadata")
+          .eq("book_id", params.bookId)
+          .eq("language", params.language)
+          .eq("source_version", version)
+          .not("title", "is", null)
+          .order("ordinal", { ascending: true }),
+      ]);
+
+      if (!chunkResult.error) {
+        const chunks = (chunkResult.data ?? []).map((row) => ({
+          chunkIndex: Number(row.chunk_index),
+          content: String(row.content ?? ""),
+        }));
+
+        let navigation: ReaderNavigationItem[] = [];
+        const nodes = nodeResult.error ? [] : (nodeResult.data ?? []);
+        if (nodes.length > 0) {
+          const allowed = new Set([
+            "part",
+            "book",
+            "volume",
+            "chapter",
+            "story",
+            "section",
+            "act",
+            "scene",
+            "poem",
+            "canto",
+            "front_matter",
+            "back_matter",
+          ]);
+          navigation = nodes
+            .filter((node) => {
+              if (!node.title || !allowed.has(node.node_type)) return false;
+              const metadata =
+                node.metadata && typeof node.metadata === "object" && !Array.isArray(node.metadata)
+                  ? (node.metadata as Record<string, unknown>)
+                  : {};
+              return metadata["toc_visible"] !== false;
+            })
+            .map((node) => {
+              const metadata =
+                node.metadata && typeof node.metadata === "object" && !Array.isArray(node.metadata)
+                  ? (node.metadata as Record<string, unknown>)
+                  : {};
+              const type = node.node_type as string;
+              const kind: ReaderNavigationItem["kind"] =
+                type === "volume" || type === "part"
+                  ? "part"
+                  : type === "book"
+                    ? "book"
+                    : type === "act"
+                      ? "act"
+                      : type === "scene"
+                        ? "scene"
+                        : type === "poem"
+                          ? "poem"
+                          : type === "canto"
+                            ? "canto"
+                            : type === "front_matter"
+                              ? "front_matter"
+                              : type === "back_matter"
+                                ? "back_matter"
+                                : type === "chapter" || type === "story"
+                                  ? "chapter"
+                                  : "section";
+              const displayTitle =
+                typeof metadata["display_title"] === "string" &&
+                metadata["display_title"].trim().length > 0
+                  ? metadata["display_title"].trim()
+                  : String(node.title);
+              return {
+                index: Number(node.start_chunk_index),
+                title: displayTitle,
+                kind,
+                depth: Math.max(0, Math.min(3, Number(node.depth ?? 0))),
+                readerStart: metadata["reader_start"] === true,
+              };
+            });
+        }
+
+        if (navigation.length === 0) {
+          const { buildFallbackNavigation } = await import("@/lib/reader-structure");
+          navigation = buildFallbackNavigation(
+            chunks.map((row) => ({
+              chunk_index: row.chunkIndex,
+              content: row.content,
+            })),
+          );
+        }
+
+        const value: ReaderBookPayloadResult = {
+          content: {
+            chunks,
+            locked: false,
+            typographyProfile: book.typography_profile ?? "standard",
+          },
+          navigation,
+        };
+
+        if (readerBookPayloadCache.size >= READER_PAYLOAD_CACHE_MAX_ENTRIES) {
+          const oldest = readerBookPayloadCache.keys().next().value as string | undefined;
+          if (oldest) readerBookPayloadCache.delete(oldest);
+        }
+        readerBookPayloadCache.set(cacheKey, {
+          expiresAt: now + READER_PAYLOAD_CACHE_TTL_MS,
+          value,
+        });
+        return value;
+      }
+    }
+  }
+
+  const [content, navigation] = await Promise.all([
+    getReaderBookContent(params),
+    getReaderNavigation(params),
+  ]);
+  const value = { content, navigation };
+
+  // Only cache guest payloads that are fully readable. This keeps the cache
+  // independent of account/subscription state while eliminating duplicate
+  // Supabase work for the public-domain launch catalogue on warm workers.
+  if (cacheKey && !content.locked) {
+    if (readerBookPayloadCache.size >= READER_PAYLOAD_CACHE_MAX_ENTRIES) {
+      const oldest = readerBookPayloadCache.keys().next().value as string | undefined;
+      if (oldest) readerBookPayloadCache.delete(oldest);
+    }
+    readerBookPayloadCache.set(cacheKey, {
+      expiresAt: now + READER_PAYLOAD_CACHE_TTL_MS,
+      value,
+    });
+  }
+
+  return value;
+}
+
 export async function getReaderChunk(params: {
   bookId: string;
   language: string;

@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import {
+  getReaderBookPayload as fetchReaderBookPayload,
   getReaderBookContent as fetchReaderBookContent,
   getReaderChunk as fetchReaderChunk,
   getReaderNavigation as fetchReaderNavigation,
@@ -146,6 +147,20 @@ function findDemoChunk(bookId: string, language: string, chunkIndex: number): Ch
  * permissive. A server failure must never be the reason premium content
  * becomes readable.
  */
+export async function getReaderBookPayload(bookId: string, language: string) {
+  const token = await accessToken();
+  try {
+    return await fetchReaderBookPayload({
+      data: { bookId, language, accessToken: token },
+    });
+  } catch {
+    return {
+      content: { chunks: [], locked: true as const, reason: "not_available" as const },
+      navigation: [],
+    };
+  }
+}
+
 export async function getReaderBookContent(bookId: string, language: string) {
   const token = await accessToken();
   try {

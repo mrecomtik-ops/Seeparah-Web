@@ -40,6 +40,10 @@ const saveProgressMock = vi.fn(
 
 vi.mock("@/lib/library", () => ({
   getBook: () => Promise.resolve(book),
+  getReaderBookPayload: async () => ({
+    content: await getReaderBookContentMock(),
+    navigation: await getReaderNavigationMock(),
+  }),
   getReaderBookContent: () => getReaderBookContentMock(),
   getReaderNavigation: () => getReaderNavigationMock(),
   listProgress: () => Promise.resolve(progressRows),

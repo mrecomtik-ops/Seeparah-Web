@@ -1,5 +1,3 @@
-[Reading 183 lines from start (total: 183 lines, 0 remaining)]
-
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Outlet,
@@ -183,5 +181,3 @@ function RootComponent() {
     </QueryClientProvider>
   );
 }
-
-[executed on device: DESKTOP-VDOJS9H (d3e04abe-8ee0-48d4-927b-2b89ba48ace9)]

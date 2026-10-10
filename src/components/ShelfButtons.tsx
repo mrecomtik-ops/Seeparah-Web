@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/use-auth";
 interface ShelfAction {
   shelf: ShelfKind;
   icon: typeof Heart;
+  label: string;
   /** Imperative label for the button itself, describing what tapping it
    * will do next — shown before the action happens. */
   actionWhenActive: string;
@@ -19,6 +20,7 @@ interface ShelfAction {
 const ACTIONS: ShelfAction[] = [
   {
     shelf: "favorite",
+    label: "Favorite",
     icon: Heart,
     actionWhenActive: "Remove from favorites",
     actionWhenInactive: "Add to favorites",
@@ -27,6 +29,7 @@ const ACTIONS: ShelfAction[] = [
   },
   {
     shelf: "saved",
+    label: "Save",
     icon: Bookmark,
     actionWhenActive: "Remove saved book",
     actionWhenInactive: "Save book",
@@ -35,6 +38,7 @@ const ACTIONS: ShelfAction[] = [
   },
   {
     shelf: "want_to_read",
+    label: "Want to read",
     icon: Plus,
     actionWhenActive: "Remove from want to read",
     actionWhenInactive: "Add to want to read",
@@ -56,7 +60,13 @@ export function useShelves() {
   });
 }
 
-export function ShelfButtons({ bookId }: { bookId: string }) {
+export function ShelfButtons({
+  bookId,
+  showLabels = false,
+}: {
+  bookId: string;
+  showLabels?: boolean;
+}) {
   const { userId } = useAuth();
   const queryClient = useQueryClient();
   const shelvesQuery = useShelves();
@@ -69,32 +79,47 @@ export function ShelfButtons({ bookId }: { bookId: string }) {
   });
 
   return (
-    <div className="flex items-center gap-1.5">
-      {ACTIONS.map(({ shelf, icon: Icon, actionWhenActive, actionWhenInactive, confirmedOn, confirmedOff }) => {
-        const active = rows.some((r) => r.book_id === bookId && r.shelf === shelf);
-        return (
-          <button
-            key={shelf}
-            type="button"
-            aria-pressed={active}
-            aria-label={active ? actionWhenActive : actionWhenInactive}
-            title={active ? actionWhenActive : actionWhenInactive}
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              mutation.mutate({ shelf, on: !active });
-              toast.success(active ? confirmedOff : confirmedOn);
-            }}
-            className={`inline-flex h-11 w-11 items-center justify-center rounded-full border transition-colors sm:h-8 sm:w-8 ${
-              active
-                ? "border-primary bg-primary text-primary-foreground"
-                : "border-border bg-card/90 text-muted-foreground backdrop-blur hover:text-foreground"
-            }`}
-          >
-            <Icon className={`h-4 w-4 ${active ? "fill-current" : ""}`} />
-          </button>
-        );
-      })}
+    <div className={showLabels ? "grid gap-2" : "flex items-center gap-1.5"}>
+      {ACTIONS.map(
+        ({
+          shelf,
+          icon: Icon,
+          label,
+          actionWhenActive,
+          actionWhenInactive,
+          confirmedOn,
+          confirmedOff,
+        }) => {
+          const active = rows.some((r) => r.book_id === bookId && r.shelf === shelf);
+          return (
+            <button
+              key={shelf}
+              type="button"
+              aria-pressed={active}
+              aria-label={active ? actionWhenActive : actionWhenInactive}
+              title={active ? actionWhenActive : actionWhenInactive}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                mutation.mutate({ shelf, on: !active });
+                toast.success(active ? confirmedOff : confirmedOn);
+              }}
+              className={`inline-flex items-center rounded-full border transition-colors ${
+                showLabels
+                  ? "h-10 w-full justify-start gap-2 px-3 text-sm font-semibold"
+                  : "h-11 w-11 justify-center sm:h-8 sm:w-8"
+              } ${
+                active
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border bg-card/90 text-muted-foreground backdrop-blur hover:text-foreground"
+              }`}
+            >
+              <Icon className={`h-4 w-4 shrink-0 ${active ? "fill-current" : ""}`} />
+              {showLabels && <span>{label}</span>}
+            </button>
+          );
+        },
+      )}
     </div>
   );
 }
