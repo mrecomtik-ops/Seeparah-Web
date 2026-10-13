@@ -22,6 +22,7 @@ const book: Book = {
 
 let progressRows: Progress[] = [];
 let authUserId = "demo-reader";
+let routeSearch: { lang?: string; page?: number; leaf?: number } = {};
 
 const getReaderBookContentMock = vi.fn(async () => ({
   locked: false,
@@ -71,7 +72,7 @@ vi.mock("@tanstack/react-router", async (importOriginal) => {
     createFileRoute: () => (config: Record<string, unknown>) => ({
       ...config,
       useParams: () => ({ bookId: "book-1" }),
-      useSearch: () => ({ lang: undefined }),
+      useSearch: () => routeSearch,
       useLoaderData: () => ({ book }),
     }),
     Link: (props: { to: string; children?: React.ReactNode; className?: string }) => (
@@ -110,6 +111,7 @@ function renderReader() {
 beforeEach(() => {
   progressRows = [];
   authUserId = "demo-reader";
+  routeSearch = {};
   getReaderBookContentMock.mockClear();
   getReaderNavigationMock.mockClear();
   saveProgressMock.mockClear();
@@ -148,6 +150,26 @@ describe("Reader V3 route seeding", () => {
     await waitFor(() => expect(view.getByRole("heading", { name: "Resumable Book" })).toBeTruthy());
     await new Promise((resolve) => setTimeout(resolve, 320));
     expect(saveProgressMock).not.toHaveBeenCalled();
+  });
+
+
+  it("lets an explicit page URL override saved progress for canonical-reference deep links", async () => {
+    routeSearch = { lang: "English", page: 6 };
+    progressRows = [
+      {
+        user_id: "demo-reader",
+        book_id: "book-1",
+        language: "English",
+        last_chunk_index: 0,
+        updated_at: "2026-01-01T00:00:00.000Z",
+      },
+    ];
+    renderReader();
+
+    await waitFor(() => expect(saveProgressMock).toHaveBeenCalled(), { timeout: 1800 });
+    const saved = saveProgressMock.mock.calls.map((call) => call[3]);
+    expect(saved[0]).toBe(5);
+    expect(saved).not.toContain(0);
   });
 
   it("uses a user-specific seed key so a signed-in account can restore its own progress", async () => {
