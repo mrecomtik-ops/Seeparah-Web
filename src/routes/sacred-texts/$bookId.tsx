@@ -25,16 +25,11 @@ export const Route = createFileRoute("/sacred-texts/$bookId")({
       {
         name: "description",
         content:
-          "Explore canonical references, original-source provenance and verified sourced translations for this Sacred Text on Seeparah.",
+          "Explore canonical references, exact source provenance, edition metadata and verified sourced translations for this sacred text on Seeparah.",
       },
     ],
     links: loaderData?.book
-      ? [
-          {
-            rel: "canonical",
-            href: `https://seeparah.com/sacred-texts/${loaderData.book.id}`,
-          },
-        ]
+      ? [{ rel: "canonical", href: `https://seeparah.com/sacred-texts/${loaderData.book.id}` }]
       : [],
   }),
   notFoundComponent: () => (
@@ -58,9 +53,9 @@ function SacredTextDetail() {
 
   const referenceIndexQuery = useQuery({
     queryKey: ["sacred-reference-index", book.id, language],
-    queryFn: () =>
-      getSacredTextReferenceIndex({ data: { bookId: book.id, language } }),
+    queryFn: () => getSacredTextReferenceIndex({ data: { bookId: book.id, language } }),
   });
+
   const editionsQuery = useQuery({
     queryKey: ["public-book-editions", book.id],
     queryFn: () => getPublicBookEditions({ data: { bookId: book.id } }),
@@ -72,16 +67,21 @@ function SacredTextDetail() {
     if (!q) return references.slice(0, 80);
     return references
       .filter((reference) =>
-        [reference.canonicalRef, reference.label, reference.title, ...reference.path.map((p) => p.value)]
+        [
+          reference.canonicalRef,
+          reference.label,
+          reference.title,
+          ...reference.path.flatMap((p) => [p.label, p.value]),
+        ]
           .filter(Boolean)
           .some((value) => String(value).toLocaleLowerCase().includes(q)),
       )
       .slice(0, 80);
   }, [references, referenceQuery]);
 
+  const editions = editionsQuery.data ?? [];
   const sourceLabel =
     book.attribution || book.edition_title || book.publisher || book.source_edition_id || "Recorded source";
-  const translatedEditions = editionsQuery.data ?? [];
 
   return (
     <div className="min-h-screen bg-background">
@@ -93,56 +93,78 @@ function SacredTextDetail() {
           <ArrowLeft className="h-4 w-4" /> Sacred Texts
         </Link>
 
-        <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_360px]">
+        <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_380px]">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
               Sacred Text reference reader
             </p>
-            <h1 className="mt-2 font-display text-4xl font-semibold text-foreground">{book.title}</h1>
-            <p className="mt-2 text-muted-foreground">{book.author}</p>
+            <h1 className="mt-2 font-display text-4xl font-semibold text-foreground" dir="auto">
+              {book.title}
+            </h1>
+            <p className="mt-2 text-muted-foreground" dir="auto">{book.author}</p>
 
             <div className="mt-6 rounded-2xl border border-primary/20 bg-card p-5 card-shadow">
               <div className="flex items-start gap-3">
                 <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
                 <div>
                   <h2 className="font-display text-lg font-semibold text-foreground">
-                    Authentic source used by Seeparah
+                    Exact source edition
                   </h2>
                   <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-                    This is the provenance record for the original text shown on Seeparah. Rights
-                    evidence used internally for publication review is kept separate from this
-                    reader-facing source record.
+                    Reader text is tied to a named source edition and source revision. Translation,
+                    commentary and footnote material stays separate from the scripture text.
                   </p>
                 </div>
               </div>
+
               <dl className="mt-4 grid gap-4 text-sm sm:grid-cols-2">
                 <div>
                   <dt className="text-xs text-muted-foreground">Source / authority</dt>
-                  <dd className="mt-0.5 font-semibold text-foreground">{sourceLabel}</dd>
+                  <dd className="mt-0.5 font-semibold text-foreground" dir="auto">{sourceLabel}</dd>
                 </div>
                 <div>
                   <dt className="text-xs text-muted-foreground">Source edition / identifier</dt>
-                  <dd className="mt-0.5 font-semibold text-foreground">
+                  <dd className="mt-0.5 font-semibold text-foreground" dir="auto">
                     {book.source_edition_id || book.source_scan_id || "Recorded in edition metadata"}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-xs text-muted-foreground">Original language</dt>
+                  <dt className="text-xs text-muted-foreground">Source language</dt>
                   <dd className="mt-0.5 font-semibold text-foreground">{book.source_language}</dd>
                 </div>
                 <div>
+                  <dt className="text-xs text-muted-foreground">Publisher / editor</dt>
+                  <dd className="mt-0.5 font-semibold text-foreground" dir="auto">
+                    {[book.publisher, book.editor].filter(Boolean).join(" · ") || "Recorded source"}
+                  </dd>
+                </div>
+                <div>
                   <dt className="text-xs text-muted-foreground">Edition</dt>
-                  <dd className="mt-0.5 font-semibold text-foreground">
+                  <dd className="mt-0.5 font-semibold text-foreground" dir="auto">
                     {book.edition_title || "Source edition"}
                     {book.edition_year ? ` · ${book.edition_year}` : ""}
                   </dd>
                 </div>
+                <div>
+                  <dt className="text-xs text-muted-foreground">Source revision</dt>
+                  <dd className="mt-0.5 font-semibold text-foreground" dir="auto">
+                    {book.source_revision || "Recorded with source files"}
+                  </dd>
+                </div>
               </dl>
+
               {book.authenticity_notes && (
-                <p className="mt-4 rounded-xl bg-secondary px-3 py-2 text-xs leading-relaxed text-secondary-foreground">
-                  <strong>Authenticity / text notes:</strong> {book.authenticity_notes}
+                <p className="mt-4 rounded-xl bg-secondary px-3 py-2 text-xs leading-relaxed text-secondary-foreground" dir="auto">
+                  <strong>Text / edition notes:</strong> {book.authenticity_notes}
                 </p>
               )}
+
+              {book.reuse_notice && (
+                <div className="mt-4 rounded-xl border border-border bg-background px-3 py-3 text-xs leading-relaxed text-muted-foreground" dir="auto">
+                  <strong className="text-foreground">Reuse notice:</strong> {book.reuse_notice}
+                </div>
+              )}
+
               {book.source_url && (
                 <a
                   href={book.source_url}
@@ -150,7 +172,7 @@ function SacredTextDetail() {
                   rel="noreferrer"
                   className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline"
                 >
-                  View the authentic source record <ExternalLink className="h-3.5 w-3.5" />
+                  View source record <ExternalLink className="h-3.5 w-3.5" />
                 </a>
               )}
             </div>
@@ -162,9 +184,8 @@ function SacredTextDetail() {
                     Find a canonical reference
                   </h2>
                   <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-                    Reference labels come from the sourced text itself. A Quran edition can use
-                    Surah/Ayah, a Bible edition Book/Chapter/Verse, a Gita edition Chapter/Shloka,
-                    and other scriptures can preserve their own authentic reference terminology.
+                    Reference labels preserve the sourced edition&apos;s terminology: for example
+                    Surah/Ayah, Book/Chapter/Verse, or the source&apos;s own section system.
                   </p>
                 </div>
                 <label className="text-xs font-semibold text-muted-foreground">
@@ -175,11 +196,7 @@ function SacredTextDetail() {
                     className="ml-2 rounded-lg border border-border bg-background px-2 py-1.5 text-sm text-foreground"
                   >
                     {[book.source_language, ...book.available_languages.filter((l) => l !== book.source_language)].map(
-                      (item) => (
-                        <option key={item} value={item}>
-                          {item}
-                        </option>
-                      ),
+                      (item) => <option key={item} value={item}>{item}</option>,
                     )}
                   </select>
                 </label>
@@ -187,10 +204,11 @@ function SacredTextDetail() {
 
               <label className="relative mt-5 block">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <span className="sr-only">Find a canonical reference</span>
                 <input
                   value={referenceQuery}
                   onChange={(event) => setReferenceQuery(event.target.value)}
-                  placeholder="Enter a reference, chapter, verse, ayah, shloka, hymn…"
+                  placeholder="Enter a chapter, verse, ayah, hymn or section…"
                   className="w-full rounded-xl border border-border bg-background py-3 pl-10 pr-3 text-sm outline-none focus:ring-2 focus:ring-ring"
                 />
               </label>
@@ -201,9 +219,7 @@ function SacredTextDetail() {
                 <div className="mt-5 rounded-xl border border-dashed border-border bg-background p-6 text-center">
                   <p className="font-semibold text-foreground">Reference index not imported yet</p>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    The text can only expose canonical references after the source structure has
-                    been imported and reviewed. Seeparah does not invent chapter or verse
-                    boundaries when the source data is missing.
+                    Seeparah does not invent chapter or verse boundaries when the source data is missing.
                   </p>
                 </div>
               ) : filteredReferences.length === 0 ? (
@@ -215,7 +231,7 @@ function SacredTextDetail() {
                       key={reference.nodeKey}
                       className="flex flex-col gap-3 bg-background px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
                     >
-                      <div className="min-w-0">
+                      <div className="min-w-0" dir="auto">
                         <p className="font-semibold text-foreground">{reference.label}</p>
                         <p className="mt-0.5 text-xs text-muted-foreground">
                           {reference.path.length > 0
@@ -243,47 +259,66 @@ function SacredTextDetail() {
               <h2 className="font-display text-lg font-semibold text-foreground">
                 Available verified editions
               </h2>
-              <div className="mt-3 rounded-xl bg-accent/50 p-3 text-sm">
-                <p className="font-semibold text-foreground">{book.source_language} · original source</p>
-                <p className="mt-1 text-xs text-muted-foreground">{sourceLabel}</p>
-              </div>
-              {translatedEditions.length === 0 ? (
-                <p className="mt-3 text-sm text-muted-foreground">
-                  No sourced translated editions are published yet.
-                </p>
+              {editionsQuery.isLoading ? (
+                <p className="mt-3 text-sm text-muted-foreground">Loading editions…</p>
+              ) : editions.length === 0 ? (
+                <div className="mt-3 rounded-xl bg-accent/50 p-3 text-sm">
+                  <p className="font-semibold text-foreground">
+                    {book.source_language} · source edition
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground" dir="auto">{sourceLabel}</p>
+                </div>
               ) : (
                 <div className="mt-3 space-y-3">
-                  {translatedEditions.map((edition) => (
-                    <div key={edition.language} className="rounded-xl border border-border p-3">
-                      <p className="text-sm font-semibold text-foreground">
-                        {edition.language} translation
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {edition.editionTitle || "Verified sourced edition"}
-                        {edition.translator ? ` · ${edition.translator}` : ""}
-                      </p>
-                      {edition.sourceUrl && (
-                        <a
-                          href={edition.sourceUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
-                        >
-                          Translation source <ExternalLink className="h-3 w-3" />
-                        </a>
-                      )}
-                    </div>
-                  ))}
+                  {editions.map((edition) => {
+                    const sourceEdition =
+                      edition.language === book.source_language || edition.provenanceType === "source_text";
+                    return (
+                      <div key={edition.language} className="rounded-xl border border-border p-3">
+                        <p className="text-sm font-semibold text-foreground">
+                          {edition.language} · {sourceEdition ? "source text" : "published translation"}
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground" dir="auto">
+                          {edition.editionTitle || "Verified sourced edition"}
+                          {edition.versionLabel ? ` · ${edition.versionLabel}` : ""}
+                        </p>
+                        {(edition.translator || edition.editor || edition.publisher) && (
+                          <p className="mt-1 text-xs text-muted-foreground" dir="auto">
+                            {edition.translator ? `Translator: ${edition.translator}` : ""}
+                            {edition.translator && (edition.editor || edition.publisher) ? " · " : ""}
+                            {edition.editor ? `Editor: ${edition.editor}` : ""}
+                            {edition.editor && edition.publisher ? " · " : ""}
+                            {edition.publisher || ""}
+                          </p>
+                        )}
+                        {edition.reuseNotice && (
+                          <p className="mt-2 text-xs leading-relaxed text-muted-foreground" dir="auto">
+                            <strong className="text-foreground">Reuse:</strong> {edition.reuseNotice}
+                          </p>
+                        )}
+                        {edition.sourceUrl && (
+                          <a
+                            href={edition.sourceUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+                          >
+                            {sourceEdition ? "Source record" : "Translation source"}
+                            <ExternalLink className="h-3 w-3" />
+                          </a>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </section>
 
             <section className="rounded-2xl border border-border bg-secondary/60 p-5 text-sm leading-relaxed text-secondary-foreground">
-              <strong className="text-foreground">Translation rule</strong>
+              <strong className="text-foreground">No generated scripture translations</strong>
               <p className="mt-2">
-                Religious scripture is never sent through Seeparah&apos;s AI translation pipeline.
-                Additional languages are added only from reviewed existing translations with their
-                source and translator or organization identified.
+                Sacred texts are excluded from Seeparah&apos;s AI translation and automatic rewriting
+                pipeline. Additional languages are added only from reviewed existing editions.
               </p>
             </section>
 
