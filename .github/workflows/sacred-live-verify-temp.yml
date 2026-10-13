@@ -8,22 +8,47 @@ permissions:
   contents: read
 
 jobs:
-  sacred-live:
+  validate-and-smoke:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Install Playwright
+          cache: npm
+
+      - name: Install project
+        run: npm ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Install Playwright browser
         run: |
           npm install --no-save --package-lock=false playwright@1.57.0
           npx playwright install --with-deps chromium
+
       - name: Verify live Seeparah sacred readers
         run: |
           node <<'NODE'
           const { chromium } = require('playwright');
           const assert = require('node:assert/strict');
+
+          async function waitBodyContains(page, needle, timeout = 120000) {
+            await page.waitForFunction(
+              ({ needle }) => (document.body?.innerText || '').includes(needle),
+              { needle },
+              { timeout }
+            );
+          }
+
           (async () => {
             const browser = await chromium.launch({ headless: true });
             const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
@@ -31,6 +56,7 @@ jobs:
 
             await page.goto('https://seeparah.com/sacred-texts', { waitUntil: 'domcontentloaded' });
             await page.getByText('Published source editions').waitFor();
+            await page.waitForFunction(() => document.querySelectorAll('article').length === 68);
             const articles = await page.locator('article').count();
             console.log('published sacred cards', articles);
             assert.equal(articles, 68);
@@ -38,11 +64,11 @@ jobs:
             const quranId = 'f7e3a9f0-931a-5207-9859-a27210cc2ca8';
             await page.goto('https://seeparah.com/sacred-texts/' + quranId, { waitUntil: 'domcontentloaded' });
             await page.getByText('Exact source edition').waitFor();
+            await waitBodyContains(page, 'Muhammad Ibrahim Junagarhi');
+            await waitBodyContains(page, 'Rowwad Translation Center');
             const detail = await page.locator('body').innerText();
-            assert.match(detail, /Muhammad Ibrahim Junagarhi/);
-            assert.match(detail, /Rowwad Translation Center/);
             assert.match(detail, /Reuse/);
-            assert.doesNotMatch(detail, /Mufti Taqi Usmani/);
+            assert.match(detail, /Mufti Taqi Usmani Urdu is not included because it was not acquired/);
 
             await page.locator('select').selectOption({ label: 'Urdu' });
             const refInput = page.locator('input[placeholder^="Enter a chapter"]');
@@ -55,23 +81,18 @@ jobs:
 
             async function verifyReader(name, url, needle, expectedDir) {
               await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 120000 });
-              const visiblePage = page.locator('.reader-v3-page').first();
-              await visiblePage.waitFor({ timeout: 120000 });
-              await page.waitForFunction(
-                ({ needle }) => {
-                  const pages = [...document.querySelectorAll('.reader-v3-page')];
-                  return pages.some((el) => (el.textContent || '').includes(needle));
-                },
-                { needle },
-                { timeout: 120000 }
-              );
-              const pageText = await visiblePage.innerText();
-              const dir = await visiblePage.getAttribute('dir');
+              await page.locator('.reader-v3-page').first().waitFor({ timeout: 120000 });
+              await waitBodyContains(page, needle, 120000);
+              const visiblePages = page.locator('.reader-v3-page:visible');
+              const visibleText = await visiblePages.allInnerTexts();
+              const combined = visibleText.join('\n');
+              assert.ok(combined.includes(needle), name + ' target text is not on the visible reader page');
+              const dir = await visiblePages.first().getAttribute('dir');
               const dims = await page.evaluate(() => [
                 document.documentElement.clientWidth,
                 document.documentElement.scrollWidth
               ]);
-              console.log(name, { dir, dims, sample: pageText.slice(0, 220) });
+              console.log(name, { dir, dims, sample: combined.slice(0, 220) });
               assert.equal(dir, expectedDir);
               assert.ok(dims[1] <= dims[0] + 1, name + ' horizontal overflow');
             }
@@ -106,6 +127,12 @@ jobs:
               'Manopubbaṅgamā dhammā',
               'ltr'
             );
+
+            // Sacred editions must not expose the AI-translation request UI.
+            await page.goto('https://seeparah.com/read/' + quranId + '?lang=English&page=1', { waitUntil: 'domcontentloaded' });
+            await page.locator('.reader-v3-page').first().waitFor({ timeout: 120000 });
+            const bodyText = await page.locator('body').innerText();
+            assert.doesNotMatch(bodyText, /Request translation/i);
 
             await browser.close();
             console.log('SACRED_LIVE_SMOKE_OK');
