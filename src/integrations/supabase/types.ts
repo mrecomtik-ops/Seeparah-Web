@@ -1439,6 +1439,53 @@ export type Database = {
           },
         ]
       }
+      sacred_annotations: {
+        Row: {
+          annotation_type: string
+          book_id: string
+          canonical_ref: string
+          content: string
+          created_at: string
+          language: string
+          ordinal: number
+          source_file_sha256: string | null
+          source_path: string | null
+          source_version: number
+        }
+        Insert: {
+          annotation_type: string
+          book_id: string
+          canonical_ref: string
+          content: string
+          created_at?: string
+          language: string
+          ordinal?: number
+          source_file_sha256?: string | null
+          source_path?: string | null
+          source_version?: number
+        }
+        Update: {
+          annotation_type?: string
+          book_id?: string
+          canonical_ref?: string
+          content?: string
+          created_at?: string
+          language?: string
+          ordinal?: number
+          source_file_sha256?: string | null
+          source_path?: string | null
+          source_version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sacred_annotations_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_subscriptions: {
         Row: {
           book_id: string
