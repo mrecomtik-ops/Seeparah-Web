@@ -44,6 +44,9 @@ export interface Book {
     | "scripture_urdu"
     | "scripture_hebrew"
     | "scripture_indic"
+    | "scripture_greek"
+    | "scripture_pali"
+    | "scripture_tibetan"
     | "facsimile_preserving";
   authenticity_notes?: string | null;
   // Public-safe source provenance for the exact edition used by Seeparah.
@@ -52,6 +55,9 @@ export interface Book {
   source_edition_id?: string | null;
   attribution?: string | null;
   translator?: string | null;
+  editor?: string | null;
+  source_revision?: string | null;
+  reuse_notice?: string | null;
 }
 
 export interface Chunk {
@@ -147,6 +153,10 @@ export const LANGUAGES = [
   "Pashto",
   "Malay",
   "Hebrew",
+  "Greek",
+  "Pali",
+  "Tibetan",
+  "Sanskrit",
   "Tamil",
   "Telugu",
   "Marathi",
