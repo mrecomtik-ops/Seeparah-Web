@@ -1,0 +1,116 @@
+name: Sacred Production Smoke
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  sacred-live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Playwright
+        run: |
+          npm install --no-save --package-lock=false playwright@1.57.0
+          npx playwright install --with-deps chromium
+      - name: Verify live Seeparah sacred readers
+        run: |
+          node <<'NODE'
+          const { chromium } = require('playwright');
+          const assert = require('node:assert/strict');
+          (async () => {
+            const browser = await chromium.launch({ headless: true });
+            const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+            page.setDefaultTimeout(120000);
+
+            await page.goto('https://seeparah.com/sacred-texts', { waitUntil: 'domcontentloaded' });
+            await page.getByText('Published source editions').waitFor();
+            const articles = await page.locator('article').count();
+            console.log('published sacred cards', articles);
+            assert.equal(articles, 68);
+
+            const quranId = 'f7e3a9f0-931a-5207-9859-a27210cc2ca8';
+            await page.goto('https://seeparah.com/sacred-texts/' + quranId, { waitUntil: 'domcontentloaded' });
+            await page.getByText('Exact source edition').waitFor();
+            const detail = await page.locator('body').innerText();
+            assert.match(detail, /Muhammad Ibrahim Junagarhi/);
+            assert.match(detail, /Rowwad Translation Center/);
+            assert.match(detail, /Reuse/);
+            assert.doesNotMatch(detail, /Mufti Taqi Usmani/);
+
+            await page.locator('select').selectOption({ label: 'Urdu' });
+            const refInput = page.locator('input[placeholder^="Enter a chapter"]');
+            await refInput.fill('114:6');
+            const open = page.getByRole('link', { name: 'Open in context' }).first();
+            await open.waitFor();
+            const href = await open.getAttribute('href');
+            console.log('Quran 114:6 href', href);
+            assert.ok(href && href.includes('lang=Urdu') && href.includes('page=6236'));
+
+            async function verifyReader(name, url, needle, expectedDir) {
+              await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 120000 });
+              const visiblePage = page.locator('.reader-v3-page').first();
+              await visiblePage.waitFor({ timeout: 120000 });
+              await page.waitForFunction(
+                ({ needle }) => {
+                  const pages = [...document.querySelectorAll('.reader-v3-page')];
+                  return pages.some((el) => (el.textContent || '').includes(needle));
+                },
+                { needle },
+                { timeout: 120000 }
+              );
+              const pageText = await visiblePage.innerText();
+              const dir = await visiblePage.getAttribute('dir');
+              const dims = await page.evaluate(() => [
+                document.documentElement.clientWidth,
+                document.documentElement.scrollWidth
+              ]);
+              console.log(name, { dir, dims, sample: pageText.slice(0, 220) });
+              assert.equal(dir, expectedDir);
+              assert.ok(dims[1] <= dims[0] + 1, name + ' horizontal overflow');
+            }
+
+            await verifyReader(
+              'Quran Urdu 2:255',
+              'https://seeparah.com/read/' + quranId + '?lang=Urdu&page=262',
+              'اللہ تعالیٰ ہی معبود',
+              'rtl'
+            );
+            await verifyReader(
+              'Quran Arabic 2:255',
+              'https://seeparah.com/read/' + quranId + '?lang=Arabic&page=262',
+              'ٱللَّهُ لَآ إِلَـٰهَ',
+              'rtl'
+            );
+            await verifyReader(
+              'Genesis Hebrew',
+              'https://seeparah.com/read/87205571-41a9-540a-abd2-3784a4079fad?lang=Hebrew&page=1',
+              'בְּרֵאשִׁ֖ית בָּרָ֣א',
+              'rtl'
+            );
+            await verifyReader(
+              'Matthew Greek',
+              'https://seeparah.com/read/7bc812fd-6a4d-544e-903f-b2e333a5cc4f?lang=Greek&page=1',
+              'Βίβλος γενέσεως Ἰησοῦ',
+              'ltr'
+            );
+            await verifyReader(
+              'Dhammapada Pali',
+              'https://seeparah.com/read/3e2c1103-36a9-5a44-987c-259d27dea072?lang=Pali&page=1',
+              'Manopubbaṅgamā dhammā',
+              'ltr'
+            );
+
+            await browser.close();
+            console.log('SACRED_LIVE_SMOKE_OK');
+          })().catch((error) => {
+            console.error(error);
+            process.exit(1);
+          });
+          NODE
