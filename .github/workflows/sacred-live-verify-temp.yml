@@ -81,18 +81,20 @@ jobs:
 
             async function verifyReader(name, url, needle, expectedDir) {
               await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 120000 });
-              await page.locator('.reader-v3-page').first().waitFor({ timeout: 120000 });
+              const parsed = new URL(url);
+              const targetChunk = Number(parsed.searchParams.get('page') || '1') - 1;
+              const target = page.locator('#sacred-chunk-' + targetChunk);
+              await target.waitFor({ timeout: 120000 });
               await waitBodyContains(page, needle, 120000);
-              const visiblePages = page.locator('.reader-v3-page:visible');
-              const visibleText = await visiblePages.allInnerTexts();
-              const combined = visibleText.join('\n');
-              assert.ok(combined.includes(needle), name + ' target text is not on the visible reader page');
-              const dir = await visiblePages.first().getAttribute('dir');
+              const targetText = await target.innerText();
+              assert.ok(targetText.includes(needle), name + ' target text is not in the requested canonical unit');
+              const readerSection = target.locator('xpath=ancestor::section[@lang][1]');
+              const dir = await readerSection.getAttribute('dir');
               const dims = await page.evaluate(() => [
                 document.documentElement.clientWidth,
                 document.documentElement.scrollWidth
               ]);
-              console.log(name, { dir, dims, sample: combined.slice(0, 220) });
+              console.log(name, { dir, dims, sample: targetText.slice(0, 220) });
               assert.equal(dir, expectedDir);
               assert.ok(dims[1] <= dims[0] + 1, name + ' horizontal overflow');
             }
@@ -130,7 +132,7 @@ jobs:
 
             // Sacred editions must not expose the AI-translation request UI.
             await page.goto('https://seeparah.com/read/' + quranId + '?lang=English&page=1', { waitUntil: 'domcontentloaded' });
-            await page.locator('.reader-v3-page').first().waitFor({ timeout: 120000 });
+            await page.locator('#sacred-chunk-0').waitFor({ timeout: 120000 });
             const bodyText = await page.locator('body').innerText();
             assert.doesNotMatch(bodyText, /Request translation/i);
 
