@@ -229,13 +229,19 @@ export type Database = {
           book_id: string
           created_at: string
           edition_title: string | null
+          editor: string | null
           language: string
           provenance_type: string
+          publisher: string | null
+          reuse_notice: string | null
           rights_basis: string | null
           rights_evidence_url: string | null
           source_edition_id: string | null
+          source_file_path: string | null
+          source_file_sha256: string | null
           source_url: string | null
           translator: string | null
+          version_label: string | null
           typography_profile: string
           updated_at: string
         }
@@ -245,13 +251,19 @@ export type Database = {
           book_id: string
           created_at?: string
           edition_title?: string | null
+          editor?: string | null
           language: string
           provenance_type?: string
+          publisher?: string | null
+          reuse_notice?: string | null
           rights_basis?: string | null
           rights_evidence_url?: string | null
           source_edition_id?: string | null
+          source_file_path?: string | null
+          source_file_sha256?: string | null
           source_url?: string | null
           translator?: string | null
+          version_label?: string | null
           typography_profile?: string
           updated_at?: string
         }
@@ -261,8 +273,11 @@ export type Database = {
           book_id?: string
           created_at?: string
           edition_title?: string | null
+          editor?: string | null
           language?: string
           provenance_type?: string
+          publisher?: string | null
+          reuse_notice?: string | null
           rights_basis?: string | null
           rights_evidence_url?: string | null
           source_edition_id?: string | null
@@ -611,6 +626,7 @@ export type Database = {
           edition_review_status: string
           edition_title: string | null
           edition_year: number | null
+          editor: string | null
           estimated_reading_minutes: number | null
           genre: string | null
           isbn: string | null
@@ -620,6 +636,7 @@ export type Database = {
           permitted_territories: string[]
           publisher: string | null
           rejection_reason: string | null
+          reuse_notice: string | null
           review_notes: string | null
           reviewed_at: string | null
           reviewed_by: string | null
@@ -629,7 +646,10 @@ export type Database = {
           rights_risk_acknowledged_by: string | null
           rights_status: string
           source_edition_id: string | null
+          source_file_path: string | null
+          source_file_sha256: string | null
           source_language: string
+          source_revision: string | null
           source_scan_id: string | null
           source_url: string | null
           source_version: number
@@ -661,6 +681,7 @@ export type Database = {
           edition_review_status?: string
           edition_title?: string | null
           edition_year?: number | null
+          editor?: string | null
           estimated_reading_minutes?: number | null
           genre?: string | null
           isbn?: string | null
@@ -670,6 +691,7 @@ export type Database = {
           permitted_territories?: string[]
           publisher?: string | null
           rejection_reason?: string | null
+          reuse_notice?: string | null
           review_notes?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
@@ -679,7 +701,10 @@ export type Database = {
           rights_risk_acknowledged_by?: string | null
           rights_status?: string
           source_edition_id?: string | null
+          source_file_path?: string | null
+          source_file_sha256?: string | null
           source_language: string
+          source_revision?: string | null
           source_scan_id?: string | null
           source_url?: string | null
           source_version?: number
@@ -729,7 +754,10 @@ export type Database = {
           rights_risk_acknowledged_by?: string | null
           rights_status?: string
           source_edition_id?: string | null
+          source_file_path?: string | null
+          source_file_sha256?: string | null
           source_language?: string
+          source_revision?: string | null
           source_scan_id?: string | null
           source_url?: string | null
           source_version?: number
@@ -1465,6 +1493,22 @@ export type Database = {
       has_active_plan_subscription: {
         Args: { p_user_id: string }
         Returns: boolean
+      }
+      get_published_book_chunks_json: {
+        Args: {
+          p_book_id: string
+          p_language: string
+          p_source_version?: number
+        }
+        Returns: Json
+      }
+      get_sacred_reference_nodes_json: {
+        Args: {
+          p_book_id: string
+          p_language: string
+          p_source_version?: number
+        }
+        Returns: Json
       }
       is_admin: { Args: { min_roles: string[] }; Returns: boolean }
       is_monetization_enabled: { Args: never; Returns: boolean }
