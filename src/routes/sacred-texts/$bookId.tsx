@@ -255,6 +255,25 @@ function SacredTextDetail() {
           </div>
 
           <aside className="space-y-5">
+            {book.cover_url && (
+              <figure className="mx-auto w-full max-w-[280px] overflow-hidden rounded-2xl border border-border bg-card p-2 card-shadow">
+                <img
+                  src={book.cover_url}
+                  alt={
+                    book.source_edition_id === "sefaria-tanach-taamei-hamikra"
+                      ? `Tanakh JPS 1917 collection cover; ${book.title} is part of this sourced collection`
+                      : book.source_edition_id === "SBLGNT-v1.2"
+                        ? `SBL Greek New Testament collection cover; ${book.title} is part of this sourced edition`
+                        : `${book.title} cover`
+                  }
+                  width={800}
+                  height={1200}
+                  decoding="async"
+                  className="aspect-[2/3] w-full rounded-xl object-cover"
+                />
+              </figure>
+            )}
+
             <section className="rounded-2xl border border-border bg-card p-5 card-shadow">
               <h2 className="font-display text-lg font-semibold text-foreground">
                 Available verified editions
