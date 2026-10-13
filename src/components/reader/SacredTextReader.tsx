@@ -212,7 +212,7 @@ export function SacredTextReader({
           </div>
 
           <div className="mt-4 flex flex-wrap gap-2">
-            <ShelfButtons bookId={book.id} compact />
+            <ShelfButtons bookId={book.id} showLabels={false} />
             {book.source_url && (
               <a
                 href={book.source_url}
