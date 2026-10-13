@@ -73,20 +73,63 @@ export async function getSacredTextReferenceIndex(params: {
     };
   }
 
-  const { data, error } = await db
-    .from("book_structure_nodes")
-    .select(
-      "node_key,node_type,title,ordinal,depth,start_chunk_index,end_chunk_index,metadata",
-    )
-    .eq("book_id", params.bookId)
-    .eq("language", params.language)
-    .eq("source_version", book.source_version ?? 1)
-    .order("ordinal", { ascending: true });
+  type ReferenceNode = {
+    node_key: string;
+    node_type: string;
+    title: string | null;
+    ordinal: number;
+    depth: number;
+    start_chunk_index: number;
+    end_chunk_index: number;
+    metadata: unknown;
+  };
 
-  if (error) throw new Error(error.message);
+  let nodes: ReferenceNode[] | null = null;
+  if (typeof db.rpc === "function") {
+    try {
+      const { data, error } = await db.rpc("get_sacred_reference_nodes_json", {
+        p_book_id: params.bookId,
+        p_language: params.language,
+        p_source_version: book.source_version ?? 1,
+      });
+      if (!error && Array.isArray(data)) {
+        nodes = data
+          .filter((item) => Boolean(item && typeof item === "object" && !Array.isArray(item)))
+          .map((item) => {
+            const row = item as Record<string, unknown>;
+            return {
+              node_key: String(row["node_key"] ?? ""),
+              node_type: String(row["node_type"] ?? ""),
+              title: typeof row["title"] === "string" ? row["title"] : null,
+              ordinal: Number(row["ordinal"] ?? 0),
+              depth: Number(row["depth"] ?? 0),
+              start_chunk_index: Number(row["start_chunk_index"] ?? 0),
+              end_chunk_index: Number(row["end_chunk_index"] ?? 0),
+              metadata: row["metadata"],
+            };
+          });
+      }
+    } catch {
+      nodes = null;
+    }
+  }
+
+  if (!nodes) {
+    const { data, error } = await db
+      .from("book_structure_nodes")
+      .select(
+        "node_key,node_type,title,ordinal,depth,start_chunk_index,end_chunk_index,metadata",
+      )
+      .eq("book_id", params.bookId)
+      .eq("language", params.language)
+      .eq("source_version", book.source_version ?? 1)
+      .order("ordinal", { ascending: true });
+    if (error) throw new Error(error.message);
+    nodes = (data ?? []) as ReferenceNode[];
+  }
 
   const references: ScriptureReferenceEntry[] = [];
-  for (const node of data ?? []) {
+  for (const node of nodes) {
     const metadata = asRecord(node.metadata);
     const explicitRef =
       metadata && typeof metadata["canonical_ref"] === "string"
