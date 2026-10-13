@@ -1131,6 +1131,9 @@ export type BookTypographyProfile =
   | "scripture_urdu"
   | "scripture_hebrew"
   | "scripture_indic"
+  | "scripture_greek"
+  | "scripture_pali"
+  | "scripture_tibetan"
   | "facsimile_preserving";
 
 export async function setBookContentPolicy(params: {

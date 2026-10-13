@@ -7,6 +7,61 @@ async function admin() {
   return supabaseAdmin;
 }
 
+
+type PublishedChunkRow = { chunk_index: number; content: string };
+
+function publishedChunkRows(value: unknown): PublishedChunkRow[] | null {
+  if (!Array.isArray(value)) return null;
+  const rows: PublishedChunkRow[] = [];
+  for (const item of value) {
+    if (!item || typeof item !== "object" || Array.isArray(item)) return null;
+    const row = item as Record<string, unknown>;
+    if (typeof row["chunk_index"] !== "number" || typeof row["content"] !== "string") return null;
+    rows.push({ chunk_index: row["chunk_index"], content: row["content"] });
+  }
+  return rows;
+}
+
+async function getAllPublishedChunkRows(
+  bookId: string,
+  language: string,
+  sourceVersion: number,
+): Promise<PublishedChunkRow[]> {
+  const db = await admin();
+
+  // A single JSON aggregate avoids PostgREST's configured per-query row cap.
+  // That matters for scripture editions such as the Qur'an, where one
+  // language contains 6,236 verse chunks. The RPC is service-role-only.
+  if (typeof db.rpc === "function") {
+    try {
+      const { data, error } = await db.rpc("get_published_book_chunks_json", {
+        p_book_id: bookId,
+        p_language: language,
+        p_source_version: sourceVersion,
+      });
+      const rows = !error ? publishedChunkRows(data) : null;
+      if (rows) return rows;
+    } catch {
+      // Older/local schemas may not have the aggregate function yet.
+      // Fall through to the legacy query so unrelated books remain readable.
+    }
+  }
+
+  const { data, error } = await db
+    .from("book_chunks")
+    .select("chunk_index, content")
+    .eq("book_id", bookId)
+    .eq("language", language)
+    .eq("status", "published")
+    .eq("source_version", sourceVersion)
+    .order("chunk_index", { ascending: true });
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((row) => ({
+    chunk_index: Number(row.chunk_index),
+    content: String(row.content ?? ""),
+  }));
+}
+
 export interface ReaderChunkResult {
   content: string | null;
   locked: boolean;
@@ -498,26 +553,37 @@ export async function getReaderBookContent(params: {
     editionAccessType,
   });
 
-  const maxChunk = fullAccess.locked ? 0 : null;
-  let query = db
-    .from("book_chunks")
-    .select("chunk_index, content")
-    .eq("book_id", params.bookId)
-    .eq("language", params.language)
-    .eq("status", "published")
-    .eq("source_version", book.source_version ?? 1)
-    .order("chunk_index", { ascending: true });
-  if (maxChunk !== null) query = query.eq("chunk_index", maxChunk);
-
-  const { data: rows, error } = await query;
-  if (error) {
+  let rows: PublishedChunkRow[] = [];
+  try {
+    if (fullAccess.locked) {
+      const { data, error } = await db
+        .from("book_chunks")
+        .select("chunk_index, content")
+        .eq("book_id", params.bookId)
+        .eq("language", params.language)
+        .eq("status", "published")
+        .eq("source_version", book.source_version ?? 1)
+        .eq("chunk_index", 0);
+      if (error) throw error;
+      rows = (data ?? []).map((row) => ({
+        chunk_index: Number(row.chunk_index),
+        content: String(row.content ?? ""),
+      }));
+    } else {
+      rows = await getAllPublishedChunkRows(
+        params.bookId,
+        params.language,
+        book.source_version ?? 1,
+      );
+    }
+  } catch {
     return { chunks: [], locked: true, reason: "not_available" };
   }
 
   return {
-    chunks: (rows ?? []).map((row) => ({
-      chunkIndex: Number(row.chunk_index),
-      content: String(row.content ?? ""),
+    chunks: rows.map((row) => ({
+      chunkIndex: row.chunk_index,
+      content: row.content,
     })),
     locked: fullAccess.locked,
     reason: fullAccess.locked ? fullAccess.reason : undefined,
@@ -571,14 +637,12 @@ export async function getReaderBookPayload(params: {
     ) {
       const version = book.source_version ?? 1;
       const [chunkResult, nodeResult] = await Promise.all([
-        db
-          .from("book_chunks")
-          .select("chunk_index, content")
-          .eq("book_id", params.bookId)
-          .eq("language", params.language)
-          .eq("status", "published")
-          .eq("source_version", version)
-          .order("chunk_index", { ascending: true }),
+        getAllPublishedChunkRows(params.bookId, params.language, version)
+          .then((data) => ({ data, error: null as Error | null }))
+          .catch((error: unknown) => ({
+            data: [] as PublishedChunkRow[],
+            error: error instanceof Error ? error : new Error(String(error)),
+          })),
         db
           .from("book_structure_nodes")
           .select("node_type, title, depth, start_chunk_index, ordinal, metadata")

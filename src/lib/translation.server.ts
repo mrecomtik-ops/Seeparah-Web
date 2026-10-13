@@ -734,6 +734,7 @@ export interface PublicBookEditionInfo {
   language: string;
   accessType: "free" | "paid";
   provenanceType:
+    | "source_text"
     | "ai_assisted"
     | "human_translation"
     | "licensed_translation"
@@ -741,6 +742,10 @@ export interface PublicBookEditionInfo {
   typographyProfile: string;
   editionTitle: string | null;
   translator: string | null;
+  editor: string | null;
+  publisher: string | null;
+  versionLabel: string | null;
+  reuseNotice: string | null;
   sourceUrl: string | null;
   sourceEditionId: string | null;
   authenticityNotes: string | null;
@@ -761,7 +766,7 @@ export async function getPublicBookEditions(bookId: string): Promise<PublicBookE
   const { data, error } = await db
     .from("book_editions")
     .select(
-      "language,access_type,provenance_type,typography_profile,edition_title,translator,source_url,source_edition_id,authenticity_notes",
+      "language,access_type,provenance_type,typography_profile,edition_title,translator,editor,publisher,version_label,reuse_notice,source_url,source_edition_id,authenticity_notes",
     )
     .eq("book_id", bookId)
     .order("language");
@@ -774,6 +779,10 @@ export async function getPublicBookEditions(bookId: string): Promise<PublicBookE
     typographyProfile: row.typography_profile,
     editionTitle: row.edition_title,
     translator: row.translator,
+    editor: row.editor,
+    publisher: row.publisher,
+    versionLabel: row.version_label,
+    reuseNotice: row.reuse_notice,
     sourceUrl: row.source_url,
     sourceEditionId: row.source_edition_id,
     authenticityNotes: row.authenticity_notes,

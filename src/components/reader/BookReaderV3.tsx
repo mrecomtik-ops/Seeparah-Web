@@ -144,6 +144,11 @@ function languageToBcp47(language: string): string {
     Indonesian: "id",
     Turkish: "tr",
     Persian: "fa",
+    Hebrew: "he",
+    Greek: "el",
+    Pali: "pi",
+    Tibetan: "bo",
+    Sanskrit: "sa",
     Punjabi: "pa",
     Italian: "it",
     Dutch: "nl",
@@ -151,6 +156,22 @@ function languageToBcp47(language: string): string {
     Ukrainian: "uk",
   };
   return map[language] ?? language.toLowerCase().slice(0, 2);
+}
+
+
+function scriptureFontFamily(language: string): string | undefined {
+  const stacks: Record<string, string> = {
+    Arabic: "'Noto Naskh Arabic', 'Traditional Arabic', serif",
+    Urdu: "'Noto Nastaliq Urdu', 'Urdu Typesetting', serif",
+    Hebrew: "'Noto Serif Hebrew', 'Times New Roman', serif",
+    Greek: "'Noto Serif', 'Times New Roman', serif",
+    Pali: "'Noto Serif', 'Times New Roman', serif",
+    Tibetan: "'Noto Serif Tibetan', 'Microsoft Himalaya', serif",
+    Sanskrit: "'Noto Serif Devanagari', 'Nirmala UI', serif",
+    Hindi: "'Noto Serif Devanagari', 'Nirmala UI', serif",
+    Chinese: "'Noto Serif CJK SC', 'Songti SC', SimSun, serif",
+  };
+  return stacks[language];
 }
 
 function splitSummary(summary: string): string[] {
@@ -394,9 +415,11 @@ function ChapterBlocks(props: {
 export function BookReaderV3({
   book,
   initialLanguage,
+  initialChunkIndex,
 }: {
   book: Book;
   initialLanguage?: string | undefined;
+  initialChunkIndex?: number | undefined;
 }) {
   const { userId } = useAuth();
   const queryClient = useQueryClient();
@@ -474,10 +497,18 @@ export function BookReaderV3({
   );
   const requestableLanguages = useMemo(
     () =>
-      REQUESTABLE_TRANSLATION_LANGUAGES.filter(
-        (item) => item !== book.source_language && !book.available_languages.includes(item),
-      ),
-    [book.available_languages, book.source_language],
+      book.content_classification === "religious" ||
+      book.translation_generation_policy === "source_only"
+        ? []
+        : REQUESTABLE_TRANSLATION_LANGUAGES.filter(
+            (item) => item !== book.source_language && !book.available_languages.includes(item),
+          ),
+    [
+      book.available_languages,
+      book.content_classification,
+      book.source_language,
+      book.translation_generation_policy,
+    ],
   );
 
   const logicalLayout = useMemo(
@@ -645,25 +676,37 @@ export function BookReaderV3({
       const selector =
         '[data-reader-chapter-index="' + String(position.chapterIndex) + '"][data-chapter-offset]';
       const anchors = Array.from(flow.querySelectorAll<HTMLElement>(selector));
-      let target = anchors[0] ?? null;
-      for (const anchor of anchors) {
-        const start = Number(anchor.dataset["chapterOffset"] ?? 0);
-        const length = anchor.textContent?.length ?? 0;
-        if (position.charOffset >= start && position.charOffset <= start + length) {
-          target = anchor;
-          break;
-        }
-        if (start <= position.charOffset) target = anchor;
-      }
+
+      let target =
+        anchors.find(
+          (anchor) =>
+            Number(anchor.dataset["readerChunkIndex"] ?? -1) === position.chunkIndex,
+        ) ??
+        anchors[0] ??
+        null;
+
       if (!target) {
         setBodyPage(chapterStartPages[position.chapterIndex] ?? 0);
         return;
       }
-      const start = Number(target.dataset["chapterOffset"] ?? 0);
-      const relative = Math.max(
-        0,
-        Math.min((target.textContent?.length ?? 1) - 1, position.charOffset - start),
-      );
+
+      let relative = 0;
+      if (Number(target.dataset["readerChunkIndex"] ?? -1) !== position.chunkIndex) {
+        for (const anchor of anchors) {
+          const start = Number(anchor.dataset["chapterOffset"] ?? 0);
+          const length = anchor.textContent?.length ?? 0;
+          if (position.charOffset >= start && position.charOffset <= start + length) {
+            target = anchor;
+            break;
+          }
+          if (start <= position.charOffset) target = anchor;
+        }
+        const start = Number(target.dataset["chapterOffset"] ?? 0);
+        relative = Math.max(
+          0,
+          Math.min((target.textContent?.length ?? 1) - 1, position.charOffset - start),
+        );
+      }
       const boundary = textBoundaryAt(target, relative);
       if (!boundary) return;
       const rawPage = pageForBoundary(flow, boundary, pageStride);
@@ -759,22 +802,35 @@ export function BookReaderV3({
   }, [layoutMeasured, logicalPages.length, restorePosition]);
 
   useEffect(() => {
-    if (!chapters.length || !progressQuery.data || seededKeyRef.current === seedKey) return;
+    if (!chapters.length || seededKeyRef.current === seedKey) return;
+    if (initialChunkIndex == null && !progressQuery.data) return;
     seededKeyRef.current = seedKey;
     let restored: ReaderPosition | null = null;
-    try {
-      const saved = localStorage.getItem(storageKey);
-      if (saved) restored = JSON.parse(saved) as ReaderPosition;
-    } catch {
-      restored = null;
-    }
-    if (!restored) {
-      const savedProgress = progressQuery.data.find(
-        (item) => item.book_id === book.id && item.language === language,
-      );
-      if (savedProgress) {
-        const chapterIndex = findReaderChapterByChunk(chapters, savedProgress.last_chunk_index);
-        restored = { chapterIndex, charOffset: 0, chunkIndex: savedProgress.last_chunk_index };
+
+    // Canonical-reference links use ?page= as an exact source chunk target.
+    // It must win over local/account resume state.
+    if (initialChunkIndex != null) {
+      const chunkIndex = clamp(initialChunkIndex, 0, Math.max(0, book.total_chunks - 1));
+      restored = {
+        chapterIndex: findReaderChapterByChunk(chapters, chunkIndex),
+        charOffset: 0,
+        chunkIndex,
+      };
+    } else {
+      try {
+        const saved = localStorage.getItem(storageKey);
+        if (saved) restored = JSON.parse(saved) as ReaderPosition;
+      } catch {
+        restored = null;
+      }
+      if (!restored) {
+        const savedProgress = progressQuery.data?.find(
+          (item) => item.book_id === book.id && item.language === language,
+        );
+        if (savedProgress) {
+          const chapterIndex = findReaderChapterByChunk(chapters, savedProgress.last_chunk_index);
+          restored = { chapterIndex, charOffset: 0, chunkIndex: savedProgress.last_chunk_index };
+        }
       }
     }
     if (restored) {
@@ -791,7 +847,9 @@ export function BookReaderV3({
     }
   }, [
     book.id,
+    book.total_chunks,
     chapters,
+    initialChunkIndex,
     language,
     layoutMeasured,
     progressQuery.data,
@@ -1117,7 +1175,14 @@ export function BookReaderV3({
   };
 
   async function handleTranslationRequest() {
-    if (!requestLanguage || requestingTranslation) return;
+    if (
+      !requestLanguage ||
+      requestingTranslation ||
+      book.content_classification === "religious" ||
+      book.translation_generation_policy === "source_only"
+    ) {
+      return;
+    }
     setRequestingTranslation(true);
     try {
       const { data } = await supabase.auth.getSession();
@@ -1281,7 +1346,12 @@ export function BookReaderV3({
     return (
       <article
         className={pageClass}
-        style={{ width: pageSize.width, height: pageSize.height, padding: pagePadding }}
+        style={{
+          width: pageSize.width,
+          height: pageSize.height,
+          padding: pagePadding,
+          fontFamily: scriptureFontFamily(language),
+        }}
         lang={languageToBcp47(language)}
         dir={RTL_LANGUAGES.has(language) ? "rtl" : "ltr"}
         data-book-page={logicalIndex != null ? logicalIndex + 1 : undefined}

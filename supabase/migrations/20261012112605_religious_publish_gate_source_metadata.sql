@@ -1,0 +1,2 @@
+-- Intermediate sacred publish-gate revision.
+-- Superseded immediately by 20261012112636_religious_publish_gate_multifile_sources.sql.

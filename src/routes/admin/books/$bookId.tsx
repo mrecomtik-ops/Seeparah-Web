@@ -277,6 +277,9 @@ function AdminBookDetail() {
             | "scripture_urdu"
             | "scripture_hebrew"
             | "scripture_indic"
+            | "scripture_greek"
+            | "scripture_pali"
+            | "scripture_tibetan"
             | "facsimile_preserving",
           authenticityNotes: contentPolicyDraft.authenticityNotes.trim() || null,
           downgradeReason,
