@@ -77,6 +77,7 @@ import {
 import { getPublicContentSettings } from "@/lib/admin/settings.functions";
 import { formatAuthorName } from "@/lib/author-name";
 import { BookReaderV3 } from "@/components/reader/BookReaderV3";
+import { SacredTextReader } from "@/components/reader/SacredTextReader";
 
 const searchSchema = z.object({
   lang: z.string().optional(),
@@ -171,11 +172,23 @@ function ReaderBookNotFoundPage() {
 function ReaderPageV3() {
   const { book } = Route.useLoaderData();
   const { lang, page } = Route.useSearch();
+  const initialChunkIndex = page ? page - 1 : undefined;
+
+  if (isReligiousBook(book)) {
+    return (
+      <SacredTextReader
+        book={book}
+        initialLanguage={lang}
+        initialChunkIndex={initialChunkIndex}
+      />
+    );
+  }
+
   return (
     <BookReaderV3
       book={book}
       initialLanguage={lang}
-      initialChunkIndex={page ? page - 1 : undefined}
+      initialChunkIndex={initialChunkIndex}
     />
   );
 }
