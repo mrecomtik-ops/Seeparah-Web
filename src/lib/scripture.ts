@@ -24,6 +24,35 @@ export interface ScriptureReferenceIndex {
   references: ScriptureReferenceEntry[];
 }
 
+export interface SacredReaderAnnotation {
+  type: "footnote" | "commentary" | "subcommentary" | "editorial_note";
+  ordinal: number;
+  content: string;
+}
+
+export interface SacredReaderChunk {
+  chunkIndex: number;
+  canonicalRef: string;
+  label: string;
+  kind: string;
+  content: string;
+  annotations: SacredReaderAnnotation[];
+}
+
+export interface SacredReaderSection {
+  bookId: string;
+  language: string;
+  sourceVersion: number;
+  title: string;
+  kind: string;
+  startChunkIndex: number;
+  endChunkIndex: number;
+  previousChunkIndex: number | null;
+  nextChunkIndex: number | null;
+  typographyProfile: string;
+  chunks: SacredReaderChunk[];
+}
+
 /**
  * Import contract for Sacred Text structure.
  *
