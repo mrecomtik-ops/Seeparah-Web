@@ -1,0 +1,26 @@
+name: Temporary Sacred Cover Storage Sync
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Copy approved sacred covers into public Supabase Storage
+        run: |
+          set -euo pipefail
+          out="$(curl --fail --silent --show-error --max-time 120 'https://wxldqxuxpjurttspbxok.supabase.co/functions/v1/sacred-cover-sync-20261013?token=seeparah-cover-sync-20261013-v1')"
+          echo "$out"
+          echo "$out" | grep -q '"ok":true'
+      - name: Verify public objects
+        run: |
+          set -euo pipefail
+          for file in quran.webp tanakh-jps-1917.webp sbl-greek-new-testament.webp; do
+            curl --fail --silent --show-error --head --max-time 30               "https://wxldqxuxpjurttspbxok.supabase.co/storage/v1/object/public/book-covers/sacred/$file"
+          done
