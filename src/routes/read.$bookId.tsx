@@ -170,8 +170,14 @@ function ReaderBookNotFoundPage() {
 
 function ReaderPageV3() {
   const { book } = Route.useLoaderData();
-  const { lang } = Route.useSearch();
-  return <BookReaderV3 book={book} initialLanguage={lang} />;
+  const { lang, page } = Route.useSearch();
+  return (
+    <BookReaderV3
+      book={book}
+      initialLanguage={lang}
+      initialChunkIndex={page ? page - 1 : undefined}
+    />
+  );
 }
 
 function ReaderPage() {
