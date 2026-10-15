@@ -44,6 +44,7 @@ import { Route as ResearchMineRouteImport } from './routes/research/mine'
 import { Route as ResearchSubmitRouteImport } from './routes/research/submit'
 import { Route as SacredTextsIndexRouteImport } from './routes/sacred-texts/index'
 import { Route as SacredTextsBookIdRouteImport } from './routes/sacred-texts/$bookId'
+import { Route as SacredTextsSourcesRouteImport } from './routes/sacred-texts/sources'
 import { Route as AdminBooksIndexRouteImport } from './routes/admin/books/index'
 import { Route as AdminBooksBookIdRouteImport } from './routes/admin/books/$bookId'
 import { Route as AdminBooksNewRouteImport } from './routes/admin/books/new'
@@ -229,6 +230,11 @@ const SacredTextsBookIdRoute = SacredTextsBookIdRouteImport.update({
   path: '/sacred-texts/$bookId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SacredTextsSourcesRoute = SacredTextsSourcesRouteImport.update({
+  id: '/sacred-texts/sources',
+  path: '/sacred-texts/sources',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminBooksIndexRoute = AdminBooksIndexRouteImport.update({
   id: '/books/',
   path: '/books/',
@@ -301,6 +307,7 @@ export interface FileRoutesByFullPath {
   '/research/mine': typeof ResearchMineRoute
   '/research/submit': typeof ResearchSubmitRoute
   '/sacred-texts/$bookId': typeof SacredTextsBookIdRoute
+  '/sacred-texts/sources': typeof SacredTextsSourcesRoute
   '/admin/': typeof AdminIndexRoute
   '/author/': typeof AuthorIndexRoute
   '/insights/': typeof InsightsIndexRoute
@@ -344,6 +351,7 @@ export interface FileRoutesByTo {
   '/research/mine': typeof ResearchMineRoute
   '/research/submit': typeof ResearchSubmitRoute
   '/sacred-texts/$bookId': typeof SacredTextsBookIdRoute
+  '/sacred-texts/sources': typeof SacredTextsSourcesRoute
   '/admin': typeof AdminIndexRoute
   '/author': typeof AuthorIndexRoute
   '/insights': typeof InsightsIndexRoute
@@ -390,6 +398,7 @@ export interface FileRoutesById {
   '/research/mine': typeof ResearchMineRoute
   '/research/submit': typeof ResearchSubmitRoute
   '/sacred-texts/$bookId': typeof SacredTextsBookIdRoute
+  '/sacred-texts/sources': typeof SacredTextsSourcesRoute
   '/admin/': typeof AdminIndexRoute
   '/author/': typeof AuthorIndexRoute
   '/insights/': typeof InsightsIndexRoute
@@ -437,6 +446,7 @@ export interface FileRouteTypes {
     | '/research/mine'
     | '/research/submit'
     | '/sacred-texts/$bookId'
+    | '/sacred-texts/sources'
     | '/admin/'
     | '/author/'
     | '/insights/'
@@ -480,6 +490,7 @@ export interface FileRouteTypes {
     | '/research/mine'
     | '/research/submit'
     | '/sacred-texts/$bookId'
+    | '/sacred-texts/sources'
     | '/admin'
     | '/author'
     | '/insights'
@@ -525,6 +536,7 @@ export interface FileRouteTypes {
     | '/research/mine'
     | '/research/submit'
     | '/sacred-texts/$bookId'
+    | '/sacred-texts/sources'
     | '/admin/'
     | '/author/'
     | '/insights/'
@@ -561,6 +573,7 @@ export interface RootRouteChildren {
   ResearchMineRoute: typeof ResearchMineRoute
   ResearchSubmitRoute: typeof ResearchSubmitRoute
   SacredTextsBookIdRoute: typeof SacredTextsBookIdRoute
+  SacredTextsSourcesRoute: typeof SacredTextsSourcesRoute
   InsightsIndexRoute: typeof InsightsIndexRoute
   ResearchIndexRoute: typeof ResearchIndexRoute
   SacredTextsIndexRoute: typeof SacredTextsIndexRoute
@@ -813,6 +826,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SacredTextsBookIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/sacred-texts/sources': {
+      id: '/sacred-texts/sources'
+      path: '/sacred-texts/sources'
+      fullPath: '/sacred-texts/sources'
+      preLoaderRoute: typeof SacredTextsSourcesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/books/': {
       id: '/admin/books/'
       path: '/books'
@@ -961,6 +981,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResearchMineRoute: ResearchMineRoute,
   ResearchSubmitRoute: ResearchSubmitRoute,
   SacredTextsBookIdRoute: SacredTextsBookIdRoute,
+  SacredTextsSourcesRoute: SacredTextsSourcesRoute,
   InsightsIndexRoute: InsightsIndexRoute,
   ResearchIndexRoute: ResearchIndexRoute,
   SacredTextsIndexRoute: SacredTextsIndexRoute,

@@ -15,6 +15,7 @@ import { getPublicBookEditions } from "@/lib/translation.functions";
 import { saveProgress } from "@/lib/library";
 import { RTL_LANGUAGES, type Book } from "@/lib/data";
 import { useAuth } from "@/lib/use-auth";
+import { renderSacredInline } from "@/lib/sacred-inline-markup";
 
 function languageToBcp47(language: string): string {
   const map: Record<string, string> = {
@@ -298,7 +299,7 @@ export function SacredTextReader({
                 </div>
 
                 <p className="mt-3 whitespace-pre-wrap text-[1.08rem] leading-8 text-foreground sm:text-lg" dir={direction}>
-                  {chunk.content}
+                  {renderSacredInline(chunk.content)}
                 </p>
 
                 {chunk.annotations.length > 0 && (
@@ -312,7 +313,7 @@ export function SacredTextReader({
                           {annotationLabel(annotation.type)}
                         </summary>
                         <p className="mt-2 whitespace-pre-wrap leading-relaxed text-muted-foreground">
-                          {annotation.content}
+                          {renderSacredInline(annotation.content)}
                         </p>
                       </details>
                     ))}
