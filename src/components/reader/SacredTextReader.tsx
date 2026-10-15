@@ -11,6 +11,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ShelfButtons } from "@/components/ShelfButtons";
 import { getSacredReaderSection } from "@/lib/scripture.functions";
+import { getPublicBookEditions } from "@/lib/translation.functions";
 import { saveProgress } from "@/lib/library";
 import { RTL_LANGUAGES, type Book } from "@/lib/data";
 import { useAuth } from "@/lib/use-auth";
@@ -84,6 +85,31 @@ export function SacredTextReader({
       }),
     staleTime: 15 * 60 * 1000,
   });
+
+  const editionsQuery = useQuery({
+    queryKey: ["public-book-editions", book.id],
+    queryFn: () => getPublicBookEditions({ data: { bookId: book.id } }),
+    staleTime: 15 * 60 * 1000,
+  });
+  const selectedEdition = (editionsQuery.data ?? []).find(
+    (edition) => edition.language === language,
+  );
+  const sourceUrl =
+    selectedEdition?.sourceUrl ?? (language === book.source_language ? book.source_url : null);
+  const reuseNotice =
+    selectedEdition?.reuseNotice ??
+    (language === book.source_language ? book.reuse_notice : null);
+  const editionLabel =
+    selectedEdition?.editionTitle ??
+    (language === book.source_language ? book.edition_title : null);
+  const editionPeople = [
+    selectedEdition?.translator ? "Translator: " + selectedEdition.translator : null,
+    selectedEdition?.editor ? "Editor: " + selectedEdition.editor : null,
+    selectedEdition?.publisher ?? (language === book.source_language ? book.publisher : null),
+  ].filter(Boolean);
+  const versionLabel =
+    selectedEdition?.versionLabel ??
+    (language === book.source_language ? book.source_revision : null);
 
   const direction = RTL_LANGUAGES.has(language) ? "rtl" : "ltr";
   const availableLanguages = useMemo(
@@ -211,23 +237,32 @@ export function SacredTextReader({
             </div>
           </div>
 
+          <div className="mt-4 rounded-xl border border-border/70 bg-background/70 px-3 py-3 text-xs leading-relaxed text-muted-foreground" dir="auto">
+            <p>
+              <strong className="text-foreground">Selected edition:</strong>{" "}
+              {editionLabel || language + " sourced edition"}
+              {versionLabel ? " · " + versionLabel : ""}
+            </p>
+            {editionPeople.length > 0 && <p className="mt-1">{editionPeople.join(" · ")}</p>}
+          </div>
+
           <div className="mt-4 flex flex-wrap gap-2">
             <ShelfButtons bookId={book.id} showLabels={false} />
-            {book.source_url && (
+            {sourceUrl && (
               <a
-                href={book.source_url}
+                href={sourceUrl}
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex items-center gap-1 rounded-lg border border-border px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary"
               >
-                Source <ExternalLink className="h-3 w-3" />
+                Selected edition source <ExternalLink className="h-3 w-3" />
               </a>
             )}
           </div>
 
-          {book.reuse_notice && (
+          {reuseNotice && (
             <p className="mt-4 rounded-xl bg-secondary/70 px-3 py-2 text-xs leading-relaxed text-muted-foreground" dir="auto">
-              <strong className="text-foreground">Reuse:</strong> {book.reuse_notice}
+              <strong className="text-foreground">Reuse:</strong> {reuseNotice}
             </p>
           )}
         </section>
