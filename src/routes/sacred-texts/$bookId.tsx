@@ -7,7 +7,8 @@ import { getBook } from "@/lib/library";
 import { isReligiousBook } from "@/lib/data";
 import { getPublicBookEditions } from "@/lib/translation.functions";
 import { getSacredTextReferenceIndex } from "@/lib/scripture.functions";
-import { sacredCoverAlt, sacredCoverSrc } from "@/lib/sacred-cover-artwork";
+import { isSharedSacredCollectionCover, sacredCoverAlt, sacredCoverSrc } from "@/lib/sacred-cover-artwork";
+import { SacredWorkIdentity } from "@/components/SacredWorkIdentity";
 
 export const Route = createFileRoute("/sacred-texts/$bookId")({
   loader: async ({ params }) => {
@@ -286,7 +287,16 @@ function SacredTextDetail() {
           </div>
 
           <aside className="space-y-5">
-            {sacredCoverSrc(book, language) && (
+            {isSharedSacredCollectionCover(book) ? (
+              <figure className="mx-auto w-full max-w-[280px] overflow-hidden rounded-2xl border border-border bg-card p-2 card-shadow">
+                <div className="aspect-[2/3] w-full overflow-hidden rounded-xl">
+                  <SacredWorkIdentity book={book} language={language} />
+                </div>
+                <figcaption className="px-2 py-2 text-center text-xs leading-relaxed text-muted-foreground">
+                  Individual-work title panel. The shared collection artwork is shown on the Sacred Texts overview.
+                </figcaption>
+              </figure>
+            ) : sacredCoverSrc(book, language) ? (
               <figure className="mx-auto w-full max-w-[280px] overflow-hidden rounded-2xl border border-border bg-card p-2 card-shadow">
                 <img
                   src={sacredCoverSrc(book, language) ?? undefined}
@@ -297,6 +307,12 @@ function SacredTextDetail() {
                   className="aspect-[2/3] w-full rounded-xl bg-card object-contain"
                 />
               </figure>
+            ) : (
+              <div className="mx-auto flex aspect-[2/3] w-full max-w-[280px] flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border bg-secondary/40 p-6 text-center">
+                <BookOpen className="h-9 w-9 text-primary/50" aria-hidden="true" />
+                <strong className="font-display text-xl text-foreground" dir="auto">{book.title}</strong>
+                <span className="text-xs text-muted-foreground">No dedicated cover for this edition</span>
+              </div>
             )}
 
             <section className="rounded-2xl border border-border bg-card p-5 card-shadow">
