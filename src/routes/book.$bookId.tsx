@@ -12,6 +12,8 @@ import {
 } from "lucide-react";
 import { getBook } from "@/lib/library";
 import { coverFor } from "@/lib/covers";
+import { isSharedSacredCollectionCover } from "@/lib/sacred-cover-artwork";
+import { SacredWorkIdentity } from "@/components/SacredWorkIdentity";
 import { getPrefs } from "@/lib/prefs";
 import { formatAuthorName } from "@/lib/author-name";
 import { publicBookDescription } from "@/lib/book-description";
@@ -58,7 +60,7 @@ export const Route = createFileRoute("/book/$bookId")({
     });
     const title = `${book.title} by ${author} — Seeparah`;
     const canonical = `https://seeparah.com/book/${book.id}`;
-    const cover = coverFor(book.id, book.cover_url);
+    const cover = isSharedSacredCollectionCover(book) ? null : coverFor(book.id, book.cover_url);
     return {
       meta: [
         { title },
@@ -156,7 +158,7 @@ function BookDetailPage() {
   const readLanguage = book.available_languages.includes(prefs.language)
     ? prefs.language
     : book.source_language;
-  const cover = coverFor(book.id, book.cover_url);
+  const cover = isSharedSacredCollectionCover(book) ? null : coverFor(book.id, book.cover_url);
   const isSample = SAMPLE_EXCERPT_BOOK_IDS.has(book.id);
   const isDemoManuscript = DEMO_MANUSCRIPT_BOOK_IDS.has(book.id);
   const isReligious = isReligiousBook(book);
@@ -194,7 +196,11 @@ function BookDetailPage() {
 
         <div className="mt-6 grid gap-8 sm:grid-cols-[220px_1fr]">
           <div className="mx-auto w-full max-w-[220px] overflow-hidden rounded-2xl border border-border bg-secondary card-shadow sm:mx-0">
-            {cover ? (
+            {isSharedSacredCollectionCover(book) ? (
+              <div className="aspect-[2/3] w-full">
+                <SacredWorkIdentity book={book} language={readLanguage} />
+              </div>
+            ) : cover ? (
               <img
                 src={cover}
                 alt={`Cover of ${book.title}`}

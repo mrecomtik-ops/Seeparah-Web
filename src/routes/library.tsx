@@ -26,6 +26,8 @@ import { useAuth } from "@/lib/use-auth";
 import { BookCard } from "@/components/BookCard";
 import { useShelves } from "@/components/ShelfButtons";
 import { coverFor, FEATURED_BOOK_ID } from "@/lib/covers";
+import { isSharedSacredCollectionCover } from "@/lib/sacred-cover-artwork";
+import { SacredWorkIdentity } from "@/components/SacredWorkIdentity";
 import { getPublicContentSettings } from "@/lib/admin/settings.functions";
 import { countPagesRead } from "@/lib/reading-stats";
 import { formatAuthorName } from "@/lib/author-name";
@@ -307,7 +309,9 @@ function LibraryPage() {
           <section className="mt-8 overflow-hidden rounded-3xl border border-border bg-primary text-primary-foreground card-shadow-lg">
             <div className="grid md:grid-cols-[240px_1fr]">
               <div className="relative hidden min-h-64 md:block">
-                {coverFor(featured.id, featured.cover_url) ? (
+                {isSharedSacredCollectionCover(featured) ? (
+                  <SacredWorkIdentity book={featured} language={lang} />
+                ) : coverFor(featured.id, featured.cover_url) ? (
                   <img
                     src={coverFor(featured.id, featured.cover_url)!}
                     alt={`Cover of ${displayTitleCase(featured.title)}`}

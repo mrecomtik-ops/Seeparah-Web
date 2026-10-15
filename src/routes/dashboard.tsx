@@ -8,6 +8,8 @@ import { useAuth } from "@/lib/use-auth";
 import { BookCard } from "@/components/BookCard";
 import { useShelves } from "@/components/ShelfButtons";
 import { coverFor } from "@/lib/covers";
+import { isSharedSacredCollectionCover } from "@/lib/sacred-cover-artwork";
+import { SacredWorkIdentity } from "@/components/SacredWorkIdentity";
 import { currentStreak, readingDays } from "@/lib/shelves";
 import { getPrefs } from "@/lib/prefs";
 import { getPublicContentSettings } from "@/lib/admin/settings.functions";
@@ -117,7 +119,9 @@ function DashboardPage() {
             {currentBook ? (
               <div className="grid sm:grid-cols-[160px_1fr]">
                 <div className="relative hidden min-h-48 sm:block">
-                  {coverFor(currentBook.id, currentBook.cover_url) && (
+                  {isSharedSacredCollectionCover(currentBook) ? (
+                    <SacredWorkIdentity book={currentBook} language={latest?.language} />
+                  ) : coverFor(currentBook.id, currentBook.cover_url) && (
                     <img
                       src={coverFor(currentBook.id, currentBook.cover_url)!}
                       alt={`Cover of ${currentBook.title}`}

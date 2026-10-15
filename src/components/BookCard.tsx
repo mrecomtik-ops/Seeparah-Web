@@ -3,7 +3,8 @@ import { BookOpen, Crown, FlaskConical } from "lucide-react";
 import type { Book } from "@/lib/data";
 import { SAMPLE_EXCERPT_BOOK_IDS, DEMO_MANUSCRIPT_BOOK_IDS } from "@/lib/data";
 import { coverFor } from "@/lib/covers";
-import { sacredCoverSrc, sacredCoverAlt } from "@/lib/sacred-cover-artwork";
+import { sacredCoverSrc, sacredCoverAlt, isSharedSacredCollectionCover } from "@/lib/sacred-cover-artwork";
+import { SacredWorkIdentity } from "@/components/SacredWorkIdentity";
 import { ShelfButtons } from "@/components/ShelfButtons";
 import { getPrefs } from "@/lib/prefs";
 import { formatAuthorName } from "@/lib/author-name";
@@ -66,6 +67,7 @@ export function BookCard({
       preferredLanguage) ||
     (book.available_languages.includes(savedLanguage) && savedLanguage) ||
     book.source_language;
+  const sharedCollectionArtwork = book.genre === "Sacred Text" && isSharedSacredCollectionCover(book);
   const imageForCard = book.genre === "Sacred Text" ? sacredCoverSrc(book, openLanguage) : listCover;
 
   return (
@@ -82,7 +84,9 @@ export function BookCard({
         className="flex flex-1 flex-col"
       >
         <div className="relative aspect-[2/3] w-full overflow-hidden bg-secondary">
-          {imageForCard ? (
+          {sharedCollectionArtwork ? (
+            <SacredWorkIdentity book={book} language={openLanguage} />
+          ) : imageForCard ? (
             <img
               src={imageForCard}
               alt={book.genre === "Sacred Text" ? sacredCoverAlt(book, openLanguage) : `Cover of ${displayTitle}`}

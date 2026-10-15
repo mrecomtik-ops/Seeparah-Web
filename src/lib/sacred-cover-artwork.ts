@@ -5,6 +5,25 @@ type SacredArtworkBook = {
   source_edition_id?: string | null;
 };
 
+/** A collection cover is not the front cover of each constituent work. */
+export function isSharedSacredCollectionCover(book: SacredArtworkBook): boolean {
+  const id = book.source_edition_id ?? "";
+  return id === "SBLGNT-v1.2"
+    || id === "sefaria-tanach-taamei-hamikra"
+    || (id.startsWith("suttacentral-bilara-") && !id.startsWith("suttacentral-bilara-dhp-"));
+}
+
+export function sacredCollectionCaption(book: SacredArtworkBook, language?: string | null): string {
+  if (book.source_edition_id === "SBLGNT-v1.2") return "Greek New Testament · SBLGNT";
+  if (book.source_edition_id === "sefaria-tanach-taamei-hamikra") {
+    return language === "English" ? "Tanakh · JPS 1917 English" : "Hebrew Tanakh · Sefaria";
+  }
+  if (book.source_edition_id?.startsWith("suttacentral-bilara-")) {
+    return "SuttaCentral · Pali and English";
+  }
+  return "Source-verified sacred text";
+}
+
 const JPS_1917_ENGLISH_COVER =
   "/book-covers/sacred/named/05-Tanakh-JPS-1917-English-Translation.webp";
 
