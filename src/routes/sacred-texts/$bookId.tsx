@@ -80,8 +80,32 @@ function SacredTextDetail() {
   }, [references, referenceQuery]);
 
   const editions = editionsQuery.data ?? [];
+  const selectedEdition = editions.find((edition) => edition.language === language);
+  const selectedIsSource =
+    language === book.source_language || selectedEdition?.provenanceType === "source_text";
   const sourceLabel =
-    book.attribution || book.edition_title || book.publisher || book.source_edition_id || "Recorded source";
+    selectedEdition?.editionTitle ||
+    (selectedIsSource
+      ? book.attribution || book.edition_title || book.publisher || book.source_edition_id
+      : null) ||
+    "Recorded sourced edition";
+  const selectedSourceUrl =
+    selectedEdition?.sourceUrl ?? (selectedIsSource ? book.source_url : null);
+  const selectedReuseNotice =
+    selectedEdition?.reuseNotice ?? (selectedIsSource ? book.reuse_notice : null);
+  const selectedSourceEditionId =
+    selectedEdition?.sourceEditionId ??
+    (selectedIsSource ? book.source_edition_id || book.source_scan_id : null);
+  const selectedPublisher =
+    selectedEdition?.publisher ?? (selectedIsSource ? book.publisher : null);
+  const selectedEditor =
+    selectedEdition?.editor ?? (selectedIsSource ? book.editor : null);
+  const selectedTranslator =
+    selectedEdition?.translator ?? (selectedIsSource ? book.translator : null);
+  const selectedVersion =
+    selectedEdition?.versionLabel ?? (selectedIsSource ? book.source_revision : null);
+  const selectedAuthenticityNotes =
+    selectedEdition?.authenticityNotes ?? (selectedIsSource ? book.authenticity_notes : null);
 
   return (
     <div className="min-h-screen bg-background">
@@ -125,54 +149,60 @@ function SacredTextDetail() {
                 <div>
                   <dt className="text-xs text-muted-foreground">Source edition / identifier</dt>
                   <dd className="mt-0.5 font-semibold text-foreground" dir="auto">
-                    {book.source_edition_id || book.source_scan_id || "Recorded in edition metadata"}
+                    {selectedSourceEditionId || "Recorded in edition metadata"}
                   </dd>
                 </div>
                 <div>
                   <dt className="text-xs text-muted-foreground">Source language</dt>
-                  <dd className="mt-0.5 font-semibold text-foreground">{book.source_language}</dd>
+                  <dd className="mt-0.5 font-semibold text-foreground">{language}</dd>
                 </div>
                 <div>
                   <dt className="text-xs text-muted-foreground">Publisher / editor</dt>
                   <dd className="mt-0.5 font-semibold text-foreground" dir="auto">
-                    {[book.publisher, book.editor].filter(Boolean).join(" · ") || "Recorded source"}
+                    {[selectedPublisher, selectedEditor].filter(Boolean).join(" · ") || "Recorded source"}
                   </dd>
                 </div>
                 <div>
                   <dt className="text-xs text-muted-foreground">Edition</dt>
                   <dd className="mt-0.5 font-semibold text-foreground" dir="auto">
-                    {book.edition_title || "Source edition"}
-                    {book.edition_year ? ` · ${book.edition_year}` : ""}
+                    {selectedEdition?.editionTitle || (selectedIsSource ? book.edition_title : null) || "Sourced edition"}
+                    {selectedIsSource && book.edition_year ? ` · ${book.edition_year}` : ""}
                   </dd>
                 </div>
                 <div>
                   <dt className="text-xs text-muted-foreground">Source revision</dt>
                   <dd className="mt-0.5 font-semibold text-foreground" dir="auto">
-                    {book.source_revision || "Recorded with source files"}
+                    {selectedVersion || "Recorded with source files"}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-muted-foreground">Translator</dt>
+                  <dd className="mt-0.5 font-semibold text-foreground" dir="auto">
+                    {selectedTranslator || (selectedIsSource ? "Source text" : "Recorded sourced translation")}
                   </dd>
                 </div>
               </dl>
 
-              {book.authenticity_notes && (
+              {selectedAuthenticityNotes && (
                 <p className="mt-4 rounded-xl bg-secondary px-3 py-2 text-xs leading-relaxed text-secondary-foreground" dir="auto">
-                  <strong>Text / edition notes:</strong> {book.authenticity_notes}
+                  <strong>Text / edition notes:</strong> {selectedAuthenticityNotes}
                 </p>
               )}
 
-              {book.reuse_notice && (
+              {selectedReuseNotice && (
                 <div className="mt-4 rounded-xl border border-border bg-background px-3 py-3 text-xs leading-relaxed text-muted-foreground" dir="auto">
-                  <strong className="text-foreground">Reuse notice:</strong> {book.reuse_notice}
+                  <strong className="text-foreground">Reuse notice:</strong> {selectedReuseNotice}
                 </div>
               )}
 
-              {book.source_url && (
+              {selectedSourceUrl && (
                 <a
-                  href={book.source_url}
+                  href={selectedSourceUrl}
                   target="_blank"
                   rel="noreferrer"
                   className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline"
                 >
-                  View source record <ExternalLink className="h-3.5 w-3.5" />
+                  View selected edition source <ExternalLink className="h-3.5 w-3.5" />
                 </a>
               )}
             </div>
