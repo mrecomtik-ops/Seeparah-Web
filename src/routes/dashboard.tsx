@@ -122,7 +122,7 @@ function DashboardPage() {
                       src={coverFor(currentBook.id, currentBook.cover_url)!}
                       alt={`Cover of ${currentBook.title}`}
                       loading="lazy"
-                      className="absolute inset-0 h-full w-full object-cover"
+                      className={`absolute inset-0 h-full w-full ${currentBook.genre === "Sacred Text" ? "bg-card object-contain" : "object-cover"}`}
                     />
                   )}
                 </div>
