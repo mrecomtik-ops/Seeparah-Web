@@ -17,6 +17,8 @@ import { pickFeaturedBook } from "@/lib/featured";
 import { useAuth } from "@/lib/use-auth";
 import logoUrl from "@/assets/seeparah-logo.png";
 import { coverFor } from "@/lib/covers";
+import { isSharedSacredCollectionCover } from "@/lib/sacred-cover-artwork";
+import { SacredWorkIdentity } from "@/components/SacredWorkIdentity";
 import { isReligiousBook } from "@/lib/data";
 import { INSIGHT_ARTICLES } from "@/lib/insights";
 import { formatAuthorName } from "@/lib/author-name";
@@ -201,7 +203,11 @@ export function LandingPage() {
                   search={{ lang: featured.source_language }}
                   className="relative block rotate-1 overflow-hidden rounded-2xl border border-border bg-card card-shadow-lg transition-transform hover:-translate-y-0.5"
                 >
-                  {featuredCover && (
+                  {isSharedSacredCollectionCover(featured) ? (
+                    <div className="aspect-[2/3] w-full">
+                      <SacredWorkIdentity book={featured} language={featured.source_language} />
+                    </div>
+                  ) : featuredCover && (
                     <img
                       src={featuredCover}
                       alt={`Cover of ${displayTitleCase(featured.title)}`}
