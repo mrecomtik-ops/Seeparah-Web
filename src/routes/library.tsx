@@ -312,7 +312,7 @@ function LibraryPage() {
                     src={coverFor(featured.id, featured.cover_url)!}
                     alt={`Cover of ${displayTitleCase(featured.title)}`}
                     loading="lazy"
-                    className="absolute inset-0 h-full w-full object-cover"
+                    className={`absolute inset-0 h-full w-full ${featured.genre === "Sacred Text" ? "bg-card object-contain" : "object-cover"}`}
                   />
                 ) : (
                   <div className="flex h-full items-center justify-center">

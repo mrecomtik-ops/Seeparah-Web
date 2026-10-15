@@ -3,6 +3,7 @@ import { BookOpen, Crown, FlaskConical } from "lucide-react";
 import type { Book } from "@/lib/data";
 import { SAMPLE_EXCERPT_BOOK_IDS, DEMO_MANUSCRIPT_BOOK_IDS } from "@/lib/data";
 import { coverFor } from "@/lib/covers";
+import { sacredCoverSrc, sacredCoverAlt } from "@/lib/sacred-cover-artwork";
 import { ShelfButtons } from "@/components/ShelfButtons";
 import { getPrefs } from "@/lib/prefs";
 import { formatAuthorName } from "@/lib/author-name";
@@ -65,6 +66,7 @@ export function BookCard({
       preferredLanguage) ||
     (book.available_languages.includes(savedLanguage) && savedLanguage) ||
     book.source_language;
+  const imageForCard = book.genre === "Sacred Text" ? sacredCoverSrc(book, openLanguage) : listCover;
 
   return (
     <div className="group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-card card-shadow transition-transform duration-200 hover:-translate-y-1 hover:card-shadow-lg">
@@ -80,14 +82,14 @@ export function BookCard({
         className="flex flex-1 flex-col"
       >
         <div className="relative aspect-[2/3] w-full overflow-hidden bg-secondary">
-          {listCover ? (
+          {imageForCard ? (
             <img
-              src={listCover}
-              alt={`Cover of ${displayTitle}`}
+              src={imageForCard}
+              alt={book.genre === "Sacred Text" ? sacredCoverAlt(book, openLanguage) : `Cover of ${displayTitle}`}
               loading="lazy"
               width={600}
               height={900}
-              className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+              className={`h-full w-full ${book.genre === "Sacred Text" ? "bg-card object-contain" : "object-cover"} transition-transform duration-300 group-hover:scale-[1.03]`}
             />
           ) : (
             <div className="flex h-full flex-col items-center justify-center gap-2 paper-texture p-4 text-center">

@@ -198,7 +198,7 @@ function BookDetailPage() {
               <img
                 src={cover}
                 alt={`Cover of ${book.title}`}
-                className="aspect-[2/3] w-full object-cover"
+                className={`aspect-[2/3] w-full ${book.genre === "Sacred Text" ? "bg-card object-contain" : "object-cover"}`}
               />
             ) : (
               <div className="flex aspect-[2/3] flex-col items-center justify-center gap-2 p-4 text-center">

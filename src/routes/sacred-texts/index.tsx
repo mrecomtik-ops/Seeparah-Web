@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { listBooks } from "@/lib/library";
 import { isReligiousBook, type Book } from "@/lib/data";
 import { safeJsonLd } from "@/lib/seo";
+import { sacredCoverAlt, sacredCoverSrc } from "@/lib/sacred-cover-artwork";
 
 export const Route = createFileRoute("/sacred-texts/")({
   loader: async () => {
@@ -197,19 +198,13 @@ function SacredTextsPage() {
                           <div className="w-[88px] shrink-0 sm:w-[104px]">
                             {book.cover_url ? (
                               <img
-                                src={book.cover_url}
-                                alt={
-                                  book.source_edition_id === "sefaria-tanach-taamei-hamikra"
-                                    ? `Tanakh JPS 1917 collection cover; ${book.title} is part of this sourced collection`
-                                    : book.source_edition_id === "SBLGNT-v1.2"
-                                      ? `SBL Greek New Testament collection cover; ${book.title} is part of this sourced edition`
-                                      : `${book.title} cover`
-                                }
+                                src={sacredCoverSrc(book) ?? undefined}
+                                alt={sacredCoverAlt(book)}
                                 width={800}
                                 height={1200}
                                 loading="lazy"
                                 decoding="async"
-                                className="aspect-[2/3] w-full rounded-lg border border-border/70 object-cover shadow-sm"
+                                className="aspect-[2/3] w-full rounded-lg border border-border/70 bg-card object-contain shadow-sm"
                               />
                             ) : (
                               <div className="flex aspect-[2/3] w-full items-center justify-center rounded-lg border border-dashed border-border bg-secondary/60">
