@@ -1,0 +1,2864 @@
+{
+  "source": "Esukhia pinned and byte-verified October 12 2026 source volumes",
+  "notCanonicalWorkSegmentation": true,
+  "corpora": {
+    "Kangyur": {
+      "rev": "a582cf471b7c85a101035071078032f106a8e536",
+      "expected_volumes": 103,
+      "fingerprint": "8d1cc9afe32095344afd8240dfb772fa17ab0cbcba2a89dd3b7da7e4a5af84ca",
+      "repo": "derge-kangyur"
+    },
+    "Tengyur": {
+      "rev": "174653137d62af481f53c6ae3dc842bf8629323e",
+      "expected_volumes": 213,
+      "fingerprint": "14af177bb47e21030b70b89b2ca6e8e0d3280dbe348bbd2b6ea9f2e32c3fcfce",
+      "repo": "derge-tengyur"
+    }
+  },
+  "volumes": [
+    {
+      "corpus": "Kangyur",
+      "volume": 1,
+      "filename": "001_འདུལ་བ།_ཀ.txt",
+      "sha256": "d674db022f71315d7e9779b9d19fc24bdfae4dbb54619d1b0f4d0c88f7729e3a",
+      "bytes": 2804325,
+      "markerCount": 7,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 2,
+      "filename": "002_འདུལ་བ།_ཁ.txt",
+      "sha256": "ce674c0869d332378c01e514a78af963f16f6f63e68135a9b01dede5aa729016",
+      "bytes": 2913872,
+      "markerCount": 0,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 3,
+      "filename": "003_འདུལ་བ།_ག.txt",
+      "sha256": "ffa75c2d91133f72e5ba52b54927cdd3b8d19b6908f548dfaf8fde469b9571ab",
+      "bytes": 2715522,
+      "markerCount": 11,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 4,
+      "filename": "004_འདུལ་བ།_ང.txt",
+      "sha256": "85639ed180d07e2ceb4518a9a5c47d796d547082cd87ae81a899f27970addfe4",
+      "bytes": 2799013,
+      "markerCount": 0,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 5,
+      "filename": "005_འདུལ་བ།_ཅ.txt",
+      "sha256": "be0512b27d83222990d2dd88ddabfd1b877a6e78dfe5633b55bcb587727fb70e",
+      "bytes": 2714752,
+      "markerCount": 2,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 6,
+      "filename": "006_འདུལ་བ།_ཆ.txt",
+      "sha256": "3adac864ce9eb7c6ec63bcc55e019c2a50bab5928721c1d32d383c02ebe43170",
+      "bytes": 2618121,
+      "markerCount": 0,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 7,
+      "filename": "007_འདུལ་བ།_ཇ.txt",
+      "sha256": "12c9161448e0901b895ed6069e35978100d26fd67d97b79be49246ad5668f356",
+      "bytes": 2651953,
+      "markerCount": 0,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 8,
+      "filename": "008_འདུལ་བ།_ཉ.txt",
+      "sha256": "10b65d42cb42a1e71720bfd8ac30be32739460e95fce21c31b5c1657ca7d8b48",
+      "bytes": 2466065,
+      "markerCount": 0,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 9,
+      "filename": "009_འདུལ་བ།_ཏ.txt",
+      "sha256": "fde9cf0d5d34c8742141e6ac271ee957679cdd3eceee331429481c04c9e11a88",
+      "bytes": 2952805,
+      "markerCount": 2,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 10,
+      "filename": "010_འདུལ་བ།_ཐ.txt",
+      "sha256": "c222a32157f05c0269aaa0fda08eeed0437777b19b9e1eb58fd1276e13c605a1",
+      "bytes": 2900174,
+      "markerCount": 1,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 11,
+      "filename": "011_འདུལ་བ།_ད.txt",
+      "sha256": "f2bcb0a5ccca09c36efc40a32cae4e5f137f87d6cb1b368f41e40a42bec0974b",
+      "bytes": 3112288,
+      "markerCount": 0,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 12,
+      "filename": "012_འདུལ་བ།_ན.txt",
+      "sha256": "2b1fb14e884aeebd61a0568e86e08bfbcf8ef92cd15d2b558de611774efb3526",
+      "bytes": 2724284,
+      "markerCount": 2,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 13,
+      "filename": "013_འདུལ་བ།_པ.txt",
+      "sha256": "ecd2a47d091478b7900e156b65f7db4abc83a7e2b32d077106ed0700abe96445",
+      "bytes": 2791496,
+      "markerCount": 0,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 14,
+      "filename": "014_འབུམ།_ཀ.txt",
+      "sha256": "482eed061b2e0a85bb92b1687d932c6b89d951e3cf35f3e4c4153da2879fbf90",
+      "bytes": 3441859,
+      "markerCount": 1,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 15,
+      "filename": "015_འབུམ།_ཁ.txt",
+      "sha256": "0335ffeaa9cb3536a9ade577c9621f96de597dcec63f7a84686c767fc0475020",
+      "bytes": 3537711,
+      "markerCount": 0,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 16,
+      "filename": "016_འབུམ།_ག.txt",
+      "sha256": "877fe55be8edac63cbca01ace7b230e20abd3e22f13f01b436e5e40867a612e2",
+      "bytes": 3595228,
+      "markerCount": 0,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 17,
+      "filename": "017_འབུམ།_ང.txt",
+      "sha256": "24277a5748b7acb1add35ebc2434ca5a8d33beac8ce2d5fe03c4451837d47a74",
+      "bytes": 3649454,
+      "markerCount": 0,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 18,
+      "filename": "018_འབུམ།_ཅ.txt",
+      "sha256": "679c7da38b565429eb631bfe6d907e81d13b904c779dc5024c3140dbee2024a6",
+      "bytes": 3586949,
+      "markerCount": 0,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 19,
+      "filename": "019_འབུམ།_ཆ.txt",
+      "sha256": "7651671d500417bf3e9f474cf37d03007724994832bee1bedc74ed091bfc0c1b",
+      "bytes": 3560906,
+      "markerCount": 0,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 20,
+      "filename": "020_འབུམ།_ཇ.txt",
+      "sha256": "2f7668836a44ffa49f27909a0db0c8fd140eb6c91190a4c8cff9889ca7f8687f",
+      "bytes": 3484193,
+      "markerCount": 0,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 21,
+      "filename": "021_འབུམ།_ཉ.txt",
+      "sha256": "2d0ba6a8c8891200768325981736b72119ea58733f47421d5754e1229bdb4e70",
+      "bytes": 3609814,
+      "markerCount": 0,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 22,
+      "filename": "022_འབུམ།_ཏ.txt",
+      "sha256": "6fb53ddc6e7877b1b3602ca5154adcccd2c9884f5653db4553c7d69ed86d2fdd",
+      "bytes": 3310170,
+      "markerCount": 0,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 23,
+      "filename": "023_འབུམ།_ཐ.txt",
+      "sha256": "19120a7384eec6ea350e4e2156ff445dbda93a1a3c9c8536b7cd6cd88592bf43",
+      "bytes": 3296884,
+      "markerCount": 0,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 24,
+      "filename": "024_འབུམ།_ད.txt",
+      "sha256": "3c9034d4859bbecd981ca6bd1205f19099855edaac9284ae0d461de906b9e440",
+      "bytes": 3566018,
+      "markerCount": 0,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 25,
+      "filename": "025_འབུམ།_ན.txt",
+      "sha256": "708696becc5cb036cd61f180d14340e5556141743f55d1bdc3acbc8238ae6c97",
+      "bytes": 3273354,
+      "markerCount": 0,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 26,
+      "filename": "026_ཉི་ཁྲི།_ཀ.txt",
+      "sha256": "fac931feb4dd40f22159a178e02adcdb73f416ef62f79aeb04c73bef9165c659",
+      "bytes": 3321621,
+      "markerCount": 1,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 27,
+      "filename": "027_ཉི་ཁྲི།_ཁ.txt",
+      "sha256": "7be16fd6325228df74bfc2a296dbf2d7c131efe6205036dcaa268f41720de887",
+      "bytes": 3462311,
+      "markerCount": 0,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 28,
+      "filename": "028_ཉི་ཁྲི།_ག.txt",
+      "sha256": "e294e1c2e5aca8296c27dc039c7fce038836c35902f1ea1708b9e15b8de6d2ce",
+      "bytes": 3236608,
+      "markerCount": 0,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 29,
+      "filename": "029_ཁྲི་བརྒྱད།_ཀ.txt",
+      "sha256": "637d8aaa4c02e84765a9ef203393b2182c76db16bf41177827f93ced0824603b",
+      "bytes": 2761747,
+      "markerCount": 1,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 30,
+      "filename": "030_ཁྲི་བརྒྱད།_ཁ.txt",
+      "sha256": "f75d5ae895fdf812dd383cf77af370aa36af41e5e00ca76168c5de6febe77bc2",
+      "bytes": 2788660,
+      "markerCount": 0,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 31,
+      "filename": "031_ཁྲི་བརྒྱད།_ག.txt",
+      "sha256": "4801b46859a48fab993db73529155bccf15f5c6c6f459e3319c3dbce53085285",
+      "bytes": 2747878,
+      "markerCount": 1,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 32,
+      "filename": "032_ཁྲི་པ།_ང.txt",
+      "sha256": "d7fdf1fa47b61069b3f33f34e6aca48740c31e24dd5d758827dea4ba66b237ef",
+      "bytes": 2789554,
+      "markerCount": 0,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 33,
+      "filename": "033_བརྒྱད་སྟོང་པ།.txt",
+      "sha256": "b9672d564afab17b663ac5e01b25b80b2ff433d748bef7b1f196551455acf5b5",
+      "bytes": 2728684,
+      "markerCount": 1,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 34,
+      "filename": "034_ཤེས་རབ་སྣ་ཚོགས།.txt",
+      "sha256": "deb22dcce9a7cd5c2bd93788c3098382daf3e8f6ff26e534a1fc99c0674f24d7",
+      "bytes": 2667117,
+      "markerCount": 31,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 35,
+      "filename": "035_ཕལ་ཆེན།_ཀ.txt",
+      "sha256": "30870005051a47649c352695fcb1a9fd22c530478ce280a00384e6dbe66e6aae",
+      "bytes": 3427759,
+      "markerCount": 31,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 36,
+      "filename": "036_ཕལ་ཆེན།_ཁ.txt",
+      "sha256": "30bb9415f9c2d4720443674d9e5d266c4dc523a7b2dfca1ce6044ce0f9c16d5d",
+      "bytes": 3249840,
+      "markerCount": 8,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 37,
+      "filename": "037_ཕལ་ཆེན།_ག.txt",
+      "sha256": "c99f61991ed7db412327527240fe7a8f5bc722c71902d1c9a1b35743de56422c",
+      "bytes": 3378914,
+      "markerCount": 7,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 38,
+      "filename": "038_ཕལ་ཆེན།_ཨ.txt",
+      "sha256": "2337e2f6c9294956fa6fa1266d321def37405342e7e0cf6fb2f07e73c217db69",
+      "bytes": 3188768,
+      "markerCount": 0,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 39,
+      "filename": "039_དཀོན་བརྩེགས།_ཀ.txt",
+      "sha256": "068eb52dca70fa4f99bf16c7a46c6810c44f7d436e339685ed19783ecd9f09da",
+      "bytes": 2521723,
+      "markerCount": 5,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 40,
+      "filename": "040_དཀོན་བརྩེགས།_ཁ.txt",
+      "sha256": "953787c5df5d0a3576209ce4ae9b7b866691023547ad36dfea3b0ad246d31179",
+      "bytes": 2726413,
+      "markerCount": 7,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 41,
+      "filename": "041_དཀོན་བརྩེགས།_ག.txt",
+      "sha256": "7c8d719d342be7f5a733b85128097be24db3d79d640249583bde6091436ade6b",
+      "bytes": 2810468,
+      "markerCount": 3,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 42,
+      "filename": "042_དཀོན་བརྩེགས།_ང.txt",
+      "sha256": "71ff7d8ce7c3003137cd1ec9b6fd2bdf35fc9e28ad06f5fe829fd05209e2253f",
+      "bytes": 2690562,
+      "markerCount": 4,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 43,
+      "filename": "043_དཀོན་བརྩེགས།_ཅ.txt",
+      "sha256": "ffbae2a2f85f2776d1b4aff996f5da0241b45ae40a946d4d5a1b7f4253433304",
+      "bytes": 2822861,
+      "markerCount": 17,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 44,
+      "filename": "044_དཀོན་བརྩེགས།_ཆ.txt",
+      "sha256": "712f170dd790f4fd15505e3f13a0e577501b52bb81cd62a2a46eade8ad97af0b",
+      "bytes": 2752731,
+      "markerCount": 13,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 45,
+      "filename": "045_མདོ་སྡེ།_ཀ.txt",
+      "sha256": "47affaa730701c28b704cab64b1ca14c99899699432da5a8f35b255579f7b8ad",
+      "bytes": 3186260,
+      "markerCount": 1,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 46,
+      "filename": "046_མདོ་སྡེ།_ཁ.txt",
+      "sha256": "a4adf0e84c78707af0e49ce53acd4f5e063a0fa1132705484c6e349f395a7e7c",
+      "bytes": 2622500,
+      "markerCount": 4,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 47,
+      "filename": "047_མདོ་སྡེ།_ག.txt",
+      "sha256": "6dc37705206737c7c29b59f6eee0cb57cd48e8ad2e2eb653076499ca64097d06",
+      "bytes": 2917345,
+      "markerCount": 2,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 48,
+      "filename": "048_མདོ་སྡེ།_ང.txt",
+      "sha256": "69cab9119a076e51d723132a11e3f1029bd6251a7ca6db422c6b3ccf8c3fb7a9",
+      "bytes": 2670232,
+      "markerCount": 5,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 49,
+      "filename": "049_མདོ་སྡེ།_ཅ.txt",
+      "sha256": "3fd6e20a2d2bf4df2e98f68cbe4de1e3cd6001c9a16de7fe0d267f9b14201367",
+      "bytes": 2726910,
+      "markerCount": 4,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 50,
+      "filename": "050_མདོ་སྡེ།_ཆ.txt",
+      "sha256": "deddd82754a9090fee3729a31d815ec685a12b0eebb8c970c01c73014f1fa746",
+      "bytes": 2731174,
+      "markerCount": 3,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 51,
+      "filename": "051_མདོ་སྡེ།_ཇ.txt",
+      "sha256": "6f81e3336d18317a4e3fa266b9e1343df092fbc47b496ae89d956ed396339757",
+      "bytes": 2722080,
+      "markerCount": 6,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 52,
+      "filename": "052_མདོ་སྡེ།_ཉ.txt",
+      "sha256": "3547ae1262c98eab023645d7c4696c4b85a2de3077343cdeacce7a5e538fe734",
+      "bytes": 3106275,
+      "markerCount": 1,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 53,
+      "filename": "053_མདོ་སྡེ།_ཏ.txt",
+      "sha256": "b1ec30831f1da914fa30b23c85b1bdee060786cc9f465187be8d3fbe9878df3e",
+      "bytes": 3137770,
+      "markerCount": 0,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 54,
+      "filename": "054_མདོ་སྡེ།_ཐ.txt",
+      "sha256": "0a9e5b6e36428841b0e5af74d916b06c8c74ffbba28b5667f485f1138e81be9d",
+      "bytes": 2707488,
+      "markerCount": 7,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 55,
+      "filename": "055_མདོ་སྡེ།_ད.txt",
+      "sha256": "0b791e1527397ebd7a0f90f1b50513d3dd324b688f7a228bc00fbcc99c832332",
+      "bytes": 2970205,
+      "markerCount": 6,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 56,
+      "filename": "056_མདོ་སྡེ།_ན.txt",
+      "sha256": "6bde8a53398ac0cd61a211a1f7b0a061b8d79ff2d0ef4b4d5fe2b33005f642e8",
+      "bytes": 2809286,
+      "markerCount": 9,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 57,
+      "filename": "057_མདོ་སྡེ།_པ.txt",
+      "sha256": "3a77891078b9052b12878a9665786c93072758ba6c34346a7a7d7f07f6b364e7",
+      "bytes": 3156889,
+      "markerCount": 10,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 58,
+      "filename": "058_མདོ་སྡེ།_ཕ.txt",
+      "sha256": "622af847eccd361f09f1c51dd0d0f6a47ff8e8b262a2bd98b9a0ca6e7e0e3d07",
+      "bytes": 2871130,
+      "markerCount": 6,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 59,
+      "filename": "059_མདོ་སྡེ།_བ.txt",
+      "sha256": "7d4fc2e8d9629940d38cbea986f6fc86627c9cda9304628389b07f29a64b9036",
+      "bytes": 2891179,
+      "markerCount": 14,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 60,
+      "filename": "060_མདོ་སྡེ།_མ.txt",
+      "sha256": "1e6214166ad93c313d163cd7fbac3331755569ceae9830af39a4c3b55899366c",
+      "bytes": 2751648,
+      "markerCount": 9,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 61,
+      "filename": "061_མདོ་སྡེ།_ཙ.txt",
+      "sha256": "5f3e2b0e39eff1f30b704f396921c12d899896c758b00ca35a93290042949e7b",
+      "bytes": 2800372,
+      "markerCount": 20,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 62,
+      "filename": "062_མདོ་སྡེ།_ཚ.txt",
+      "sha256": "e399cce69502112d3881b9378cb15634f5d2191b9014fda1f22438a3a069586e",
+      "bytes": 2816988,
+      "markerCount": 19,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 63,
+      "filename": "063_མདོ་སྡེ།_ཛ.txt",
+      "sha256": "9ede9654e73056f72bb0478246e08321f28d5b5850bfc441c56e84de3b752def",
+      "bytes": 2780297,
+      "markerCount": 11,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 64,
+      "filename": "064_མདོ་སྡེ།_ཝ.txt",
+      "sha256": "d10c5f8414ae9bddc7a403601e9ce11bd02994539c13fbb419695fe62fc572a6",
+      "bytes": 2875389,
+      "markerCount": 7,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 65,
+      "filename": "065_མདོ་སྡེ།_ཞ.txt",
+      "sha256": "fb51e9f7f2d9ee50ca20e27003f56c8b7ec2694c5e480f2ff6b92a0cb6ef43b4",
+      "bytes": 2801512,
+      "markerCount": 5,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 66,
+      "filename": "066_མདོ་སྡེ།_ཟ.txt",
+      "sha256": "e1186e1c04f70c6a5eb0db146817c95da90c4df3e894f04024b9421778c315f3",
+      "bytes": 2797642,
+      "markerCount": 19,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 67,
+      "filename": "067_མདོ་སྡེ།_འ.txt",
+      "sha256": "76ace4faeae9c18fc81a26683e3d7a06b24f0f8056acdb210f0c602554795a70",
+      "bytes": 2934203,
+      "markerCount": 5,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 68,
+      "filename": "068_མདོ་སྡེ།_ཡ.txt",
+      "sha256": "8aff8b61d90c00f7b000e67050aa4216cf9ee7fb4f10e92e5b5b5801389a1576",
+      "bytes": 2837699,
+      "markerCount": 21,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 69,
+      "filename": "069_མདོ་སྡེ།_ར.txt",
+      "sha256": "332f3b3ddfc67965f2bfc3db62220ab84dc13a9bb3b89f868d098edf97a366d7",
+      "bytes": 2902161,
+      "markerCount": 0,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 70,
+      "filename": "070_མདོ་སྡེ།_ལ.txt",
+      "sha256": "64b53c0b44418104016bfc1bf5e655410a4209573cb1ca35e9e43cde8d95eadc",
+      "bytes": 2942831,
+      "markerCount": 0,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 71,
+      "filename": "071_མདོ་སྡེ།_ཤ.txt",
+      "sha256": "6c34387682811035ee32eed8d41dd153b7f890bc09ae7f9d0d0d33ed1caf515e",
+      "bytes": 2861983,
+      "markerCount": 13,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 72,
+      "filename": "072_མདོ་སྡེ།_ས.txt",
+      "sha256": "437362220fde32d7c4e4311b4aa0885a5ab76612fe5efc0d9afd62605b763041",
+      "bytes": 2787425,
+      "markerCount": 39,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 73,
+      "filename": "073_མདོ་སྡེ།_ཧ.txt",
+      "sha256": "4072e6e35ab6f0474203c0af8dc9e7bab4cb47d236131a1eaf877bee81f1025f",
+      "bytes": 2875893,
+      "markerCount": 1,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 74,
+      "filename": "074_མདོ་སྡེ།_ཨ.txt",
+      "sha256": "f29a5354b2ee2c149299101b1f7cb1675cb8caa42b85341f1e2419df26189934",
+      "bytes": 2745249,
+      "markerCount": 2,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 75,
+      "filename": "075_མདོ་སྡེ།_ཨཾ.txt",
+      "sha256": "0c45a35c1c2993ec03d2a750ffa80d1fe350d0f19a5fa2dbc0f2d1ad99c096aa",
+      "bytes": 2746399,
+      "markerCount": 4,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 76,
+      "filename": "076_མདོ་སྡེ།_ཨཱཾཿ.txt",
+      "sha256": "74f006bc94ce4d09f6326cdc18be20847d1ccc8a18714f8c4564ea16f1030bb8",
+      "bytes": 2678812,
+      "markerCount": 14,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 77,
+      "filename": "077_རྒྱུད་འབུམ།_ཀ.txt",
+      "sha256": "d47afd4dd98ef998c157d557b756b79d7504e60943e758a040d7b745dc6ba8f1",
+      "bytes": 3414893,
+      "markerCount": 10,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 78,
+      "filename": "078_རྒྱུད་འབུམ།_ཁ.txt",
+      "sha256": "1cac90731be33e82d193c18d513ba242cb5bce448a4331c7607f031674f625d1",
+      "bytes": 2825472,
+      "markerCount": 4,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 79,
+      "filename": "079_རྒྱུད་འབུམ།_ག.txt",
+      "sha256": "df329e01b8f560d38d85fac1386aed574c8e0bcfa05a2ecacd073c5851248b69",
+      "bytes": 2612667,
+      "markerCount": 43,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 80,
+      "filename": "080_རྒྱུད་འབུམ།_ང.txt",
+      "sha256": "8aa0f6fe9e862988cc723c9d527b1778483916e894f08fee7fa9e4c969e37297",
+      "bytes": 3091634,
+      "markerCount": 15,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 81,
+      "filename": "081_རྒྱུད་འབུམ།_ཅ.txt",
+      "sha256": "b5c4bfc76e5d4fee644425a7b939071896a15d466e3dee36a12909c69861a444",
+      "bytes": 2792281,
+      "markerCount": 18,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 82,
+      "filename": "082_རྒྱུད་འབུམ།_ཆ.txt",
+      "sha256": "6dd2874a60fddbecfb4c6b55450959ad7d5b1e55c892e5bb475e9de8d23b653d",
+      "bytes": 2919552,
+      "markerCount": 4,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 83,
+      "filename": "083_རྒྱུད་འབུམ།_ཇ.txt",
+      "sha256": "3ed3f801f255a7a37c0c301ce37bfbc776a93663765e7825bc44120bbb7217fd",
+      "bytes": 3060452,
+      "markerCount": 26,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 84,
+      "filename": "084_རྒྱུད་འབུམ།_ཉ.txt",
+      "sha256": "257a7a7cbb74534c8ab18d8bfedf39315a9736480aff27141e3ae2ca812ee33b",
+      "bytes": 2569154,
+      "markerCount": 2,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 85,
+      "filename": "085_རྒྱུད་འབུམ།_ཏ.txt",
+      "sha256": "c308c99c8e5769c3b6756975d0edc15b11fff7b447a66dd820c247e63303ccd2",
+      "bytes": 2555048,
+      "markerCount": 9,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 86,
+      "filename": "086_རྒྱུད་འབུམ།_ཐ.txt",
+      "sha256": "a35e65069cb585a1cb8bf82534f9a0f357a0ba8d572ce2a685fd6d2863381d73",
+      "bytes": 2932207,
+      "markerCount": 6,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 87,
+      "filename": "087_རྒྱུད་འབུམ།_ད.txt",
+      "sha256": "97f522028c354b0735c46b582bc7b1caa3d64de415cc304efe57d9f890d3a852",
+      "bytes": 2872439,
+      "markerCount": 12,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 88,
+      "filename": "088_རྒྱུད་འབུམ།_ན.txt",
+      "sha256": "8066b5bc340589ff269720260f543deb30510af72eb187b56fd64287f3006f6d",
+      "bytes": 3227944,
+      "markerCount": 43,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 89,
+      "filename": "089_རྒྱུད་འབུམ།_པ.txt",
+      "sha256": "6bd06d751ae7f8d0e6e9237e3b575701edac511bfee9dc7db6ec864479e4e50d",
+      "bytes": 2451093,
+      "markerCount": 13,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 90,
+      "filename": "090_རྒྱུད་འབུམ།_ཕ.txt",
+      "sha256": "f82e364b267ede2e6d6350464d239266ba42a9d32f0a46d3c5e4a7d554572144",
+      "bytes": 2640850,
+      "markerCount": 48,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 91,
+      "filename": "091_རྒྱུད་འབུམ།_བ.txt",
+      "sha256": "e8a9597c4ca2588b0d1cdea3784ad34ff6537c2ed9dc04292939258b0914167b",
+      "bytes": 2617893,
+      "markerCount": 82,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 92,
+      "filename": "092_རྒྱུད་འབུམ།_མ.txt",
+      "sha256": "b49cd196f6443b32c3c69212fd7974bfc15ab24f0eedb3828e29ad7377855b69",
+      "bytes": 2896103,
+      "markerCount": 1,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 93,
+      "filename": "093_རྒྱུད་འབུམ།_ཙ.txt",
+      "sha256": "9087e7943a2f8074b41bc8dede7cc976ed214165bedd2bce1fc408c6d17b7fe4",
+      "bytes": 2821387,
+      "markerCount": 38,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 94,
+      "filename": "094_རྒྱུད་འབུམ།_ཚ.txt",
+      "sha256": "70bd61941c7f27889e35b16661a5d682bb65852c1c822cef2e4441ca56d18807",
+      "bytes": 2479221,
+      "markerCount": 21,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 95,
+      "filename": "095_རྒྱུད་འབུམ།_ཛ.txt",
+      "sha256": "7c6468cf6ce77f1a9b2af5be93a117bb38eee80e46eae3aa329215461205c3b0",
+      "bytes": 2737615,
+      "markerCount": 6,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 96,
+      "filename": "096_རྒྱུད་འབུམ།_ཝ.txt",
+      "sha256": "0f9bc7786182ecc804d2da614f1cb85d522e8ed5b9d112062c233f32872e5f13",
+      "bytes": 2319640,
+      "markerCount": 76,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 97,
+      "filename": "097_རྙིང་རྒྱུད།_ཀ.txt",
+      "sha256": "b0636c0fb91ed0c2ad82b31d6aac531918197fb9bcbcbf5f2633bb093aea4579",
+      "bytes": 3020377,
+      "markerCount": 3,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 98,
+      "filename": "098_རྙིང་རྒྱུད།_ཁ.txt",
+      "sha256": "85aeeed3fa185e621252a33ec99161fc4ed40635ac358bfc989bf741af0e940b",
+      "bytes": 2720595,
+      "markerCount": 5,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 99,
+      "filename": "099_རྙིང་རྒྱུད།_ག.txt",
+      "sha256": "97dc49e9df1faf0eb448246c65e04984157f65b25e0ece896ad07977eb3de51c",
+      "bytes": 2516783,
+      "markerCount": 19,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 100,
+      "filename": "100_གཟུངས་འདུས།_ཨེ.txt",
+      "sha256": "687f8d371f0323400054cd989f6a90c34339257d5ef06a0cea55e0a95b1a1fb1",
+      "bytes": 2416800,
+      "markerCount": 101,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 101,
+      "filename": "101_གཟུངས་འདུས།_ཝཾ.txt",
+      "sha256": "dce68b9e7ad244b65d633b72d77f9c969c0db6e9f7945497f8512d737374187f",
+      "bytes": 2410357,
+      "markerCount": 164,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 102,
+      "filename": "102_དྲི་མེད་འོད།_ཤྲཱི.txt",
+      "sha256": "eace067578e5827919c56828fe46c8b727cc94f244b82cd39d33591990f97580",
+      "bytes": 4482245,
+      "markerCount": 6,
+      "catalogue": false
+    },
+    {
+      "corpus": "Kangyur",
+      "volume": 103,
+      "filename": "103_དཀར་ཆག.txt",
+      "sha256": "9150687d040aa5b706d315f757199a2eda2f3584e5d61427997c9a2bd8b77eec",
+      "bytes": 1438101,
+      "markerCount": 10,
+      "catalogue": true
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 1,
+      "filename": "001_བསྟོད་ཚོགས།_ཀ.txt",
+      "sha256": "09b596f3bc6aa85d64c3a4ad6d61f71254a0ca26f76979006977fb531c870c30",
+      "bytes": 2430621,
+      "markerCount": 70,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 2,
+      "filename": "002_རྒྱུད་འགྲེལ།_ཀ.txt",
+      "sha256": "0de5461f20d365c6b6b06495c2ad4aacb3221337ae50b9f6f2b2cc6f6a94066b",
+      "bytes": 2651731,
+      "markerCount": 2,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 3,
+      "filename": "003_རྒྱུད་འགྲེལ།_ཁ.txt",
+      "sha256": "80133fe4ad996df1afe7253a23efa829e4ad3c892157a088d84edc4b3cafe2ab",
+      "bytes": 2892670,
+      "markerCount": 2,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 4,
+      "filename": "004_རྒྱུད་འགྲེལ།_ག.txt",
+      "sha256": "34519f19b4ac96aee449eabf750b06b1fe46c30510a901c7c51fdbb5f8e85389",
+      "bytes": 2914656,
+      "markerCount": 5,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 5,
+      "filename": "005_རྒྱུད་འགྲེལ།_ང.txt",
+      "sha256": "644f5999375f20d649a807ab0dae27acc93826d338d18ed8bf5623044085f621",
+      "bytes": 3120531,
+      "markerCount": 2,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 6,
+      "filename": "006_རྒྱུད་འགྲེལ།_ཅ.txt",
+      "sha256": "b6a33f881f2ae95790b812c88a4f212d54e752bc21cf42ae826ed1ebbaf394df",
+      "bytes": 3071996,
+      "markerCount": 4,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 7,
+      "filename": "007_རྒྱུད་འགྲེལ།_ཆ.txt",
+      "sha256": "a8314082c4ddf8a264fe30a19e076cfd7305919def6f2d99dddf89e63dd0458d",
+      "bytes": 2973852,
+      "markerCount": 1,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 8,
+      "filename": "008_རྒྱུད་འགྲེལ།_ཇ.txt",
+      "sha256": "5e76d8d9cd608cca47df0c16d8216c0891a4a5921a8f0c0bbaa5da94378d875d",
+      "bytes": 3137324,
+      "markerCount": 19,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 9,
+      "filename": "009_རྒྱུད་འགྲེལ།_ཉ.txt",
+      "sha256": "ab407437edc3ff655d5be845928234c334990e4fed18563a9b6bd5a3c70b94b7",
+      "bytes": 3232533,
+      "markerCount": 45,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 10,
+      "filename": "010_རྒྱུད་འགྲེལ།_ཏ.txt",
+      "sha256": "97dd53db1cfc6868c7b082b00df9cd0df9cf9bbe3e9e45fadb25ee0a30b568a7",
+      "bytes": 3487557,
+      "markerCount": 85,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 11,
+      "filename": "011_རྒྱུད་འགྲེལ།_ཐ.txt",
+      "sha256": "88732744b511f3270284e7a282d055b703c83655d3bb30dda3c79161fb927ee5",
+      "bytes": 2657822,
+      "markerCount": 2,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 12,
+      "filename": "012_རྒྱུད་འགྲེལ།_ད.txt",
+      "sha256": "6f4737c42195966daba4320c973a8d2acf6a90362d7dbbd27f3cbc9eda15941d",
+      "bytes": 2837630,
+      "markerCount": 0,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 13,
+      "filename": "013_རྒྱུད་འགྲེལ།_ན.txt",
+      "sha256": "65de02d8dcd28603ec31a4235b8bdd100be1373e4fc4324798ea7b61355c9746",
+      "bytes": 2907751,
+      "markerCount": 5,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 14,
+      "filename": "014_རྒྱུད་འགྲེལ།_པ.txt",
+      "sha256": "ccb0f1ee1eede4918f3fe65f91fec722650d56cf066e7e6d93aebe0ad7fa6866",
+      "bytes": 3293816,
+      "markerCount": 35,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 15,
+      "filename": "015_རྒྱུད་འགྲེལ།_ཕ.txt",
+      "sha256": "eb720b04a52f46f640628df4d6a65e9dc52e1dc6d74a7673a24bf0118e90871c",
+      "bytes": 2988007,
+      "markerCount": 12,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 16,
+      "filename": "016_རྒྱུད་འགྲེལ།_བ.txt",
+      "sha256": "1db1d4fe3d851a48a07ee292314a82280eaef693c435821057285c64c70546f1",
+      "bytes": 3052462,
+      "markerCount": 4,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 17,
+      "filename": "017_རྒྱུད་འགྲེལ།_མ.txt",
+      "sha256": "a0553fc9621ee485ae98e0b815cab1c32618d5eb9843863b0930309372d891dc",
+      "bytes": 4269303,
+      "markerCount": 8,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 18,
+      "filename": "018_རྒྱུད་འགྲེལ།_ཙ.txt",
+      "sha256": "829890fa95da0ea822aaa86825702b11caed96ac022ed4b9e7d5960116472448",
+      "bytes": 2282633,
+      "markerCount": 2,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 19,
+      "filename": "019_རྒྱུད་འགྲེལ།_ཚ.txt",
+      "sha256": "c135b0de879861d4e1b2ca115514b9d9102f8eda0c618d7a517751c80ac4e305",
+      "bytes": 2586758,
+      "markerCount": 4,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 20,
+      "filename": "020_རྒྱུད་འགྲེལ།_ཛ.txt",
+      "sha256": "766d6fc9ee15b695a8a9155f6fc4746f1d1a3978ae12f94e6fe4b9b33710214b",
+      "bytes": 3084985,
+      "markerCount": 1,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 21,
+      "filename": "021_རྒྱུད་འགྲེལ།_ཝ.txt",
+      "sha256": "0ed2c310dc8f80de61a9ac44a984e2806c0f55d0ef8bfb9eeaab5866608e45e0",
+      "bytes": 3508288,
+      "markerCount": 34,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 22,
+      "filename": "022_རྒྱུད་འགྲེལ།_ཞ.txt",
+      "sha256": "e0d69faea0be98c8ce83977f9cc4fb412b1b40f364df076216c97f137204b9ea",
+      "bytes": 3578219,
+      "markerCount": 63,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 23,
+      "filename": "023_རྒྱུད་འགྲེལ།_ཟ.txt",
+      "sha256": "f88bdb8e7b97744e2b95720f5261573c62b175c9792e4155ac0d8f96cdc508f7",
+      "bytes": 2387569,
+      "markerCount": 57,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 24,
+      "filename": "024_རྒྱུད་འགྲེལ།_འ.txt",
+      "sha256": "17719db6e425fbbdd87139ae40f02abde1d159fcd1cf82175523efd258e49fb0",
+      "bytes": 2475008,
+      "markerCount": 36,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 25,
+      "filename": "025_རྒྱུད་འགྲེལ།_ཡ.txt",
+      "sha256": "29d239b2b5157ec78f28b2b02ba512e59a99432efcbcc7e6146ff749a35e01ca",
+      "bytes": 2980362,
+      "markerCount": 42,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 26,
+      "filename": "026_རྒྱུད་འགྲེལ།_ར.txt",
+      "sha256": "4945ef6166fa9793881e36dfe3afbde0651dd761a8862a69f329cc80f036a154",
+      "bytes": 4162459,
+      "markerCount": 12,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 27,
+      "filename": "027_རྒྱུད་འགྲེལ།_ལ.txt",
+      "sha256": "69afe2738a9cc2900ed1c5b5276e07e23137613a6487441fa9f332f5f22cdad9",
+      "bytes": 2905936,
+      "markerCount": 22,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 28,
+      "filename": "028_རྒྱུད་འགྲེལ།_ཤ.txt",
+      "sha256": "97fb046d8269d74f15c30dc1aa90c975f3894488e44070565d7473bcdd8084fe",
+      "bytes": 2722271,
+      "markerCount": 102,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 29,
+      "filename": "029_རྒྱུད་འགྲེལ།_ས.txt",
+      "sha256": "76613d00147d004d94fb213f9eecf07511cb7fba5a34c88751596a3742c7a7e7",
+      "bytes": 3132203,
+      "markerCount": 2,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 30,
+      "filename": "030_རྒྱུད་འགྲེལ།_ཧ.txt",
+      "sha256": "f1ef745eebb2f584be33514ab89a4e5075744a502f6cde43117310fd83e1c3eb",
+      "bytes": 2227473,
+      "markerCount": 3,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 31,
+      "filename": "031_རྒྱུད་འགྲེལ།_ཨ.txt",
+      "sha256": "4a4f9ac4a4875fa612465a6340c132ebdc6b861d5cf7d983b1fa36d896e98846",
+      "bytes": 2065842,
+      "markerCount": 5,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 32,
+      "filename": "032_རྒྱུད་འགྲེལ།_ཀི.txt",
+      "sha256": "fc5878e5bcaa911c5314a7b860d468d4977639ba7e4f7bccc03fbb2abcc1d4c3",
+      "bytes": 2868101,
+      "markerCount": 1,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 33,
+      "filename": "033_རྒྱུད་འགྲེལ།_ཁི.txt",
+      "sha256": "86f33a27dc245deb41907eb7685b4d823a5688acafee24266c2d078872a07ba4",
+      "bytes": 1974282,
+      "markerCount": 1,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 34,
+      "filename": "034_རྒྱུད་འགྲེལ།_གི.txt",
+      "sha256": "df600ad653f97274897d8d62bb8734d3864c83649016b21d11afbff5c037e18f",
+      "bytes": 2218747,
+      "markerCount": 1,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 35,
+      "filename": "035_རྒྱུད་འགྲེལ།_ངི.txt",
+      "sha256": "3f547f3c47b23655b815e166a790055ea5cc9f5e298a1e24d9d9b54eca84fb97",
+      "bytes": 2692064,
+      "markerCount": 30,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 36,
+      "filename": "036_རྒྱུད་འགྲེལ།_ཅི.txt",
+      "sha256": "ebdc07b688049d6b89fcfc6ffda153860e70ad13ca0f05c10565c5ffe312ec2e",
+      "bytes": 2858971,
+      "markerCount": 12,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 37,
+      "filename": "037_རྒྱུད་འགྲེལ།_ཆི.txt",
+      "sha256": "607fd2408c15ed7353bc55c5a0c927a65aa326b75ae0a3299de1ee0966a3135d",
+      "bytes": 2738370,
+      "markerCount": 6,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 38,
+      "filename": "038_རྒྱུད་འགྲེལ།_ཇི.txt",
+      "sha256": "4e60443d834b5a96731d4afe3fa4cd2eb4c0183736c04fe2d44c4ffa51c69bf5",
+      "bytes": 2364424,
+      "markerCount": 3,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 39,
+      "filename": "039_རྒྱུད་འགྲེལ།_ཉི.txt",
+      "sha256": "f136f53d440e2f5a50004a10e886810957916235c817dd9e421c573ea0139fa1",
+      "bytes": 2972947,
+      "markerCount": 2,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 40,
+      "filename": "040_རྒྱུད་འགྲེལ།_ཏི.txt",
+      "sha256": "90540202b7804a4915ab9f88992310253c3aa8c26bd416669068ae4f4c887590",
+      "bytes": 3197762,
+      "markerCount": 4,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 41,
+      "filename": "041_རྒྱུད་འགྲེལ།_ཐི.txt",
+      "sha256": "35a52b20a4b5ae028c916cfc79039bd0629da94130f5f6690fc18bbe3ce92496",
+      "bytes": 3087915,
+      "markerCount": 1,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 42,
+      "filename": "042_རྒྱུད་འགྲེལ།_དི.txt",
+      "sha256": "986c65734c2fb1ce4889ce9866b2aaf04ef0c34a975e1a42b3b18ce0f7074e50",
+      "bytes": 2181823,
+      "markerCount": 16,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 43,
+      "filename": "043_རྒྱུད་འགྲེལ།_ནི.txt",
+      "sha256": "c8ed63a3264654ff90c867aceda73fb65ba05c92ec3e20f36cbd6dd9070e001b",
+      "bytes": 2098669,
+      "markerCount": 5,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 44,
+      "filename": "044_རྒྱུད་འགྲེལ།_པི.txt",
+      "sha256": "05ba6badcde226ecb8c0b6ed3c78b6430aaac956f9cba80f841578b3919ee2d2",
+      "bytes": 2712159,
+      "markerCount": 28,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 45,
+      "filename": "045_རྒྱུད་འགྲེལ།_ཕི.txt",
+      "sha256": "d06d9e7a3b50c3201b302dfc55735c0dab859aa3f04ff3079ecef49504dcac8e",
+      "bytes": 2559411,
+      "markerCount": 14,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 46,
+      "filename": "046_རྒྱུད་འགྲེལ།_བི.txt",
+      "sha256": "3bb7c21a80ffed7cf14a894d6c9e9e4d9f9e5cacc1633dc8c2edcbc2d0448f61",
+      "bytes": 3302665,
+      "markerCount": 6,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 47,
+      "filename": "047_རྒྱུད་འགྲེལ།_མི.txt",
+      "sha256": "757fde8e2f2776ab5959946a9a072c4e1845ed4b92cce29405e8d1213ae3c9b6",
+      "bytes": 2329661,
+      "markerCount": 95,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 48,
+      "filename": "048_རྒྱུད་འགྲེལ།_ཙི.txt",
+      "sha256": "fdb0e7b2e1fe5b6ca6764aa63b5939f874d7d643650cde9a77e8c5f62b8be6d7",
+      "bytes": 2073438,
+      "markerCount": 78,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 49,
+      "filename": "049_རྒྱུད་འགྲེལ།_ཚི.txt",
+      "sha256": "f528e2580d01ae26d3c216e30d80cff530cee990a24b342d1fb4532de0906421",
+      "bytes": 3276616,
+      "markerCount": 82,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 50,
+      "filename": "050_རྒྱུད་འགྲེལ།_ཛི.txt",
+      "sha256": "00855eea48316b3ec206b5a4f9989f5c1b4ab9b5480d0623bfbc830cb8eabfd7",
+      "bytes": 2282081,
+      "markerCount": 43,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 51,
+      "filename": "051_རྒྱུད་འགྲེལ།_ཝི.txt",
+      "sha256": "1d0826994ea0aa700a0cb1181d6b4f95fb60a56afdb7bf4377a3de559ac07608",
+      "bytes": 3011692,
+      "markerCount": 44,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 52,
+      "filename": "052_རྒྱུད་འགྲེལ།_ཞི.txt",
+      "sha256": "0f733155c50c52f5afc0712e1ff9d7387d7314370f1e7209f7cd79eaebe8baf0",
+      "bytes": 2763323,
+      "markerCount": 74,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 53,
+      "filename": "053_རྒྱུད་འགྲེལ།_ཟི.txt",
+      "sha256": "c960207614f2f4ec032bdd813e156084776a5f1a24684453498427198653089a",
+      "bytes": 2555887,
+      "markerCount": 160,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 54,
+      "filename": "054_རྒྱུད་འགྲེལ།_འི.txt",
+      "sha256": "9f27be88bbfc3641c73233edc90ce74b64c131031ab5fe2118735f1d3937ca3d",
+      "bytes": 3320205,
+      "markerCount": 2,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 55,
+      "filename": "055_རྒྱུད་འགྲེལ།_ཡི.txt",
+      "sha256": "d46fb3cecaa3789a6f6627687d240505e324635617ff1b027e9d1b830f9b6553",
+      "bytes": 2439040,
+      "markerCount": 1,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 56,
+      "filename": "056_རྒྱུད་འགྲེལ།_རི.txt",
+      "sha256": "e905f9405fb49c66174092bdb48674497f7eced93996f5a6fc3f489ed40f65f0",
+      "bytes": 2852320,
+      "markerCount": 6,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 57,
+      "filename": "057_རྒྱུད་འགྲེལ།_ལི.txt",
+      "sha256": "2b7d9fa22bc2a88e555f34d757555dec8fec9eacdc5ddaef27b3f6cddfb29d7d",
+      "bytes": 3429887,
+      "markerCount": 1,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 58,
+      "filename": "058_རྒྱུད་འགྲེལ།_ཤི.txt",
+      "sha256": "f2253b48eb3678b6d0ba0340d953c65997d067bb9d3aaf38d4615a328c64f08f",
+      "bytes": 3107994,
+      "markerCount": 0,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 59,
+      "filename": "059_རྒྱུད་འགྲེལ།_སི.txt",
+      "sha256": "ba419df3d95af22bb6f5ead8cdf7a42d79821d28f9ff6244da7fed136a755691",
+      "bytes": 2389373,
+      "markerCount": 2,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 60,
+      "filename": "060_རྒྱུད་འགྲེལ།_ཧི.txt",
+      "sha256": "e351104417b414c56ad4d9d8903819bd56c43abc82012f30d207d2d8288066e9",
+      "bytes": 3332947,
+      "markerCount": 0,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 61,
+      "filename": "061_རྒྱུད་འགྲེལ།_ཨི.txt",
+      "sha256": "044c64b02853c971312f1b414b80baa934a6777d69b7a11fc3130a3979035856",
+      "bytes": 3555362,
+      "markerCount": 3,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 62,
+      "filename": "062_རྒྱུད་འགྲེལ།_ཀུ.txt",
+      "sha256": "4dfcfa67f60af4dede74f11bfb02ef012e81454a6887bd14eeb3a8a334384912",
+      "bytes": 3440118,
+      "markerCount": 16,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 63,
+      "filename": "063_རྒྱུད་འགྲེལ།_ཁུ.txt",
+      "sha256": "46d486e02fa46ac3ebad9a8928f56308c0ceacab31fde1b6bd7b481fb2396b63",
+      "bytes": 2992033,
+      "markerCount": 3,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 64,
+      "filename": "064_རྒྱུད་འགྲེལ།_གུ.txt",
+      "sha256": "b148e7c689cc0e9471028ebaa68503be478c76270923fb59f541ad12303e50b7",
+      "bytes": 2612450,
+      "markerCount": 8,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 65,
+      "filename": "065_རྒྱུད་འགྲེལ།_ངུ.txt",
+      "sha256": "df5d80864656e90eeab662abbff6c72be25e6c6fe7ed39b69bb674359d4fd398",
+      "bytes": 2626429,
+      "markerCount": 51,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 66,
+      "filename": "066_རྒྱུད་འགྲེལ།_ཅུ.txt",
+      "sha256": "4f35c723ba851ed0f47d820e7c1dfbab10ebd2e82e4ef30d4899f0ab521282bd",
+      "bytes": 3181548,
+      "markerCount": 35,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 67,
+      "filename": "067_རྒྱུད་འགྲེལ།_ཆུ.txt",
+      "sha256": "a964ae212cc89908884e8280e18f0420d00e1a8c8b807b31db39053bebaeaee8",
+      "bytes": 2660921,
+      "markerCount": 2,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 68,
+      "filename": "068_རྒྱུད་འགྲེལ།_ཇུ.txt",
+      "sha256": "f04ff697e6f33cce7f9aa12b48e984f0414dfcec93964539c45bb32c40f7fa05",
+      "bytes": 3275967,
+      "markerCount": 34,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 69,
+      "filename": "069_རྒྱུད་འགྲེལ།_ཉུ.txt",
+      "sha256": "22b0c3508604a47f1fc1bc98bb6c6e0bb897a63bf75b63cb2d06d337f0185e09",
+      "bytes": 3416072,
+      "markerCount": 3,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 70,
+      "filename": "070_རྒྱུད་འགྲེལ།_ཏུ.txt",
+      "sha256": "f3b82d60eca46744968505dd21d7bf7de2b803966ab4580f77b7b83f11d75dcf",
+      "bytes": 2680315,
+      "markerCount": 6,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 71,
+      "filename": "071_རྒྱུད་འགྲེལ།_ཐུ.txt",
+      "sha256": "2b6af491cb1095ce7105cbc0a483877136951177334ed6cd0ba814c55b924249",
+      "bytes": 3113920,
+      "markerCount": 21,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 72,
+      "filename": "072_རྒྱུད་འགྲེལ།_དུ.txt",
+      "sha256": "095a2142b771367d98e58618a41c06c8d5776926af8bbecc092c62bb6ca6871e",
+      "bytes": 3109100,
+      "markerCount": 4,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 73,
+      "filename": "073_རྒྱུད་འགྲེལ།_ནུ.txt",
+      "sha256": "2be90140e4f890295a874b781d28692e0b9883ee39207d94d3161d0bc4085d58",
+      "bytes": 3374205,
+      "markerCount": 248,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 74,
+      "filename": "074_རྒྱུད་འགྲེལ།_པུ.txt",
+      "sha256": "b8b88b33232b1ef4f0978325dbb8827aed5a92d3ddf1e1e4ab624d93e1635800",
+      "bytes": 3019203,
+      "markerCount": 202,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 75,
+      "filename": "075_རྒྱུད་འགྲེལ།_ཕུ.txt",
+      "sha256": "a4b39bf3e3a05cb14ec2453e3828b6c76bae36ff53cb37a77ff329fb005b843f",
+      "bytes": 2228601,
+      "markerCount": 86,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 76,
+      "filename": "076_རྒྱུད་འགྲེལ།_བུ.txt",
+      "sha256": "db7d9c1c3d5126784593d238a3ec4b9e1d5f6ccd66e3f395c5c0ab27fe153fb6",
+      "bytes": 2449794,
+      "markerCount": 82,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 77,
+      "filename": "077_རྒྱུད་འགྲེལ།_མུ.txt",
+      "sha256": "718c4e929bfec708472acd7f4f4f4c083b8fb63114d976bf0d096b755bc96f65",
+      "bytes": 3353052,
+      "markerCount": 399,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 78,
+      "filename": "078_རྒྱུད་འགྲེལ།_ཙུ.txt",
+      "sha256": "ce1c54057cedd00258643304f2b424e317f067070d6634742f7da9e68128944c",
+      "bytes": 1955877,
+      "markerCount": 15,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 79,
+      "filename": "079_རྒྱུད་འགྲེལ།_ཚུ.txt",
+      "sha256": "a2cae1ef640492099df5ebdd9dfea2b2e0027a99de6da3ebaaa299e165d8dfd5",
+      "bytes": 2163630,
+      "markerCount": 65,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 80,
+      "filename": "080_ཤེར་ཕྱིན།_ཀ.txt",
+      "sha256": "631803694b8c9984c08683687f220849567967a55cfb06e22a9623de04e47d50",
+      "bytes": 1918652,
+      "markerCount": 2,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 81,
+      "filename": "081_ཤེར་ཕྱིན།_ཁ.txt",
+      "sha256": "b7c10ffd1dbda461892ed731a3b6c5cd039b2a6eb466729186832b39c3292337",
+      "bytes": 2225710,
+      "markerCount": 2,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 82,
+      "filename": "082_ཤེར་ཕྱིན།_ག.txt",
+      "sha256": "c6f797513e5c625ba7435dc4c8aeb754e96e055f383f3fb5665e6a2edc876618",
+      "bytes": 2982816,
+      "markerCount": 1,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 83,
+      "filename": "083_ཤེར་ཕྱིན།_ང.txt",
+      "sha256": "7b11f2a7cff58a3dbb39e150d58b4a680f8c84fb9ac90357b66126ca70af3651",
+      "bytes": 3008916,
+      "markerCount": 0,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 84,
+      "filename": "084_ཤེར་ཕྱིན།_ཅ.txt",
+      "sha256": "847c2f7697ce0f20c0068db8481b4b1fe00946b3aa652738a60c8bbaf7ff8a7e",
+      "bytes": 3248321,
+      "markerCount": 0,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 85,
+      "filename": "085_ཤེར་ཕྱིན།_ཆ.txt",
+      "sha256": "9d7a456f693b15a5ba89b9dbdee448cfe859cacb67d937c8af6d08a7f9eeb660",
+      "bytes": 3373311,
+      "markerCount": 1,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 86,
+      "filename": "086_ཤེར་ཕྱིན།_ཇ.txt",
+      "sha256": "132a4ab1762cd44a3aef64a5b0045ac2204eaa946f533c121d6f20b3c1f1bd67",
+      "bytes": 2578953,
+      "markerCount": 4,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 87,
+      "filename": "087_ཤེར་ཕྱིན།_ཉ.txt",
+      "sha256": "8680382ed28a1e6eafe067a0b817fe68a097727e6de6f17a8a17a25807c14856",
+      "bytes": 2459342,
+      "markerCount": 4,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 88,
+      "filename": "088_ཤེར་ཕྱིན།_ཏ.txt",
+      "sha256": "2984e3998084c0155953fc65194265a577d368d314d604b21f1a728472feba36",
+      "bytes": 2581714,
+      "markerCount": 3,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 89,
+      "filename": "089_ཤེར་ཕྱིན།_ཐ.txt",
+      "sha256": "b63a347ea9d547a9e9a42141129563d0a8dd8e6a02bd58fd9f7053e77d54f503",
+      "bytes": 2311819,
+      "markerCount": 2,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 90,
+      "filename": "090_ཤེར་ཕྱིན།_ད.txt",
+      "sha256": "14386b73815484709c40954b7c3e01df83ff46968d11ab2c0c890cc48c2c29c5",
+      "bytes": 2293078,
+      "markerCount": 2,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 91,
+      "filename": "091_ཤེར་ཕྱིན།_ན.txt",
+      "sha256": "4fe008a39c424618109b9d35666a8c8990a16071be5c228cb2989f5844ea8eec",
+      "bytes": 3085847,
+      "markerCount": 1,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 92,
+      "filename": "092_ཤེར་ཕྱིན།_པ.txt",
+      "sha256": "4999b8f796f438675aa898560ecd2c16d4f42bd404475ccd4d64761ed6d5b771",
+      "bytes": 2422180,
+      "markerCount": 0,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 93,
+      "filename": "093_ཤེར་ཕྱིན།_ཕ.txt",
+      "sha256": "8b9ed03d54258260f100d1e6df914b91c30e533387a3f11e17b9dd09a3905450",
+      "bytes": 2917988,
+      "markerCount": 3,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 94,
+      "filename": "094_ཤེར་ཕྱིན།_བ.txt",
+      "sha256": "8a8330e3c29e0c6378b3a9b0c4d2acf2dc575924372a8dca39f641e9d3659459",
+      "bytes": 3051785,
+      "markerCount": 1,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 95,
+      "filename": "095_ཤེར་ཕྱིན།_མ.txt",
+      "sha256": "f7b55ee85e8e49b7c2895ad12d79acf1afbf014075a9f7e5571def9af813d768",
+      "bytes": 3052750,
+      "markerCount": 12,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 96,
+      "filename": "096_དབུ་མ།_ཙ.txt",
+      "sha256": "9080b7b35b8c83a460ec1a5ed4779cdc7d8e12bb34b7a7d1d680d109ad536c86",
+      "bytes": 2682770,
+      "markerCount": 21,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 97,
+      "filename": "097_དབུ་མ།_ཚ.txt",
+      "sha256": "103b6f96b53a9793b42ef1a729b904a5399e39646a5baa2b8236264be84604b8",
+      "bytes": 2853328,
+      "markerCount": 9,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 98,
+      "filename": "098_དབུ་མ།_ཛ.txt",
+      "sha256": "2f3a5d36c8615e087f7ab94bb1a2980c4468019a0af7e457530037e6a96544f8",
+      "bytes": 3128978,
+      "markerCount": 4,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 99,
+      "filename": "099_དབུ་མ།_ཝ.txt",
+      "sha256": "5ea2cd5500b71e80b349c5e2239122c6a48978af23d3ef58b996c89a916cefdc",
+      "bytes": 2911322,
+      "markerCount": 1,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 100,
+      "filename": "100_དབུ་མ།_ཞ.txt",
+      "sha256": "09fa79eb0c4e203ea4f67b33902820ebd1a996b3f48a265c5f0c4e2c304e6638",
+      "bytes": 3442828,
+      "markerCount": 0,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 101,
+      "filename": "101_དབུ་མ།_ཟ.txt",
+      "sha256": "09c351209d8af6ddb34a9feefc4d5d35616bec93035db33623fae12521063102",
+      "bytes": 3448799,
+      "markerCount": 0,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 102,
+      "filename": "102_དབུ་མ།_འ.txt",
+      "sha256": "6dd3b94a1de0c2ecf235b4baa81b839ffcf4023836a19e3d39a17e1f9f79db89",
+      "bytes": 3288291,
+      "markerCount": 4,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 103,
+      "filename": "103_དབུ་མ།_ཡ.txt",
+      "sha256": "0b6e11151534cbb52c9b45e0404a40c5191870419790ee31ac257e1ccf44a5a3",
+      "bytes": 3491961,
+      "markerCount": 6,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 104,
+      "filename": "104_དབུ་མ།_ར.txt",
+      "sha256": "5c66bb122a977edac81eedf5f4e0666c4bdca35344e941e795be50d06afb8cb9",
+      "bytes": 3589907,
+      "markerCount": 1,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 105,
+      "filename": "105_དབུ་མ།_ལ.txt",
+      "sha256": "6cdb891a6ab3c2ccdc2de1b2bfd397abf907b9df7f34fc05d5569d1dcc35d5ff",
+      "bytes": 3262574,
+      "markerCount": 3,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 106,
+      "filename": "106_དབུ་མ།_ཤ.txt",
+      "sha256": "bedecf62c78a31037e09c93932b0ff302ce011b10e9ea5ce644e02778cd0c3e2",
+      "bytes": 2691531,
+      "markerCount": 8,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 107,
+      "filename": "107_དབུ་མ།_ས.txt",
+      "sha256": "857f7ebaef5cf0acd007a587c0f9811381aa061c94211a413160205ce65c7ba5",
+      "bytes": 2864528,
+      "markerCount": 9,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 108,
+      "filename": "108_དབུ་མ།_ཧ.txt",
+      "sha256": "d58b8ca55f1be23e91a694c7bd27fc6578bc238e144d8c34176db5bf36679ace",
+      "bytes": 3080887,
+      "markerCount": 8,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 109,
+      "filename": "109_དབུ་མ།_ཨ.txt",
+      "sha256": "1106a863d3b51be2de0d5829c26f0629f8253a68645fb5e32e6282e03aa68c52",
+      "bytes": 3101500,
+      "markerCount": 10,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 110,
+      "filename": "110_དབུ་མ།_ཀི.txt",
+      "sha256": "2c0d32e69051d257ddac78f942bf8d7697de5e2bd4ad486e9b49ce3091633bcd",
+      "bytes": 3433112,
+      "markerCount": 31,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 111,
+      "filename": "111_དབུ་མ།_ཁི.txt",
+      "sha256": "c80de88151da4417de019a6a8e4ae0e782d9ddb66b1de911e8c71ef77c10824c",
+      "bytes": 2935469,
+      "markerCount": 22,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 112,
+      "filename": "112_དབུ་མ།_གི.txt",
+      "sha256": "f4f496e430f8d27a8788862d3a2cc1d5b370eb0f3cbe8c5e9191282e3d0e9731",
+      "bytes": 2474282,
+      "markerCount": 17,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 113,
+      "filename": "113_མདོ་སྡེ།_ངི.txt",
+      "sha256": "b7a5f8665c3fc65e60a3158b7108b165e007994b4c4889798ba9a8581f80a62a",
+      "bytes": 2605810,
+      "markerCount": 14,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 114,
+      "filename": "114_མདོ་སྡེ།_ཅི.txt",
+      "sha256": "3339fb8bd7fb7758290673f5f66ebc5fdcdaccba0e542ea9a7c4339db5b1c7b5",
+      "bytes": 2580714,
+      "markerCount": 1,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 115,
+      "filename": "115_མདོ་སྡེ།_ཆི.txt",
+      "sha256": "0a4b2709b06aee0d2a81ff4ac5d45525226937b002870e39c0a0ef6d86139958",
+      "bytes": 2751946,
+      "markerCount": 3,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 116,
+      "filename": "116_མདོ་སྡེ།_ཇི.txt",
+      "sha256": "23c81369d0132b43488e5b8915e6f3f9f53ab3db777181b81eec0cdc549a7455",
+      "bytes": 2727636,
+      "markerCount": 12,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 117,
+      "filename": "117_མདོ་སྡེ།_ཉི.txt",
+      "sha256": "b1fc04070eb0a974aac326cac43da67ee57bfa387cbb5cbacbcac8b95575b6fd",
+      "bytes": 2584937,
+      "markerCount": 6,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 118,
+      "filename": "118_མདོ་སྡེ།_ཏི.txt",
+      "sha256": "8682f1bdfa3d2b435183b5570c329edc267462f8c0bdd0ba131f59cf1a6135b9",
+      "bytes": 2673825,
+      "markerCount": 1,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 119,
+      "filename": "119_མདོ་སྡེ།_ཐི.txt",
+      "sha256": "9e17e96590d798c9f7584bb1b0cbcf08049686c19728d670d9a814837438e552",
+      "bytes": 2656262,
+      "markerCount": 0,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 120,
+      "filename": "120_མདོ་སྡེ།_དི.txt",
+      "sha256": "2e81d09595ceaa3bae8df086716bf5e4219f4433878b701ebd1293f62a671f2e",
+      "bytes": 2951175,
+      "markerCount": 1,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 121,
+      "filename": "121_མདོ་སྡེ།_ནི.txt",
+      "sha256": "9da0f07a8c1f1291ab7cd3c2c442d524e73c3791df643963a20bfa96ac49dd2a",
+      "bytes": 2427469,
+      "markerCount": 1,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 122,
+      "filename": "122_མདོ་སྡེ།_པི.txt",
+      "sha256": "ee981c04aa6cbc1a4ba2e7de9f2518d3aa3e0d53c6868b44ede1aa25d4644015",
+      "bytes": 2977185,
+      "markerCount": 1,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 123,
+      "filename": "123_སེམས་ཙམ།_ཕི.txt",
+      "sha256": "2a923aaf738ec1f66fe1375540943678e7b2e56d9a23dd66851f2810c571348e",
+      "bytes": 2341202,
+      "markerCount": 7,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 124,
+      "filename": "124_སེམས་ཙམ།_བི.txt",
+      "sha256": "acef4d89602aee78ccd54fe0d6cc77196655513b65af0faf442c508b7f634e50",
+      "bytes": 3298951,
+      "markerCount": 7,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 125,
+      "filename": "125_སེམས་ཙམ།_མི.txt",
+      "sha256": "67c2593235ff18a9a883fce2d224e512ee310a279d9034c6166c6b24c562b535",
+      "bytes": 2749885,
+      "markerCount": 1,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 126,
+      "filename": "126_སེམས་ཙམ།_ཙི.txt",
+      "sha256": "09ede7a244676d9b6fb8fde050a7333efe840301a892da2bc84d4001f6bb962c",
+      "bytes": 2496489,
+      "markerCount": 0,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 127,
+      "filename": "127_སེམས་ཙམ།_ཚི.txt",
+      "sha256": "9ddd07be26390ba6b73af3b725a72b3700569e56128c46796673e6d255fcf39e",
+      "bytes": 2589127,
+      "markerCount": 1,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 128,
+      "filename": "128_སེམས་ཙམ།_ཛི.txt",
+      "sha256": "50b66e5c02ca50ebb6679cfc3730f8de236d09954c30d87dd883f9d5035162bc",
+      "bytes": 1829984,
+      "markerCount": 1,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 129,
+      "filename": "129_སེམས་ཙམ།_ཝི.txt",
+      "sha256": "3ad61c8c4ea15a3f08739153842e9c5036c8b5c466804ea816ff7153e1981c21",
+      "bytes": 2034542,
+      "markerCount": 1,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 130,
+      "filename": "130_སེམས་ཙམ།_ཞི.txt",
+      "sha256": "e1c13252e2e0d5501512d2cc8dbb9f38c0c5cb63f54e9420fe724836b69e65be",
+      "bytes": 2709565,
+      "markerCount": 1,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 131,
+      "filename": "131_སེམས་ཙམ།_ཟི.txt",
+      "sha256": "7a9c5a87f8a7599ba54dde0df4ed16571814b51b257a957527d80188ab5d667e",
+      "bytes": 3120010,
+      "markerCount": 1,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 132,
+      "filename": "132_སེམས་ཙམ།_འི.txt",
+      "sha256": "3c34b1bec68be5810c495f431c16ca4ddad9d4a5f75de05b6b519d713c08363d",
+      "bytes": 2185606,
+      "markerCount": 4,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 133,
+      "filename": "133_སེམས་ཙམ།_ཡི.txt",
+      "sha256": "45031cfd5646543ef7c6fb67a8b5c9c5a95c21e055dd04dc8e97dc7bf0ffe91a",
+      "bytes": 3298759,
+      "markerCount": 1,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 134,
+      "filename": "134_སེམས་ཙམ།_རི.txt",
+      "sha256": "8432293211b5fd069c7341b717dc411e39f14eadf460f832f5ae68faa1c69ec0",
+      "bytes": 3471618,
+      "markerCount": 5,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 135,
+      "filename": "135_སེམས་ཙམ།_ལི.txt",
+      "sha256": "ce88b74309f4e7d90f4295b20e2cf2b555322d4945a0669ab4f2f6c6e241dab9",
+      "bytes": 2882126,
+      "markerCount": 2,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 136,
+      "filename": "136_སེམས་ཙམ།_ཤི.txt",
+      "sha256": "d3798bd34f3329d87ebc5d88a13aa73d8d88ef8e68096c167e6419ba5215bf20",
+      "bytes": 2346044,
+      "markerCount": 12,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 137,
+      "filename": "137_སེམས་ཙམ།_སི.txt",
+      "sha256": "c77fad51b58ec4cac30b3006465e374b84ee89b01504bb2ac0943824315a65eb",
+      "bytes": 2962389,
+      "markerCount": 3,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 138,
+      "filename": "138_སེམས་ཙམ།_ཧི.txt",
+      "sha256": "0050d472a4eeba2824dd515ead69cd8f26ee0e62b8a0f606e177d634540c6c5c",
+      "bytes": 2190242,
+      "markerCount": 16,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 139,
+      "filename": "139_མངོན་པ།_ཨི.txt",
+      "sha256": "f5510cf36611385355f6a8cea30b44c68146575e1ff71e1cd9a70a815fdc59a4",
+      "bytes": 2161524,
+      "markerCount": 3,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 140,
+      "filename": "140_མངོན་པ།_ཀུ.txt",
+      "sha256": "109712dae3997d9c5b92be558fae366f3d4940dc4c8afbec6b47c8ad20079f25",
+      "bytes": 2445307,
+      "markerCount": 2,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 141,
+      "filename": "141_མངོན་པ།_ཁུ.txt",
+      "sha256": "7e6943ac6c06fd3647d87570045977d22bab96bd28da1d9257993d128077dfa7",
+      "bytes": 2587705,
+      "markerCount": 1,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 142,
+      "filename": "142_མངོན་པ།_གུ.txt",
+      "sha256": "b3162313c9a387fa7fa0c915baa1ca2407622fd05897d91016932604b9b51bc6",
+      "bytes": 3117288,
+      "markerCount": 1,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 143,
+      "filename": "143_མངོན་པ།_ངུ.txt",
+      "sha256": "cc369eb60c684f930fc8492a2221efa2c47daeb48d56355e3dd6f934645ad02c",
+      "bytes": 3289504,
+      "markerCount": 0,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 144,
+      "filename": "144_མངོན་པ།_ཅུ.txt",
+      "sha256": "1e86028fa95823d61cdb472070925d4bf250d1a830235e51dc55c4fe462afaa5",
+      "bytes": 3412962,
+      "markerCount": 1,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 145,
+      "filename": "145_མངོན་པ།_ཆུ.txt",
+      "sha256": "cd979653b5cb03600a9189c21353aa039042cd1092e4811229f1c0a4c1da9503",
+      "bytes": 3227262,
+      "markerCount": 0,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 146,
+      "filename": "146_མངོན་པ།_ཇུ.txt",
+      "sha256": "7c774ccd0fd12f963876618f6dfaddf3062347deab01e0f5b5a852c54864fec7",
+      "bytes": 2713765,
+      "markerCount": 1,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 147,
+      "filename": "147_མངོན་པ།_ཉུ.txt",
+      "sha256": "acdf07df5339ccda81be36bb57189619d107f80cf5f730323012652954d87f0b",
+      "bytes": 3120157,
+      "markerCount": 4,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 148,
+      "filename": "148_མངོན་པ།_ཏུ.txt",
+      "sha256": "d08a8aacb641e9a8dc8e5a3bd1d74906ffaa24d08467b7eed78ee3315bc0dcfb",
+      "bytes": 2155160,
+      "markerCount": 2,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 149,
+      "filename": "149_མངོན་པ།_ཐུ.txt",
+      "sha256": "5dc62f8259a4bb666c5369e1e7db7898d1bc137dade1a72692714b73b0bfe4ff",
+      "bytes": 2431105,
+      "markerCount": 3,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 150,
+      "filename": "150_འདུལ་བ།_དུ.txt",
+      "sha256": "ca4fe8ac81565b3dc0a382e981a7f2c61df3aab21c4180fb4bf5ed3a791319b3",
+      "bytes": 2275769,
+      "markerCount": 1,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 151,
+      "filename": "151_འདུལ་བ།_ནུ.txt",
+      "sha256": "5fca474b23189dc1ee9860960ebce6f5071220e411cfc79a1e2e76e343d4b2be",
+      "bytes": 2566699,
+      "markerCount": 1,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 152,
+      "filename": "152_འདུལ་བ།_པུ.txt",
+      "sha256": "a7a7c793e724a81822face9423ae939c2a3b63d2b2016a943f4490f537343373",
+      "bytes": 2980442,
+      "markerCount": 1,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 153,
+      "filename": "153_འདུལ་བ།_ཕུ.txt",
+      "sha256": "b9e3734f9c3c0e98e99a080c2c34720daeb40b1383e821b786debe8fc03c9d7a",
+      "bytes": 2703971,
+      "markerCount": 0,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 154,
+      "filename": "154_འདུལ་བ།_བུ.txt",
+      "sha256": "27dbbf69622dfee6eaf950f0e5f0c7f1117f05a804e9b7a6a819554c747b49a4",
+      "bytes": 2249891,
+      "markerCount": 1,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 155,
+      "filename": "155_འདུལ་བ།_མུ.txt",
+      "sha256": "73ed0170bbae0120bcc684dc650a36886dbe8f1b4b0b92944774b8413be78588",
+      "bytes": 2433986,
+      "markerCount": 4,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 156,
+      "filename": "156_འདུལ་བ།_ཙུ.txt",
+      "sha256": "f8b68b218c75183edfad06b3d19b094354bbebed7e109c22b731234b38ec2da3",
+      "bytes": 3124225,
+      "markerCount": 2,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 157,
+      "filename": "157_འདུལ་བ།_ཚུ.txt",
+      "sha256": "76079eb799c7e4091d1f6b2bf4fcd929387567f62424bc4f98f254ba557e1b2e",
+      "bytes": 2057599,
+      "markerCount": 1,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 158,
+      "filename": "158_འདུལ་བ།_ཛུ.txt",
+      "sha256": "3d544116a45acf716d261c0cdc4eb5a74441fcffb2394fffe03da7a31610e48c",
+      "bytes": 3110960,
+      "markerCount": 2,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 159,
+      "filename": "159_འདུལ་བ།_ཝུ.txt",
+      "sha256": "c5fd2813b15016eef6b1e6d93ffa6359913cd2c1fdee60e66874ce798befb8b4",
+      "bytes": 2417083,
+      "markerCount": 2,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 160,
+      "filename": "160_འདུལ་བ།_ཞུ.txt",
+      "sha256": "a14e08ecaa2ae9c8566376823b2c8cdbdddd51d61af91ee1af28f968416c1639",
+      "bytes": 2812121,
+      "markerCount": 1,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 161,
+      "filename": "161_འདུལ་བ།_ཟུ.txt",
+      "sha256": "4dfff81f548a77fdcf26b141404a189fa3e1b510551a8853da37fa7d5b25b189",
+      "bytes": 2708619,
+      "markerCount": 0,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 162,
+      "filename": "162_འདུལ་བ།_འུ.txt",
+      "sha256": "dd4eb6614e8dc26ef4ead119d4637ec355efbae952f753a38d0e09c7b9473952",
+      "bytes": 3827326,
+      "markerCount": 1,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 163,
+      "filename": "163_འདུལ་བ།_ཡུ.txt",
+      "sha256": "56be444c978aa7184dcb2158e300a7d9158ef00583033f8064849f5419976410",
+      "bytes": 3802294,
+      "markerCount": 0,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 164,
+      "filename": "164_འདུལ་བ།_རུ.txt",
+      "sha256": "8bc4a46567f4b3489655fac60472472586eacefb097b03aa3bb573221ad5406b",
+      "bytes": 2576087,
+      "markerCount": 1,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 165,
+      "filename": "165_འདུལ་བ།_ལུ.txt",
+      "sha256": "8f2daca83784982de04163fa0ec1c8f041b4529fe1583bf3f230e92d569fd507",
+      "bytes": 3274658,
+      "markerCount": 1,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 166,
+      "filename": "166_འདུལ་བ།_ཤུ.txt",
+      "sha256": "b3a47c768cc2764ea0e1f1c464ecc25ab10ef8a75c92e85d11aba1bdff46ac64",
+      "bytes": 2576287,
+      "markerCount": 4,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 167,
+      "filename": "167_འདུལ་བ།_སུ.txt",
+      "sha256": "66dd7c82d09f76bc5bdbab332f204db6a66fe7c6596268e801692fc078cd732c",
+      "bytes": 2425250,
+      "markerCount": 23,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 168,
+      "filename": "168_སྐྱེས་རབས།_ཧུ.txt",
+      "sha256": "a65bc038b81cad41f58b57af0554e9955357ce3ec982357c0b0b2fe8c7a27a4e",
+      "bytes": 3166283,
+      "markerCount": 2,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 169,
+      "filename": "169_སྐྱེས་རབས།_ཨུ.txt",
+      "sha256": "f8e4b57d505338ba32308e8ab6d7ac166200c1c2b3bedd02b324d76d0a381a51",
+      "bytes": 2515536,
+      "markerCount": 3,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 170,
+      "filename": "170_འཁྲི་ཤིང།_ཀེ.txt",
+      "sha256": "3f5b0bdc9a680ae958920cd89767b6eb3388e60f521cb2142450d47a0da73a9b",
+      "bytes": 2771302,
+      "markerCount": 1,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 171,
+      "filename": "171_འཁྲི་ཤིང།_ཁེ.txt",
+      "sha256": "44d71af878d4b0bf932833b3c9f0989ee4586b475201fb8bb311cc1ca4fbc71b",
+      "bytes": 2549064,
+      "markerCount": 0,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 172,
+      "filename": "172_སྐྱེས་རབས།_གེ.txt",
+      "sha256": "76a164826806586d6d7fc69cd8ffe74ccc6558af14ca7dd8c1bf5a7189cd4555",
+      "bytes": 1858400,
+      "markerCount": 16,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 173,
+      "filename": "173_སྤྲིང་ཡིག_ངེ.txt",
+      "sha256": "a2049a8cbf6b3e97b6b7f2bbd50ed46aa3253e6fdf2bf25ee3ac640b4e7d6514",
+      "bytes": 1790318,
+      "markerCount": 31,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 174,
+      "filename": "174_ཚད་མ།_ཅེ.txt",
+      "sha256": "02ae8879cbfb8658484110682aca62e2455d62b45626b164d9693644bbb4e0f8",
+      "bytes": 3396382,
+      "markerCount": 14,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 175,
+      "filename": "175_ཚད་མ།_ཆེ.txt",
+      "sha256": "063363443fbe1b4cb3a2714464d9d318ea4c7f42dd9752e578cbf0940e2dc247",
+      "bytes": 3481639,
+      "markerCount": 3,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 176,
+      "filename": "176_ཚད་མ།_ཇེ.txt",
+      "sha256": "12e7b0efbee40d350f67ef52a3ff58ab5904dbbaecdef335615cf40a73f08803",
+      "bytes": 3245827,
+      "markerCount": 1,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 177,
+      "filename": "177_ཚད་མ།_ཉེ.txt",
+      "sha256": "d1f53a897b42693634c7d37cde8d0fce8a65e051b1cd4eafc054d0f71d52d031",
+      "bytes": 2898686,
+      "markerCount": 0,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 178,
+      "filename": "178_ཚད་མ།_ཏེ.txt",
+      "sha256": "57f6c1819bb96b9e3dca9e287ce3bcc82d88ba4b3e078dc7ad41e00c2443c55a",
+      "bytes": 3055181,
+      "markerCount": 1,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 179,
+      "filename": "179_ཚད་མ།_ཐེ.txt",
+      "sha256": "1459918843a2135206f88189dedb1248a80c49c65631dd9735737831eadd701c",
+      "bytes": 2800207,
+      "markerCount": 0,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 180,
+      "filename": "180_ཚད་མ།_དེ.txt",
+      "sha256": "787c0fe436910990598c74e6f405582f5dbf55d0bc927a94e2bc114a037bf71a",
+      "bytes": 3610415,
+      "markerCount": 1,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 181,
+      "filename": "181_ཚད་མ།_ནེ.txt",
+      "sha256": "4bec99aa91be74029b26a32a6e8e76d613081a114f9c8275a9d6a21cf0a3eddd",
+      "bytes": 3141068,
+      "markerCount": 0,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 182,
+      "filename": "182_ཚད་མ།_པེ.txt",
+      "sha256": "828e8695b54e99afe1a222d07c21dff96a76e9b0de94d920e59c61195294927c",
+      "bytes": 3889128,
+      "markerCount": 2,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 183,
+      "filename": "183_ཚད་མ།_ཕེ.txt",
+      "sha256": "88d1964819b16e0a286ff0ab5c395b7e1eb3c6123aaf24853a27317d27087c17",
+      "bytes": 2825096,
+      "markerCount": 2,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 184,
+      "filename": "184_ཚད་མ།_བེ.txt",
+      "sha256": "6cd95f628639e03464a178ce84ca9c55458a0be0dd1dd0aa59b9b3f1bd86bc99",
+      "bytes": 2517932,
+      "markerCount": 0,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 185,
+      "filename": "185_ཚད་མ།_མེ.txt",
+      "sha256": "33a53a5972de22ee642ae37e9eb03c46a96fc057d41c46d60579733527c494ff",
+      "bytes": 3346644,
+      "markerCount": 0,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 186,
+      "filename": "186_ཚད་མ།_ཙེ.txt",
+      "sha256": "06be014db0bb217f1bdbf3ab22a8ec9ac7114a9faaa2787f734086ac1658eab1",
+      "bytes": 2544199,
+      "markerCount": 0,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 187,
+      "filename": "187_ཚད་མ།_ཚེ.txt",
+      "sha256": "58dbbdc8c9e77e9019fe06acd987ff9f45e124c7303d7e07ae3f5308a912a309",
+      "bytes": 2846374,
+      "markerCount": 2,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 188,
+      "filename": "188_ཚད་མ།_ཛེ.txt",
+      "sha256": "ce9c5f1d7d73076ca87d213acda28e4c50379abd29633c71c7ecfcdfc31e1e40",
+      "bytes": 2922677,
+      "markerCount": 1,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 189,
+      "filename": "189_ཚད་མ།_ཝེ.txt",
+      "sha256": "99d1382ab19e31868fe7ab521dd24250adf10fd589c5304efe0dfead3320e894",
+      "bytes": 3262873,
+      "markerCount": 6,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 190,
+      "filename": "190_ཚད་མ།_ཞེ.txt",
+      "sha256": "70fe5a61d982644ac25ba2f0acab14ebace4bacd968bf717b396a4df99716706",
+      "bytes": 3608290,
+      "markerCount": 30,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 191,
+      "filename": "191_ཚད་མ།_ཟེ.txt",
+      "sha256": "44b107ee948914f086bbf29a130c6c958f135bd8ca0bcf99f5ff953ab796d6e6",
+      "bytes": 3595081,
+      "markerCount": 2,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 192,
+      "filename": "192_ཚད་མ།_འེ.txt",
+      "sha256": "b92f0eafe7226b53b82c1567ac90a39b004c6fcef296fe38de2103ef8974b502",
+      "bytes": 3255451,
+      "markerCount": 0,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 193,
+      "filename": "193_ཚད་མ།_ཡེ.txt",
+      "sha256": "c817c669bd8f2f46c3a0e1cc76873a8525cde14fa6333b70372300098c50d683",
+      "bytes": 3083379,
+      "markerCount": 1,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 194,
+      "filename": "194_སྒྲ་མདོ།_རེ.txt",
+      "sha256": "a1c31db7f95c9572c1509f9b8cbe519f73f9778c83a821d1402a028ba1ff2977",
+      "bytes": 2828109,
+      "markerCount": 13,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 195,
+      "filename": "195_སྒྲ་མདོ།_ལེ.txt",
+      "sha256": "14446fbeb74da2aeee006593fb650672edfe0ad6f9aeffb0ad86b8aab794d347",
+      "bytes": 3118761,
+      "markerCount": 5,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 196,
+      "filename": "196_སྒྲ་མདོ།_ཤེ.txt",
+      "sha256": "f7e58b459e92d44c5da0b612049707ee63c236b017d35d418ecb6328126d1d60",
+      "bytes": 2998031,
+      "markerCount": 10,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 197,
+      "filename": "197_སྒྲ་མདོ།_སེ.txt",
+      "sha256": "ef69efd89257f302ecf8faa901237e1c75a20f6cdeaa91ee8fe91af4e60c2c42",
+      "bytes": 3599823,
+      "markerCount": 9,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 198,
+      "filename": "198_གསོ་རིག_ཧེ.txt",
+      "sha256": "d418e2699891ae6eba9e92643bd6458395a23522dea81ad2e837537c8ac7631a",
+      "bytes": 3698328,
+      "markerCount": 6,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 199,
+      "filename": "199_གསོ་རིག_ཨེ.txt",
+      "sha256": "8d96472d7c09f3c0619cba29495230526a6deff4fd4ef2a528a406068f17fa8b",
+      "bytes": 3870058,
+      "markerCount": 0,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 200,
+      "filename": "200_གསོ་རིག_ཀོ.txt",
+      "sha256": "c7a679b92fec4813bdd505a79297e11ee42f7cab63df4bbb71a5f8d184cab4b2",
+      "bytes": 2714486,
+      "markerCount": 1,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 201,
+      "filename": "201_གསོ་རིག_ཁོ.txt",
+      "sha256": "dd9b9212389bf22a4689289cc450f80ff7214a28e1497582b5c83214cc7393b1",
+      "bytes": 3132189,
+      "markerCount": 0,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 202,
+      "filename": "202_གསོ་རིག_གོ.txt",
+      "sha256": "8f17ae80a92f9d193d3c08ad406aac6d2791058805efc7cc63aa4934df0569a7",
+      "bytes": 2838189,
+      "markerCount": 0,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 203,
+      "filename": "203_སྣ་ཚོགས།_ངོ.txt",
+      "sha256": "4d64b8e7e41a28876870a73c087a5de914bdd28ffc14769369d8ed232006bc9f",
+      "bytes": 2574240,
+      "markerCount": 33,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 204,
+      "filename": "204_སྣ་ཚོགས།_ཅོ.txt",
+      "sha256": "4c56640d26bcc7d0e6f76bb87b1fce6447f39263c7f91ea02a34f4333f926a8c",
+      "bytes": 3283444,
+      "markerCount": 12,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 205,
+      "filename": "205_སྣ་ཚོགས།_ཆོ.txt",
+      "sha256": "130bda212d86e90eb7bec0bb4491a442fd36062fc5dc0c04333475d615cea0cc",
+      "bytes": 2870793,
+      "markerCount": 1,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 206,
+      "filename": "206_སྣ་ཚོགས།_ཇོ.txt",
+      "sha256": "92d2cfcd88443f0c74cc0dd16ce0cfec12e4eb71f3920b14e13712be1b81c0cf",
+      "bytes": 2991068,
+      "markerCount": 6,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 207,
+      "filename": "207_སྣ་ཚོགས།_ཉོ.txt",
+      "sha256": "97a57e9ab4c4de66a1bf4bb3e50251ba8dd8b5bdb6b7a4651f1c299cf41f366d",
+      "bytes": 3295772,
+      "markerCount": 57,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 208,
+      "filename": "208_སྒྲ་མདོ།_ཏོ.txt",
+      "sha256": "db0f86638d934128877638bf6a71c3bbfc2eb23f390a70ab378cac638533c249",
+      "bytes": 4538143,
+      "markerCount": 2,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 209,
+      "filename": "209_སྣ་ཚོགས།_ཐོ.txt",
+      "sha256": "084c6c9de202cfd80d2fc03c57c5e37b78a1e29563bf5753201af468698ce33f",
+      "bytes": 4082414,
+      "markerCount": 1,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 210,
+      "filename": "210_སྣ་ཚོགས།_དོ.txt",
+      "sha256": "e4809d5254782b74e368730b767a3138b588385b8247a303e534d1c7bd635c78",
+      "bytes": 3570818,
+      "markerCount": 0,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 211,
+      "filename": "211_སྣ་ཚོགས།_ནོ.txt",
+      "sha256": "4110310cfc0b03300d8b15d8f5c51c21c4f1a13fc248e7a277a843f7107a48f1",
+      "bytes": 3225648,
+      "markerCount": 29,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 212,
+      "filename": "212_སྣ་ཚོགས།_པོ.txt",
+      "sha256": "3946322d31adf2137c102af039cf7d53b51cc22d07547deef01b1eda587adfc3",
+      "bytes": 2981547,
+      "markerCount": 13,
+      "catalogue": false
+    },
+    {
+      "corpus": "Tengyur",
+      "volume": 213,
+      "filename": "213_དཀར་ཆག.txt",
+      "sha256": "c708b84751f755128d8f68efc031fd66bdaaefc9ce24bd890f95c39aa5bd8675",
+      "bytes": 4836467,
+      "markerCount": 0,
+      "catalogue": true
+    }
+  ]
+}

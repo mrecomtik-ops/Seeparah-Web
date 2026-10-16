@@ -73,6 +73,18 @@ function SacredSourceHoldingsPage() {
         </div>
       </header>
 
+      <section className="mt-5 rounded-2xl border border-border bg-card p-5 card-shadow sm:p-6" aria-label="Tibetan source transcript access">
+        <h2 className="font-display text-xl font-semibold text-foreground">Derge Tibetan source volumes</h2>
+        <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">
+          All 103 Kangyur and 213 Tengyur source-volume transcriptions can be browsed as pinned, byte-verified
+          originals. These are source files, not work-level canonical readers or manuscript facsimiles.
+          Publication of individual works still requires cross-volume and catalogue reconciliation.
+        </p>
+        <a href="/sacred-texts/tibetan-volumes" className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline">
+          Browse the 316 verified Tibetan source volumes <ExternalLink className="h-4 w-4" />
+        </a>
+      </section>
+
       <section className="mt-7 space-y-5" aria-label="Unpublished source editions by tradition">
         {groups.map(([tradition, entries]) => (
           <details key={tradition} open={tradition === "Hinduism" || tradition === "Christianity" || tradition === "Buddhism"}

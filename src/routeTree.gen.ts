@@ -45,6 +45,7 @@ import { Route as ResearchSubmitRouteImport } from './routes/research/submit'
 import { Route as SacredTextsIndexRouteImport } from './routes/sacred-texts/index'
 import { Route as SacredTextsBookIdRouteImport } from './routes/sacred-texts/$bookId'
 import { Route as SacredTextsSourcesRouteImport } from './routes/sacred-texts/sources'
+import { Route as SacredTextsTibetanVolumesRouteImport } from './routes/sacred-texts/tibetan-volumes'
 import { Route as AdminBooksIndexRouteImport } from './routes/admin/books/index'
 import { Route as AdminBooksBookIdRouteImport } from './routes/admin/books/$bookId'
 import { Route as AdminBooksNewRouteImport } from './routes/admin/books/new'
@@ -235,6 +236,12 @@ const SacredTextsSourcesRoute = SacredTextsSourcesRouteImport.update({
   path: '/sacred-texts/sources',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SacredTextsTibetanVolumesRoute =
+  SacredTextsTibetanVolumesRouteImport.update({
+    id: '/sacred-texts/tibetan-volumes',
+    path: '/sacred-texts/tibetan-volumes',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AdminBooksIndexRoute = AdminBooksIndexRouteImport.update({
   id: '/books/',
   path: '/books/',
@@ -308,6 +315,7 @@ export interface FileRoutesByFullPath {
   '/research/submit': typeof ResearchSubmitRoute
   '/sacred-texts/$bookId': typeof SacredTextsBookIdRoute
   '/sacred-texts/sources': typeof SacredTextsSourcesRoute
+  '/sacred-texts/tibetan-volumes': typeof SacredTextsTibetanVolumesRoute
   '/admin/': typeof AdminIndexRoute
   '/author/': typeof AuthorIndexRoute
   '/insights/': typeof InsightsIndexRoute
@@ -352,6 +360,7 @@ export interface FileRoutesByTo {
   '/research/submit': typeof ResearchSubmitRoute
   '/sacred-texts/$bookId': typeof SacredTextsBookIdRoute
   '/sacred-texts/sources': typeof SacredTextsSourcesRoute
+  '/sacred-texts/tibetan-volumes': typeof SacredTextsTibetanVolumesRoute
   '/admin': typeof AdminIndexRoute
   '/author': typeof AuthorIndexRoute
   '/insights': typeof InsightsIndexRoute
@@ -399,6 +408,7 @@ export interface FileRoutesById {
   '/research/submit': typeof ResearchSubmitRoute
   '/sacred-texts/$bookId': typeof SacredTextsBookIdRoute
   '/sacred-texts/sources': typeof SacredTextsSourcesRoute
+  '/sacred-texts/tibetan-volumes': typeof SacredTextsTibetanVolumesRoute
   '/admin/': typeof AdminIndexRoute
   '/author/': typeof AuthorIndexRoute
   '/insights/': typeof InsightsIndexRoute
@@ -447,6 +457,7 @@ export interface FileRouteTypes {
     | '/research/submit'
     | '/sacred-texts/$bookId'
     | '/sacred-texts/sources'
+    | '/sacred-texts/tibetan-volumes'
     | '/admin/'
     | '/author/'
     | '/insights/'
@@ -491,6 +502,7 @@ export interface FileRouteTypes {
     | '/research/submit'
     | '/sacred-texts/$bookId'
     | '/sacred-texts/sources'
+    | '/sacred-texts/tibetan-volumes'
     | '/admin'
     | '/author'
     | '/insights'
@@ -537,6 +549,7 @@ export interface FileRouteTypes {
     | '/research/submit'
     | '/sacred-texts/$bookId'
     | '/sacred-texts/sources'
+    | '/sacred-texts/tibetan-volumes'
     | '/admin/'
     | '/author/'
     | '/insights/'
@@ -574,6 +587,7 @@ export interface RootRouteChildren {
   ResearchSubmitRoute: typeof ResearchSubmitRoute
   SacredTextsBookIdRoute: typeof SacredTextsBookIdRoute
   SacredTextsSourcesRoute: typeof SacredTextsSourcesRoute
+  SacredTextsTibetanVolumesRoute: typeof SacredTextsTibetanVolumesRoute
   InsightsIndexRoute: typeof InsightsIndexRoute
   ResearchIndexRoute: typeof ResearchIndexRoute
   SacredTextsIndexRoute: typeof SacredTextsIndexRoute
@@ -833,6 +847,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SacredTextsSourcesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/sacred-texts/tibetan-volumes': {
+      id: '/sacred-texts/tibetan-volumes'
+      path: '/sacred-texts/tibetan-volumes'
+      fullPath: '/sacred-texts/tibetan-volumes'
+      preLoaderRoute: typeof SacredTextsTibetanVolumesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/books/': {
       id: '/admin/books/'
       path: '/books'
@@ -982,6 +1003,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResearchSubmitRoute: ResearchSubmitRoute,
   SacredTextsBookIdRoute: SacredTextsBookIdRoute,
   SacredTextsSourcesRoute: SacredTextsSourcesRoute,
+  SacredTextsTibetanVolumesRoute: SacredTextsTibetanVolumesRoute,
   InsightsIndexRoute: InsightsIndexRoute,
   ResearchIndexRoute: ResearchIndexRoute,
   SacredTextsIndexRoute: SacredTextsIndexRoute,

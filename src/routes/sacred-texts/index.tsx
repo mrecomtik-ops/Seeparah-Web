@@ -423,7 +423,7 @@ function SacredTextsPage() {
               An available cover image alone does not mean a text is available to read.
             </p>
             <a href="/sacred-texts/sources" className="mt-4 inline-flex items-center gap-2 rounded-xl border border-border bg-background px-4 py-2.5 text-sm font-semibold text-primary hover:border-primary/40 hover:bg-secondary">
-              Explore acquired source holdings and publication blockers <ArrowRight className="h-4 w-4" />
+              Explore acquired source holdings and Tibetan source volumes <ArrowRight className="h-4 w-4" />
             </a>
           </aside>
         )}
