@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, ArrowRight, BookOpen, Download, ExternalLink, ShieldCheck } from "lucide-react";
 import tibetanManifest from "@/lib/sacred-tibetan-source-manifest.json";
+import { fetchVerifiedTibetanSource, validateTibetanSearch } from "@/lib/sacred-tibetan-volume-utils";
 
 const sourceConfig = {
   Kangyur: {
@@ -17,17 +18,13 @@ const sourceConfig = {
 } as const;
 type Corpus = keyof typeof sourceConfig;
 const PAGE_LENGTH = 25000;
-const isCorpus = (value: unknown): value is Corpus => value === "Kangyur" || value === "Tengyur";
-const parseVolume = (value: unknown): number =>
-  typeof value === "number" && Number.isInteger(value) && value > 0 ? value :
-  typeof value === "string" && /^[1-9]\d{0,3}$/.test(value) ? Number(value) : 1;
 
 type VolumeEntry = (typeof tibetanManifest.volumes)[number];
 
 export const Route = createFileRoute("/sacred-texts/tibetan-volumes")({
-  validateSearch: (search: Record<string, unknown>) => ({
-    corpus: isCorpus(search['corpus']) ? search['corpus'] : ("Kangyur" as Corpus),
-    volume: parseVolume(search['volume']),
+  validateSearch: (search: Record<string, unknown>) => validateTibetanSearch(search, {
+    Kangyur: tibetanManifest.corpora.Kangyur.expected_volumes,
+    Tengyur: tibetanManifest.corpora.Tengyur.expected_volumes,
   }),
   head: () => ({
     meta: [
@@ -74,18 +71,7 @@ function TibetanSourceVolumePage() {
     setPage(0);
     async function fetchVerifiedVolume() {
       try {
-        const response = await fetch(url, { signal: controller.signal, cache: "force-cache" });
-        if (!response.ok) throw new Error("The pinned source server returned HTTP " + response.status);
-        const bytes = await response.arrayBuffer();
-        if (bytes.byteLength !== volume.bytes) {
-          throw new Error("Source length differs from the acquired verified file; cannot display it.");
-        }
-        const digest = await crypto.subtle.digest("SHA-256", bytes);
-        const hex = Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, "0")).join("");
-        if (hex !== volume.sha256) {
-          throw new Error("Source SHA-256 differs from the acquired verified file; cannot display it.");
-        }
-        const decoded = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes);
+        const decoded = await fetchVerifiedTibetanSource(url, volume, controller.signal);
         if (!controller.signal.aborted) {
           setSourceText(decoded);
           setVerified(true);
