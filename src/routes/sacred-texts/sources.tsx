@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { ArrowLeft, ExternalLink, FileText, ShieldCheck } from "lucide-react";
+import { ArrowLeft, ExternalLink, FileText, ShieldCheck, Search, X } from "lucide-react";
+import { useState } from "react";
 import holdingsData from "@/lib/sacred-unpublished-holdings.json";
+import { matchSacredHolding, sacredTraditionId, sourceTraditionCounts } from "@/lib/sacred-holdings-discovery";
 
 export const Route = createFileRoute("/sacred-texts/sources")({
   head: () => ({
@@ -44,7 +46,10 @@ function safeSourceHref(source: string): string | null {
 }
 
 function SacredSourceHoldingsPage() {
-  const groups = Object.entries(holdings.reduce<Record<string, Holding[]>>((acc, record) => {
+  const [search, setSearch] = useState("");
+  const counts = sourceTraditionCounts(holdings);
+  const matchedHoldings = holdings.filter((record) => matchSacredHolding(record, search));
+  const groups = Object.entries(matchedHoldings.reduce<Record<string, Holding[]>>((acc, record) => {
     (acc[record.tradition] ??= []).push(record);
     return acc;
   }, {})).sort(([a], [b]) => {
@@ -85,15 +90,29 @@ function SacredSourceHoldingsPage() {
         </a>
       </section>
 
-      <section className="mt-7 space-y-5" aria-label="Unpublished source editions by tradition">
+      <section className="mt-7" aria-label="Search acquired source holdings">
+        <label className="relative block max-w-2xl">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+          <span className="sr-only">Search source title, tradition, edition, translator, language or blocker</span>
+          <input value={search} onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search 32 source records, traditions, translators…"
+            className="w-full rounded-xl border border-border bg-card py-3 pl-10 pr-10 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring" />
+          {search && <button type="button" aria-label="Clear source search" onClick={() => setSearch("")}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>}
+        </label>
+        <p className="mt-2 text-xs text-muted-foreground" role="status">{matchedHoldings.length} of {holdings.length} source records shown across {groups.length} traditions</p>
+      </section>
+
+      <section className="mt-5 space-y-5" aria-label="Unpublished source editions by tradition">
+        {groups.length === 0 && <p className="rounded-xl border border-border bg-card px-5 py-6 text-sm text-muted-foreground">No matching source records. Try another title or tradition.</p>}
         {groups.map(([tradition, entries]) => (
-          <details key={tradition} open={tradition === "Hinduism" || tradition === "Christianity" || tradition === "Buddhism"}
-            className="group overflow-hidden rounded-2xl border border-border bg-card card-shadow">
+          <details key={tradition} id={sacredTraditionId(tradition)} open={!!search || tradition === "Hinduism" || tradition === "Christianity" || tradition === "Buddhism"}
+            className="group scroll-mt-8 overflow-hidden rounded-2xl border border-border bg-card card-shadow">
             <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-5 hover:bg-secondary/30 sm:px-6">
               <span className="min-w-0">
                 <span className="block font-display text-xl font-semibold text-foreground sm:text-2xl">{tradition}</span>
                 <span className="mt-1 block text-xs text-muted-foreground">
-                  {entries.length} unpublished source {entries.length === 1 ? "record" : "records"}
+                  {search ? entries.length + " matching of " + counts[tradition] : entries.length} unpublished source {entries.length === 1 ? "record" : "records"}
                 </span>
               </span>
               <span aria-hidden="true" className="shrink-0 text-xl text-primary">+</span>

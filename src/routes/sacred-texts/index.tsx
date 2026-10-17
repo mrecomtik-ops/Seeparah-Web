@@ -5,6 +5,8 @@ import { listBooks } from "@/lib/library";
 import { isReligiousBook, type Book } from "@/lib/data";
 import { safeJsonLd } from "@/lib/seo";
 import { sacredCoverAlt, sacredCoverSrc } from "@/lib/sacred-cover-artwork";
+import sourceHoldings from "@/lib/sacred-unpublished-holdings.json";
+import { sacredTraditionId, sourceTraditionCounts } from "@/lib/sacred-holdings-discovery";
 
 export const Route = createFileRoute("/sacred-texts/")({
   loader: async () => {
@@ -317,6 +319,10 @@ function SacredTextsPage() {
   }, [filtered]);
 
   const traditions = [...TRADITION_ORDER.filter((t) => counts.has(t)), ...[...counts.keys()].filter((t) => !TRADITION_ORDER.includes(t))];
+  const acquiredTraditionCounts = sourceTraditionCounts(sourceHoldings);
+  const sourceOnlyTraditions = Object.keys(acquiredTraditionCounts)
+    .filter((tradition) => !counts.has(tradition))
+    .sort((a, b) => a.localeCompare(b));
   const schema = {
     "@context": "https://schema.org",
     "@type": "CollectionPage",
@@ -413,6 +419,36 @@ function SacredTextsPage() {
             </section>
           ))}
         </div>
+
+        {!query && activeTradition === "All" && sourceOnlyTraditions.length > 0 && (
+          <section className="mt-12" aria-labelledby="source-only-traditions">
+            <div className="mb-4">
+              <p className="text-xs font-semibold uppercase tracking-wider text-primary">Acquired and identified sources</p>
+              <h2 id="source-only-traditions" className="mt-1 font-display text-2xl font-semibold text-foreground">
+                Additional traditions — sources and access
+              </h2>
+              <p className="mt-2 max-w-4xl text-sm leading-relaxed text-muted-foreground">
+                These traditions have source records but no approved full-text reader titles yet.
+                Explore named original sources, publisher links, existing translations and exact publication blockers.
+                The links below do not imply that the source files can be republished or that any canon is complete.
+              </p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {sourceOnlyTraditions.map((tradition) => (
+                <a key={tradition} href={"/sacred-texts/sources#" + sacredTraditionId(tradition)}
+                  className="flex flex-col justify-between rounded-2xl border border-border bg-card p-5 transition-colors hover:border-primary/40 hover:bg-secondary/40">
+                  <span className="font-display text-lg font-semibold">{tradition}</span>
+                  <span className="mt-2 text-xs text-muted-foreground">
+                    {acquiredTraditionCounts[tradition]} source {acquiredTraditionCounts[tradition] === 1 ? "record" : "records"} · 0 approved reader titles
+                  </span>
+                  <span className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-primary">
+                    View verified source information <ArrowRight className="h-4 w-4" />
+                  </span>
+                </a>
+              ))}
+            </div>
+          </section>
+        )}
 
         {!query && activeTradition === "All" && (
           <aside className="mt-12 rounded-2xl border border-dashed border-border bg-card p-6">
