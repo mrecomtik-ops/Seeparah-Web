@@ -118,9 +118,7 @@ export async function getSacredTextReferenceIndex(params: {
   if (!nodes) {
     const { data, error } = await db
       .from("book_structure_nodes")
-      .select(
-        "node_key,node_type,title,ordinal,depth,start_chunk_index,end_chunk_index,metadata",
-      )
+      .select("node_key,node_type,title,ordinal,depth,start_chunk_index,end_chunk_index,metadata")
       .eq("book_id", params.bookId)
       .eq("language", params.language)
       .eq("source_version", book.source_version ?? 1)
@@ -169,7 +167,6 @@ export async function getSacredTextReferenceIndex(params: {
     references,
   };
 }
-
 
 const SACRED_SECTION_NODE_TYPES = [
   "chapter",
@@ -227,10 +224,7 @@ export async function getSacredReaderSection(params: {
   if (!allowedLanguages.has(params.language)) return null;
 
   const sourceVersion = book.source_version ?? 1;
-  const targetChunk = Math.max(
-    0,
-    Math.min(Number(book.total_chunks ?? 1) - 1, params.chunkIndex),
-  );
+  const targetChunk = Math.max(0, Math.min(Number(book.total_chunks ?? 1) - 1, params.chunkIndex));
 
   let typographyProfile = book.typography_profile ?? "standard";
   if (params.language !== book.source_language) {
@@ -247,9 +241,7 @@ export async function getSacredReaderSection(params: {
 
   const { data: containingNodes, error: nodeError } = await db
     .from("book_structure_nodes")
-    .select(
-      "node_key,node_type,title,ordinal,depth,start_chunk_index,end_chunk_index,metadata",
-    )
+    .select("node_key,node_type,title,ordinal,depth,start_chunk_index,end_chunk_index,metadata")
     .eq("book_id", params.bookId)
     .eq("language", params.language)
     .eq("source_version", sourceVersion)
@@ -268,9 +260,7 @@ export async function getSacredReaderSection(params: {
   const sectionKind = section?.node_type ?? "section";
   const sectionOrdinal = section ? Number(section.ordinal) : 0;
   const sectionTitle =
-    section?.title?.trim() ||
-    sacredReferenceMetadata(section?.metadata).label ||
-    "Reading";
+    section?.title?.trim() || sacredReferenceMetadata(section?.metadata).label || "Reading";
 
   const [chunkResult, leafResult, previousResult, nextResult] = await Promise.all([
     db
@@ -323,10 +313,7 @@ export async function getSacredReaderSection(params: {
   if (previousResult.error) throw new Error(previousResult.error.message);
   if (nextResult.error) throw new Error(nextResult.error.message);
 
-  const refByChunk = new Map<
-    number,
-    { canonicalRef: string; label: string; kind: string }
-  >();
+  const refByChunk = new Map<number, { canonicalRef: string; label: string; kind: string }>();
   for (const node of leafResult.data ?? []) {
     const start = Number(node.start_chunk_index);
     const end = Number(node.end_chunk_index);
@@ -369,10 +356,7 @@ export async function getSacredReaderSection(params: {
     for (const row of annotations ?? []) {
       const canonicalRef = String(row.canonical_ref);
       const type = row.annotation_type as
-        | "footnote"
-        | "commentary"
-        | "subcommentary"
-        | "editorial_note";
+        "footnote" | "commentary" | "subcommentary" | "editorial_note";
       const list = annotationByRef.get(canonicalRef) ?? [];
       list.push({
         type,
@@ -400,6 +384,26 @@ export async function getSacredReaderSection(params: {
         ? Number(nextResult.data[0]!.start_chunk_index)
         : null,
     typographyProfile,
+    sourceSegments: (() => {
+      const raw = asRecord(section?.metadata)?.["segments"];
+      if (!Array.isArray(raw) || raw.length > 5000) return undefined;
+      const segments: Array<[string, number, number]> = [];
+      for (const item of raw) {
+        if (
+          !Array.isArray(item) ||
+          item.length !== 3 ||
+          typeof item[0] !== "string" ||
+          !/^dn[0-9]+:[0-9.]+$/.test(item[0]) ||
+          !Number.isSafeInteger(item[1]) ||
+          !Number.isSafeInteger(item[2]) ||
+          item[1] < 0 ||
+          item[2] < item[1]
+        )
+          return undefined;
+        segments.push([item[0], item[1], item[2]]);
+      }
+      return segments;
+    })(),
     chunks: (chunkResult.data ?? []).map((row) => {
       const chunkIndex = Number(row.chunk_index);
       const ref = refByChunk.get(chunkIndex) ?? {

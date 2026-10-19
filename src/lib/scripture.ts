@@ -50,6 +50,10 @@ export interface SacredReaderSection {
   previousChunkIndex: number | null;
   nextChunkIndex: number | null;
   typographyProfile: string;
+  /** Source-imported pinned Bilara structural segment identifiers and offsets.
+   * This is presentation metadata; no scripture bytes are rewritten.
+   */
+  sourceSegments?: Array<[string, number, number]> | undefined;
   chunks: SacredReaderChunk[];
 }
 
