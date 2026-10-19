@@ -1,0 +1,362 @@
+[
+  {
+    "book": 1,
+    "roman": "I",
+    "page": "The Chinese Classics/Volume 1/Confucian Analects/I",
+    "oldid": 13421904,
+    "source_url": "https://en.wikisource.org/w/index.php?title=The_Chinese_Classics/Volume_1/Confucian_Analects/I&oldid=13421904",
+    "source_api_sha256": "bd33a6a65b33841d5d9ff9d4d755edf7a242ba969d9641e6f1bc16b45c04e902",
+    "body_sha256": "952745e4ebf2fd10b4e1bac6bf765f4497164d4ee8d531a4c84ff9548254ff4b",
+    "chars": 6035,
+    "chinese": 577,
+    "english": 4012,
+    "segments": 44,
+    "htmltags": {
+      "div": 16,
+      "style": 1,
+      "p": 44
+    }
+  },
+  {
+    "book": 2,
+    "roman": "II",
+    "page": "The Chinese Classics/Volume 1/Confucian Analects/II",
+    "oldid": 15459529,
+    "source_url": "https://en.wikisource.org/w/index.php?title=The_Chinese_Classics/Volume_1/Confucian_Analects/II&oldid=15459529",
+    "source_api_sha256": "abf72e0df3bb3dca30b849fe9a6168f0263d2d5cbb2f2aed7fce5f3c8659cb4a",
+    "body_sha256": "c08fbbcc905265bdbff50b875e3937a8b952b3111416f9374c3654a58e31783f",
+    "chars": 7239,
+    "chinese": 701,
+    "english": 4758,
+    "segments": 66,
+    "htmltags": {
+      "div": 25,
+      "style": 1,
+      "p": 66
+    }
+  },
+  {
+    "book": 3,
+    "roman": "III",
+    "page": "The Chinese Classics/Volume 1/Confucian Analects/III",
+    "oldid": 13426402,
+    "source_url": "https://en.wikisource.org/w/index.php?title=The_Chinese_Classics/Volume_1/Confucian_Analects/III&oldid=13426402",
+    "source_api_sha256": "83b29aa3148d2e383c914a61b57137fd9ccd49340f56170a33a266eb22a8efcb",
+    "body_sha256": "1cc467dc6528c1577563cc404687d714e4c8698ed4077e68e73b2d02c77ea24a",
+    "chars": 8249,
+    "chinese": 809,
+    "english": 5482,
+    "segments": 66,
+    "htmltags": {
+      "div": 28,
+      "style": 1,
+      "p": 66
+    }
+  },
+  {
+    "book": 4,
+    "roman": "IV",
+    "page": "The Chinese Classics/Volume 1/Confucian Analects/IV",
+    "oldid": 13426457,
+    "source_url": "https://en.wikisource.org/w/index.php?title=The_Chinese_Classics/Volume_1/Confucian_Analects/IV&oldid=13426457",
+    "source_api_sha256": "b1d7033ce98c6b9a2700443d37c3e64dfb08b60b60bb2d90f21b500b4c1be8f5",
+    "body_sha256": "4f37a0db53c8723ee642f514daa125760620a47e746a3a1b1f97f7348b68b53c",
+    "chars": 5971,
+    "chinese": 599,
+    "english": 3905,
+    "segments": 59,
+    "htmltags": {
+      "div": 28,
+      "style": 1,
+      "p": 59
+    }
+  },
+  {
+    "book": 5,
+    "roman": "V",
+    "page": "The Chinese Classics/Volume 1/Confucian Analects/V",
+    "oldid": 13426466,
+    "source_url": "https://en.wikisource.org/w/index.php?title=The_Chinese_Classics/Volume_1/Confucian_Analects/V&oldid=13426466",
+    "source_api_sha256": "fc0f1d3d12a3d855228d8c37e60da744d25dbe18f3d1fb7c6100be3c1ca9b5fb",
+    "body_sha256": "80891234301501fc0998b68f7969c09563f1b4c3e1eb5bc5d56e32b067d35312",
+    "chars": 9245,
+    "chinese": 990,
+    "english": 5953,
+    "segments": 68,
+    "htmltags": {
+      "div": 29,
+      "style": 1,
+      "p": 68
+    }
+  },
+  {
+    "book": 6,
+    "roman": "VI",
+    "page": "The Chinese Classics/Volume 1/Confucian Analects/VI",
+    "oldid": 13426545,
+    "source_url": "https://en.wikisource.org/w/index.php?title=The_Chinese_Classics/Volume_1/Confucian_Analects/VI&oldid=13426545",
+    "source_api_sha256": "fad1395542918b5965f1f8a3f9e9baf37fdec4b29497e2db37acd7dbba5e2e94",
+    "body_sha256": "f85693aafad211a0fc51a9a73b0cb4420e27fb995d2a1e2b402354eda0547633",
+    "chars": 9105,
+    "chinese": 930,
+    "english": 5974,
+    "segments": 67,
+    "htmltags": {
+      "div": 30,
+      "style": 1,
+      "p": 67
+    }
+  },
+  {
+    "book": 7,
+    "roman": "VII",
+    "page": "The Chinese Classics/Volume 1/Confucian Analects/VII",
+    "oldid": 13426571,
+    "source_url": "https://en.wikisource.org/w/index.php?title=The_Chinese_Classics/Volume_1/Confucian_Analects/VII&oldid=13426571",
+    "source_api_sha256": "4954ec6ca8f0c4a534e980851aa0df1ef13e44b648fd47fdb69834e17cd68918",
+    "body_sha256": "abe5e703a43e31bcdab5369c55ca601f06fed149bf4a29886fff6b4ddfc341b7",
+    "chars": 9946,
+    "chinese": 1030,
+    "english": 6450,
+    "segments": 89,
+    "htmltags": {
+      "div": 39,
+      "style": 1,
+      "p": 89
+    }
+  },
+  {
+    "book": 8,
+    "roman": "VIII",
+    "page": "The Chinese Classics/Volume 1/Confucian Analects/VIII",
+    "oldid": 13426619,
+    "source_url": "https://en.wikisource.org/w/index.php?title=The_Chinese_Classics/Volume_1/Confucian_Analects/VIII&oldid=13426619",
+    "source_api_sha256": "adf022c088e592aa8af80868bc6831245bd15859c80d5990ee4dd033079fa383",
+    "body_sha256": "ac4d8396f023731eba1488597514d4665d3fdfe4ff94f048537f4a3e32f10052",
+    "chars": 7269,
+    "chinese": 719,
+    "english": 4840,
+    "segments": 57,
+    "htmltags": {
+      "div": 23,
+      "style": 1,
+      "p": 57
+    }
+  },
+  {
+    "book": 9,
+    "roman": "IX",
+    "page": "The Chinese Classics/Volume 1/Confucian Analects/IX",
+    "oldid": 13426644,
+    "source_url": "https://en.wikisource.org/w/index.php?title=The_Chinese_Classics/Volume_1/Confucian_Analects/IX&oldid=13426644",
+    "source_api_sha256": "8cfb7cb49902a1d947ef02d2da7e084da98bfaf33c33392628030e6f9283190e",
+    "body_sha256": "0ed3089a32578e20a7c60bc3560a24f6cde58a82da360bdcd0ca2dc886214b30",
+    "chars": 9419,
+    "chinese": 948,
+    "english": 6150,
+    "segments": 77,
+    "htmltags": {
+      "div": 32,
+      "style": 1,
+      "p": 77
+    }
+  },
+  {
+    "book": 10,
+    "roman": "X",
+    "page": "The Chinese Classics/Volume 1/Confucian Analects/X",
+    "oldid": 13426847,
+    "source_url": "https://en.wikisource.org/w/index.php?title=The_Chinese_Classics/Volume_1/Confucian_Analects/X&oldid=13426847",
+    "source_api_sha256": "b9b625d73c1b701f9f9291cad68e78b9679d11dffb2236ea4037029574314270",
+    "body_sha256": "fc0811da9495b5c146260819ff2563440f23908f8198ea6c7683d52e3b4bd0e7",
+    "chars": 9418,
+    "chinese": 817,
+    "english": 6229,
+    "segments": 82,
+    "htmltags": {
+      "div": 20,
+      "style": 1,
+      "p": 82
+    }
+  },
+  {
+    "book": 11,
+    "roman": "XI",
+    "page": "The Chinese Classics/Volume 1/Confucian Analects/XI",
+    "oldid": 13426875,
+    "source_url": "https://en.wikisource.org/w/index.php?title=The_Chinese_Classics/Volume_1/Confucian_Analects/XI&oldid=13426875",
+    "source_api_sha256": "75badeaa18e030d5147628c191309057ddd04bd84554442f02d094f677b97885",
+    "body_sha256": "bd8657ae8d5a41b262b09cd770767c036920a4b4164f59715b53f3749e53aef8",
+    "chars": 11835,
+    "chinese": 1239,
+    "english": 7567,
+    "segments": 91,
+    "htmltags": {
+      "div": 29,
+      "style": 1,
+      "p": 91
+    }
+  },
+  {
+    "book": 12,
+    "roman": "XII",
+    "page": "The Chinese Classics/Volume 1/Confucian Analects/XII",
+    "oldid": 13426960,
+    "source_url": "https://en.wikisource.org/w/index.php?title=The_Chinese_Classics/Volume_1/Confucian_Analects/XII&oldid=13426960",
+    "source_api_sha256": "f5c58dae362ee3490ad4a90227daec009c9e713cc03671f2c7b0fa21eeb87941",
+    "body_sha256": "fbf6ca4c3c81abdd31e7bb4f5876e5f0249514b0571a6734fb6ea1e39e41a79b",
+    "chars": 11506,
+    "chinese": 1153,
+    "english": 7553,
+    "segments": 82,
+    "htmltags": {
+      "div": 26,
+      "style": 1,
+      "p": 82
+    }
+  },
+  {
+    "book": 13,
+    "roman": "XIII",
+    "page": "The Chinese Classics/Volume 1/Confucian Analects/XIII",
+    "oldid": 13427092,
+    "source_url": "https://en.wikisource.org/w/index.php?title=The_Chinese_Classics/Volume_1/Confucian_Analects/XIII&oldid=13427092",
+    "source_api_sha256": "fa0a19bd7297bd2c96295c0e1bf3e71b45e1980e279fee0b548ed431c19b50f8",
+    "body_sha256": "2855461e308e897f21a3cd83b86abc534f7d4975144f999a1e798ec38d6248f6",
+    "chars": 12220,
+    "chinese": 1198,
+    "english": 8068,
+    "segments": 86,
+    "htmltags": {
+      "div": 32,
+      "style": 1,
+      "p": 86
+    }
+  },
+  {
+    "book": 14,
+    "roman": "XIV",
+    "page": "The Chinese Classics/Volume 1/Confucian Analects/XIV",
+    "oldid": 11384353,
+    "source_url": "https://en.wikisource.org/w/index.php?title=The_Chinese_Classics/Volume_1/Confucian_Analects/XIV&oldid=11384353",
+    "source_api_sha256": "fa0bccfb6ec08ec95c3567c461f992a7d74e8505d43222a939515178a193bc0b",
+    "body_sha256": "3fcfbf52dcd1a24db09a0ee683bda0813220ec1fd65a35a256b7847d208b50d0",
+    "chars": 15756,
+    "chinese": 1580,
+    "english": 10295,
+    "segments": 103,
+    "htmltags": {
+      "div": 21,
+      "style": 1,
+      "p": 103
+    }
+  },
+  {
+    "book": 15,
+    "roman": "XV",
+    "page": "The Chinese Classics/Volume 1/Confucian Analects/XV",
+    "oldid": 10314859,
+    "source_url": "https://en.wikisource.org/w/index.php?title=The_Chinese_Classics/Volume_1/Confucian_Analects/XV&oldid=10314859",
+    "source_api_sha256": "33b58eeafcd177861275d656fc153c4db2d4136106652ffe04f4a28036e05736",
+    "body_sha256": "e26a0cd7f1f416f3c6a969b7d7462fd47f45bea4a82165ed35b01a50c41b4398",
+    "chars": 10900,
+    "chinese": 1086,
+    "english": 7139,
+    "segments": 113,
+    "htmltags": {
+      "div": 2,
+      "style": 1,
+      "p": 113
+    }
+  },
+  {
+    "book": 16,
+    "roman": "XVI",
+    "page": "The Chinese Classics/Volume 1/Confucian Analects/XVI",
+    "oldid": 11384357,
+    "source_url": "https://en.wikisource.org/w/index.php?title=The_Chinese_Classics/Volume_1/Confucian_Analects/XVI&oldid=11384357",
+    "source_api_sha256": "95dd3a706c4e86967795ab5f74535c66c8bd3fd82d79ede5ba7e488572abefce",
+    "body_sha256": "eef1e7c971ce0c7b3f3a635e79c4979d45cb6cfd6248af913a485222620e3c37",
+    "chars": 10539,
+    "chinese": 966,
+    "english": 7136,
+    "segments": 55,
+    "htmltags": {
+      "div": 14,
+      "style": 1,
+      "p": 55
+    }
+  },
+  {
+    "book": 17,
+    "roman": "XVII",
+    "page": "The Chinese Classics/Volume 1/Confucian Analects/XVII",
+    "oldid": 11384360,
+    "source_url": "https://en.wikisource.org/w/index.php?title=The_Chinese_Classics/Volume_1/Confucian_Analects/XVII&oldid=11384360",
+    "source_api_sha256": "e90134e3428f4df7ca6976919d1bdfd279f07f65e329dad669539dedbfacf228",
+    "body_sha256": "c99eff73ce25446da851027ca82068250bf96befa21e27a1416f1cc5f998eebe",
+    "chars": 11871,
+    "chinese": 1178,
+    "english": 7788,
+    "segments": 88,
+    "htmltags": {
+      "div": 3,
+      "style": 1,
+      "p": 88
+    }
+  },
+  {
+    "book": 18,
+    "roman": "XVIII",
+    "page": "The Chinese Classics/Volume 1/Confucian Analects/XVIII",
+    "oldid": 11384361,
+    "source_url": "https://en.wikisource.org/w/index.php?title=The_Chinese_Classics/Volume_1/Confucian_Analects/XVIII&oldid=11384361",
+    "source_api_sha256": "00e0df4260cd138afc311438d449c38efe00e67c3ae72470361017a448c7e0c2",
+    "body_sha256": "5f223e2ecca7d64afa6103d8cc22647b39bfc606be608cf726678c733d360205",
+    "chars": 7131,
+    "chinese": 700,
+    "english": 4663,
+    "segments": 43,
+    "htmltags": {
+      "div": 8,
+      "style": 1,
+      "p": 43
+    }
+  },
+  {
+    "book": 19,
+    "roman": "XIX",
+    "page": "The Chinese Classics/Volume 1/Confucian Analects/XIX",
+    "oldid": 11384362,
+    "source_url": "https://en.wikisource.org/w/index.php?title=The_Chinese_Classics/Volume_1/Confucian_Analects/XIX&oldid=11384362",
+    "source_api_sha256": "f5b4d99e2e33bf943ac0a066b555926b3b7381ba8dce4aeefa809b0f9e713c98",
+    "body_sha256": "ed2797addd4e38ea1308cba5c778ae043f41b5b48906736028023c646bd3a32c",
+    "chars": 9723,
+    "chinese": 946,
+    "english": 6566,
+    "segments": 48,
+    "htmltags": {
+      "div": 11,
+      "style": 1,
+      "p": 48
+    }
+  },
+  {
+    "book": 20,
+    "roman": "XX",
+    "page": "The Chinese Classics/Volume 1/Confucian Analects/XX",
+    "oldid": 11390020,
+    "source_url": "https://en.wikisource.org/w/index.php?title=The_Chinese_Classics/Volume_1/Confucian_Analects/XX&oldid=11390020",
+    "source_api_sha256": "b12d74c116763d1eab3dcdcb2007372671509911491ddfd785ae040c781dbeef",
+    "body_sha256": "ec846fe11105240f11f0ae904d88d4213b3241717cfc5ead6ab01680b8a022dc",
+    "chars": 4605,
+    "chinese": 413,
+    "english": 3138,
+    "segments": 24,
+    "htmltags": {
+      "div": 3,
+      "style": 1,
+      "p": 24
+    }
+  }
+]
