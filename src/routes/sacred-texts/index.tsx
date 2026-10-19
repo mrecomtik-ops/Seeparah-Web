@@ -35,7 +35,7 @@ export const Route = createFileRoute("/sacred-texts/")({
 const TRADITION_ORDER = ["Islam", "Christianity", "Judaism", "Buddhism"];
 const TRADITION_INTROS: Record<string, string> = {
   Islam: "The Qur’an, with independently identified original text and published translation editions.",
-  Christianity: "The Greek New Testament, with each of its 27 books individually accessible.",
+  Christianity: "All 27 New Testament books: SBLGNT critical Greek originals and separately sourced public-domain World English Bible Classic translations.",
   Judaism: "The Hebrew Tanakh and its separately attributed JPS 1917 English edition, grouped by Torah, Prophets and Writings.",
   Buddhism: "Dhammapada and a selected SuttaCentral Pali–English collection. This is not the full Buddhist canon.",
 };
@@ -100,14 +100,22 @@ function BookTile({ book, language }: { book: Book; language?: string | undefine
           </p>
         </div>
       </div>
-      <div className="flex items-center justify-between gap-2 border-t border-border/60 pt-3 text-xs">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-3 text-xs">
         <Link to="/sacred-texts/$bookId" params={{ bookId: book.id }} className="font-medium text-muted-foreground hover:text-primary">
           Sources & editions
         </Link>
-        <Link to="/read/$bookId" params={{ bookId: book.id }} search={{ lang: readLanguage, page: 1 }}
-          className="inline-flex items-center gap-1 font-semibold text-primary hover:underline">
-          Read <ArrowRight className="h-3.5 w-3.5" />
-        </Link>
+        <div className="flex flex-wrap items-center gap-3">
+          <Link to="/read/$bookId" params={{ bookId: book.id }} search={{ lang: readLanguage, page: 1 }}
+            className="inline-flex items-center gap-1 font-semibold text-primary hover:underline">
+            Read {readLanguage} <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+          {readLanguage === "Greek" && book.available_languages.includes("English") && (
+            <Link to="/read/$bookId" params={{ bookId: book.id }} search={{ lang: "English", page: 1 }}
+              className="inline-flex items-center gap-1 font-semibold text-primary hover:underline">
+              Read English <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          )}
+        </div>
       </div>
     </article>
   );
@@ -220,9 +228,9 @@ function TraditionContent({ tradition, books }: { tradition: string; books: Book
   }
   if (tradition === "Christianity") {
     return (
-      <CollectionFrame book={base} kicker="SBL Greek New Testament · source collection"
-        title="The Greek New Testament"
-        description="One collection cover identifies the Greek source. Each Gospel, letter and other book has its own title, references and reader; this is not a KJV or Douay–Rheims edition."
+      <CollectionFrame book={base} kicker="SBLGNT Greek original · World English Bible Classic English"
+        title="The New Testament — Greek and English"
+        description="Each of the 27 books has two independently sourced editions: the critically edited SBL Greek New Testament and the public-domain World English Bible Classic English text from eBible.org. Read either language separately. They are not claimed to be verse-for-verse translations of the same Greek textual edition, and the English verse-only export omits editorial footnotes and layout."
         language="Greek">
         <BookGroup title="The four Gospels" books={books.filter((book) => GOSPELS.includes(book.title))} order={GOSPELS} />
         <BookGroup title="Acts of the Apostles" books={books.filter((book) => book.title === "Acts")} />
