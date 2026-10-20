@@ -259,7 +259,9 @@ export function SacredTextReader({
     const section = sectionQuery.data;
     if (!section) return;
     const target = document.getElementById(`sacred-chunk-${chunkIndex}`);
-    if (target) requestAnimationFrame(() => target.scrollIntoView({ block: "center" }));
+    // Long source units (for example an entire Dīgha discourse) must open at
+    // their beginning, not their vertical midpoint. Respect scroll-mt-28.
+    if (target) requestAnimationFrame(() => target.scrollIntoView({ block: "start" }));
 
     const saveKey = `${userId}:${book.id}:${language}:${chunkIndex}`;
     if (lastSavedRef.current !== saveKey) {

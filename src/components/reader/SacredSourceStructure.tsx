@@ -291,7 +291,7 @@ export function DaoWithWangBi({ content, style }: { content: string; style: CSSP
 export function bilingualAnalectsKind(
   text: string,
 ): "chinese-heading" | "english-heading" | "chinese" | "english" {
-  if (/^BOOK\s+[IVX]|^Chapter\s+[IVX]/i.test(text)) return "english-heading";
+  if (/^BOOK\s+[IVXLCDM]|^Chapter\s+[IVXLCDM]+\.?\s*$/i.test(text)) return "english-heading";
   if (/^[\u3400-\u9fff]{2,8}第[一二三四五六七八九十]/u.test(text) && !text.includes("【"))
     return "chinese-heading";
   if (/^【第/u.test(text) || /[\u3400-\u9fff]/u.test(text.slice(0, 30))) return "chinese";
