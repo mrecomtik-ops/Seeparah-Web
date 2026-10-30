@@ -128,6 +128,18 @@ function SacredTextDetail() {
               {book.title}
             </h1>
             <p className="mt-2 text-muted-foreground" dir="auto">{book.author}</p>
+            <div className="mt-5 flex flex-wrap items-center gap-3">
+              <Link
+                to="/read/$bookId"
+                params={{ bookId: book.id }}
+                search={{ lang: language }}
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground hover:opacity-90"
+              >
+                <BookOpen className="h-4 w-4" aria-hidden="true" />
+                Read {language}
+              </Link>
+              <p className="text-sm text-muted-foreground">Read the verified edition in the selected language.</p>
+            </div>
 
             <div className="mt-6 rounded-2xl border border-primary/20 bg-card p-5 card-shadow">
               <div className="flex items-start gap-3">
