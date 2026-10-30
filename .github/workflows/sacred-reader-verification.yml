@@ -1,0 +1,27 @@
+name: Reader verification (independent of security audit)
+
+on:
+  pull_request:
+    paths:
+      - "src/components/reader/**"
+      - "src/lib/sacred-reader-*.ts"
+      - ".github/workflows/sacred-reader-verification.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify-reader:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # This does not waive or replace the separate mandatory npm audit gate.
+      - run: npx tsc --noEmit
+      - run: npm test
+      - run: npm run build
