@@ -47,6 +47,7 @@ import {
 function languageToBcp47(language: string): string {
   const map: Record<string, string> = {
     English: "en",
+    Bilingual: "mul",
     Urdu: "ur",
     Hindi: "hi",
     Arabic: "ar",
@@ -59,7 +60,7 @@ function languageToBcp47(language: string): string {
     Persian: "fa",
     Pashto: "ps",
   };
-  return map[language] ?? language.toLowerCase().slice(0, 2);
+  return map[language] ?? "und";
 }
 
 function scriptureFontFamily(language: string): string | undefined {
