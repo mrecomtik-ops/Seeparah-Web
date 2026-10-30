@@ -136,7 +136,15 @@ function AdminOverview() {
           <AlertTriangle className="h-4 w-4 text-gold" />
           <h2 className="font-display text-lg font-semibold text-foreground">Needs attention</h2>
         </div>
-        {attention.length === 0 ? (
+        {draftsQuery.isPending || analyticsQuery.isPending ? (
+          <div className="mt-3 rounded-2xl border border-border bg-card p-4 text-sm text-muted-foreground card-shadow" role="status">
+            Checking review queues…
+          </div>
+        ) : draftsQuery.isError || analyticsQuery.isError ? (
+          <div className="mt-3 rounded-2xl border border-destructive/40 bg-card p-4 text-sm text-destructive" role="alert">
+            Review queues could not be loaded. Refresh to retry.
+          </div>
+        ) : attention.length === 0 ? (
           <div className="mt-3 rounded-2xl border border-border bg-card p-4 text-sm text-muted-foreground card-shadow">
             Nothing needs immediate action right now.
           </div>
