@@ -387,7 +387,7 @@ export function SacredTextReader({
                 className={
                   "inline-flex min-h-9 items-center gap-1.5 rounded-md px-3 text-sm font-medium " +
                   (readingMode === "book"
-                    ? "bg-primary text-primary-foreground"
+                    ? "bg-primary text-primary-foreground ring-2 ring-primary ring-offset-2 ring-offset-background"
                     : "text-foreground hover:bg-secondary")
                 }
               >
@@ -400,7 +400,7 @@ export function SacredTextReader({
                 className={
                   "min-h-9 rounded-md px-3 text-sm font-medium " +
                   (readingMode === "study"
-                    ? "bg-primary text-primary-foreground"
+                    ? "bg-primary text-primary-foreground ring-2 ring-primary ring-offset-2 ring-offset-background"
                     : "text-foreground hover:bg-secondary")
                 }
               >
@@ -421,7 +421,12 @@ export function SacredTextReader({
               </summary>
               <div className="grid w-full max-w-[calc(100vw-2rem)] min-w-0 grid-cols-1 gap-3 border-t border-border px-3 py-4 sm:grid-cols-2">
                 <label className="flex flex-col gap-1 text-xs font-medium text-foreground">
-                  Text size
+                  <span className="flex items-baseline justify-between gap-2">
+                    Text size
+                    <output aria-live="polite" className="tabular-nums text-muted-foreground">
+                      {Math.max(16, profile.size + fontDelta)} px
+                    </output>
+                  </span>
                   <select
                     aria-label="Text size"
                     value={fontDelta}
@@ -551,7 +556,13 @@ export function SacredTextReader({
               ? "mx-auto rounded-xl bg-card px-4 py-7 shadow-sm sm:px-8 sm:py-10"
               : "mx-auto rounded-xl border border-border bg-card p-3 sm:p-6"
           }
-          style={{ maxWidth: sacredReaderMeasure(textMeasure, language) }}
+          style={{
+            maxWidth: sacredReaderMeasure(textMeasure, language),
+            fontSize: Math.max(16, profile.size + fontDelta) + "px",
+            lineHeight: profile.leading + lineDelta,
+          }}
+          data-reading-mode={readingMode}
+          data-text-size-px={Math.max(16, profile.size + fontDelta)}
           lang={languageToBcp47(language)}
           dir={direction}
           aria-label={book.title + " — " + section.title}
