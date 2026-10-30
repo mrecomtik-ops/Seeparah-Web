@@ -22,6 +22,7 @@ jobs:
           cache: npm
       - run: npm ci
       # This does not waive or replace the separate mandatory npm audit gate.
+      # Verify again after the audited dependency lockfile is merged into main.
       - run: npx tsc --noEmit
       - run: npm test
       - run: npm run build
