@@ -79,10 +79,27 @@ export async function getBook(id: string): Promise<Book | null> {
  * description filtering is a separate, additional client-side facet in
  * the Library UI, not part of "search" itself).
  */
+/** Fold punctuation and diacritics for common alternate spellings without changing stored titles. */
+export function normalizeCatalogQuery(value: string): string {
+  return value.normalize("NFKD").toLowerCase().replace(/[\u0300-\u036f]/g, "").replace(/[^\p{L}\p{N}]+/gu, "");
+}
+
 export function matchesBookSearch(book: Pick<Book, "title" | "author">, query: string): boolean {
-  const q = query.trim().toLowerCase();
+  const q = normalizeCatalogQuery(query);
   if (!q) return true;
-  return book.title.toLowerCase().includes(q) || book.author.toLowerCase().includes(q);
+  const title = normalizeCatalogQuery(book.title);
+  const author = normalizeCatalogQuery(book.author);
+  const aliases: Record<string, string[]> = {
+    quran: ["quran", "qur'an", "qur’an", "koran"],
+    bible: ["bible", "genesis", "matthew", "new testament", "tanakh"],
+    gita: ["gita", "bhagavad gita"],
+    tao: ["tao", "dao de jing"],
+  };
+  const terms = aliases[q] ?? [q];
+  return terms.some((term) => {
+    const needle = normalizeCatalogQuery(term);
+    return title.includes(needle) || author.includes(needle);
+  });
 }
 
 /**

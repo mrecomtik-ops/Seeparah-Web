@@ -718,10 +718,10 @@ function AdminBookDetail() {
                 onClick={() => setDeleteOpen(true)}
                 className="inline-flex items-center gap-1.5 min-h-10 rounded-lg border border-destructive/40 px-3 py-2 text-xs font-semibold text-destructive hover:bg-destructive/10"
               >
-                <Trash2 className="h-3.5 w-3.5" /> Delete
+                <Trash2 className="h-3.5 w-3.5" /> Archive
               </button>
             )}
-            {canDeletePermanently && (
+            {canDeletePermanently && book.status !== "published" && (
               <button
                 onClick={() => void openPermDelete()}
                 className="inline-flex items-center gap-1.5 min-h-10 rounded-lg bg-destructive px-3 py-2 text-xs font-semibold text-destructive-foreground hover:opacity-90"

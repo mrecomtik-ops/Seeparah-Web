@@ -165,6 +165,7 @@ describe("AppHeader — role/auth resolution cannot shift the desktop nav", () =
     expect(inFlow.map((c) => c.getAttribute("href"))).toEqual([
       "/dashboard",
       "/library",
+      "/sacred-texts",
       "/research",
       "/author",
       "/profile",
