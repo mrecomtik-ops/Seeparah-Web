@@ -7,6 +7,7 @@ import { safeJsonLd } from "@/lib/seo";
 import { sacredCoverAlt, sacredCoverSrc } from "@/lib/sacred-cover-artwork";
 import sourceHoldings from "@/lib/sacred-unpublished-holdings.json";
 import { sacredTraditionId, sourceTraditionCounts } from "@/lib/sacred-holdings-discovery";
+import { GOSPELS, TORAH, NT_ORDER, PROPHETS_ORDER, WRITINGS_ORDER, SUTTA_CORE } from "@/lib/sacred-collection-order";
 
 export const Route = createFileRoute("/sacred-texts/")({
   loader: async () => {
@@ -45,25 +46,6 @@ const TRADITION_TONES: Record<string, string> = {
   Judaism: "border-amber-700/20 bg-amber-900/[0.045]",
   Buddhism: "border-stone-700/20 bg-stone-900/[0.045]",
 };
-const GOSPELS = ["Matthew", "Mark", "Luke", "John"];
-const TORAH = ["Genesis", "Exodus", "Leviticus", "Numbers", "Deuteronomy"];
-const NT_ORDER = [
-  "Matthew", "Mark", "Luke", "John", "Acts", "Romans", "1 Corinthians", "2 Corinthians",
-  "Galatians", "Ephesians", "Philippians", "Colossians", "1 Thessalonians",
-  "2 Thessalonians", "1 Timothy", "2 Timothy", "Titus", "Philemon", "Hebrews",
-  "James", "1 Peter", "2 Peter", "1 John", "2 John", "3 John", "Jude", "Revelation",
-];
-const PROPHETS_ORDER = [
-  "Joshua", "Judges", "I Samuel", "II Samuel", "I Kings", "II Kings",
-  "Isaiah", "Jeremiah", "Ezekiel", "Hosea", "Joel", "Amos", "Obadiah",
-  "Jonah", "Micah", "Nahum", "Habakkuk", "Zephaniah", "Haggai", "Zechariah", "Malachi",
-];
-const WRITINGS_ORDER = [
-  "Psalms", "Proverbs", "Job", "Song of Songs", "Ruth", "Lamentations",
-  "Ecclesiastes", "Esther", "Daniel", "Ezra", "Nehemiah", "I Chronicles", "II Chronicles",
-];
-const SUTTA_CORE = ["Dīgha Nikāya", "Majjhima Nikāya", "Saṃyutta Nikāya", "Aṅguttara Nikāya"];
-
 function traditionFor(book: Book): string {
   return (book.categories ?? []).find((category) =>
     ["Islam", "Christianity", "Judaism", "Buddhism", "Hinduism"].includes(category)
