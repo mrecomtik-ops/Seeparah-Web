@@ -28,7 +28,12 @@ export const SETTINGS_SCHEMAS = {
   announcements: z.array(z.object({ id: z.string(), message: z.string(), active: z.boolean() })),
   support_contact: z.object({ email: z.string().email(), helpUrl: z.string().url().optional() }),
   maintenance_message: z.object({ active: z.boolean(), message: z.string().optional() }),
-  language_availability: z.array(z.string()),
+  // English + Urdu are launch guarantees. Editing this optional config must
+  // never remove either, regardless of advanced owner JSON access.
+  language_availability: z.array(z.string().trim().min(1))
+    .refine((languages) => languages.includes("English") && languages.includes("Urdu"), {
+      message: "English and Urdu must remain available.",
+    }),
   translation_budget: z.object({
     dailyUsd: z.number().nonnegative(),
     monthlyUsd: z.number().nonnegative(),
