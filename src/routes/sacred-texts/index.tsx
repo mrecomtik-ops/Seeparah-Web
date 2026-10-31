@@ -7,6 +7,7 @@ import { safeJsonLd } from "@/lib/seo";
 import { sacredCoverAlt, sacredCoverSrc } from "@/lib/sacred-cover-artwork";
 import sourceHoldings from "@/lib/sacred-unpublished-holdings.json";
 import { sacredTraditionId, sourceTraditionCounts } from "@/lib/sacred-holdings-discovery";
+import { GOSPELS, TORAH, NT_ORDER, PROPHETS_ORDER, WRITINGS_ORDER, SUTTA_CORE } from "@/lib/sacred-collection-order";
 
 export const Route = createFileRoute("/sacred-texts/")({
   loader: async () => {
@@ -45,25 +46,6 @@ const TRADITION_TONES: Record<string, string> = {
   Judaism: "border-amber-700/20 bg-amber-900/[0.045]",
   Buddhism: "border-stone-700/20 bg-stone-900/[0.045]",
 };
-const GOSPELS = ["Matthew", "Mark", "Luke", "John"];
-const TORAH = ["Genesis", "Exodus", "Leviticus", "Numbers", "Deuteronomy"];
-const NT_ORDER = [
-  "Matthew", "Mark", "Luke", "John", "Acts", "Romans", "1 Corinthians", "2 Corinthians",
-  "Galatians", "Ephesians", "Philippians", "Colossians", "1 Thessalonians",
-  "2 Thessalonians", "1 Timothy", "2 Timothy", "Titus", "Philemon", "Hebrews",
-  "James", "1 Peter", "2 Peter", "1 John", "2 John", "3 John", "Jude", "Revelation",
-];
-const PROPHETS_ORDER = [
-  "Joshua", "Judges", "I Samuel", "II Samuel", "I Kings", "II Kings",
-  "Isaiah", "Jeremiah", "Ezekiel", "Hosea", "Joel", "Amos", "Obadiah",
-  "Jonah", "Micah", "Nahum", "Habakkuk", "Zephaniah", "Haggai", "Zechariah", "Malachi",
-];
-const WRITINGS_ORDER = [
-  "Psalms", "Proverbs", "Job", "Song of Songs", "Ruth", "Lamentations",
-  "Ecclesiastes", "Esther", "Daniel", "Ezra", "Nehemiah", "I Chronicles", "II Chronicles",
-];
-const SUTTA_CORE = ["Dīgha Nikāya", "Majjhima Nikāya", "Saṃyutta Nikāya", "Aṅguttara Nikāya"];
-
 function traditionFor(book: Book): string {
   return (book.categories ?? []).find((category) =>
     ["Islam", "Christianity", "Judaism", "Buddhism", "Hinduism"].includes(category)
@@ -139,10 +121,11 @@ function BookGroup({ title, books, language, order }: {
 }
 
 function CollectionFrame({
-  book, title, kicker, description, language, children,
+  book, title, kicker, description, language, children, collectionSlug,
 }: {
   book: Book; title: string; kicker: string; description: string;
   language?: string; children: React.ReactNode;
+  collectionSlug?: "new-testament" | "tanakh";
 }) {
   const cover = sacredCoverSrc(book, language);
   return (
@@ -166,6 +149,12 @@ function CollectionFrame({
           <p className="text-xs font-semibold uppercase tracking-widest text-primary">{kicker}</p>
           <h4 className="mt-2 font-display text-2xl font-semibold text-foreground">{title}</h4>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">{description}</p>
+          {collectionSlug && (
+            <Link to="/sacred-texts/collection/$slug" params={{ slug: collectionSlug }}
+              className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl border border-primary/30 bg-background px-4 py-2 text-sm font-semibold text-primary hover:bg-secondary">
+              View complete canonical book list <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </Link>
+          )}
           <div className="mt-6">{children}</div>
         </div>
       </div>
@@ -231,7 +220,7 @@ function TraditionContent({ tradition, books }: { tradition: string; books: Book
       <CollectionFrame book={base} kicker="SBLGNT Greek original · World English Bible Classic English"
         title="The New Testament — Greek and English"
         description="Each of the 27 books has two independently sourced editions: the critically edited SBL Greek New Testament and the public-domain World English Bible Classic English text from eBible.org. Read either language separately. They are not claimed to be verse-for-verse translations of the same Greek textual edition, and the English verse-only export omits editorial footnotes and layout."
-        language="Greek">
+        language="Greek" collectionSlug="new-testament">
         <BookGroup title="The four Gospels" books={books.filter((book) => GOSPELS.includes(book.title))} order={GOSPELS} />
         <BookGroup title="Acts of the Apostles" books={books.filter((book) => book.title === "Acts")} />
         <BookGroup title="Letters and epistles" books={books.filter((book) => !GOSPELS.includes(book.title) && book.title !== "Acts" && book.title !== "Revelation")} order={NT_ORDER} />
@@ -244,7 +233,7 @@ function TraditionContent({ tradition, books }: { tradition: string; books: Book
       <CollectionFrame book={base} kicker="Tanakh · Hebrew source and JPS 1917 English"
         title="The Hebrew Scriptures"
         description="The source is arranged as Torah, Prophets and Writings. The Hebrew Tanakh and JPS 1917 English are distinct editions, each with its own collection artwork."
-        language={tanakhLanguage}>
+        language={tanakhLanguage} collectionSlug="tanakh">
         <fieldset className="mb-6 rounded-2xl border border-border bg-background/70 p-3">
           <legend className="px-2 text-xs font-semibold text-muted-foreground">Choose an edition</legend>
           <div className="flex flex-wrap gap-2">
