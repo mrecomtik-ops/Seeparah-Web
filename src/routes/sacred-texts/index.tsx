@@ -409,7 +409,7 @@ function SacredTextsPage() {
           )}
           {grouped.map(([tradition, traditionBooks]) => {
             const expanded = Boolean(query.trim()) || activeTradition !== "All" || expandedTraditions.includes(tradition);
-            const panelId = "works-" + tradition.toLowerCase().replace(/\\s+/g, "-");
+            const panelId = "works-" + tradition.toLowerCase().replace(/\s+/g, "-");
             return (
             <section key={tradition} id={"tradition-" + tradition.toLowerCase().replace(/\s+/g, "-")}
               aria-labelledby={"heading-" + tradition.toLowerCase().replace(/\s+/g, "-")} className="scroll-mt-8">
@@ -424,6 +424,7 @@ function SacredTextsPage() {
                     <span className="rounded-full border border-border bg-background/70 px-3 py-1 text-xs font-semibold text-foreground">
                       {traditionBooks.length} {traditionBooks.length === 1 ? "published title" : "published titles"}
                     </span>
+                    {!query.trim() && activeTradition === "All" && (
                     <button
                       type="button"
                       aria-expanded={expanded}
@@ -438,6 +439,7 @@ function SacredTextsPage() {
                       {expanded ? "Hide works" : "Browse works"}
                       <ChevronDown aria-hidden="true" className={"h-4 w-4 transition-transform " + (expanded ? "rotate-180" : "")} />
                     </button>
+                    )}
                   </div>
                 </div>
                 <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">
