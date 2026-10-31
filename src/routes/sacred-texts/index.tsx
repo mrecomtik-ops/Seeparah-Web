@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, BookOpen, ExternalLink, Search, ShieldCheck, X } from "lucide-react";
 import { useMemo, useState } from "react";
-import { listBooks } from "@/lib/library";
+import { listBooks, matchesBookSearch, normalizeCatalogQuery } from "@/lib/library";
 import { isReligiousBook, type Book } from "@/lib/data";
 import { safeJsonLd } from "@/lib/seo";
 import { sacredCoverAlt, sacredCoverSrc } from "@/lib/sacred-cover-artwork";
@@ -302,14 +302,15 @@ function SacredTextsPage() {
   }, [books]);
 
   const filtered = useMemo(() => {
-    const q = query.trim().toLocaleLowerCase();
+    const q = normalizeCatalogQuery(query);
     return books.filter((book) => {
       if (activeTradition !== "All" && traditionFor(book) !== activeTradition) return false;
       if (!q) return true;
+      if (matchesBookSearch(book, query)) return true;
       return [
-        book.title, book.author, book.edition_title, book.publisher,
+        book.edition_title, book.publisher, traditionFor(book),
         book.source_language, ...(book.available_languages ?? []), ...(book.categories ?? []),
-      ].filter(Boolean).some((value) => String(value).toLocaleLowerCase().includes(q));
+      ].filter(Boolean).some((value) => normalizeCatalogQuery(String(value)).includes(q));
     });
   }, [books, query, activeTradition]);
 
