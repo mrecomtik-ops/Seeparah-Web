@@ -150,3 +150,16 @@ describe("homepage Google sign-in always offers account selection", () => {
     expect(call.options.queryParams.login_hint).toBeUndefined();
   });
 });
+
+describe("homepage reading discovery", () => {
+  it("lets signed-out visitors search the catalog without going through a dashboard", async () => {
+    renderHomepage();
+    const search = await screen.findByRole("searchbox", { name: /Search books by title or author/i });
+    const form = search.closest("form");
+    expect(form?.getAttribute("action")).toBe("/library");
+    expect(form?.getAttribute("method")).toBe("get");
+    expect(search.getAttribute("name")).toBe("q");
+    expect(screen.getByRole("button", { name: /Find a book/i })).toBeTruthy();
+    expect(screen.getByRole("link", { name: /Browse library/i })).toBeTruthy();
+  });
+});
