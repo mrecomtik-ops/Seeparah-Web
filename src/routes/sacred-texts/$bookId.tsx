@@ -8,6 +8,7 @@ import { isReligiousBook } from "@/lib/data";
 import { getPublicBookEditions } from "@/lib/translation.functions";
 import { getSacredTextReferenceIndex } from "@/lib/scripture.functions";
 import { isSharedSacredCollectionCover, sacredCoverAlt, sacredCoverSrc } from "@/lib/sacred-cover-artwork";
+import { safeJsonLd } from "@/lib/seo";
 import { SacredWorkIdentity } from "@/components/SacredWorkIdentity";
 
 export const Route = createFileRoute("/sacred-texts/$bookId")({
@@ -17,23 +18,26 @@ export const Route = createFileRoute("/sacred-texts/$bookId")({
     if (!book || !isReligiousBook(book)) throw notFound();
     return { book };
   },
-  head: ({ loaderData }) => ({
-    meta: [
-      {
-        title: loaderData?.book
-          ? `${loaderData.book.title} — Sacred Text References | Seeparah`
-          : "Sacred Text References | Seeparah",
-      },
-      {
-        name: "description",
-        content:
-          "Explore canonical references, exact source provenance, edition metadata and verified sourced translations for this sacred text on Seeparah.",
-      },
-    ],
-    links: loaderData?.book
-      ? [{ rel: "canonical", href: `https://seeparah.com/sacred-texts/${loaderData.book.id}` }]
-      : [],
-  }),
+  head: ({ loaderData }) => {
+    const book = loaderData?.book;
+    const canonical = book ? `https://seeparah.com/sacred-texts/${book.id}` : "https://seeparah.com/sacred-texts";
+    const sourceCover = book && !isSharedSacredCollectionCover(book)
+      ? sacredCoverSrc(book, book.source_language) : null;
+    const image = sourceCover ? new URL(sourceCover, "https://seeparah.com").toString() : null;
+    const title = book ? `${book.title} — Sacred Text References | Seeparah` : "Sacred Text References | Seeparah";
+    return {
+      meta: [
+        { title },
+        { name: "description", content: "Explore canonical references, exact source provenance, edition metadata and verified sourced translations for this sacred text on Seeparah." },
+        { property: "og:title", content: title },
+        { property: "og:type", content: "book" },
+        { property: "og:url", content: canonical },
+        ...(image ? [{ property: "og:image", content: image }] : []),
+        { name: "twitter:card", content: image ? "summary_large_image" : "summary" },
+      ],
+      links: [{ rel: "canonical", href: canonical }],
+    };
+  },
   notFoundComponent: () => (
     <div className="flex min-h-[70vh] flex-col items-center justify-center gap-3 px-4 text-center">
       <BookOpen className="h-9 w-9 text-muted-foreground/50" />
@@ -114,8 +118,23 @@ function SacredTextDetail() {
   const selectedAuthenticityNotes =
     selectedEdition?.authenticityNotes ?? (selectedIsSource ? book.authenticity_notes : null);
 
+  const sourceCover = !isSharedSacredCollectionCover(book)
+    ? sacredCoverSrc(book, book.source_language) : null;
+  const schema = {
+    "@context": "https://schema.org",
+    "@type": "Book",
+    name: book.title,
+    inLanguage: book.source_language,
+    author: { "@type": "Organization", name: book.author },
+    url: `https://seeparah.com/sacred-texts/${book.id}`,
+    isAccessibleForFree: true,
+    ...(sourceCover ? { image: new URL(sourceCover, "https://seeparah.com").toString() } : {}),
+    ...(book.publisher ? { publisher: { "@type": "Organization", name: book.publisher } } : {}),
+  };
+
   return (
     <div className="min-h-screen bg-background">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(schema) }} />
       <main className="mx-auto max-w-6xl px-4 pb-24 pt-8 sm:px-6">
         <Link
           to="/sacred-texts"
