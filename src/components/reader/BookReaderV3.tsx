@@ -36,7 +36,7 @@ import {
 } from "@/lib/reader-book-layout";
 import { formatAuthorName } from "@/lib/author-name";
 import { displayTitleCase } from "@/lib/display-text";
-import { getPrefs, setPrefs, type ReaderTheme } from "@/lib/prefs";
+import { getPrefs, setPrefs, type ReaderTheme, type ReaderFontFamily, type ReaderContentWidth } from "@/lib/prefs";
 import { useAuth } from "@/lib/use-auth";
 import { ShelfButtons } from "@/components/ShelfButtons";
 import {
@@ -405,6 +405,15 @@ export function BookReaderV3({
   const [fontSize, setFontSize] = useState(initialFontSize);
   const [fontSizeDraft, setFontSizeDraft] = useState(initialFontSize);
   const [theme, setTheme] = useState<ReaderTheme>(prefs.theme);
+  const [typeface, setTypeface] = useState<ReaderFontFamily>(
+    ["literary", "serif", "sans"].includes(prefs.fontFamily) ? prefs.fontFamily : "literary",
+  );
+  const [textMeasure, setTextMeasure] = useState<ReaderContentWidth>(
+    ["narrow", "medium", "wide"].includes(prefs.contentWidth) ? prefs.contentWidth : "medium",
+  );
+  const [lineSpacing, setLineSpacing] = useState(
+    [1.4, 1.5, 1.65, 1.8].includes(prefs.v3LineHeight) ? prefs.v3LineHeight : 1.5,
+  );
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [requestLanguage, setRequestLanguage] = useState("");
   const [requestingTranslation, setRequestingTranslation] = useState(false);
@@ -761,7 +770,7 @@ export function BookReaderV3({
       cancelAnimationFrame(settleFrame);
       observer.disconnect();
     };
-  }, [chapters, contentSize.height, contentSize.width, fontSize, pageSize.height, pageSize.width]);
+  }, [chapters, contentSize.height, contentSize.width, fontSize, pageSize.height, pageSize.width, typeface, lineSpacing, textMeasure, language]);
 
   useLayoutEffect(() => {
     const pending = pendingRestoreRef.current;
@@ -1101,6 +1110,20 @@ export function BookReaderV3({
     }
   }, [bodyPage, frontIndex, layoutMeasured, logicalPages, pageStride, spreadMode]);
 
+  /** Capture a source position before changing page geometry. Restoring by
+   * source chunk offset prevents a font/margin adjustment jumping chapters.
+   */
+  const reflowFromCurrentSource = () => {
+    if (frontIndex === null) {
+      const anchor = capturePosition() ?? positionRef.current;
+      if (anchor) {
+        positionRef.current = anchor;
+        pendingRestoreRef.current = anchor;
+      }
+    }
+    setLayoutMeasured(false);
+  };
+
   const changeFontSize = (next: number) => {
     setFontSizeDraft(next);
 
@@ -1133,6 +1156,22 @@ export function BookReaderV3({
       setPrefs({ fontSize: next });
       fontApplyTimerRef.current = null;
     }, 220);
+  };
+
+  const changeTypeface = (next: ReaderFontFamily) => {
+    reflowFromCurrentSource();
+    setTypeface(next);
+    setPrefs({ fontFamily: next });
+  };
+  const changeLineSpacing = (next: number) => {
+    reflowFromCurrentSource();
+    setLineSpacing(next);
+    setPrefs({ v3LineHeight: next });
+  };
+  const changeTextMeasure = (next: ReaderContentWidth) => {
+    reflowFromCurrentSource();
+    setTextMeasure(next);
+    setPrefs({ contentWidth: next });
   };
 
   const changeLanguage = (next: string) => {
@@ -1221,12 +1260,18 @@ export function BookReaderV3({
     toast.success("Highlighted");
   }
 
-  const horizontalPadding = Math.round(pageSize.width * (spreadMode ? 0.045 : 0.065));
+  const measurePadding = textMeasure === "narrow" ? 0.095 : textMeasure === "wide" ? 0.045 : 0.065;
+  const horizontalPadding = Math.round(pageSize.width * (spreadMode ? measurePadding * 0.75 : measurePadding));
+  const selectedFontStack = language === "English"
+    ? (typeface === "sans" ? "Arial, Helvetica, sans-serif"
+      : typeface === "serif" ? "Georgia, 'Times New Roman', serif"
+      : "'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif")
+    : (scriptureFontFamily(language) ?? "Georgia, 'Times New Roman', serif");
   const topPadding = Math.round(pageSize.width * 0.035);
   const bottomPadding = Math.round(pageSize.width * 0.03);
   const pagePadding = `${topPadding}px ${horizontalPadding}px ${bottomPadding}px`;
   const readerFontSize = clamp(fontSize, mobileViewport ? 15 : 16, 20);
-  const lineHeightPx = Math.round(readerFontSize * 1.5 * 4) / 4;
+  const lineHeightPx = Math.round(readerFontSize * lineSpacing * 4) / 4;
   const runningHeadHeight = 12;
   const runningHeadGap = lineHeightPx * 1.5;
   const folioHeight = Math.round(lineHeightPx + 14);
@@ -1362,6 +1407,7 @@ export function BookReaderV3({
                 transform: "translate3d(" + String(-(rawPage ?? 0) * pageStride) + "px,0,0)",
                 fontSize: readerFontSize + "px",
                 lineHeight: lineHeightPx + "px",
+                fontFamily: selectedFontStack,
               }}
             >
               {chapters.map((readerChapter, chapterNumber) => (
@@ -1717,6 +1763,53 @@ export function BookReaderV3({
                 className="mt-2 w-full"
               />
             </div>
+            <fieldset className="mt-5">
+              <legend className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Typeface</legend>
+              {language === "English" ? (
+                <div className="mt-2 grid grid-cols-3 gap-2">
+                  {(["literary", "serif", "sans"] as const).map((item) => (
+                    <button key={item} type="button" onClick={() => changeTypeface(item)}
+                      aria-pressed={typeface === item}
+                      className={"min-h-11 rounded-lg border px-2 py-2 text-xs font-semibold capitalize " +
+                        (typeface === item ? "bg-primary text-primary-foreground" : "bg-card")}>
+                      {item}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  The verified {language} source uses a script-appropriate font to preserve legibility.
+                </p>
+              )}
+            </fieldset>
+            <label className="mt-5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Line spacing
+              <select aria-label="Line spacing" value={lineSpacing}
+                onChange={(event) => changeLineSpacing(Number(event.target.value))}
+                className="mt-2 min-h-11 w-full rounded-lg border border-border bg-card px-3 py-2 text-sm normal-case text-foreground">
+                <option value={1.4}>Compact</option>
+                <option value={1.5}>Comfortable</option>
+                <option value={1.65}>Relaxed</option>
+                <option value={1.8}>Spacious</option>
+              </select>
+            </label>
+            <fieldset className="mt-5">
+              <legend className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Page margins</legend>
+              <div className="mt-2 grid grid-cols-3 gap-2">
+                {(["narrow", "medium", "wide"] as const).map((item) => (
+                  <button type="button" key={item}
+                    onClick={() => changeTextMeasure(item)}
+                    aria-pressed={textMeasure === item}
+                    className={"min-h-11 rounded-lg border px-2 py-2 text-xs font-semibold " +
+                      (textMeasure === item ? "bg-primary text-primary-foreground" : "bg-card")}>
+                    {item === "narrow" ? "Roomy" : item === "wide" ? "Compact" : "Standard"}
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+            <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
+              These settings reflow fixed-size book pages and retain your source reading position.
+            </p>
             {requestableLanguages.length > 0 && (
               <div className="mt-5">
                 <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
