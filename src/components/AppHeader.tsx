@@ -22,7 +22,7 @@ const NAV = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/library", label: "Library", icon: BookOpen },
   { to: "/sacred-texts", label: "Sacred Texts", icon: BookOpen },
-  { to: "/research", label: "Research", icon: FileText },
+  { to: "/insights", label: "Insights", icon: FileText },
   { to: "/author", label: "Author", icon: Feather },
   { to: "/profile", label: "Profile", icon: User },
 ] as const;

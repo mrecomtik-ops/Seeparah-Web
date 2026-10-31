@@ -134,7 +134,7 @@ describe("AppHeader — mobile bottom nav", () => {
     expect(mobileNav).toBeTruthy();
     const primaryLinks = [...mobileNav.firstElementChild!.children].filter((element) => element.tagName === "A");
     expect(primaryLinks.map((element) => element.getAttribute("href"))).toEqual([
-      "/dashboard", "/library", "/sacred-texts", "/research",
+      "/dashboard", "/library", "/sacred-texts", "/insights",
     ]);
     expect(mobileNav.querySelector('summary[aria-label="More navigation"]')).toBeTruthy();
     expect(screen.getAllByText("Author").length).toBeGreaterThan(0);
@@ -180,7 +180,7 @@ describe("AppHeader — role/auth resolution cannot shift the desktop nav", () =
       "/dashboard",
       "/library",
       "/sacred-texts",
-      "/research",
+      "/insights",
       "/author",
       "/profile",
     ]);
