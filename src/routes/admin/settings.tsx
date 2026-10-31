@@ -16,6 +16,7 @@ import {
   adminDecideCategorySuggestion,
 } from "@/lib/admin/catalog.functions";
 import { AdminQueryError } from "@/components/admin/AdminQueryError";
+import { AdminStructuredSettings } from "@/components/admin/AdminStructuredSettings";
 
 export const Route = createFileRoute("/admin/settings")({
   component: AdminSettingsPage,
@@ -498,6 +499,8 @@ function AdminSettingsPage() {
         </section>
       )}
 
+
+      <AdminStructuredSettings />
 
       {session.role === "owner" && (
       <details className="mt-6 rounded-2xl border border-border bg-card p-5 card-shadow">
