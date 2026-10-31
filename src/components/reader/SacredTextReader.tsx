@@ -1,3 +1,4 @@
+import { languageToBcp47 } from "@/lib/languages";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -44,24 +45,6 @@ import {
   type SacredTextMeasure,
 } from "@/lib/sacred-reader-layout";
 
-function languageToBcp47(language: string): string {
-  const map: Record<string, string> = {
-    English: "en",
-    Bilingual: "mul",
-    Urdu: "ur",
-    Hindi: "hi",
-    Arabic: "ar",
-    Chinese: "zh-CN",
-    Hebrew: "he",
-    Greek: "el",
-    Pali: "pi",
-    Tibetan: "bo",
-    Sanskrit: "sa",
-    Persian: "fa",
-    Pashto: "ps",
-  };
-  return map[language] ?? "und";
-}
 
 function scriptureFontFamily(language: string): string | undefined {
   const stacks: Record<string, string> = {

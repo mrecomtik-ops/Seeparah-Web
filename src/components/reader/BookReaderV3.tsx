@@ -1,3 +1,4 @@
+import { languageToBcp47 } from "@/lib/languages";
 import { Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -126,37 +127,6 @@ function toRoman(value: number): string {
   return result;
 }
 
-function languageToBcp47(language: string): string {
-  const map: Record<string, string> = {
-    English: "en",
-    Urdu: "ur",
-    Hindi: "hi",
-    Arabic: "ar",
-    Chinese: "zh-CN",
-    Spanish: "es",
-    French: "fr",
-    German: "de",
-    Russian: "ru",
-    Portuguese: "pt",
-    Bengali: "bn",
-    Japanese: "ja",
-    Korean: "ko",
-    Indonesian: "id",
-    Turkish: "tr",
-    Persian: "fa",
-    Hebrew: "he",
-    Greek: "el",
-    Pali: "pi",
-    Tibetan: "bo",
-    Sanskrit: "sa",
-    Punjabi: "pa",
-    Italian: "it",
-    Dutch: "nl",
-    Polish: "pl",
-    Ukrainian: "uk",
-  };
-  return map[language] ?? language.toLowerCase().slice(0, 2);
-}
 
 
 function scriptureFontFamily(language: string): string | undefined {
