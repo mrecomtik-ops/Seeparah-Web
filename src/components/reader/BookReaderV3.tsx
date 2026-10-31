@@ -1707,7 +1707,7 @@ export function BookReaderV3({
               <h2 className="font-display text-lg font-semibold">Reading settings</h2>
               <button
                 onClick={() => setSettingsOpen(false)}
-                className="text-sm font-semibold text-primary"
+                className="inline-flex min-h-11 items-center rounded-lg px-2 text-sm font-semibold text-primary"
               >
                 Done
               </button>
