@@ -313,7 +313,7 @@ export function SacredTextReader({
           <Link
             to="/sacred-texts/$bookId"
             params={{ bookId: book.id }}
-            className="inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-muted-foreground hover:text-foreground"
+            className="inline-flex min-h-11 shrink-0 items-center gap-2 px-2 text-sm font-semibold text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="h-4 w-4" />
             <span className="hidden sm:inline">References</span>
