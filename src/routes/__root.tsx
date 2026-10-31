@@ -142,7 +142,13 @@ function RootComponent() {
           admin-whoami cache needs to stay correct even while browsing a
           bare page, before ever navigating to an admin route. */}
       <AdminSessionSync />
+      {!bare && (
+        <a href="#main-content" className="sr-only fixed left-3 top-3 z-[100] rounded-lg bg-primary px-4 py-3 font-semibold text-primary-foreground focus:not-sr-only">
+          Skip to main content
+        </a>
+      )}
       {!bare && <AppHeader />}
+      <span id="main-content" tabIndex={-1} className="sr-only" />
       <Outlet />
       {!bare && (
         <footer className="border-t border-border py-5 pb-20 text-center text-xs text-muted-foreground sm:pb-5">
@@ -150,28 +156,28 @@ function RootComponent() {
             aria-label="Site footer"
             className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2"
           >
-            <Link to="/library" className="hover:text-foreground hover:underline">
+            <Link to="/library" className="inline-flex min-h-11 items-center px-1 hover:text-foreground hover:underline">
               Library
             </Link>
-            <Link to="/sacred-texts" className="hover:text-foreground hover:underline">
+            <Link to="/sacred-texts" className="inline-flex min-h-11 items-center px-1 hover:text-foreground hover:underline">
               Sacred Texts
             </Link>
-            <Link to="/insights" className="hover:text-foreground hover:underline">
+            <Link to="/insights" className="inline-flex min-h-11 items-center px-1 hover:text-foreground hover:underline">
               Insights
             </Link>
-            <Link to="/research" className="hover:text-foreground hover:underline">
+            <Link to="/research" className="inline-flex min-h-11 items-center px-1 hover:text-foreground hover:underline">
               Research
             </Link>
-            <Link to="/legal" hash="privacy" className="hover:text-foreground hover:underline">
+            <Link to="/legal" hash="privacy" className="inline-flex min-h-11 items-center px-1 hover:text-foreground hover:underline">
               Privacy
             </Link>
-            <Link to="/legal" hash="terms" className="hover:text-foreground hover:underline">
+            <Link to="/legal" hash="terms" className="inline-flex min-h-11 items-center px-1 hover:text-foreground hover:underline">
               Terms
             </Link>
-            <Link to="/legal" hash="copyright" className="hover:text-foreground hover:underline">
+            <Link to="/legal" hash="copyright" className="inline-flex min-h-11 items-center px-1 hover:text-foreground hover:underline">
               Copyright
             </Link>
-            <Link to="/legal" hash="support" className="hover:text-foreground hover:underline">
+            <Link to="/legal" hash="support" className="inline-flex min-h-11 items-center px-1 hover:text-foreground hover:underline">
               Support
             </Link>
           </nav>
