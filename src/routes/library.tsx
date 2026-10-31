@@ -500,10 +500,19 @@ function LibraryPage() {
             )}
           </div>
           {booksQuery.isLoading ? (
-            <div className="mt-6 grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-4">
-              {[0, 1, 2, 3].map((i) => (
-                <div key={i} className="aspect-[2/3] animate-pulse rounded-2xl bg-secondary" />
-              ))}
+            <div role="status" aria-label="Loading published book results">
+              <div className="mt-6 grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-4" aria-hidden="true">
+                {Array.from({ length: 24 }, (_, i) => (
+                  <div key={i} className="overflow-hidden rounded-2xl border border-border bg-card">
+                    <div className="aspect-[2/3] animate-pulse bg-secondary" />
+                    <div className="space-y-2 p-3">
+                      <div className="h-4 w-4/5 animate-pulse rounded bg-secondary" />
+                      <div className="h-3 w-2/3 animate-pulse rounded bg-secondary" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <span className="sr-only">Loading published books…</span>
             </div>
           ) : booksQuery.isError ? (
             <div className="mt-6 rounded-2xl border border-destructive/30 bg-card p-8 text-center card-shadow sm:p-12">
