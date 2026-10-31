@@ -22,6 +22,7 @@ async function admin() {
 export interface AdminBookListFilters {
   status?: string | undefined;
   query?: string | undefined;
+  coverMissing?: boolean | undefined;
   page: number;
   perPage: number;
 }
@@ -33,6 +34,7 @@ export async function adminListBooks(filters: AdminBookListFilters) {
     .select("*", { count: "exact" })
     .order("created_at", { ascending: false });
   if (filters.status) q = q.eq("status", filters.status);
+  if (filters.coverMissing) q = q.is("cover_url", null);
   if (filters.query) q = q.or(`title.ilike.%${filters.query}%,author.ilike.%${filters.query}%`);
   const from = (filters.page - 1) * filters.perPage;
   const { data, error, count } = await q.range(from, from + filters.perPage - 1);
