@@ -50,6 +50,10 @@ export interface SacredReaderSection {
   previousChunkIndex: number | null;
   nextChunkIndex: number | null;
   typographyProfile: string;
+  /** When windowed, first chunk index in this response; the section boundaries remain canonical. */
+  windowStartChunkIndex?: number;
+  /** Source-verified leaf labels for reference jumping without downloading every verse's content. */
+  referenceOptions?: Array<{ chunkIndex: number; label: string }>;
   /** Source-imported pinned Bilara structural segment identifiers and offsets.
    * This is presentation metadata; no scripture bytes are rewritten.
    */
