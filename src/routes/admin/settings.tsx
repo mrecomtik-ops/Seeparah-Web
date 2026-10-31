@@ -381,6 +381,7 @@ function AdminSettingsPage() {
       )}
 
 
+      {session.data?.role === "owner" && (
       <details className="mt-6 rounded-2xl border border-border bg-card p-5 card-shadow">
         <summary className="cursor-pointer font-display text-base font-semibold text-foreground">
           Advanced settings
@@ -468,6 +469,7 @@ function AdminSettingsPage() {
         </section>
       )}
       </details>
+      )}
     </div>
   );
 }
