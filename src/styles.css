@@ -872,11 +872,19 @@ body.reader-sepia {
     max-width: 5.4rem;
   }
 
-  .reader-v3-icon {
-    min-width: 32px;
-    width: 32px;
-    height: 32px;
+  .reader-v3-icon,
+  .reader-v3-icon-label {
+    min-width: 44px;
+    width: 44px;
+    height: 44px;
     padding: 0;
+  }
+
+  .reader-v3-language {
+    min-width: 60px;
+    max-width: 70px;
+    height: 44px;
+    padding-inline: 0.2rem;
   }
 
   .reader-v3-bottombar {
@@ -885,7 +893,8 @@ body.reader-sepia {
   }
 
   .reader-v3-nav-button {
-    height: 34px;
+    height: 44px;
+    min-width: 44px;
     padding-inline: 0.55rem;
     font-size: 0.74rem;
   }
