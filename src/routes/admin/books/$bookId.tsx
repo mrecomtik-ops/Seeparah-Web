@@ -79,6 +79,7 @@ function AdminBookDetail() {
   const [previewLoading, setPreviewLoading] = useState(false);
 
   const [editOpen, setEditOpen] = useState(false);
+  const [coverPreviewFailed, setCoverPreviewFailed] = useState(false);
   const [editDraft, setEditDraft] = useState({
     title: "",
     author: "",
@@ -421,6 +422,7 @@ function AdminBookDetail() {
   }
 
   function openEdit() {
+    setCoverPreviewFailed(false);
     setEditDraft({
       title: book.title,
       author: book.author,
@@ -2417,12 +2419,53 @@ function AdminBookDetail() {
                   </option>
                 ))}
               </select>
-              <input
-                value={editDraft.coverUrl}
-                onChange={(e) => setEditDraft((d) => ({ ...d, coverUrl: e.target.value }))}
-                placeholder="Cover image URL (optional)"
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              />
+              <div className="rounded-xl border border-border bg-secondary/30 p-3">
+                <label htmlFor="admin-book-cover-url" className="block text-xs font-semibold text-foreground">
+                  Cover artwork for this exact edition
+                </label>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Check the title, source edition and language against the artwork before saving. Do not reuse a translation cover for a different original edition.
+                </p>
+                <p className="mt-2 break-all text-xs text-muted-foreground">
+                  Source edition: <span className="font-semibold text-foreground">{book.source_edition_id || book.source_scan_id || "Not recorded"}</span>
+                  {book.edition_title ? " · " + book.edition_title : ""}
+                </p>
+                <input
+                  id="admin-book-cover-url"
+                  value={editDraft.coverUrl}
+                  onChange={(e) => {
+                    setCoverPreviewFailed(false);
+                    setEditDraft((d) => ({ ...d, coverUrl: e.target.value }));
+                  }}
+                  placeholder="https://… or /book-covers/…"
+                  className="mt-3 min-h-11 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                />
+                {editDraft.coverUrl.trim() ? (
+                  <div className="mt-3 flex items-start gap-3">
+                    {!coverPreviewFailed && (
+                      <img
+                        key={editDraft.coverUrl.trim()}
+                        src={editDraft.coverUrl.trim()}
+                        alt={"Proposed cover for " + editDraft.title}
+                        width={96}
+                        height={144}
+                        loading="lazy"
+                        onError={() => setCoverPreviewFailed(true)}
+                        className="aspect-[2/3] w-24 shrink-0 rounded-md border border-border bg-card object-contain"
+                      />
+                    )}
+                    <p className={"text-xs leading-relaxed " + (coverPreviewFailed ? "text-destructive" : "text-muted-foreground")} role="status">
+                      {coverPreviewFailed
+                        ? "Cover preview could not load. Check the file URL before saving."
+                        : "Preview only — artwork will not be assigned until you save metadata."}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="mt-3 rounded-lg border border-dashed border-border p-3 text-xs text-muted-foreground">
+                    No cover is assigned. Readers will see the edition fallback artwork.
+                  </p>
+                )}
+              </div>
               {readerV2SchemaAvailable && (
                 <div className="rounded-xl border border-border bg-secondary/30 p-3">
                   <p className="mb-2 text-xs font-semibold text-foreground">
