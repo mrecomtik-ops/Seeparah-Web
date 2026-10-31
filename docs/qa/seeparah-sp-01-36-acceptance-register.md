@@ -34,7 +34,7 @@ Summary (36 original items): 1 needs visual qa, 5 live pass, 2 needs mobile qa, 
 | SP-24 | Dhammapada licence notice order | Needs source-specific QA | code review | Verify scripture is first reading heading and licence after text or in source drawer |
 | SP-25 | Library taxonomy and facets | Partial | [#50](https://github.com/mrecomtik-ops/Seeparah-Web/pull/50) [#60](https://github.com/mrecomtik-ops/Seeparah-Web/pull/60) | Category cloud collapses; Bilingual excluded from language facet; full collection-tradition hierarchy outstanding |
 | SP-26 | Homepage covers/languages/traditions | Live pass | [#43](https://github.com/mrecomtik-ops/Seeparah-Web/pull/43) [#59](https://github.com/mrecomtik-ops/Seeparah-Web/pull/59) | Production classic and language shelves visible; tradition row still needs breadth review |
-| SP-27 | Sacred collections structure | Partial | [#48](https://github.com/mrecomtik-ops/Seeparah-Web/pull/48) | Tradition sections collapse; dedicated NT/Tanakh canonical collection pages still outstanding |
+| SP-27 | Sacred collections structure | Live pass | [#48] [#68](https://github.com/mrecomtik-ops/Seeparah-Web/pull/48) | Dedicated NT 27-unit and Tanakh 39-unit collection pages verified live on Cloudflare; other-tradition collection coverage still merits UX review |
 | SP-28 | Parallel original and verified translation | Partial | [#45](https://github.com/mrecomtik-ops/Seeparah-Web/pull/45) | Optional verified alignments; Qur’an, Genesis, Matthew mobile and source-pair acceptance still pending |
 | SP-29 | Literature reader toolbar/settings/padding | Partial | existing V3 | Reader settings have size/theme, but full typeface/spacing/margins and simplified chrome unfinished |
 | SP-30 | Admin operational overview queues | Needs admin QA | [#56](https://github.com/mrecomtik-ops/Seeparah-Web/pull/56) [#66](https://github.com/mrecomtik-ops/Seeparah-Web/pull/66) [#67](https://github.com/mrecomtik-ops/Seeparah-Web/pull/67) | Review queues, cover counts, stage filters and provider status separated; in-role production QA outstanding |
@@ -53,3 +53,9 @@ A live browser run checked shared navigation on homepage/Library/Sacred Texts, r
 - Keep Cloudflare hosting, Supabase roles/MFA, source provenance/rights review, environment variables and unrelated books/user data.
 - Real-world verification still required on 320/390px and 200% zoom, Android/iOS Urdu/Nastaliq/RTL, permission-gated admin workflows, long single-source units, accurate comparison alignment and large-book performance.
 - No true all-clear until **every** SP item passes its listed acceptance criterion on production; PR CI and Cloudflare deployment alone do not prove user-visible behavior.
+
+## Additional production acceptance evidence — 31 Oct 2026
+- The New Testament collection route `/sacred-texts/collection/new-testament` responded with 27 individually linked Greek/English works.
+- The Tanakh collection route `/sacred-texts/collection/tanakh` responded with Torah (5), Prophets (21), and Writings (13) and original Hebrew / verified English edition links.
+- These routes were observed directly after PR #68 merged. This verifies the dedicated collection-page component of SP-27 but not 320px/200% zoom acceptance.
+- PR #70 increased index read-action tap targets to at least 44px; cross-device measurements remain open.
