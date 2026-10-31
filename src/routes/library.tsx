@@ -33,6 +33,7 @@ import { countPagesRead } from "@/lib/reading-stats";
 import { formatAuthorName } from "@/lib/author-name";
 import { publicBookDescription } from "@/lib/book-description";
 import { displayTitleCase } from "@/lib/display-text";
+import { publishedTraditions, matchesPublishedTradition, KNOWN_SACRED_TRADITIONS } from "@/lib/library-traditions";
 
 const TABS = [
   { key: "all", label: "All books", icon: LibraryIcon },
@@ -53,6 +54,7 @@ const searchSchema = z.object({
   genre: z.string().optional(),
   author: z.string().optional(),
   category: z.string().optional(),
+  tradition: z.string().optional(),
   p: z.coerce.number().int().positive().max(10000).optional(),
   sort: z.enum(["default", "title", "author"]).optional(),
 });
@@ -90,6 +92,7 @@ function LibraryPage() {
   const genre = search.genre ?? null;
   const author = search.author ?? null;
   const category = search.category ?? null;
+  const tradition = search.tradition ?? null;
 
   function updateSearch(patch: Partial<z.infer<typeof searchSchema>>) {
     navigate({ search: (prev) => ({ ...prev, ...patch, p: patch.p ?? 1 }), replace: true });
@@ -147,6 +150,7 @@ function LibraryPage() {
     () => [...new Set(books.map((b) => b.genre).filter(Boolean) as string[])],
     [books],
   );
+  const traditionsInUse = useMemo(() => publishedTraditions(books), [books]);
   const categoryCounts = useMemo(() => {
     const counts = new Map<string, number>();
     for (const b of books) {
@@ -191,7 +195,7 @@ function LibraryPage() {
     }
   }, [tab, books, progressByBook, shelfIds]);
 
-  const hasActiveFilters = Boolean(query.trim() || lang || genre || author || category);
+  const hasActiveFilters = Boolean(query.trim() || lang || genre || author || category || tradition);
 
   const filtered = tabBooks.filter((b) => {
     // Search matches title or author only — the exact contract this box
@@ -202,7 +206,8 @@ function LibraryPage() {
     const matchesGenre = !genre || b.genre === genre;
     const matchesAuthor = !author || b.author === author;
     const matchesCategory = !category || (b.categories ?? []).includes(category);
-    return matchesQuery && matchesLang && matchesGenre && matchesAuthor && matchesCategory;
+    const matchesTradition = matchesPublishedTradition(b, tradition);
+    return matchesQuery && matchesLang && matchesGenre && matchesAuthor && matchesCategory && matchesTradition;
   });
 
   const sorted = sort === "default" ? filtered : [...filtered].sort((left, right) => {
@@ -426,7 +431,7 @@ function LibraryPage() {
           </div>
           {books.length > 0 && (
             <>
-              <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
                 <Select
                   label="Language"
                   value={lang}
@@ -447,10 +452,17 @@ function LibraryPage() {
                   onChange={(v) => updateSearch({ genre: v ?? undefined })}
                 />
                 <Select
-                  label="Category"
-                  allLabel="All categories"
+                  label="Tradition"
+                  allLabel="All traditions"
+                  value={tradition}
+                  options={traditionsInUse}
+                  onChange={(v) => updateSearch({ tradition: v ?? undefined })}
+                />
+                <Select
+                  label="Collection / topic"
+                  allLabel="All collections and topics"
                   value={category}
-                  options={categoriesInUse}
+                  options={categoriesInUse.filter((name) => !KNOWN_SACRED_TRADITIONS.includes(name as typeof KNOWN_SACRED_TRADITIONS[number]))}
                   onChange={(v) => updateSearch({ category: v ?? undefined })}
                 />
               </div>
@@ -463,6 +475,7 @@ function LibraryPage() {
                       genre: undefined,
                       author: undefined,
                       category: undefined,
+                      tradition: undefined,
                     })
                   }
                   className="min-h-10 self-start rounded-lg px-2 text-xs font-semibold text-primary hover:bg-secondary hover:underline"
@@ -474,17 +487,36 @@ function LibraryPage() {
           )}
         </div>
 
+        {books.length > 0 && tab === "all" && traditionsInUse.length > 0 && !hasActiveFilters && (
+          <section className="mt-5 rounded-xl border border-border bg-card p-4" aria-label="Explore sacred traditions">
+            <h2 className="font-display text-base font-semibold text-foreground">Explore traditions</h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Each tradition is based on the published source catalog, not inferred from a book's subject.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {traditionsInUse.map((name) => (
+                <button type="button" key={name}
+                  onClick={() => updateSearch({ tradition: name })}
+                  className="min-h-11 rounded-full border border-primary/25 bg-background px-4 py-2 text-xs font-semibold text-primary hover:bg-secondary">
+                  {name} <span className="text-muted-foreground">
+                    ({religiousBooks.filter((book) => (book.categories ?? []).includes(name)).length})
+                  </span>
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
         {books.length > 0 && categoriesInUse.length > 0 && tab === "all" && !hasActiveFilters && (
           <details className="mt-5 rounded-xl border border-border bg-card p-3">
             <summary className="flex min-h-11 cursor-pointer items-center text-sm font-semibold text-foreground">
               Explore all {categoriesInUse.length} catalog categories
             </summary>
             <p className="mt-2 text-xs text-muted-foreground">
-              Category labels include traditions, collections and literary subjects.
-              Use the filters above to narrow results, or choose a category below.
+              Collection and topic labels are separate from verified traditions.
+              Use the filters above to narrow results, or choose a topic below.
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
-              {categoriesInUse.map((c) => (
+              {categoriesInUse.filter((name) => !KNOWN_SACRED_TRADITIONS.includes(name as typeof KNOWN_SACRED_TRADITIONS[number])).map((c) => (
                 <button
                   key={c}
                   type="button"
