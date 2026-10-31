@@ -60,7 +60,7 @@ describe("AppHeader — does not show a false guest state while auth is still re
   it("renders 'Sign in' once auth has genuinely resolved to signed-out", () => {
     authState = { isDemo: true, loading: false };
     render(<AppHeader />);
-    expect(screen.queryByText("Sign in")).not.toBeNull();
+    expect(screen.queryAllByText("Sign in").length).toBeGreaterThan(0);
   });
 
   it("never shows the Admin link before an admin role is confirmed, loading or not", () => {
@@ -127,6 +127,20 @@ describe("AppHeader — Admin nav slot is reserved while the role is unresolved"
 });
 
 describe("AppHeader — mobile bottom nav", () => {
+  it("keeps four primary links and puts secondary destinations in More on narrow screens", () => {
+    authState = { isDemo: true, loading: false };
+    const { container } = render(<AppHeader />);
+    const mobileNav = container.querySelector('nav[aria-label="Mobile navigation"]')!;
+    expect(mobileNav).toBeTruthy();
+    const primaryLinks = [...mobileNav.firstElementChild!.children].filter((element) => element.tagName === "A");
+    expect(primaryLinks.map((element) => element.getAttribute("href"))).toEqual([
+      "/dashboard", "/library", "/sacred-texts", "/research",
+    ]);
+    expect(mobileNav.querySelector('summary[aria-label="More navigation"]')).toBeTruthy();
+    expect(screen.getAllByText("Author").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Profile").length).toBeGreaterThan(0);
+  });
+
   it("includes an Admin entry for a resolved admin (desktop + mobile = 2 links)", () => {
     authState = { isDemo: false, loading: false };
     adminSessionState = { data: { role: "owner" } };
