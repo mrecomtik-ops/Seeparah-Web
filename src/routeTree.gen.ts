@@ -46,6 +46,7 @@ import { Route as SacredTextsIndexRouteImport } from './routes/sacred-texts/inde
 import { Route as SacredTextsBookIdRouteImport } from './routes/sacred-texts/$bookId'
 import { Route as SacredTextsSourcesRouteImport } from './routes/sacred-texts/sources'
 import { Route as SacredTextsTibetanVolumesRouteImport } from './routes/sacred-texts/tibetan-volumes'
+import { Route as SacredTextsCollectionSlugRouteImport } from './routes/sacred-texts/collection.$slug'
 import { Route as AdminBooksIndexRouteImport } from './routes/admin/books/index'
 import { Route as AdminBooksBookIdRouteImport } from './routes/admin/books/$bookId'
 import { Route as AdminBooksNewRouteImport } from './routes/admin/books/new'
@@ -242,6 +243,11 @@ const SacredTextsTibetanVolumesRoute =
     path: '/sacred-texts/tibetan-volumes',
     getParentRoute: () => rootRouteImport,
   } as any)
+const SacredTextsCollectionSlugRoute = SacredTextsCollectionSlugRouteImport.update({
+  id: '/sacred-texts/collection/$slug',
+  path: '/sacred-texts/collection/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminBooksIndexRoute = AdminBooksIndexRouteImport.update({
   id: '/books/',
   path: '/books/',
@@ -316,6 +322,7 @@ export interface FileRoutesByFullPath {
   '/sacred-texts/$bookId': typeof SacredTextsBookIdRoute
   '/sacred-texts/sources': typeof SacredTextsSourcesRoute
   '/sacred-texts/tibetan-volumes': typeof SacredTextsTibetanVolumesRoute
+  '/sacred-texts/collection/$slug': typeof SacredTextsCollectionSlugRoute
   '/admin/': typeof AdminIndexRoute
   '/author/': typeof AuthorIndexRoute
   '/insights/': typeof InsightsIndexRoute
@@ -361,6 +368,7 @@ export interface FileRoutesByTo {
   '/sacred-texts/$bookId': typeof SacredTextsBookIdRoute
   '/sacred-texts/sources': typeof SacredTextsSourcesRoute
   '/sacred-texts/tibetan-volumes': typeof SacredTextsTibetanVolumesRoute
+  '/sacred-texts/collection/$slug': typeof SacredTextsCollectionSlugRoute
   '/admin': typeof AdminIndexRoute
   '/author': typeof AuthorIndexRoute
   '/insights': typeof InsightsIndexRoute
@@ -409,6 +417,7 @@ export interface FileRoutesById {
   '/sacred-texts/$bookId': typeof SacredTextsBookIdRoute
   '/sacred-texts/sources': typeof SacredTextsSourcesRoute
   '/sacred-texts/tibetan-volumes': typeof SacredTextsTibetanVolumesRoute
+  '/sacred-texts/collection/$slug': typeof SacredTextsCollectionSlugRoute
   '/admin/': typeof AdminIndexRoute
   '/author/': typeof AuthorIndexRoute
   '/insights/': typeof InsightsIndexRoute
@@ -458,6 +467,7 @@ export interface FileRouteTypes {
     | '/sacred-texts/$bookId'
     | '/sacred-texts/sources'
     | '/sacred-texts/tibetan-volumes'
+    | '/sacred-texts/collection/$slug'
     | '/admin/'
     | '/author/'
     | '/insights/'
@@ -503,6 +513,7 @@ export interface FileRouteTypes {
     | '/sacred-texts/$bookId'
     | '/sacred-texts/sources'
     | '/sacred-texts/tibetan-volumes'
+    | '/sacred-texts/collection/$slug'
     | '/admin'
     | '/author'
     | '/insights'
@@ -550,6 +561,7 @@ export interface FileRouteTypes {
     | '/sacred-texts/$bookId'
     | '/sacred-texts/sources'
     | '/sacred-texts/tibetan-volumes'
+    | '/sacred-texts/collection/$slug'
     | '/admin/'
     | '/author/'
     | '/insights/'
@@ -588,6 +600,7 @@ export interface RootRouteChildren {
   SacredTextsBookIdRoute: typeof SacredTextsBookIdRoute
   SacredTextsSourcesRoute: typeof SacredTextsSourcesRoute
   SacredTextsTibetanVolumesRoute: typeof SacredTextsTibetanVolumesRoute
+  SacredTextsCollectionSlugRoute: typeof SacredTextsCollectionSlugRoute
   InsightsIndexRoute: typeof InsightsIndexRoute
   ResearchIndexRoute: typeof ResearchIndexRoute
   SacredTextsIndexRoute: typeof SacredTextsIndexRoute
@@ -854,6 +867,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SacredTextsTibetanVolumesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/sacred-texts/collection/$slug': {
+      id: '/sacred-texts/collection/$slug'
+      path: '/sacred-texts/collection/$slug'
+      fullPath: '/sacred-texts/collection/$slug'
+      preLoaderRoute: typeof SacredTextsCollectionSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/books/': {
       id: '/admin/books/'
       path: '/books'
@@ -1004,6 +1024,7 @@ const rootRouteChildren: RootRouteChildren = {
   SacredTextsBookIdRoute: SacredTextsBookIdRoute,
   SacredTextsSourcesRoute: SacredTextsSourcesRoute,
   SacredTextsTibetanVolumesRoute: SacredTextsTibetanVolumesRoute,
+  SacredTextsCollectionSlugRoute: SacredTextsCollectionSlugRoute,
   InsightsIndexRoute: InsightsIndexRoute,
   ResearchIndexRoute: ResearchIndexRoute,
   SacredTextsIndexRoute: SacredTextsIndexRoute,
