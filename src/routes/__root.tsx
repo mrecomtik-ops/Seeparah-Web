@@ -26,7 +26,12 @@ function NotFoundComponent() {
         <p className="mt-2 text-sm text-muted-foreground">
           The page you're looking for doesn't exist or has been moved.
         </p>
-        <div className="mt-6">
+        <form action="/library" method="get" className="mt-6 flex gap-2">
+          <label htmlFor="not-found-book-search" className="sr-only">Search books</label>
+          <input id="not-found-book-search" type="search" name="q" placeholder="Search the library…" className="min-w-0 flex-1 rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground" />
+          <button type="submit" className="min-h-11 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground">Search</button>
+        </form>
+        <div className="mt-4">
           <Link
             to="/library"
             className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:opacity-90"

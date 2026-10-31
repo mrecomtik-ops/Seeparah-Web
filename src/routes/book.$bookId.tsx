@@ -434,20 +434,28 @@ function BookDetailPage() {
                       {s.language} · translation in progress
                     </span>
                   ))}
-                {!isReligious &&
-                  REQUESTABLE_TRANSLATION_LANGUAGES.filter(
-                    (l) =>
-                      !book.available_languages.includes(l) &&
-                      l !== book.source_language &&
-                      !(translationStatusQuery.data ?? []).some((s) => s.language === l),
-                  ).map((l) => (
-                    <span
-                      key={l}
-                      className="rounded-full border border-dashed border-border px-3 py-1 text-xs font-medium text-muted-foreground"
-                    >
-                      {l} · available on request
-                    </span>
-                  ))}
+                {!isReligious && (
+                  <details className="w-full rounded-lg border border-border bg-card px-3 py-3 text-sm">
+                    <summary className="cursor-pointer font-semibold text-primary">
+                      Explore additional languages available on request
+                    </summary>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {REQUESTABLE_TRANSLATION_LANGUAGES.filter(
+                        (l) =>
+                          !book.available_languages.includes(l) &&
+                          l !== book.source_language &&
+                          !(translationStatusQuery.data ?? []).some((s) => s.language === l),
+                      ).map((l) => (
+                        <span
+                          key={l}
+                          className="rounded-full border border-dashed border-border px-3 py-1 text-xs font-medium text-muted-foreground"
+                        >
+                          {l} · available on request
+                        </span>
+                      ))}
+                    </div>
+                  </details>
+                )}
               </div>
               <p className="mt-2 text-xs text-muted-foreground">{TRANSLATION_EXPLAINER_SHORT}</p>
               {isReligious && (
