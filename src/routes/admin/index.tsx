@@ -31,6 +31,12 @@ function AdminOverview() {
         data: { accessToken: await getAccessToken(), status: "in_review", page: 1, perPage: 1 },
       }),
   });
+  const missingPublishedCoversQuery = useQuery({
+    queryKey: ["admin-catalog-count", "published", "cover-missing"],
+    queryFn: async () => adminListCatalog({
+      data: { accessToken: await getAccessToken(), status: "published", coverMissing: true, page: 1, perPage: 1 },
+    }),
+  });
   const publishedQuery = useQuery({
     queryKey: ["admin-catalog-count", "published"],
     queryFn: async () =>
@@ -77,6 +83,12 @@ function AdminOverview() {
       label: "Books awaiting review",
       value: draftsQuery.data?.total ?? 0,
       to: "/admin/books" as const,
+    },
+    {
+      label: "Published books missing covers",
+      value: missingPublishedCoversQuery.data?.total ?? 0,
+      to: "/admin/books" as const,
+      search: { status: "published", coverMissing: true },
     },
     {
       label: "Translation requests",
@@ -136,11 +148,11 @@ function AdminOverview() {
           <AlertTriangle className="h-4 w-4 text-gold" />
           <h2 className="font-display text-lg font-semibold text-foreground">Needs attention</h2>
         </div>
-        {draftsQuery.isPending || analyticsQuery.isPending ? (
+        {draftsQuery.isPending || analyticsQuery.isPending || missingPublishedCoversQuery.isPending ? (
           <div className="mt-3 rounded-2xl border border-border bg-card p-4 text-sm text-muted-foreground card-shadow" role="status">
             Checking review queues…
           </div>
-        ) : draftsQuery.isError || analyticsQuery.isError ? (
+        ) : draftsQuery.isError || analyticsQuery.isError || missingPublishedCoversQuery.isError ? (
           <div className="mt-3 rounded-2xl border border-destructive/40 bg-card p-4 text-sm text-destructive" role="alert">
             Review queues could not be loaded. Refresh to retry.
           </div>
@@ -154,6 +166,7 @@ function AdminOverview() {
               <Link
                 key={item.label}
                 to={item.to}
+                {...("search" in item ? { search: item.search } : {})}
                 className="group rounded-2xl border border-gold/30 bg-card p-4 card-shadow transition hover:-translate-y-0.5 hover:border-gold/60"
               >
                 <div className="flex items-center justify-between gap-3">

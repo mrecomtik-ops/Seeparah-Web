@@ -22,6 +22,7 @@ export const adminListCatalog = createServerFn({ method: "POST" })
     withToken({
       status: z.string().optional(),
       query: z.string().optional(),
+      coverMissing: z.boolean().optional(),
       page: z.number().int().min(1).default(1),
       perPage: z.number().int().min(1).max(100).default(25),
     }).parse(data),
@@ -32,6 +33,7 @@ export const adminListCatalog = createServerFn({ method: "POST" })
     return adminListBooks({
       status: data.status,
       query: data.query,
+      coverMissing: data.coverMissing,
       page: data.page,
       perPage: data.perPage,
     });
