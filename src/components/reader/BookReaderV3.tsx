@@ -1032,7 +1032,7 @@ export function BookReaderV3({
       const target = event.target;
       const editableTarget =
         target instanceof Element &&
-        (target.matches("input,textarea,select,button,[role='button']") ||
+        (target.matches("input,textarea,select,[role='textbox']") ||
           (target instanceof HTMLElement && target.isContentEditable));
       if (editableTarget || settingsOpen) return;
       if (event.key === "ArrowLeft") {
