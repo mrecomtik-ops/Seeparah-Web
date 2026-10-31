@@ -68,4 +68,4 @@ A live browser run checked shared navigation on homepage/Library/Sacred Texts, r
 ## Final production-integrity note
 Read-only Supabase queries confirmed 6,236 verse chunks per Arabic/English/Urdu/Hindi/Chinese edition, zero missing canonical references or misaligned chunk indices, and 112 Arabic separate basmala annotations. See [five-language integrity report](quran-five-language-integrity-2026-10-31.md). This verifies the database, not cross-browser display or editorial changes.
 
-Merged remediation: PRs #74 (audit timeline/export), #75 (V3 book typography) and #76 (source notice/reader title) passed GitHub CI, including dedicated reader verification where applicable. New typed-settings PR #77 requires its own CI and merge before production use.
+Merged remediation: PRs #74 (audit timeline/export), #75 (V3 book typography) and #76 (source notice/reader title) passed GitHub CI, including dedicated reader verification where applicable. Typed-settings PR #77 passed CI and merged; live owner-role end-to-end QA remains unverified.
