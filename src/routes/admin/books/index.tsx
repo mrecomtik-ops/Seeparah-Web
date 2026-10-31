@@ -483,7 +483,7 @@ function AdminBooksList() {
         />
       ) : (
         <div className="mt-4 overflow-x-auto rounded-2xl border border-border bg-card card-shadow">
-          <table className="w-full text-sm">
+          <table className="w-full min-w-[1100px] table-fixed text-sm">
             <thead>
               <tr className="border-b border-border text-left text-xs text-muted-foreground">
                 <th className="w-8 px-4 py-2">
@@ -494,16 +494,16 @@ function AdminBooksList() {
                     aria-label="Select all"
                   />
                 </th>
-                <th className="px-4 py-2">Title</th>
-                <th className="px-4 py-2">Author</th>
-                <th className="px-4 py-2">Categories</th>
+                <th className="w-56 px-3 py-2">Title</th>
+                <th className="w-36 px-3 py-2">Author</th>
+                <th className="w-40 px-3 py-2">Categories</th>
                 <th className="px-4 py-2">Status</th>
                 <th className="px-4 py-2">Original access</th>
                 <th className="px-4 py-2">Rights</th>
                 <th className="px-4 py-2">Edition</th>
                 <th className="px-4 py-2">Structure</th>
                 <th className="px-4 py-2">Cleanup</th>
-                <th className="px-4 py-2">Actions</th>
+                <th className="sticky right-0 z-10 w-36 border-l border-border bg-card px-3 py-2">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -524,7 +524,8 @@ function AdminBooksList() {
                     <Link
                       to="/admin/books/$bookId"
                       params={{ bookId: b.id }}
-                      className="font-semibold text-primary hover:underline"
+                      className="block max-w-[220px] truncate font-semibold text-primary hover:underline"
+                      title={b.title}
                     >
                       {b.title}
                     </Link>
@@ -534,10 +535,10 @@ function AdminBooksList() {
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-2 text-xs">{b.author}</td>
+                  <td className="max-w-36 truncate px-3 py-2 text-xs" title={b.author}>{b.author}</td>
                   <td className="px-4 py-2 text-xs">
                     {(b.categories ?? []).length ? (
-                      <div className="flex max-w-52 flex-wrap gap-1">
+                      <div className="flex max-w-40 flex-nowrap gap-1 overflow-hidden">
                         {(b.categories ?? []).map((category) => (
                           <span
                             key={category}
@@ -571,7 +572,7 @@ function AdminBooksList() {
                   <td className="px-4 py-2 text-xs">
                     {statusLabel(b.cleanup_review_status ?? "")}
                   </td>
-                  <td className="px-4 py-2 text-xs">
+                  <td className="sticky right-0 border-l border-border bg-card px-3 py-2 text-xs">
                     <div className="flex items-center gap-2">
                       <Link
                         to="/admin/books/$bookId"
