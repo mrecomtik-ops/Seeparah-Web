@@ -26,5 +26,22 @@ export const adminListAuditLog = createServerFn({ method: "POST" })
     const from = (data.page - 1) * data.perPage;
     const { data: rows, error, count } = await q.range(from, from + data.perPage - 1);
     if (error) throw new Error(error.message);
-    return { entries: rows ?? [], total: count ?? 0 };
+    // Resolve only entity IDs in this authorized page. Never expose
+    // unpublished titles through any public API; this endpoint requires audit.read + MFA.
+    const bookIds = [...new Set((rows ?? [])
+      .filter((entry) => entry.entity_type === "book" && entry.entity_id)
+      .map((entry) => entry.entity_id as string))];
+    const titles = new Map<string, string>();
+    if (bookIds.length) {
+      const { data: books, error: bookError } = await supabaseAdmin
+        .from("books").select("id,title").in("id", bookIds);
+      if (bookError) throw new Error(bookError.message);
+      for (const book of books ?? []) titles.set(book.id, book.title);
+    }
+    const entries = (rows ?? []).map((entry) => ({
+      ...entry,
+      entity_display_name: entry.entity_type === "book" && entry.entity_id
+        ? titles.get(entry.entity_id) ?? null : null,
+    }));
+    return { entries, total: count ?? 0 };
   });
