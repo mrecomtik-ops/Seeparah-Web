@@ -111,8 +111,17 @@ export const Route = createFileRoute("/read/$bookId")({
         content:
           "Read with structured navigation and comfortable typography in your chosen language.",
       },
-      { name: "robots", content: "noindex" },
+      { name: "robots", content: "noindex,follow" },
     ],
+    // Reading positions, per-language and chapter pages are temporary UI
+    // state, not independently indexable scripture or literary editions.
+    // Direct crawlers to the stable canonical detail for the exact work.
+    links: loaderData?.book ? [{
+      rel: "canonical",
+      href: "https://seeparah.com/" +
+        (isReligiousBook(loaderData.book) ? "sacred-texts/" : "book/") +
+        loaderData.book.id,
+    }] : [],
   }),
   component: ReaderPageV3,
 });
