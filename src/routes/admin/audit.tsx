@@ -69,6 +69,7 @@ function AdminAuditPage() {
         entry.entity_id,
         entry.entity_display_name,
         entry.actor_role,
+        entry.actor_display_name,
         entry.actor_id,
         entry.reason,
       ]
@@ -189,6 +190,11 @@ function AdminAuditPage() {
                       <p className="text-xs font-semibold text-foreground">
                         {entry.actor_role ? humanize(entry.actor_role) : "Unknown role"}
                       </p>
+                      {entry.actor_display_name && (
+                        <p className="mt-1 max-w-[240px] break-words text-xs font-medium text-foreground" dir="auto">
+                          {entry.actor_display_name}
+                        </p>
+                      )}
                       <p className="mt-0.5 max-w-[160px] truncate font-mono text-[11px] text-muted-foreground">
                         {entry.actor_id}
                       </p>
