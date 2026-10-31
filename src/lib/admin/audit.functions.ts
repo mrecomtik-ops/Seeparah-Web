@@ -84,7 +84,7 @@ export const adminListAuditLog = createServerFn({ method: "POST" })
         const { data, error: actorError } = await supabaseAdmin.auth.admin.getUserById(id);
         if (!actorError && data.user) {
           const metadata = data.user.user_metadata;
-          const name = typeof metadata?.["full_name"] === "string" ? metadata.full_name.trim() : "";
+          const name = typeof metadata?.["full_name"] === "string" ? metadata["full_name"].trim() : "";
           const email = data.user.email?.trim() ?? "";
           const label = name && email ? name + " · " + email : name || email;
           if (label) actorNames.set(id, label.slice(0, 200));
