@@ -65,6 +65,7 @@ function AdminAuditPage() {
         entry.action,
         entry.entity_type,
         entry.entity_id,
+        entry.entity_display_name,
         entry.actor_role,
         entry.actor_id,
         entry.reason,
@@ -159,8 +160,13 @@ function AdminAuditPage() {
                       <p className="text-xs font-semibold text-foreground">
                         {humanize(entry.entity_type)}
                       </p>
+                      {entry.entity_display_name && (
+                        <p className="mt-1 max-w-[220px] break-words text-xs font-semibold text-primary" dir="auto">
+                          {entry.entity_display_name}
+                        </p>
+                      )}
                       {entry.entity_id && (
-                        <p className="mt-0.5 max-w-[220px] truncate font-mono text-[11px] text-muted-foreground">
+                        <p title={entry.entity_id} className="mt-0.5 max-w-[220px] truncate font-mono text-[11px] text-muted-foreground">
                           {entry.entity_id}
                         </p>
                       )}
