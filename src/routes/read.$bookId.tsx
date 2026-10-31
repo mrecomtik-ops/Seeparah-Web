@@ -1,3 +1,4 @@
+import { languageToBcp47 } from "@/lib/languages";
 import {
   createFileRoute,
   Link,
@@ -1406,43 +1407,6 @@ function renderPersistedHighlights(
   return nodes;
 }
 
-function languageToBcp47(language: string): string {
-  const map: Record<string, string> = {
-    English: "en",
-    Urdu: "ur",
-    Hindi: "hi",
-    Arabic: "ar",
-    Chinese: "zh-CN",
-    Spanish: "es",
-    French: "fr",
-    German: "de",
-    Russian: "ru",
-    Portuguese: "pt",
-    Bengali: "bn",
-    Japanese: "ja",
-    Korean: "ko",
-    Indonesian: "id",
-    Turkish: "tr",
-    Persian: "fa",
-    Punjabi: "pa",
-    Italian: "it",
-    Dutch: "nl",
-    Polish: "pl",
-    Ukrainian: "uk",
-    Vietnamese: "vi",
-    Thai: "th",
-    Swahili: "sw",
-    Pashto: "ps",
-    Malay: "ms",
-    Hebrew: "he",
-    Tamil: "ta",
-    Telugu: "te",
-    Marathi: "mr",
-    Gujarati: "gu",
-    Filipino: "fil",
-  };
-  return map[language] ?? "en";
-}
 
 function SheetShell({
   title,
