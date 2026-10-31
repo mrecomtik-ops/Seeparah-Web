@@ -306,6 +306,17 @@ export function SacredTextReader({
     );
   }
 
+  // Render bounded source chunks, while preserving every original reference and byte.
+  // A changed URL page selects the corresponding group and saved reading position.
+  const sourceGroupSize = 32;
+  const activeChunkOffset = Math.max(0, section.chunks.findIndex((chunk) => chunk.chunkIndex === chunkIndex));
+  const groupStart = Math.floor(activeChunkOffset / sourceGroupSize) * sourceGroupSize;
+  const visibleSourceChunks = section.chunks.slice(groupStart, groupStart + sourceGroupSize);
+  const hasPreviousGroup = groupStart > 0;
+  const hasNextGroup = groupStart + sourceGroupSize < section.chunks.length;
+  const firstVisibleReference = visibleSourceChunks[0];
+  const lastVisibleReference = visibleSourceChunks[visibleSourceChunks.length - 1];
+
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur">
@@ -359,10 +370,8 @@ export function SacredTextReader({
                 {section.title}
               </h1>
               <p className="mt-1 text-xs text-muted-foreground">
-                {sacredReferenceGroupLabel(editionLayout, section.kind)} {section.chunks[0]?.label}
-                {section.chunks.length > 1
-                  ? " – " + section.chunks[section.chunks.length - 1]?.label
-                  : ""}
+                {sacredReferenceGroupLabel(editionLayout, section.kind)} {firstVisibleReference?.label}
+                {visibleSourceChunks.length > 1 ? " – " + lastVisibleReference?.label : ""}
               </p>
             </div>
             <ShelfButtons bookId={book.id} showLabels={false} />
@@ -512,6 +521,31 @@ export function SacredTextReader({
               </div>
             </details>
           </div>
+          {section.chunks.length > 1 && (
+            <div className="mt-3 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card p-3">
+              <label htmlFor="sacred-reference-jump" className="text-sm font-medium text-foreground">
+                Jump to source reference
+              </label>
+              <select
+                id="sacred-reference-jump"
+                value={chunkIndex}
+                onChange={(event) => updateLocation(language, Number(event.target.value))}
+                className="min-h-11 min-w-0 max-w-full flex-1 rounded-lg border border-border bg-background px-3 text-sm text-foreground sm:max-w-sm"
+              >
+                {section.chunks.map((chunk) => (
+                  <option value={chunk.chunkIndex} key={chunk.chunkIndex}>
+                    {chunk.label}
+                  </option>
+                ))}
+              </select>
+              {section.chunks.length > sourceGroupSize && (
+                <p className="w-full text-xs text-muted-foreground" role="status">
+                  Showing source passages {groupStart + 1}–{Math.min(groupStart + sourceGroupSize, section.chunks.length)}
+                  {" "}of {section.chunks.length}. Use the reference selector to jump directly.
+                </p>
+              )}
+            </div>
+          )}
           {contentsOpen && (
             <div className="mt-3 rounded-lg border border-border bg-card p-3">
               <label
@@ -568,7 +602,7 @@ export function SacredTextReader({
           dir={direction}
           aria-label={book.title + " — " + section.title}
         >
-          {section.chunks.map((chunk) => {
+          {visibleSourceChunks.map((chunk) => {
             const active = chunk.chunkIndex === chunkIndex;
             const isStudy = readingMode === "study";
             const compactVerse =
@@ -754,6 +788,17 @@ export function SacredTextReader({
             );
           })}
         </section>
+
+        {(hasPreviousGroup || hasNextGroup) && (
+          <nav className="mx-auto mt-4 flex max-w-3xl items-center justify-between gap-3" aria-label="Passage groups">
+            {hasPreviousGroup ? (
+              <button type="button" onClick={() => updateLocation(language, section.chunks[groupStart - sourceGroupSize]!.chunkIndex)} className="min-h-11 rounded-xl border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground hover:bg-secondary">Previous passages</button>
+            ) : <span />}
+            {hasNextGroup ? (
+              <button type="button" onClick={() => updateLocation(language, section.chunks[groupStart + sourceGroupSize]!.chunkIndex)} className="min-h-11 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">Next passages</button>
+            ) : <span />}
+          </nav>
+        )}
 
         {reuseNotice && (
           <p
