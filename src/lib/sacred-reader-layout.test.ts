@@ -38,8 +38,11 @@ describe("sacred reader presentation profiles", () => {
     expect(sacredSourceDescription("Hebrew", "Psalms")).toMatch(/not claimed/i);
   });
 
-  it("loads only the selected script font without impacting the global shell", () => {
-    expect(sacredScriptFontHref("Urdu")).toContain("Noto+Nastaliq+Urdu");
+  it("uses bundled fonts for core scripts and optional external styles for other scripts", () => {
+    expect(sacredScriptFontHref("Urdu")).toBeNull();
+    expect(sacredScriptFontHref("Arabic")).toBeNull();
+    expect(sacredScriptFontHref("Hebrew")).toBeNull();
+    expect(sacredScriptFontHref("Hindi")).toBeNull();
     expect(sacredScriptFontHref("Chinese")).toContain("Noto+Serif+SC");
     expect(sacredScriptFontHref("English")).toBeNull();
   });

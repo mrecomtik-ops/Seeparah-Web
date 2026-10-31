@@ -46,17 +46,11 @@ export function isSourcePoetryChunk(kind: string): boolean {
   return ["verse-line", "poetry", "stanza", "poem"].includes(kind.toLowerCase());
 }
 
-/** Font CSS is loaded only on the reading route, never into the global shell. */
+/** Optional CDN fonts for scripts not yet bundled locally; the five core script fonts are self-hosted. */
 export function sacredScriptFontHref(language: string): string | null {
   const fonts: Record<string, string> = {
-    Arabic: "Noto+Naskh+Arabic:wght@400..700",
-    Urdu: "Noto+Nastaliq+Urdu:wght@400..700",
-    Hebrew: "Noto+Serif+Hebrew:wght@400..700",
-    Sanskrit: "Noto+Serif+Devanagari:wght@400..700",
-    Hindi: "Noto+Serif+Devanagari:wght@400..700",
     Greek: "Noto+Serif:wght@400..700",
     Pali: "Noto+Serif:wght@400..700",
-    Tibetan: "Noto+Serif+Tibetan:wght@400..700",
     Chinese: "Noto+Serif+SC:wght@400..700",
   };
   const font = fonts[language];
