@@ -277,16 +277,18 @@ function BookDetailPage() {
               <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-1 text-[11px] font-semibold text-secondary-foreground">
                 <Globe2 className="h-3 w-3" /> Original: {book.source_language}
               </span>
-              <span className="rounded-full bg-secondary px-2.5 py-1 text-[11px] font-semibold text-secondary-foreground">
-                {book.total_chunks} {book.total_chunks === 1 ? "page" : "pages"}
-              </span>
+              {book.estimated_reading_minutes ? (
+                <span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-semibold text-secondary-foreground">
+                  About {book.estimated_reading_minutes} min reading
+                </span>
+              ) : null}
             </div>
 
             <p className="mt-5 max-w-2xl leading-relaxed text-foreground">{displayDescription}</p>
             {isSample && (
               <p className="mt-2 max-w-2xl text-sm font-medium text-gold">
                 This is an excerpt — {book.total_chunks}{" "}
-                {book.total_chunks === 1 ? "page" : "pages"}, not the complete work.
+                {book.total_chunks === 1 ? "source section" : "source sections"}, not the complete work.
               </p>
             )}
 
