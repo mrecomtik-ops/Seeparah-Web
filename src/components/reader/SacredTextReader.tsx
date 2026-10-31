@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
   BookOpen,
@@ -96,6 +96,7 @@ export function SacredTextReader({
 }) {
   const { userId } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [language, setLanguage] = useState(
     initialLanguage && book.available_languages.includes(initialLanguage)
       ? initialLanguage
@@ -160,6 +161,10 @@ export function SacredTextReader({
         data: { bookId: book.id, language, chunkIndex },
       }),
     staleTime: 15 * 60 * 1000,
+    // Keep the mounted reader while loading the next section of the SAME edition.
+    // Never show another language's scripture or translation as a placeholder.
+    placeholderData: (previous, previousQuery) =>
+      previousQuery?.queryKey[2] === language ? previous : undefined,
   });
 
   const comparisonQuery = useQuery({
@@ -170,6 +175,22 @@ export function SacredTextReader({
     enabled: Boolean(compareLanguage),
     staleTime: 15 * 60 * 1000,
   });
+
+  useEffect(() => {
+    const section = sectionQuery.data;
+    if (!section || sectionQuery.isPlaceholderData) return;
+    const adjacent = [section.previousChunkIndex, section.nextChunkIndex]
+      .filter((index): index is number => index !== null && index !== chunkIndex);
+    for (const index of adjacent) {
+      void queryClient.prefetchQuery({
+        queryKey: ["sacred-reader-section", book.id, language, index],
+        queryFn: () => getSacredReaderSection({
+          data: { bookId: book.id, language, chunkIndex: index },
+        }),
+        staleTime: 15 * 60 * 1000,
+      });
+    }
+  }, [queryClient, book.id, language, chunkIndex, sectionQuery.data, sectionQuery.isPlaceholderData]);
 
   const editionsQuery = useQuery({
     queryKey: ["public-book-editions", book.id],
@@ -274,7 +295,7 @@ export function SacredTextReader({
 
   useEffect(() => {
     const section = sectionQuery.data;
-    if (!section) return;
+    if (!section || sectionQuery.isPlaceholderData) return;
     const target = document.getElementById(`sacred-chunk-${chunkIndex}`);
     // Long source units (for example an entire Dīgha discourse) must open at
     // their beginning, not their vertical midpoint. Respect scroll-mt-28.
@@ -285,14 +306,14 @@ export function SacredTextReader({
       lastSavedRef.current = saveKey;
       void saveProgress(userId, book.id, language, chunkIndex);
     }
-  }, [book.id, chunkIndex, language, sectionQuery.data, userId]);
+  }, [book.id, chunkIndex, language, sectionQuery.data, sectionQuery.isPlaceholderData, userId]);
 
   // Save the actual passage reached during scrolling, not just the passage
   // initially opened from the URL. Keep the URL unchanged to avoid refetching
   // an entire source section on every scroll event.
   useEffect(() => {
     const section = sectionQuery.data;
-    if (!section || typeof IntersectionObserver === "undefined") return;
+    if (!section || sectionQuery.isPlaceholderData || typeof IntersectionObserver === "undefined") return;
     let pending: number | null = null;
     let lastObserved = chunkIndex;
     const observer = new IntersectionObserver((entries) => {
@@ -328,7 +349,7 @@ export function SacredTextReader({
       observer.disconnect();
       if (pending !== null) window.clearTimeout(pending);
     };
-  }, [book.id, chunkIndex, language, sectionQuery.data, userId]);
+  }, [book.id, chunkIndex, language, sectionQuery.data, sectionQuery.isPlaceholderData, userId]);
 
   if (sectionQuery.isLoading) {
     return (
@@ -415,7 +436,13 @@ export function SacredTextReader({
         </div>
       </header>
 
-      <main className="mx-auto max-w-5xl px-3 pb-28 pt-5 sm:px-6">
+      <main className="mx-auto max-w-5xl px-3 pb-28 pt-5 sm:px-6" aria-busy={sectionQuery.isFetching}>
+        {sectionQuery.isPlaceholderData && (
+          <p role="status" className="mb-4 flex items-center gap-2 rounded-lg border border-border bg-secondary/40 px-4 py-3 text-sm font-medium text-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+            Loading the requested source section. Previous text remains visible until it is ready.
+          </p>
+        )}
         <section className="mx-auto max-w-3xl px-1 pb-4">
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
             <div className="min-w-0">
