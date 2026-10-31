@@ -140,7 +140,7 @@ function LibraryPage() {
       .map(([, raw]) => raw);
   }, [books]);
   const languagesInUse = useMemo(
-    () => [...new Set(books.flatMap((book) => book.available_languages))].sort(),
+    () => [...new Set(books.flatMap((book) => book.available_languages))].filter((name) => name !== "Bilingual").sort(),
     [books],
   );
   const genresInUse = useMemo(
@@ -475,24 +475,27 @@ function LibraryPage() {
         </div>
 
         {books.length > 0 && categoriesInUse.length > 0 && tab === "all" && !hasActiveFilters && (
-          <div className="mt-5">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Browse by category
+          <details className="mt-5 rounded-xl border border-border bg-card p-3">
+            <summary className="flex min-h-11 cursor-pointer items-center text-sm font-semibold text-foreground">
+              Explore all {categoriesInUse.length} catalog categories
+            </summary>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Category labels include traditions, collections and literary subjects.
+              Use the filters above to narrow results, or choose a category below.
             </p>
-            <div className="mt-2 flex flex-wrap gap-2">
+            <div className="mt-3 flex flex-wrap gap-2">
               {categoriesInUse.map((c) => (
                 <button
                   key={c}
+                  type="button"
                   onClick={() => updateSearch({ category: c })}
-                  className="min-h-10 rounded-full border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary"
+                  className="min-h-11 rounded-full border border-border bg-background px-4 py-2 text-xs font-semibold text-foreground hover:bg-secondary"
                 >
-                  {c}
-                  {c === "Religious" && <span className="ml-1 text-primary">· always free</span>}
-                  <span className="text-muted-foreground">({categoryCounts.get(c) ?? 0})</span>
+                  {c} <span className="text-muted-foreground">({categoryCounts.get(c) ?? 0})</span>
                 </button>
               ))}
             </div>
-          </div>
+          </details>
         )}
 
         <section className="mt-8">
