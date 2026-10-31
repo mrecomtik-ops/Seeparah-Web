@@ -23,6 +23,7 @@ export const getSacredReaderSection = createServerFn({ method: "GET" })
         bookId: z.string().uuid(),
         language: z.string().trim().min(1).max(80),
         chunkIndex: z.number().int().min(0),
+        windowSize: z.literal(32).optional(),
       })
       .parse(data),
   )
