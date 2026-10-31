@@ -37,6 +37,7 @@ import {
 import type { BookDeletionImpact, SacredReferenceManifestNode } from "@/lib/admin/catalog.server";
 import { friendlyTranslationError } from "@/lib/translation-error";
 import { parseReadableBlocks } from "@/lib/reader-structure";
+import { cropCoverToPortrait } from "@/lib/admin/cover-crop";
 
 const ORGANIZER_NODE_TYPES = [
   "front_matter",
@@ -88,6 +89,20 @@ function AdminBookDetail() {
   } | null>(null);
   const [coverSharedArtwork, setCoverSharedArtwork] = useState(false);
   const [coverUploading, setCoverUploading] = useState(false);
+  const [selectedCoverFile, setSelectedCoverFile] = useState<File | null>(null);
+  const [selectedCoverPreview, setSelectedCoverPreview] = useState("");
+  const [cropToPortrait, setCropToPortrait] = useState(false);
+  const [cropFocusX, setCropFocusX] = useState(50);
+  const [cropFocusY, setCropFocusY] = useState(50);
+  useEffect(() => {
+    if (!selectedCoverFile) {
+      setSelectedCoverPreview("");
+      return;
+    }
+    const url = URL.createObjectURL(selectedCoverFile);
+    setSelectedCoverPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [selectedCoverFile]);
   const [editDraft, setEditDraft] = useState({
     title: "",
     author: "",
@@ -434,6 +449,10 @@ function AdminBookDetail() {
     setCoverAttribution("");
     setCoverTargetLanguage(book.source_language);
     setStagedEditionCover(null);
+    setSelectedCoverFile(null);
+    setCropToPortrait(false);
+    setCropFocusX(50);
+    setCropFocusY(50);
     setCoverSharedArtwork(false);
     setEditDraft({
       title: book.title,
@@ -464,11 +483,17 @@ function AdminBookDetail() {
     }
     setCoverUploading(true);
     try {
+      const uploadFile = cropToPortrait
+        ? await cropCoverToPortrait(file, cropFocusX, cropFocusY)
+        : file;
+      if (uploadFile.size > 3 * 1024 * 1024) {
+        throw new Error("The selected portrait cover exceeds the 3 MB upload limit.");
+      }
       const base64 = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onerror = () => reject(new Error("Could not read the selected cover file."));
         reader.onload = () => resolve(String(reader.result ?? "").split(",")[1] ?? "");
-        reader.readAsDataURL(file);
+        reader.readAsDataURL(uploadFile);
       });
       const uploaded = await adminUploadBookCover({
         data: {
@@ -476,12 +501,13 @@ function AdminBookDetail() {
           bookId,
           language: coverTargetLanguage,
           fileBase64: base64,
-          mimeType: file.type as "image/png" | "image/jpeg" | "image/webp",
+          mimeType: uploadFile.type as "image/png" | "image/jpeg" | "image/webp",
           attribution: coverAttribution.trim(),
           sharedArtwork: coverSharedArtwork,
         },
       });
       setStagedEditionCover(uploaded);
+      setSelectedCoverFile(null);
       toast.success("Staged for the selected source edition. Review the image and assign it explicitly.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Cover upload failed.");
@@ -2517,6 +2543,7 @@ function AdminBookDetail() {
                       onChange={(event) => {
                         setCoverTargetLanguage(event.target.value);
                         setStagedEditionCover(null);
+                        setSelectedCoverFile(null);
                       }}
                       className="mt-1 min-h-11 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-normal text-foreground"
                     >
@@ -2562,12 +2589,66 @@ function AdminBookDetail() {
                       disabled={coverUploading || coverAttribution.trim().length < 3 || !coverTargetLanguage}
                       onChange={(event) => {
                         const file = event.target.files?.[0];
-                        if (file) void stageCoverFile(file);
+                        if (file) {
+                          setSelectedCoverFile(file);
+                          setStagedEditionCover(null);
+                        }
                         event.target.value = "";
                       }}
                       className="mt-2 block w-full cursor-pointer rounded-lg border border-border bg-background p-2 text-xs font-normal text-foreground file:mr-3 file:rounded-lg file:border-0 file:bg-primary file:px-3 file:py-2 file:font-semibold file:text-primary-foreground disabled:opacity-50"
                     />
                   </label>
+                  {selectedCoverFile && (
+                    <div className="rounded-xl border border-border bg-background p-3">
+                      <p className="text-sm font-semibold text-foreground">
+                        Review before staging · {coverTargetLanguage}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Original image remains unchanged unless you explicitly enable cropping.
+                      </p>
+                      {selectedCoverPreview && (
+                        <img src={selectedCoverPreview} alt="Portrait preview before staging"
+                          width={150} height={225}
+                          style={{
+                            objectFit: cropToPortrait ? "cover" : "contain",
+                            objectPosition: cropFocusX + "% " + cropFocusY + "%",
+                          }}
+                          className="mt-3 aspect-[2/3] h-[225px] w-[150px] rounded-lg border border-border bg-secondary" />
+                      )}
+                      <label className="mt-3 flex min-h-11 items-center gap-2 text-xs font-semibold text-foreground">
+                        <input type="checkbox" checked={cropToPortrait}
+                          onChange={(event) => setCropToPortrait(event.target.checked)} />
+                        Crop to 2:3 portrait (removes edges only by your choice)
+                      </label>
+                      {cropToPortrait && (
+                        <div className="mt-2 grid gap-3 sm:grid-cols-2">
+                          <label className="text-xs font-semibold text-foreground">
+                            Horizontal focus · {cropFocusX}%
+                            <input aria-label="Horizontal crop focus" type="range" min="0" max="100"
+                              value={cropFocusX} onChange={(event) => setCropFocusX(Number(event.target.value))}
+                              className="mt-2 block w-full" />
+                          </label>
+                          <label className="text-xs font-semibold text-foreground">
+                            Vertical focus · {cropFocusY}%
+                            <input aria-label="Vertical crop focus" type="range" min="0" max="100"
+                              value={cropFocusY} onChange={(event) => setCropFocusY(Number(event.target.value))}
+                              className="mt-2 block w-full" />
+                          </label>
+                        </div>
+                      )}
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <button type="button" disabled={coverUploading || !coverAttribution.trim() || !coverTargetLanguage}
+                          onClick={() => void stageCoverFile(selectedCoverFile)}
+                          className="min-h-11 rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-50">
+                          Stage reviewed cover
+                        </button>
+                        <button type="button" onClick={() => setSelectedCoverFile(null)}
+                          className="min-h-11 rounded-lg border border-border px-4 py-2 text-xs font-semibold">
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
                   {coverUploading && <p role="status" className="text-xs text-primary">Uploading and validating cover…</p>}
                   {stagedEditionCover && (
                     <div className="rounded-xl border border-primary/25 bg-background p-3">
