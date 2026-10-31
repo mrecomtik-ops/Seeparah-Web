@@ -83,17 +83,17 @@ function BookTile({ book, language }: { book: Book; language?: string | undefine
         </div>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-3 text-xs">
-        <Link to="/sacred-texts/$bookId" params={{ bookId: book.id }} className="font-medium text-muted-foreground hover:text-primary">
+        <Link to="/sacred-texts/$bookId" params={{ bookId: book.id }} className="inline-flex min-h-11 items-center rounded-lg px-2 font-medium text-muted-foreground hover:bg-secondary hover:text-primary">
           Sources & editions
         </Link>
         <div className="flex flex-wrap items-center gap-3">
           <Link to="/read/$bookId" params={{ bookId: book.id }} search={{ lang: readLanguage, page: 1 }}
-            className="inline-flex items-center gap-1 font-semibold text-primary hover:underline">
+            className="inline-flex min-h-11 items-center gap-1 rounded-lg px-2 font-semibold text-primary hover:bg-secondary hover:underline">
             Read {readLanguage} <ArrowRight className="h-3.5 w-3.5" />
           </Link>
           {readLanguage === "Greek" && book.available_languages.includes("English") && (
             <Link to="/read/$bookId" params={{ bookId: book.id }} search={{ lang: "English", page: 1 }}
-              className="inline-flex items-center gap-1 font-semibold text-primary hover:underline">
+              className="inline-flex min-h-11 items-center gap-1 rounded-lg px-2 font-semibold text-primary hover:bg-secondary hover:underline">
               Read English <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           )}
@@ -194,11 +194,11 @@ function StandaloneBook({ book }: { book: Book }) {
         )}
         <div className="mt-6 flex flex-wrap gap-3">
           <Link to="/sacred-texts/$bookId" params={{ bookId: book.id }}
-            className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90">
+            className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90">
             Explore editions <ArrowRight className="h-4 w-4" />
           </Link>
           <Link to="/read/$bookId" params={{ bookId: book.id }} search={{ lang: book.source_language, page: 1 }}
-            className="inline-flex items-center gap-2 rounded-xl border border-border px-4 py-2.5 text-sm font-semibold text-foreground hover:bg-secondary">
+            className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-border px-4 py-2.5 text-sm font-semibold text-foreground hover:bg-secondary">
             Read source
           </Link>
         </div>
