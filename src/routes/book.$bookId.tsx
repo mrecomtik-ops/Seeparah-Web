@@ -236,6 +236,15 @@ function BookDetailPage() {
               </div>
               <ShelfButtons bookId={book.id} />
             </div>
+            <Link
+              to="/read/$bookId"
+              params={{ bookId: book.id }}
+              search={{ lang: readLanguage }}
+              className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground sm:w-auto"
+            >
+              <BookOpen className="h-4 w-4" aria-hidden="true" />
+              {isSample ? `Read the sample in ${readLanguage}` : `Start reading in ${readLanguage}`}
+            </Link>
 
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <span className="rounded-full bg-secondary px-2.5 py-1 text-[11px] font-semibold text-secondary-foreground">
