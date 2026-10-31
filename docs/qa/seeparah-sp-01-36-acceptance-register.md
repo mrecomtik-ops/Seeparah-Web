@@ -4,7 +4,7 @@
 **Status meaning:** **Live pass** = the stated primary behavior was observed on the public site, not necessarily every device; **Needs QA** = code fix exists or the relevant surface needs verification; **Partial** = the stated audit acceptance criteria are not fully implemented; **Editorial** = immutable source conventions need human/source approval. 
 **Do not call the 36 issues fully resolved solely because CI passes or PRs are merged.**
 
-Summary (36 original items): 1 needs visual qa, 5 live pass, 2 needs mobile qa, 3 needs admin qa, 2 needs performance qa, 12 partial, 2 needs accessibility qa, 3 needs reader qa, 1 needs cross-edition qa, 1 needs rtl qa, 1 editorial decision pending, 1 needs seo qa, 1 needs source-specific qa, 1 needs nav qa.
+Summary (36 original items): 1 needs visual qa, 6 live pass, 2 needs mobile qa, 3 needs admin qa, 2 needs performance qa, 11 partial, 2 needs accessibility qa, 3 needs reader qa, 1 needs cross-edition qa, 1 needs rtl qa, 1 editorial decision pending, 1 needs seo qa, 1 needs source-specific qa, 1 needs nav qa.
 
 | ID | Original finding | Status | PR evidence | Unresolved acceptance criterion |
 |:--|:--|:--|:--|:--|
