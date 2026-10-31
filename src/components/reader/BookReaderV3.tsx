@@ -1032,7 +1032,7 @@ export function BookReaderV3({
       const target = event.target;
       const editableTarget =
         target instanceof Element &&
-        (target.matches("input,textarea,select,button,[role='button']") ||
+        (target.matches("input,textarea,select,[role='textbox']") ||
           (target instanceof HTMLElement && target.isContentEditable));
       if (editableTarget || settingsOpen) return;
       if (event.key === "ArrowLeft") {
@@ -1290,7 +1290,7 @@ export function BookReaderV3({
       : (Math.min(bodyPage + 1, bodyPageCount) / Math.max(1, bodyPageCount)) * 100;
   const atBeginning = frontIndex === 0;
   const atEnd =
-    frontIndex === null &&
+    layoutMeasured && bodyPageCount > 0 && frontIndex === null &&
     (spreadMode ? bodyPage >= lastBodySpreadRight : bodyPage >= bodyPageCount - 1);
   const trailingSingleLeaf =
     frontIndex === null &&

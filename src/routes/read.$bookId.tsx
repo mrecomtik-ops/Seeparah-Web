@@ -96,9 +96,9 @@ export const Route = createFileRoute("/read/$bookId")({
     return { book };
   },
   notFoundComponent: ReaderBookNotFoundPage,
-  head: () => ({
+  head: ({ loaderData }) => ({
     meta: [
-      { title: "Reading room — Seeparah" },
+      { title: loaderData?.book ? `${loaderData.book.title} — Seeparah Reading Room` : "Reading room — Seeparah" },
       {
         name: "description",
         content:

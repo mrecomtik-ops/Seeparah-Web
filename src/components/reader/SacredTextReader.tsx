@@ -585,6 +585,7 @@ export function SacredTextReader({
               <article
                 key={chunk.chunkIndex}
                 id={"sacred-chunk-" + chunk.chunkIndex}
+                lang={analectsKind ? (analectsKind.startsWith("chinese") ? "zh-Hant" : "en") : undefined}
                 className={[
                   "scroll-mt-28",
                   isStudy
