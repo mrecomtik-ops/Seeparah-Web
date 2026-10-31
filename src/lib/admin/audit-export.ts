@@ -3,6 +3,7 @@ export interface AuditExportRow {
   created_at: string;
   actor_role: string | null;
   actor_id: string | null;
+  actor_display_name?: string | null;
   action: string;
   entity_type: string;
   entity_id: string | null;
@@ -17,7 +18,7 @@ function csvCell(value: string | null | undefined): string {
 }
 export function auditCsv(rows: AuditExportRow[]): string {
   const columns: Array<keyof AuditExportRow> = [
-    "created_at", "actor_role", "actor_id", "action",
+    "created_at", "actor_role", "actor_display_name", "actor_id", "action",
     "entity_type", "entity_display_name", "entity_id", "reason",
   ];
   return [
