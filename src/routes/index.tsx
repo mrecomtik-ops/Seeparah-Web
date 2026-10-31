@@ -161,20 +161,38 @@ export function LandingPage() {
                 visible to the reader.
               </p>
 
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <form method="get" action="/library" role="search" className="mt-7 flex max-w-xl flex-col gap-2 sm:flex-row" aria-label="Find a book">
+                <label htmlFor="home-book-search" className="sr-only">Search books by title or author</label>
+                <input
+                  id="home-book-search"
+                  name="q"
+                  type="search"
+                  placeholder="Search Qur’an, Bible, Gita, novels…"
+                  className="min-h-12 min-w-0 flex-1 rounded-xl border border-border bg-card px-4 text-sm text-foreground shadow-sm placeholder:text-muted-foreground"
+                />
+                <button type="submit" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground">
+                  Find a book <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </button>
+              </form>
+
+              <div className="mt-4 flex flex-wrap gap-3">
                 <Link
-                  to="/dashboard"
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3.5 text-base font-semibold text-primary-foreground card-shadow transition-transform hover:-translate-y-0.5"
+                  to="/library"
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-border bg-card px-5 py-3 text-sm font-semibold text-foreground card-shadow hover:bg-secondary"
                 >
-                  <BookOpen className="h-5 w-5" />
-                  Continue as Reader
+                  <BookOpen className="h-4 w-4" /> Browse library
+                </Link>
+                <Link
+                  to="/sacred-texts"
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-border bg-card px-5 py-3 text-sm font-semibold text-foreground card-shadow hover:bg-secondary"
+                >
+                  <ShieldCheck className="h-4 w-4 text-primary" /> Explore Sacred Texts
                 </Link>
                 <Link
                   to="/author"
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-card px-6 py-3.5 text-base font-semibold text-foreground card-shadow transition-transform hover:-translate-y-0.5"
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-primary hover:bg-accent"
                 >
-                  <Feather className="h-5 w-5 text-primary" />
-                  Continue as Author
+                  <Feather className="h-4 w-4" /> Publish as an author
                 </Link>
               </div>
 
