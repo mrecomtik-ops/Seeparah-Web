@@ -54,6 +54,7 @@ const searchSchema = z.object({
   author: z.string().optional(),
   category: z.string().optional(),
   p: z.coerce.number().int().positive().max(10000).optional(),
+  sort: z.enum(["default", "title", "author"]).optional(),
 });
 
 export const Route = createFileRoute("/library")({
@@ -84,6 +85,7 @@ function LibraryPage() {
   const tab = search.tab ?? "all";
   const query = search.q ?? "";
   const requestedPage = search.p ?? 1;
+  const sort = search.sort ?? "default";
   const lang = search.lang ?? null;
   const genre = search.genre ?? null;
   const author = search.author ?? null;
@@ -203,9 +205,14 @@ function LibraryPage() {
     return matchesQuery && matchesLang && matchesGenre && matchesAuthor && matchesCategory;
   });
 
-  const pageCount = Math.max(1, Math.ceil(filtered.length / 24));
+  const sorted = sort === "default" ? filtered : [...filtered].sort((left, right) => {
+    const field = sort === "author" ? "author" : "title";
+    return left[field].localeCompare(right[field], undefined, { sensitivity: "base" })
+      || left.title.localeCompare(right.title, undefined, { sensitivity: "base" });
+  });
+  const pageCount = Math.max(1, Math.ceil(sorted.length / 24));
   const currentPage = Math.min(requestedPage, pageCount);
-  const visibleBooks = filtered.slice((currentPage - 1) * 24, currentPage * 24);
+  const visibleBooks = sorted.slice((currentPage - 1) * 24, currentPage * 24);
 
   const isEmptyShelf = tabBooks.length === 0 && !hasActiveFilters;
   const isNoSearchMatch = filtered.length === 0 && !isEmptyShelf;
@@ -489,15 +496,30 @@ function LibraryPage() {
         )}
 
         <section className="mt-8">
-          <div className="flex items-baseline justify-between gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="font-display text-xl font-semibold text-foreground">
               {TABS.find((t) => t.key === tab)?.label}
             </h2>
-            {!booksQuery.isLoading && (
-              <p className="text-sm text-muted-foreground">
-                {filtered.length} {filtered.length === 1 ? "book" : "books"}
-              </p>
-            )}
+            <div className="flex flex-wrap items-center gap-3">
+              {!booksQuery.isLoading && (
+                <p className="text-sm text-muted-foreground">
+                  {filtered.length} {filtered.length === 1 ? "book" : "books"}
+                </p>
+              )}
+              <label className="inline-flex min-h-11 items-center gap-2 text-xs font-semibold text-foreground">
+                Sort by
+                <select
+                  aria-label="Sort library books"
+                  value={sort}
+                  onChange={(event) => updateSearch({ sort: event.target.value as "default" | "title" | "author" })}
+                  className="min-h-11 rounded-lg border border-border bg-card px-3 text-sm font-medium text-foreground"
+                >
+                  <option value="default">Recommended order</option>
+                  <option value="title">Title A–Z</option>
+                  <option value="author">Author A–Z</option>
+                </select>
+              </label>
+            </div>
           </div>
           {booksQuery.isLoading ? (
             <div role="status" aria-label="Loading published book results">
