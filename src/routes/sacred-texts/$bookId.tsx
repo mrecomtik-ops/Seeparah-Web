@@ -287,7 +287,7 @@ function SacredTextDetail() {
                         to="/read/$bookId"
                         params={{ bookId: book.id }}
                         search={{ lang: language, page: reference.startChunkIndex + 1 }}
-                        className="shrink-0 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground"
+                        className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
                       >
                         Open in context
                       </Link>
