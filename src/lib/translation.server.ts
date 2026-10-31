@@ -749,6 +749,9 @@ export interface PublicBookEditionInfo {
   sourceUrl: string | null;
   sourceEditionId: string | null;
   authenticityNotes: string | null;
+  coverUrl: string | null;
+  coverAttribution: string | null;
+  coverSharedArtwork: boolean;
 }
 
 /** Public metadata for already-published translated editions. This exposes
@@ -766,7 +769,7 @@ export async function getPublicBookEditions(bookId: string): Promise<PublicBookE
   const { data, error } = await db
     .from("book_editions")
     .select(
-      "language,access_type,provenance_type,typography_profile,edition_title,translator,editor,publisher,version_label,reuse_notice,source_url,source_edition_id,authenticity_notes",
+      "language,access_type,provenance_type,typography_profile,edition_title,translator,editor,publisher,version_label,reuse_notice,source_url,source_edition_id,authenticity_notes,cover_url,cover_attribution,cover_shared_artwork",
     )
     .eq("book_id", bookId)
     .order("language");
@@ -786,6 +789,9 @@ export async function getPublicBookEditions(bookId: string): Promise<PublicBookE
     sourceUrl: row.source_url,
     sourceEditionId: row.source_edition_id,
     authenticityNotes: row.authenticity_notes,
+    coverUrl: row.cover_url,
+    coverAttribution: row.cover_attribution,
+    coverSharedArtwork: row.cover_shared_artwork,
   }));
 }
 

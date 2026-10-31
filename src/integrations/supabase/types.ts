@@ -227,6 +227,9 @@ export type Database = {
           access_type: string
           authenticity_notes: string | null
           book_id: string
+          cover_url: string | null
+          cover_attribution: string | null
+          cover_shared_artwork: boolean
           created_at: string
           edition_title: string | null
           editor: string | null
@@ -249,6 +252,9 @@ export type Database = {
           access_type?: string
           authenticity_notes?: string | null
           book_id: string
+          cover_url?: string | null
+          cover_attribution?: string | null
+          cover_shared_artwork?: boolean
           created_at?: string
           edition_title?: string | null
           editor?: string | null
@@ -271,6 +277,9 @@ export type Database = {
           access_type?: string
           authenticity_notes?: string | null
           book_id?: string
+          cover_url?: string | null
+          cover_attribution?: string | null
+          cover_shared_artwork?: boolean
           created_at?: string
           edition_title?: string | null
           editor?: string | null

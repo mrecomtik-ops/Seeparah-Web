@@ -92,6 +92,9 @@ function SacredTextDetail() {
 
   const editions = editionsQuery.data ?? [];
   const selectedEdition = editions.find((edition) => edition.language === language);
+  const dedicatedEditionCover = selectedEdition?.coverUrl && !selectedEdition.coverSharedArtwork
+    ? selectedEdition.coverUrl : null;
+  const selectedCover = dedicatedEditionCover ?? sacredCoverSrc(book, language);
   const selectedIsSource =
     language === book.source_language || selectedEdition?.provenanceType === "source_text";
   const sourceLabel =
@@ -323,7 +326,7 @@ function SacredTextDetail() {
           </div>
 
           <aside className="space-y-5">
-            {isSharedSacredCollectionCover(book) ? (
+            {isSharedSacredCollectionCover(book) && !dedicatedEditionCover ? (
               <figure className="mx-auto w-full max-w-[280px] overflow-hidden rounded-2xl border border-border bg-card p-2 card-shadow">
                 <div className="aspect-[2/3] w-full overflow-hidden rounded-xl">
                   <SacredWorkIdentity book={book} language={language} />
@@ -332,16 +335,23 @@ function SacredTextDetail() {
                   Individual-work title panel. The shared collection artwork is shown on the Sacred Texts overview.
                 </figcaption>
               </figure>
-            ) : sacredCoverSrc(book, language) ? (
+            ) : selectedCover ? (
               <figure className="mx-auto w-full max-w-[280px] overflow-hidden rounded-2xl border border-border bg-card p-2 card-shadow">
                 <img
-                  src={sacredCoverSrc(book, language) ?? undefined}
-                  alt={sacredCoverAlt(book, language)}
+                  src={selectedCover ?? undefined}
+                  alt={dedicatedEditionCover
+                    ? `Dedicated cover for ${book.title}, ${language} edition`
+                    : sacredCoverAlt(book, language)}
                   width={800}
                   height={1200}
                   decoding="async"
                   className="aspect-[2/3] w-full rounded-xl bg-card object-contain"
                 />
+                {dedicatedEditionCover && selectedEdition?.coverAttribution && (
+                  <figcaption className="px-2 py-2 text-center text-xs leading-relaxed text-muted-foreground">
+                    Artwork: {selectedEdition.coverAttribution}
+                  </figcaption>
+                )}
               </figure>
             ) : (
               <div className="mx-auto flex aspect-[2/3] w-full max-w-[280px] flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border bg-secondary/40 p-6 text-center">
@@ -374,6 +384,12 @@ function SacredTextDetail() {
                         <p className="text-sm font-semibold text-foreground">
                           {edition.language} · {sourceEdition ? "source text" : "published translation"}
                         </p>
+                        {edition.coverUrl && (
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {edition.coverSharedArtwork ? "Shared collection artwork" : "Dedicated edition artwork"}
+                            {edition.coverAttribution ? ` · ${edition.coverAttribution}` : ""}
+                          </p>
+                        )}
                         <p className="mt-1 text-xs text-muted-foreground" dir="auto">
                           {edition.editionTitle || "Verified sourced edition"}
                           {edition.versionLabel ? ` · ${edition.versionLabel}` : ""}
