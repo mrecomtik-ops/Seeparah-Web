@@ -61,7 +61,7 @@ function CollectionList({ books, order, heading }: { books: Book[]; order: strin
         <h2 className="font-display text-xl font-semibold text-foreground">{heading}</h2>
         <span className="text-xs text-muted-foreground">{members.length} published works</span>
       </div>
-      <ol className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+      <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
         {members.map((book) => {
           const languages = [...new Set([book.source_language, ...book.available_languages])];
           return (
@@ -92,7 +92,7 @@ function CollectionList({ books, order, heading }: { books: Book[]; order: strin
             </li>
           );
         })}
-      </ol>
+      </ul>
     </section>
   );
 }
