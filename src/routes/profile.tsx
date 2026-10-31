@@ -109,6 +109,18 @@ function ProfilePage() {
   const pagesRead = countPagesRead(progressQuery.data);
   const booksStarted = new Set((progressQuery.data ?? []).map((p) => p.book_id)).size;
   const subs = subsQuery.data ?? [];
+  // A reader can mark the same work Saved, Favorite and Want to read.
+  // Show one profile row per book while preserving all original shelf flags.
+  const shelfGroupsMap = new Map<string, Set<ShelfKind>>();
+  for (const entry of shelvesQuery.data ?? []) {
+    const groups = shelfGroupsMap.get(entry.book_id) ?? new Set<ShelfKind>();
+    groups.add(entry.shelf as ShelfKind);
+    shelfGroupsMap.set(entry.book_id, groups);
+  }
+  const groupedShelfBooks = [...shelfGroupsMap.entries()].map(([bookId, shelves]) => ({
+    bookId,
+    shelves: [...shelves],
+  }));
 
   async function handleSaveAuthorProfile() {
     setSavingAuthorProfile(true);
@@ -388,27 +400,31 @@ function ProfilePage() {
         <div className="mt-8 grid gap-6 lg:grid-cols-2">
         <section className="rounded-2xl border border-border bg-card p-6 card-shadow">
           <h2 className="font-display text-lg font-semibold text-foreground">Saved titles</h2>
-          {(shelvesQuery.data ?? []).length === 0 ? (
+          {groupedShelfBooks.length === 0 ? (
             <p className="mt-3 text-sm text-muted-foreground">
               Tap the heart, bookmark or plus on any book to keep it here.
             </p>
           ) : (
             <ul className="mt-4 space-y-2.5">
-              {(shelvesQuery.data ?? []).map((row) => (
+              {groupedShelfBooks.map((row) => (
                 <li
-                  key={row.id}
+                  key={row.bookId}
                   className="flex items-center justify-between gap-3 rounded-xl border border-border bg-background px-4 py-3"
                 >
                   <Link
                     to="/read/$bookId"
-                    params={{ bookId: row.book_id }}
+                    params={{ bookId: row.bookId }}
                     search={{ lang: language }}
                     className="truncate font-display text-sm font-semibold text-foreground hover:underline"
                   >
-                    {bookTitle(row.book_id)}
+                    {bookTitle(row.bookId)}
                   </Link>
-                  <span className="shrink-0 rounded-full bg-accent px-2.5 py-1 text-[11px] font-semibold text-accent-foreground">
-                    {SHELF_LABELS[row.shelf as ShelfKind]}
+                  <span className="flex max-w-[55%] shrink-0 flex-wrap justify-end gap-1">
+                    {row.shelves.map((shelf) => (
+                      <span key={shelf} className="rounded-full bg-accent px-2.5 py-1 text-[11px] font-semibold text-accent-foreground">
+                        {SHELF_LABELS[shelf]}
+                      </span>
+                    ))}
                   </span>
                 </li>
               ))}
