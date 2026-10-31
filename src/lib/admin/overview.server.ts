@@ -34,6 +34,13 @@ export interface AdminOverviewAnalytics {
     active: number;
   };
   categories: { category: string; books: number }[];
+  reviewQueues: {
+    rightsPending: number;
+    editionPending: number;
+    structurePending: number;
+    cleanupPending: number;
+    readyToPublish: number;
+  };
 }
 
 export async function getAdminOverviewAnalytics(): Promise<AdminOverviewAnalytics> {
@@ -53,7 +60,7 @@ export async function getAdminOverviewAnalytics(): Promise<AdminOverviewAnalytic
     { data: jobs },
     { data: subscriptions },
   ] = await Promise.all([
-    db.from("books").select("id,status,categories,content_classification"),
+    db.from("books").select("id,status,categories,content_classification,cover_url,rights_status,edition_review_status,structure_review_status,cleanup_review_status"),
     db.from("book_editions").select("book_id,language,access_type"),
     db.from("reading_progress").select("user_id").gte("updated_at", since7),
     db.from("reading_progress").select("user_id").gte("updated_at", since30),
@@ -129,6 +136,19 @@ export async function getAdminOverviewAnalytics(): Promise<AdminOverviewAnalytic
     },
     subscriptions: {
       active: activeSubscriptions.size,
+    },
+    reviewQueues: {
+      rightsPending: bookRows.filter((b) => b.status === "in_review" && b.rights_status === "pending").length,
+      editionPending: bookRows.filter((b) => b.status === "in_review" && b.edition_review_status === "pending").length,
+      structurePending: bookRows.filter((b) => b.status === "in_review" && b.structure_review_status === "pending").length,
+      cleanupPending: bookRows.filter((b) => b.status === "in_review" && b.cleanup_review_status === "pending").length,
+      readyToPublish: bookRows.filter((b) =>
+        ["approved", "unpublished"].includes(b.status) &&
+        b.rights_status === "approved" &&
+        b.edition_review_status === "approved" &&
+        b.structure_review_status === "approved" &&
+        b.cleanup_review_status === "approved"
+      ).length,
     },
     categories: [...categoryCounts.entries()]
       .map(([category, books]) => ({ category, books }))
