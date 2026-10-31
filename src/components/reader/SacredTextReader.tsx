@@ -158,7 +158,7 @@ export function SacredTextReader({
     queryKey: ["sacred-reader-section", book.id, language, chunkIndex],
     queryFn: () =>
       getSacredReaderSection({
-        data: { bookId: book.id, language, chunkIndex },
+        data: { bookId: book.id, language, chunkIndex, windowSize: 32 },
       }),
     staleTime: 15 * 60 * 1000,
     // Keep the mounted reader while loading the next section of the SAME edition.
@@ -170,7 +170,7 @@ export function SacredTextReader({
   const comparisonQuery = useQuery({
     queryKey: ["sacred-compare-section", book.id, compareLanguage, chunkIndex],
     queryFn: () => getSacredReaderSection({
-      data: { bookId: book.id, language: compareLanguage ?? language, chunkIndex },
+      data: { bookId: book.id, language: compareLanguage ?? language, chunkIndex, windowSize: 32 },
     }),
     enabled: Boolean(compareLanguage),
     staleTime: 15 * 60 * 1000,
@@ -389,11 +389,17 @@ export function SacredTextReader({
   // Render bounded source chunks, while preserving every original reference and byte.
   // A changed URL page selects the corresponding group and saved reading position.
   const sourceGroupSize = 32;
-  const activeChunkOffset = Math.max(0, section.chunks.findIndex((chunk) => chunk.chunkIndex === chunkIndex));
-  const groupStart = Math.floor(activeChunkOffset / sourceGroupSize) * sourceGroupSize;
-  const visibleSourceChunks = section.chunks.slice(groupStart, groupStart + sourceGroupSize);
-  const hasPreviousGroup = groupStart > 0;
-  const hasNextGroup = groupStart + sourceGroupSize < section.chunks.length;
+  const windowStart = section.windowStartChunkIndex ?? section.startChunkIndex;
+  const groupStart = Math.max(0, windowStart - section.startChunkIndex);
+  const sourceSectionCount = Math.max(1, section.endChunkIndex - section.startChunkIndex + 1);
+  // The API now limits the published source text to one 32-chunk window.
+  // Imported reference metadata still provides exact canonical jump labels.
+  const visibleSourceChunks = section.chunks;
+  const sourceJumpOptions = section.referenceOptions?.length
+    ? section.referenceOptions
+    : visibleSourceChunks.map((chunk) => ({ chunkIndex: chunk.chunkIndex, label: chunk.label }));
+  const hasPreviousGroup = windowStart > section.startChunkIndex;
+  const hasNextGroup = windowStart + sourceGroupSize <= section.endChunkIndex;
   const firstVisibleReference = visibleSourceChunks[0];
   const lastVisibleReference = visibleSourceChunks[visibleSourceChunks.length - 1];
 
@@ -623,7 +629,7 @@ export function SacredTextReader({
               </div>
             </details>
           </div>
-          {section.chunks.length > 1 && (
+          {sourceSectionCount > 1 && (
             <div className="mt-3 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card p-3">
               <label htmlFor="sacred-reference-jump" className="text-sm font-medium text-foreground">
                 Jump to source reference
@@ -634,16 +640,16 @@ export function SacredTextReader({
                 onChange={(event) => updateLocation(language, Number(event.target.value))}
                 className="min-h-11 min-w-0 max-w-full flex-1 rounded-lg border border-border bg-background px-3 text-sm text-foreground sm:max-w-sm"
               >
-                {section.chunks.map((chunk) => (
+                {sourceJumpOptions.map((chunk) => (
                   <option value={chunk.chunkIndex} key={chunk.chunkIndex}>
                     {chunk.label}
                   </option>
                 ))}
               </select>
-              {section.chunks.length > sourceGroupSize && (
+              {sourceSectionCount > sourceGroupSize && (
                 <p className="w-full text-xs text-muted-foreground" role="status">
-                  Showing source passages {groupStart + 1}–{Math.min(groupStart + sourceGroupSize, section.chunks.length)}
-                  {" "}of {section.chunks.length}. Use the reference selector to jump directly.
+                  Showing source passages {groupStart + 1}–{Math.min(groupStart + visibleSourceChunks.length, sourceSectionCount)}
+                  {" "}of {sourceSectionCount}. Jump by a sourced reference or go to the next group.
                 </p>
               )}
             </div>
@@ -934,10 +940,10 @@ export function SacredTextReader({
         {(hasPreviousGroup || hasNextGroup) && (
           <nav className="mx-auto mt-4 flex max-w-3xl items-center justify-between gap-3" aria-label="Passage groups">
             {hasPreviousGroup ? (
-              <button type="button" onClick={() => updateLocation(language, section.chunks[groupStart - sourceGroupSize]!.chunkIndex)} className="min-h-11 rounded-xl border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground hover:bg-secondary">Previous passages</button>
+              <button type="button" onClick={() => updateLocation(language, Math.max(section.startChunkIndex, windowStart - sourceGroupSize))} className="min-h-11 rounded-xl border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground hover:bg-secondary">Previous passages</button>
             ) : <span />}
             {hasNextGroup ? (
-              <button type="button" onClick={() => updateLocation(language, section.chunks[groupStart + sourceGroupSize]!.chunkIndex)} className="min-h-11 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">Next passages</button>
+              <button type="button" onClick={() => updateLocation(language, Math.min(section.endChunkIndex, windowStart + sourceGroupSize))} className="min-h-11 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">Next passages</button>
             ) : <span />}
           </nav>
         )}

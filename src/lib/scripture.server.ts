@@ -204,6 +204,8 @@ export async function getSacredReaderSection(params: {
   bookId: string;
   language: string;
   chunkIndex: number;
+  /** Optional bounded 32-chunk window. Default retains the existing full-section API. */
+  windowSize?: 32 | undefined;
 }): Promise<SacredReaderSection | null> {
   const db = await admin();
 
@@ -261,6 +263,12 @@ export async function getSacredReaderSection(params: {
   const sectionOrdinal = section ? Number(section.ordinal) : 0;
   const sectionTitle =
     section?.title?.trim() || sacredReferenceMetadata(section?.metadata).label || "Reading";
+  const windowStartChunkIndex = params.windowSize
+    ? startChunkIndex + Math.floor(Math.max(0, targetChunk - startChunkIndex) / params.windowSize) * params.windowSize
+    : startChunkIndex;
+  const windowEndChunkIndex = params.windowSize
+    ? Math.min(endChunkIndex, windowStartChunkIndex + params.windowSize - 1)
+    : endChunkIndex;
 
   const [chunkResult, leafResult, previousResult, nextResult] = await Promise.all([
     db
@@ -270,8 +278,8 @@ export async function getSacredReaderSection(params: {
       .eq("language", params.language)
       .eq("source_version", sourceVersion)
       .eq("status", "published")
-      .gte("chunk_index", startChunkIndex)
-      .lte("chunk_index", endChunkIndex)
+      .gte("chunk_index", windowStartChunkIndex)
+      .lte("chunk_index", windowEndChunkIndex)
       .order("chunk_index", { ascending: true }),
     db
       .from("book_structure_nodes")
@@ -384,6 +392,10 @@ export async function getSacredReaderSection(params: {
         ? Number(nextResult.data[0]!.start_chunk_index)
         : null,
     typographyProfile,
+    windowStartChunkIndex,
+    referenceOptions: [...refByChunk.entries()]
+      .sort(([left], [right]) => left - right)
+      .map(([chunkIndex, ref]) => ({ chunkIndex, label: ref.label })),
     sourceSegments: (() => {
       const raw = asRecord(section?.metadata)?.["segments"];
       if (!Array.isArray(raw) || raw.length > 5000) return undefined;
