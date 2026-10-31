@@ -91,6 +91,29 @@ function AdminOverview() {
       search: { status: "published", coverMissing: true },
     },
     {
+      label: "Rights review pending",
+      value: a?.reviewQueues.rightsPending ?? 0,
+      to: "/admin/books" as const,
+      search: { status: "in_review", rights: "pending" },
+    },
+    {
+      label: "Edition review pending",
+      value: a?.reviewQueues.editionPending ?? 0,
+      to: "/admin/books" as const,
+      search: { status: "in_review", edition: "pending" },
+    },
+    {
+      label: "Structure review pending",
+      value: a?.reviewQueues.structurePending ?? 0,
+      to: "/admin/books" as const,
+      search: { status: "in_review", structure: "pending" },
+    },
+    {
+      label: "Ready to publish",
+      value: a?.reviewQueues.readyToPublish ?? 0,
+      to: "/admin/books" as const,
+    },
+    {
       label: "Translation requests",
       value: a?.translations.requested ?? h.pendingTranslationRequests,
       to: "/admin/translation-requests" as const,
@@ -116,10 +139,7 @@ function AdminOverview() {
     <div>
       <h1 className="font-display text-2xl font-semibold text-foreground">Overview</h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        Gemini:{" "}
-        {h.geminiConfigured
-          ? "API key present (provider connectivity is checked only when a translation runs)"
-          : "API key missing — translation jobs cannot run until GEMINI_API_KEY is configured"}
+        Review the publishing pipeline, source rights and reader-support queues below.
       </p>
 
       <section className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -234,6 +254,15 @@ function AdminOverview() {
           </section>
         </div>
       )}
+
+      <section className="mt-7 rounded-2xl border border-border bg-card p-4">
+        <h2 className="font-display text-sm font-semibold text-foreground">Translation provider status</h2>
+        <p className="mt-1 text-xs text-muted-foreground">
+          {h.geminiConfigured
+            ? "Provider key configured; connectivity is checked when a translation job runs."
+            : "Provider key not configured; automated translation jobs are unavailable."}
+        </p>
+      </section>
 
       {h.unresolvedErrors.length > 0 && (
         <section className="mt-8">
