@@ -28,6 +28,7 @@ export const adminUploadBookCover = createServerFn({ method: "POST" })
   .validator((value) => z.object({
     accessToken: z.string().min(1),
     bookId: z.string().uuid(),
+    language: z.string().trim().min(1).max(80),
     fileBase64: z.string().min(1).max(MAX_BASE64_CHARS),
     mimeType: z.enum(types),
     attribution: z.string().trim().min(3).max(500),
@@ -43,6 +44,14 @@ export const adminUploadBookCover = createServerFn({ method: "POST" })
       .maybeSingle();
     if (bookError) throw new Error(bookError.message);
     if (!book) throw new Error("Book not found.");
+    const { data: edition, error: editionError } = await supabaseAdmin
+      .from("book_editions")
+      .select("language,source_edition_id,edition_title")
+      .eq("book_id", data.bookId)
+      .eq("language", data.language)
+      .maybeSingle();
+    if (editionError) throw new Error(editionError.message);
+    if (!edition) throw new Error("No verified source-edition record exists in that language.");
 
     const bytes = new Uint8Array(Buffer.from(data.fileBase64, "base64"));
     if (bytes.length === 0 || bytes.length > MAX_IMAGE_BYTES || !validSignature(bytes, data.mimeType))
@@ -50,16 +59,16 @@ export const adminUploadBookCover = createServerFn({ method: "POST" })
 
     const extension = data.mimeType === "image/png" ? "png" :
       data.mimeType === "image/webp" ? "webp" : "jpg";
-    const path = `editorial/${data.bookId}/${crypto.randomUUID()}.${extension}`;
-    const sourceEditionId = book.source_edition_id || book.source_scan_id || "unrecorded";
+    const path = `editorial/${data.bookId}/${encodeURIComponent(data.language)}/${crypto.randomUUID()}.${extension}`;
+    const sourceEditionId = edition.source_edition_id || "unrecorded";
     const { error } = await supabaseAdmin.storage.from("book-covers").upload(path, bytes, {
       contentType: data.mimeType,
       upsert: false,
       cacheControl: "86400",
       metadata: {
         source_edition_id: sourceEditionId,
-        edition_title: book.edition_title || "",
-        source_language: book.source_language,
+        edition_title: edition.edition_title || "",
+        edition_language: edition.language,
         attribution: data.attribution,
         shared_artwork: String(data.sharedArtwork),
         uploaded_by: userId,
@@ -77,10 +86,67 @@ export const adminUploadBookCover = createServerFn({ method: "POST" })
       after: {
         path,
         sourceEditionId,
+        language: data.language,
         attribution: data.attribution,
         sharedArtwork: data.sharedArtwork,
         sizeBytes: bytes.length,
       },
     });
-    return { url: publicAsset.publicUrl, path, sourceEditionId };
+    return { url: publicAsset.publicUrl, path, sourceEditionId, language: data.language };
+  });
+
+
+/** Assign previously staged artwork to one existing verified edition.
+ * This deliberately never overwrites books.cover_url or another language.
+ */
+export const adminAssignBookEditionCover = createServerFn({ method: "POST" })
+  .validator((value) => z.object({
+    accessToken: z.string().min(1),
+    bookId: z.string().uuid(),
+    language: z.string().trim().min(1).max(80),
+    path: z.string().min(30).max(700),
+    attribution: z.string().trim().min(3).max(500),
+    sharedArtwork: z.boolean(),
+  }).parse(value))
+  .handler(async ({ data }) => {
+    const { userId, role } = await requireAdmin(data.accessToken, "catalog.publish");
+    // A staged asset for the same book and language must be used; no
+    // external image URL and no cross-edition cover assignment allowed.
+    const prefix = `editorial/${data.bookId}/${encodeURIComponent(data.language)}/`;
+    if (!data.path.startsWith(prefix) ||
+      !/^[0-9a-f-]{36}\.(?:png|webp|jpg)$/i.test(data.path.slice(prefix.length))) {
+      throw new Error("Choose a staged cover uploaded for the exact source edition.");
+    }
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: edition, error: editionError } = await supabaseAdmin
+      .from("book_editions")
+      .select("cover_url,cover_attribution,cover_shared_artwork,source_edition_id")
+      .eq("book_id", data.bookId)
+      .eq("language", data.language)
+      .maybeSingle();
+    if (editionError) throw new Error(editionError.message);
+    if (!edition) throw new Error("That language does not have a verified edition.");
+
+    const { data: objectInfo, error: objectError } = await supabaseAdmin.storage
+      .from("book-covers").info(data.path);
+    if (objectError || !objectInfo) throw new Error("Staged cover could not be verified in storage.");
+    const { data: publicAsset } = supabaseAdmin.storage.from("book-covers").getPublicUrl(data.path);
+    const update = {
+      cover_url: publicAsset.publicUrl,
+      cover_attribution: data.attribution,
+      cover_shared_artwork: data.sharedArtwork,
+    };
+    const { error } = await supabaseAdmin.from("book_editions").update(update)
+      .eq("book_id", data.bookId).eq("language", data.language);
+    if (error) throw new Error(error.message);
+    await recordAudit({
+      actorId: userId,
+      actorRole: role,
+      action: "catalog.assign_edition_cover",
+      entityType: "book",
+      entityId: data.bookId,
+      before: { ...edition, language: data.language },
+      after: { ...update, language: data.language, sourceEditionId: edition.source_edition_id },
+    });
+    return { url: publicAsset.publicUrl, language: data.language };
   });
