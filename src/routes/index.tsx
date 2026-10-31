@@ -15,7 +15,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { listBooks } from "@/lib/library";
 import { pickFeaturedBook } from "@/lib/featured";
 import { useAuth } from "@/lib/use-auth";
-import logoUrl from "@/assets/seeparah-logo.png";
 import { coverFor } from "@/lib/covers";
 import { isSharedSacredCollectionCover } from "@/lib/sacred-cover-artwork";
 import { SacredWorkIdentity } from "@/components/SacredWorkIdentity";
@@ -93,36 +92,7 @@ export function LandingPage() {
   return (
     <div className="min-h-screen paper-texture">
       <div className="mx-auto flex min-h-screen max-w-6xl flex-col overflow-x-clip px-4 sm:px-6">
-        <header className="flex items-center justify-between py-6">
-          <div className="flex items-center gap-3">
-            <img
-              src={logoUrl}
-              alt="Seeparah logo"
-              className="h-11 w-11 rounded-2xl card-shadow"
-              width={44}
-              height={44}
-            />
-            <div>
-              <p className="font-display text-2xl font-semibold leading-none tracking-tight text-foreground">
-                Seeparah
-              </p>
-              <p className="text-xs text-muted-foreground">Read world classics in your language</p>
-            </div>
-          </div>
-          <nav
-            className="hidden items-center gap-5 text-sm font-semibold text-muted-foreground md:flex"
-            aria-label="Primary"
-          >
-            <Link to="/library" className="hover:text-foreground">
-              Library
-            </Link>
-            <Link to="/sacred-texts" className="hover:text-foreground">
-              Sacred Texts
-            </Link>
-            <Link to="/insights" className="hover:text-foreground">
-              Insights
-            </Link>
-          </nav>
+        <section aria-label="Reading account" className="flex min-h-14 items-center justify-end py-3">
           {authLoading ? (
             <div
               className="h-[38px] w-[150px] animate-pulse rounded-full bg-secondary"
@@ -146,7 +116,7 @@ export function LandingPage() {
               {displayName}
             </Link>
           )}
-        </header>
+        </section>
         {googleError && (
           <p className="mb-2 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
             {googleError}
