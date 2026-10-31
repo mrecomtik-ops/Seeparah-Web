@@ -652,12 +652,12 @@ body.reader-sepia {
 }
 
 .reader-v3-chapter-opening {
+  font-family: inherit;
   break-before: column;
   break-after: avoid-column;
   padding-top: 7rem;
   padding-top: 27cqh;
   text-align: center;
-  font-family: Georgia, "Times New Roman", serif;
 }
 
 .reader-v3-chapter-opening + p {
@@ -674,7 +674,7 @@ body.reader-sepia {
 
 .reader-v3-chapter-opening h2 {
   margin: 0 0 1.7em;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: inherit;
   font-size: 1.42em;
   line-height: 1.2;
   font-weight: 600;
@@ -684,7 +684,7 @@ body.reader-sepia {
 .reader-v3-internal-heading {
   break-after: avoid-column;
   margin: 1.1em 0 0.55em;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: inherit;
   font-size: 1.05em;
   line-height: 1.3;
   text-align: center;
