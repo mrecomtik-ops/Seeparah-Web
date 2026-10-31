@@ -110,11 +110,12 @@ export function AdminStructuredSettings() {
       value = ids;
     } else if (key === "home_collections") {
       if (collections.some((col) => !col.id.trim() || !col.title.trim() ||
-        col.bookIds.some((id) => !UUID.test(id))) ||
+        col.bookIds.filter((id) => id.trim()).some((id) => !UUID.test(id.trim()))) ||
         new Set(collections.map((x) => x.id)).size !== collections.length) {
         toast.error("Collections need unique IDs, titles and valid book UUIDs."); return;
       }
-      value = collections.map((x) => ({ ...x, id: x.id.trim(), title: x.title.trim() }));
+      value = collections.map((x) => ({ ...x, id: x.id.trim(), title: x.title.trim(),
+        bookIds: [...new Set(x.bookIds.map((id) => id.trim()).filter(Boolean))] }));
     } else if (key === "language_availability") {
       value = normalizeLanguageList(languages);
     } else {
@@ -215,7 +216,7 @@ export function AdminStructuredSettings() {
                 <label className="block text-xs font-semibold">Book UUIDs (one per line)
                   <textarea rows={3} value={item.bookIds.join("\n")} className={fieldClass + " mt-1 font-mono"}
                     onChange={(event) => setCollections((rows) => rows.map((x, i) =>
-                      i === index ? { ...x, bookIds: listOfIds(event.target.value) } : x))} />
+                      i === index ? { ...x, bookIds: event.target.value.split("\\n") } : x))} />
                 </label>
                 <button className={buttonClass} type="button"
                   onClick={() => setCollections((rows) => rows.filter((_, i) => i !== index))}>Remove collection</button>
