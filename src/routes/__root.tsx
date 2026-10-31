@@ -136,7 +136,8 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const bare = pathname === "/" || pathname.startsWith("/read");
+  const bare = pathname.startsWith("/read");
+  const home = pathname === "/";
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -155,7 +156,7 @@ function RootComponent() {
       {!bare && <AppHeader />}
       <span id="main-content" tabIndex={-1} className="sr-only" />
       <Outlet />
-      {!bare && (
+      {!bare && !home && (
         <footer className="border-t border-border py-5 pb-20 text-center text-xs text-muted-foreground sm:pb-5">
           <nav
             aria-label="Site footer"
