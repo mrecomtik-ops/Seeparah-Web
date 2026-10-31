@@ -70,9 +70,9 @@ export function AdminStructuredSettings() {
       setAnnouncements(Array.isArray(value) ? value.map((entry) => {
         const v = object(entry);
         return {
-          id: String(v.id ?? ""),
-          message: String(v.message ?? ""),
-          active: v.active === true,
+          id: String(v["id"] ?? ""),
+          message: String(v["message"] ?? ""),
+          active: v["active"] === true,
         };
       }) : []);
     } else if (key === "featured_books") {
@@ -80,8 +80,8 @@ export function AdminStructuredSettings() {
     } else if (key === "home_collections") {
       setCollections(Array.isArray(value) ? value.map((entry) => {
         const v = object(entry);
-        return { id: String(v.id ?? ""), title: String(v.title ?? ""),
-          bookIds: strings(v.bookIds) };
+        return { id: String(v["id"] ?? ""), title: String(v["title"] ?? ""),
+          bookIds: strings(v["bookIds"]) };
       }) : []);
     } else if (key === "language_availability") {
       setLanguages(normalizeLanguageList(strings(value)));
