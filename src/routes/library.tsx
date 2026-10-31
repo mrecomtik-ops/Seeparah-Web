@@ -53,6 +53,7 @@ const searchSchema = z.object({
   genre: z.string().optional(),
   author: z.string().optional(),
   category: z.string().optional(),
+  p: z.coerce.number().int().positive().max(10000).optional(),
 });
 
 export const Route = createFileRoute("/library")({
@@ -82,13 +83,14 @@ function LibraryPage() {
   const search = Route.useSearch();
   const tab = search.tab ?? "all";
   const query = search.q ?? "";
+  const requestedPage = search.p ?? 1;
   const lang = search.lang ?? null;
   const genre = search.genre ?? null;
   const author = search.author ?? null;
   const category = search.category ?? null;
 
   function updateSearch(patch: Partial<z.infer<typeof searchSchema>>) {
-    navigate({ search: (prev) => ({ ...prev, ...patch }), replace: true });
+    navigate({ search: (prev) => ({ ...prev, ...patch, p: patch.p ?? 1 }), replace: true });
   }
 
   const booksQuery = useQuery({ queryKey: ["books"], queryFn: listBooks });
@@ -200,6 +202,10 @@ function LibraryPage() {
     const matchesCategory = !category || (b.categories ?? []).includes(category);
     return matchesQuery && matchesLang && matchesGenre && matchesAuthor && matchesCategory;
   });
+
+  const pageCount = Math.max(1, Math.ceil(filtered.length / 24));
+  const currentPage = Math.min(requestedPage, pageCount);
+  const visibleBooks = filtered.slice((currentPage - 1) * 24, currentPage * 24);
 
   const isEmptyShelf = tabBooks.length === 0 && !hasActiveFilters;
   const isNoSearchMatch = filtered.length === 0 && !isEmptyShelf;
@@ -494,7 +500,8 @@ function LibraryPage() {
             )}
           </div>
           {booksQuery.isLoading ? (
-            <div className="mt-6 grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-4">
+            <>
+              <div className="mt-6 grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-4">
               {[0, 1, 2, 3].map((i) => (
                 <div key={i} className="aspect-[2/3] animate-pulse rounded-2xl bg-secondary" />
               ))}
@@ -571,7 +578,7 @@ function LibraryPage() {
             </div>
           ) : (
             <div className="mt-6 grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-4">
-              {filtered.map((b) => (
+              {visibleBooks.map((b) => (
                 <BookCard
                   key={b.id}
                   book={b}
@@ -581,7 +588,15 @@ function LibraryPage() {
                   monetizationEnabled={monetizationEnabled}
                 />
               ))}
-            </div>
+              </div>
+              {pageCount > 1 && (
+                <nav className="mt-6 flex flex-wrap items-center justify-center gap-3" aria-label="Library result pages">
+                  <button type="button" disabled={currentPage <= 1} onClick={() => updateSearch({ p: currentPage - 1 })} className="min-h-11 rounded-xl border border-border bg-card px-4 text-sm font-semibold text-foreground disabled:opacity-40">Previous</button>
+                  <span className="text-sm text-muted-foreground" aria-live="polite">Page {currentPage} of {pageCount} · {filtered.length} books</span>
+                  <button type="button" disabled={currentPage >= pageCount} onClick={() => updateSearch({ p: currentPage + 1 })} className="min-h-11 rounded-xl border border-border bg-card px-4 text-sm font-semibold text-foreground disabled:opacity-40">Next</button>
+                </nav>
+              )}
+            </>
           )}
         </section>
       </main>
