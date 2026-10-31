@@ -1,9 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
-import { Loader2, Search } from "lucide-react";
+import { Fragment, useMemo, useState } from "react";
+import { Download, Loader2, Search } from "lucide-react";
 import { getAccessToken } from "@/lib/admin/use-admin-session";
 import { adminListAuditLog } from "@/lib/admin/audit.functions";
+import { auditCsv } from "@/lib/admin/audit-export";
 
 export const Route = createFileRoute("/admin/audit")({
   component: AdminAuditPage,
@@ -42,6 +43,7 @@ function AdminAuditPage() {
   const [entityType, setEntityType] = useState("");
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
+  const [family, setFamily] = useState("");
 
   const auditQuery = useQuery({
     queryKey: ["admin-audit", entityType, page],
@@ -59,9 +61,9 @@ function AdminAuditPage() {
   const entries = useMemo(() => {
     const q = query.trim().toLowerCase();
     const rows = auditQuery.data?.entries ?? [];
-    if (!q) return rows;
     return rows.filter((entry) =>
-      [
+      (!family || actionFamily(entry.action) === family) &&
+      (!q || [
         entry.action,
         entry.entity_type,
         entry.entity_id,
@@ -71,12 +73,28 @@ function AdminAuditPage() {
         entry.reason,
       ]
         .filter(Boolean)
-        .some((value) => String(value).toLowerCase().includes(q)),
+        .some((value) => String(value).toLowerCase().includes(q))),
     );
-  }, [auditQuery.data?.entries, query]);
+  }, [auditQuery.data?.entries, query, family]);
 
   const total = auditQuery.data?.total ?? 0;
   const hasNext = page * 50 < total;
+  const families = [...new Set((auditQuery.data?.entries ?? []).map((entry) => actionFamily(entry.action)))].sort();
+  function exportVisibleAudit() {
+    if (!entries.length) return;
+    const blob = new Blob(["\uFEFF", auditCsv(entries)], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    try {
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = "seeparah-audit-page-" + page + "-" + new Date().toISOString().slice(0, 10) + ".csv";
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+    } finally {
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+  }
 
   return (
     <div>
@@ -107,7 +125,29 @@ function AdminAuditPage() {
         />
       </div>
 
-      {auditQuery.isLoading ? (
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+        <label className="flex min-h-11 items-center gap-2 text-xs font-semibold">
+          Action family
+          <select value={family} onChange={(event) => setFamily(event.target.value)}
+            className="min-h-11 rounded-lg border border-border bg-card px-3 py-2 text-xs font-normal">
+            <option value="">All actions on this page</option>
+            {families.map((item) => <option key={item} value={item}>{humanize(item)}</option>)}
+          </select>
+        </label>
+        <button type="button" onClick={exportVisibleAudit}
+          disabled={!entries.length || auditQuery.isPending || auditQuery.isError}
+          className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-xs font-semibold disabled:opacity-40">
+          <Download className="h-4 w-4" aria-hidden="true" /> Export filtered page · CSV
+        </button>
+      </div>
+      <p className="mt-2 text-xs text-muted-foreground">
+        Filters and CSV export cover the current 50-row page only, not all history. Export contains no before/after JSON.
+      </p>
+      {auditQuery.isError ? (
+        <div role="alert" className="mt-5 rounded-xl border border-destructive/30 p-4 text-sm text-destructive">
+          Audit log unavailable; refresh to retry.
+        </div>
+      ) : auditQuery.isLoading ? (
         <div className="mt-8 flex justify-center">
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
         </div>
@@ -131,11 +171,17 @@ function AdminAuditPage() {
               </tr>
             </thead>
             <tbody>
-              {entries.map((entry) => {
+              {entries.map((entry, index) => {
+                const day = new Date(entry.created_at).toLocaleDateString();
+                const previous = index > 0 ? entries[index - 1] : undefined;
+                const isNewDay = !previous || day !== new Date(previous.created_at).toLocaleDateString();
                 const family = actionFamily(entry.action);
                 const hasDetails = Boolean(entry.reason || entry.before || entry.after);
                 return (
-                  <tr key={entry.id} className="border-b border-border align-top last:border-0">
+                  <Fragment key={entry.id}>
+                    {isNewDay && <tr><th colSpan={5} scope="rowgroup"
+                      className="bg-secondary/60 px-4 py-2 text-left text-xs font-semibold text-foreground">{day}</th></tr>}
+                  <tr className="border-b border-border align-top last:border-0">
                     <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">
                       {new Date(entry.created_at).toLocaleString()}
                     </td>
@@ -200,6 +246,7 @@ function AdminAuditPage() {
                       )}
                     </td>
                   </tr>
+                  </Fragment>
                 );
               })}
             </tbody>
