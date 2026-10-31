@@ -105,7 +105,7 @@ export const Route = createFileRoute("/read/$bookId")({
         content:
           "A calm reading room with structured navigation, readable typography, highlights, and saved progress.",
       },
-      { property: "og:title", content: "Reading room — Seeparah" },
+      { property: "og:title", content: loaderData?.book ? `${loaderData.book.title} — Seeparah` : "Reading room — Seeparah" },
       {
         property: "og:description",
         content:
@@ -173,6 +173,11 @@ function ReaderBookNotFoundPage() {
 function ReaderPageV3() {
   const { book } = Route.useLoaderData();
   const { lang, page } = Route.useSearch();
+  useEffect(() => {
+    // The route's fallback SSR title can be generic before loader data resolves.
+    // Keep the hydrated reading tab specific to the actual verified work.
+    document.title = book.title + " — Seeparah Reading Room";
+  }, [book.title]);
   const initialChunkIndex = page ? page - 1 : undefined;
 
   if (isReligiousBook(book)) {

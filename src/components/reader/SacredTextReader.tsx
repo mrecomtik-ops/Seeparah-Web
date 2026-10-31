@@ -594,11 +594,9 @@ export function SacredTextReader({
                 </p>
                 {editionPeople.length > 0 && <p>{editionPeople.join(" · ")}</p>}
                 <p>{sacredSourceDescription(language, book.title)}</p>
-                {reuseNotice && (
-                  <p>
-                    <strong className="text-foreground">Reuse:</strong> {reuseNotice}
-                  </p>
-                )}
+                {/* The full licence notice stays after the reading text, rather
+                    than appearing ahead of the first stanza in document order.
+                    The source-details drawer still identifies the edition. */}
                 {sourceUrl && (
                   <a
                     href={sourceUrl}
