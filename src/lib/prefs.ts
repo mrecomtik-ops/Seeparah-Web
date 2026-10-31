@@ -10,6 +10,7 @@ export interface ReaderPrefs {
   weeklyGoalPages: number;
   fontSize: number; // px
   lineHeight: number; // unitless multiplier
+  v3LineHeight: number; // V3 book page only, independent of continuous reader
   theme: ReaderTheme;
   fontFamily: ReaderFontFamily;
   contentWidth: ReaderContentWidth;
@@ -22,6 +23,7 @@ const DEFAULTS: ReaderPrefs = {
   weeklyGoalPages: 40,
   fontSize: 16,
   lineHeight: 1.8,
+  v3LineHeight: 1.5,
   theme: "light",
   fontFamily: "literary",
   contentWidth: "medium",
