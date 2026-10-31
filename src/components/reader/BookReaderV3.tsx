@@ -8,7 +8,6 @@ import {
   Highlighter,
   List,
   Loader2,
-  MoreHorizontal,
   Settings2,
 } from "lucide-react";
 import {
@@ -430,7 +429,6 @@ export function BookReaderV3({
   const [turning, setTurning] = useState<"next" | "prev" | null>(null);
   const [contentsReturnPosition, setContentsReturnPosition] = useState<ReaderPosition | null>(null);
   const [finishOpen, setFinishOpen] = useState(false);
-  const [mobileActionsOpen, setMobileActionsOpen] = useState(false);
   const stageRef = useRef<HTMLDivElement | null>(null);
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const flowRef = useRef<HTMLDivElement | null>(null);
@@ -1558,22 +1556,6 @@ export function BookReaderV3({
           <div className="hidden sm:block">
             <ShelfButtons bookId={book.id} />
           </div>
-          <button
-            onClick={() => setMobileActionsOpen((open) => !open)}
-            className="reader-v3-icon sm:hidden"
-            aria-label="More book actions"
-            aria-expanded={mobileActionsOpen}
-          >
-            <MoreHorizontal className="h-4 w-4" />
-          </button>
-          {mobileActionsOpen && (
-            <div className="reader-v3-mobile-actions sm:hidden">
-              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Book actions
-              </div>
-              <ShelfButtons bookId={book.id} showLabels />
-            </div>
-          )}
           <button
             onClick={handleHighlight}
             className="reader-v3-icon"
