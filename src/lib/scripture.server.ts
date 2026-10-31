@@ -205,7 +205,7 @@ export async function getSacredReaderSection(params: {
   language: string;
   chunkIndex: number;
   /** Optional bounded 32-chunk window. Default retains the existing full-section API. */
-  windowSize?: 32;
+  windowSize?: 32 | undefined;
 }): Promise<SacredReaderSection | null> {
   const db = await admin();
 
