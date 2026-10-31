@@ -22,7 +22,11 @@ import {
 } from "@/lib/admin/worker-batching";
 
 export const Route = createFileRoute("/admin/books/")({
-  validateSearch: z.object({ status: z.string().optional(), coverMissing: z.boolean().optional() }),
+  validateSearch: z.object({
+    status: z.string().optional(), coverMissing: z.boolean().optional(),
+    rights: z.string().optional(), structure: z.string().optional(),
+    edition: z.string().optional(), lang: z.string().optional(),
+  }),
   component: AdminBooksList,
 });
 
@@ -70,6 +74,10 @@ function AdminBooksList() {
   const navigate = Route.useNavigate();
   const [status, setStatus] = useState(deepLink.status ?? "");
   const [coverMissing, setCoverMissing] = useState(deepLink.coverMissing ?? false);
+  const [rights, setRights] = useState(deepLink.rights ?? "");
+  const [structure, setStructure] = useState(deepLink.structure ?? "");
+  const [edition, setEdition] = useState(deepLink.edition ?? "");
+  const [lang, setLang] = useState(deepLink.lang ?? "");
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -86,8 +94,12 @@ function AdminBooksList() {
   useEffect(() => {
     setStatus(deepLink.status ?? "");
     setCoverMissing(deepLink.coverMissing ?? false);
+    setRights(deepLink.rights ?? "");
+    setStructure(deepLink.structure ?? "");
+    setEdition(deepLink.edition ?? "");
+    setLang(deepLink.lang ?? "");
     setPage(1);
-  }, [deepLink.status, deepLink.coverMissing]);
+  }, [deepLink.status, deepLink.coverMissing, deepLink.rights, deepLink.structure, deepLink.edition, deepLink.lang]);
   const session = useResolvedAdminSession();
   const canPublish = can(session, "catalog.publish");
   const canReview = can(session, "catalog.review");
@@ -100,7 +112,7 @@ function AdminBooksList() {
     (masterCategoriesQuery.data?.["categories"] as string[] | undefined) ?? [];
 
   const booksQuery = useQuery({
-    queryKey: ["admin-books", status, query, page, coverMissing],
+    queryKey: ["admin-books", status, query, page, coverMissing, rights, structure, edition, lang],
     queryFn: async () =>
       adminListCatalog({
         data: {
@@ -108,6 +120,10 @@ function AdminBooksList() {
           status: status || undefined,
           query: query || undefined,
           coverMissing,
+          rightsStatus: rights || undefined,
+          structureStatus: structure || undefined,
+          editionReviewStatus: edition || undefined,
+          sourceLanguage: lang || undefined,
           page,
           perPage: 20,
         },
@@ -125,7 +141,7 @@ function AdminBooksList() {
 
   useEffect(() => {
     setSelected(new Set());
-  }, [status, query, page, coverMissing]);
+  }, [status, query, page, coverMissing, rights, structure, edition, lang]);
 
   function toggle(id: string) {
     setSelected((prev) => {
@@ -375,6 +391,42 @@ function AdminBooksList() {
             void navigate({ search: (old) => ({ ...old, coverMissing: event.target.checked || undefined }) });
           }} />
           Cover missing
+        </label>
+        <label className="flex min-h-11 items-center gap-2 rounded-lg border border-border bg-card px-2 text-xs font-semibold">
+          Rights
+          <select aria-label="Filter rights review" value={rights} onChange={(e) => {
+            setRights(e.target.value); setPage(1);
+            void navigate({ search: (old) => ({ ...old, rights: e.target.value || undefined }) });
+          }} className="max-w-36 bg-card px-2 py-2 text-xs">
+            {["", "approved", "pending", "unverified", "changes_requested", "rejected"].map((s) => <option value={s} key={s}>{statusLabel(s)}</option>)}
+          </select>
+        </label>
+        <label className="flex min-h-11 items-center gap-2 rounded-lg border border-border bg-card px-2 text-xs font-semibold">
+          Edition
+          <select aria-label="Filter edition review" value={edition} onChange={(e) => {
+            setEdition(e.target.value); setPage(1);
+            void navigate({ search: (old) => ({ ...old, edition: e.target.value || undefined }) });
+          }} className="max-w-36 bg-card px-2 py-2 text-xs">
+            {["", "approved", "pending", "changes_requested", "rejected"].map((s) => <option value={s} key={s}>{statusLabel(s)}</option>)}
+          </select>
+        </label>
+        <label className="flex min-h-11 items-center gap-2 rounded-lg border border-border bg-card px-2 text-xs font-semibold">
+          Structure
+          <select aria-label="Filter structure review" value={structure} onChange={(e) => {
+            setStructure(e.target.value); setPage(1);
+            void navigate({ search: (old) => ({ ...old, structure: e.target.value || undefined }) });
+          }} className="max-w-36 bg-card px-2 py-2 text-xs">
+            {["", "approved", "pending", "changes_requested", "rejected"].map((s) => <option value={s} key={s}>{statusLabel(s)}</option>)}
+          </select>
+        </label>
+        <label className="flex min-h-11 items-center gap-2 rounded-lg border border-border bg-card px-2 text-xs font-semibold">
+          Language
+          <select aria-label="Filter original source language" value={lang} onChange={(e) => {
+            setLang(e.target.value); setPage(1);
+            void navigate({ search: (old) => ({ ...old, lang: e.target.value || undefined }) });
+          }} className="max-w-32 bg-card px-2 py-2 text-xs">
+            {["", "English", "Arabic", "Hebrew", "Greek", "Pali", "Sanskrit", "Chinese", "Bilingual", "Urdu", "Hindi", "Tibetan"].map((s) => <option value={s} key={s}>{s || "All"}</option>)}
+          </select>
         </label>
         <input
           value={query}
