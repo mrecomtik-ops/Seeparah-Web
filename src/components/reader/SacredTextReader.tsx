@@ -287,6 +287,49 @@ export function SacredTextReader({
     }
   }, [book.id, chunkIndex, language, sectionQuery.data, userId]);
 
+  // Save the actual passage reached during scrolling, not just the passage
+  // initially opened from the URL. Keep the URL unchanged to avoid refetching
+  // an entire source section on every scroll event.
+  useEffect(() => {
+    const section = sectionQuery.data;
+    if (!section || typeof IntersectionObserver === "undefined") return;
+    let pending: number | null = null;
+    let lastObserved = chunkIndex;
+    const observer = new IntersectionObserver((entries) => {
+      const visibleIndices = entries
+        .filter((entry) => entry.isIntersecting)
+        .map((entry) => Number((entry.target as HTMLElement).dataset.sacredVisibleChunk))
+        .filter((value) => Number.isInteger(value) && value >= 0);
+      if (!visibleIndices.length) return;
+      const nextIndex = Math.max(...visibleIndices);
+      if (nextIndex === lastObserved) return;
+      lastObserved = nextIndex;
+      if (pending !== null) window.clearTimeout(pending);
+      pending = window.setTimeout(() => {
+        const key = `${userId}:${book.id}:${language}:${nextIndex}`;
+        if (lastSavedRef.current !== key) {
+          lastSavedRef.current = key;
+          void saveProgress(userId, book.id, language, nextIndex);
+        }
+        pending = null;
+      }, 750);
+    }, { rootMargin: "-20% 0px -60% 0px", threshold: 0 });
+
+    // The existing target-scroll effect runs first. Attach the observer
+    // afterwards so restoring a saved reference does not briefly save the
+    // first passage of the group instead.
+    const frame = requestAnimationFrame(() => {
+      document.querySelectorAll<HTMLElement>("[data-sacred-visible-chunk]").forEach((node) => {
+        observer.observe(node);
+      });
+    });
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+      if (pending !== null) window.clearTimeout(pending);
+    };
+  }, [book.id, chunkIndex, language, sectionQuery.data, userId]);
+
   if (sectionQuery.isLoading) {
     return (
       <main className="flex min-h-[72vh] items-center justify-center bg-background px-4">
@@ -652,6 +695,7 @@ export function SacredTextReader({
               <article
                 key={chunk.chunkIndex}
                 id={"sacred-chunk-" + chunk.chunkIndex}
+                data-sacred-visible-chunk={chunk.chunkIndex}
                 lang={analectsKind ? (analectsKind.startsWith("chinese") ? "zh-Hant" : "en") : undefined}
                 className={[
                   "scroll-mt-28",
