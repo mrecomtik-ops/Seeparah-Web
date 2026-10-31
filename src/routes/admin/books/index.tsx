@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { z } from "zod";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Archive, CheckCheck, Globe2, Loader2, Plus } from "lucide-react";
@@ -21,6 +22,7 @@ import {
 } from "@/lib/admin/worker-batching";
 
 export const Route = createFileRoute("/admin/books/")({
+  validateSearch: z.object({ status: z.string().optional(), coverMissing: z.boolean().optional() }),
   component: AdminBooksList,
 });
 
@@ -64,7 +66,10 @@ function catalogActionLabel(book: {
 }
 
 function AdminBooksList() {
-  const [status, setStatus] = useState("");
+  const deepLink = Route.useSearch();
+  const navigate = Route.useNavigate();
+  const [status, setStatus] = useState(deepLink.status ?? "");
+  const [coverMissing, setCoverMissing] = useState(deepLink.coverMissing ?? false);
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -78,6 +83,11 @@ function AdminBooksList() {
   const [changeRequestBusy, setChangeRequestBusy] = useState(false);
   const [bulkChangeNote, setBulkChangeNote] = useState("");
   const queryClient = useQueryClient();
+  useEffect(() => {
+    setStatus(deepLink.status ?? "");
+    setCoverMissing(deepLink.coverMissing ?? false);
+    setPage(1);
+  }, [deepLink.status, deepLink.coverMissing]);
   const session = useResolvedAdminSession();
   const canPublish = can(session, "catalog.publish");
   const canReview = can(session, "catalog.review");
@@ -90,13 +100,14 @@ function AdminBooksList() {
     (masterCategoriesQuery.data?.["categories"] as string[] | undefined) ?? [];
 
   const booksQuery = useQuery({
-    queryKey: ["admin-books", status, query, page],
+    queryKey: ["admin-books", status, query, page, coverMissing],
     queryFn: async () =>
       adminListCatalog({
         data: {
           accessToken: await getAccessToken(),
           status: status || undefined,
           query: query || undefined,
+          coverMissing,
           page,
           perPage: 20,
         },
@@ -114,7 +125,7 @@ function AdminBooksList() {
 
   useEffect(() => {
     setSelected(new Set());
-  }, [status, query, page]);
+  }, [status, query, page, coverMissing]);
 
   function toggle(id: string) {
     setSelected((prev) => {
@@ -350,12 +361,21 @@ function AdminBooksList() {
             onClick={() => {
               setStatus(s);
               setPage(1);
+              void navigate({ search: (old) => ({ ...old, status: s || undefined }) });
             }}
             className={`rounded-full px-3 py-1 text-xs font-semibold ${status === s ? "bg-primary text-primary-foreground" : "border border-border bg-card text-foreground hover:bg-secondary"}`}
           >
             {statusLabel(s)}
           </button>
         ))}
+        <label className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-border bg-card px-3 text-xs font-semibold text-foreground">
+          <input type="checkbox" checked={coverMissing} onChange={(event) => {
+            setCoverMissing(event.target.checked);
+            setPage(1);
+            void navigate({ search: (old) => ({ ...old, coverMissing: event.target.checked || undefined }) });
+          }} />
+          Cover missing
+        </label>
         <input
           value={query}
           onChange={(e) => {
