@@ -6,7 +6,7 @@ import { ArrowLeft, Eye, Loader2, Pencil, Trash2 } from "lucide-react";
 import { GENRES, LANGUAGES } from "@/lib/data";
 import { getAccessToken, useResolvedAdminSession, can } from "@/lib/admin/use-admin-session";
 import { getPublicContentSettings } from "@/lib/admin/settings.functions";
-import { adminUploadBookCover } from "@/lib/admin/cover-upload.functions";
+import { adminUploadBookCover, adminAssignBookEditionCover } from "@/lib/admin/cover-upload.functions";
 import {
   adminGetCatalogBook,
   adminReviewBookRights,
@@ -82,6 +82,10 @@ function AdminBookDetail() {
   const [editOpen, setEditOpen] = useState(false);
   const [coverPreviewFailed, setCoverPreviewFailed] = useState(false);
   const [coverAttribution, setCoverAttribution] = useState("");
+  const [coverTargetLanguage, setCoverTargetLanguage] = useState("");
+  const [stagedEditionCover, setStagedEditionCover] = useState<{
+    path: string; url: string; language: string; sourceEditionId: string;
+  } | null>(null);
   const [coverSharedArtwork, setCoverSharedArtwork] = useState(false);
   const [coverUploading, setCoverUploading] = useState(false);
   const [editDraft, setEditDraft] = useState({
@@ -428,6 +432,8 @@ function AdminBookDetail() {
   function openEdit() {
     setCoverPreviewFailed(false);
     setCoverAttribution("");
+    setCoverTargetLanguage(book.source_language);
+    setStagedEditionCover(null);
     setCoverSharedArtwork(false);
     setEditDraft({
       title: book.title,
@@ -468,20 +474,40 @@ function AdminBookDetail() {
         data: {
           accessToken: await getAccessToken(),
           bookId,
+          language: coverTargetLanguage,
           fileBase64: base64,
           mimeType: file.type as "image/png" | "image/jpeg" | "image/webp",
           attribution: coverAttribution.trim(),
           sharedArtwork: coverSharedArtwork,
         },
       });
-      setCoverPreviewFailed(false);
-      setEditDraft((draft) => ({ ...draft, coverUrl: uploaded.url }));
-      toast.success("Cover uploaded. Verify the preview and save metadata to assign it to this book.");
+      setStagedEditionCover(uploaded);
+      toast.success("Staged for the selected source edition. Review the image and assign it explicitly.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Cover upload failed.");
     } finally {
       setCoverUploading(false);
     }
+  }
+
+  async function assignStagedEditionCover() {
+    const staged = stagedEditionCover;
+    if (!staged || staged.language !== coverTargetLanguage) return;
+    await withBusy(async () => {
+      await adminAssignBookEditionCover({
+        data: {
+          accessToken: await getAccessToken(),
+          bookId,
+          language: staged.language,
+          path: staged.path,
+          attribution: coverAttribution.trim(),
+          sharedArtwork: coverSharedArtwork,
+        },
+      });
+      setStagedEditionCover(null);
+      toast.success(`Assigned cover to the verified ${staged.language} edition only.`);
+      await queryClient.invalidateQueries({ queryKey: ["public-book-editions", bookId] });
+    });
   }
 
   async function saveEdit() {
@@ -2485,6 +2511,30 @@ function AdminBookDetail() {
                 />
                 <div className="mt-3 grid gap-3 rounded-lg border border-border bg-card p-3">
                   <label className="block text-xs font-semibold text-foreground">
+                    Target verified source edition
+                    <select
+                      value={coverTargetLanguage}
+                      onChange={(event) => {
+                        setCoverTargetLanguage(event.target.value);
+                        setStagedEditionCover(null);
+                      }}
+                      className="mt-1 min-h-11 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-normal text-foreground"
+                    >
+                      {[...new Set([book.source_language, ...book.available_languages])].map((language) => {
+                        const edition = editions.find((item) => item.language === language);
+                        return (
+                          <option key={language} value={language} disabled={!edition}>
+                            {language} · {edition?.source_edition_id || "No verified edition record"}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </label>
+                  <p className="text-xs leading-relaxed text-muted-foreground">
+                    A cover assigned here belongs only to the selected original or published translation.
+                    Source edition and language are confirmed again on the server.
+                  </p>
+                  <label className="block text-xs font-semibold text-foreground">
                     Artwork creator, publisher or licensed source (required)
                     <input
                       value={coverAttribution}
@@ -2509,7 +2559,7 @@ function AdminBookDetail() {
                       type="file"
                       accept="image/jpeg,image/png,image/webp"
                       aria-label="Upload cover for this source edition"
-                      disabled={coverUploading || coverAttribution.trim().length < 3}
+                      disabled={coverUploading || coverAttribution.trim().length < 3 || !coverTargetLanguage}
                       onChange={(event) => {
                         const file = event.target.files?.[0];
                         if (file) void stageCoverFile(file);
@@ -2519,9 +2569,28 @@ function AdminBookDetail() {
                     />
                   </label>
                   {coverUploading && <p role="status" className="text-xs text-primary">Uploading and validating cover…</p>}
+                  {stagedEditionCover && (
+                    <div className="rounded-xl border border-primary/25 bg-background p-3">
+                      <img src={stagedEditionCover.url}
+                        alt={`Staged cover for ${stagedEditionCover.language} source edition`}
+                        width={120} height={180} className="aspect-[2/3] w-24 rounded-lg object-contain" />
+                      <p className="mt-2 text-xs font-semibold text-foreground">
+                        {stagedEditionCover.language} · {stagedEditionCover.sourceEditionId}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        This image is staged only. Assigning it will not change other languages or books.
+                      </p>
+                      <button type="button"
+                        disabled={busy || coverUploading || !canPublish}
+                        onClick={() => void assignStagedEditionCover()}
+                        className="mt-3 min-h-11 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50">
+                        Assign to this verified edition
+                      </button>
+                    </div>
+                  )}
                   <p className="text-xs leading-relaxed text-muted-foreground">
                     Uploads are staged in Supabase Storage with the book's edition identifier and attribution.
-                    No cover goes live until the metadata form is saved.
+                    No edition cover goes live until you click Assign to this verified edition. The separate book-level URL field is for generic collection artwork only.
                   </p>
                 </div>
                 {editDraft.coverUrl.trim() ? (
