@@ -113,6 +113,7 @@ export function SacredTextReader({
   const [contentsOpen, setContentsOpen] = useState(false);
   const [prefsReady, setPrefsReady] = useState(false);
   const [languageResetNote, setLanguageResetNote] = useState("");
+  const [compareLanguage, setCompareLanguage] = useState<string | null>(null);
   const [dhpSource, setDhpSource] = useState<DhammapadaLayoutData | null>(null);
   const [dnSource, setDnSource] = useState<DiscourseLayoutData | null>(null);
   const editionLayout = sacredEditionLayout(book.title);
@@ -158,6 +159,15 @@ export function SacredTextReader({
       getSacredReaderSection({
         data: { bookId: book.id, language, chunkIndex },
       }),
+    staleTime: 15 * 60 * 1000,
+  });
+
+  const comparisonQuery = useQuery({
+    queryKey: ["sacred-compare-section", book.id, compareLanguage, chunkIndex],
+    queryFn: () => getSacredReaderSection({
+      data: { bookId: book.id, language: compareLanguage ?? language, chunkIndex },
+    }),
+    enabled: Boolean(compareLanguage),
     staleTime: 15 * 60 * 1000,
   });
 
@@ -231,6 +241,7 @@ export function SacredTextReader({
 
   const changeLanguage = (nextLanguage: string) => {
     if (nextLanguage === language) return;
+    setCompareLanguage(null);
     const retain = canRetainCanonicalPosition(
       book.id,
       language,
@@ -245,6 +256,11 @@ export function SacredTextReader({
     );
     updateLocation(nextLanguage, retain ? chunkIndex : 0, true);
   };
+  const verifiedComparisonLanguages = availableLanguages.filter(
+    (candidate) => candidate !== language &&
+      canRetainCanonicalPosition(book.id, language, candidate, book.total_chunks, chunkIndex),
+  );
+
   const updateLocation = (nextLanguage: string, nextChunkIndex: number, replace = false) => {
     setLanguage(nextLanguage);
     setChunkIndex(nextChunkIndex);
@@ -417,6 +433,22 @@ export function SacredTextReader({
                 Study
               </button>
             </div>
+            {verifiedComparisonLanguages.length > 0 && (
+              <label className="flex min-h-11 items-center gap-2 rounded-lg border border-border bg-card px-3 text-sm font-medium text-foreground">
+                Compare edition
+                <select
+                  aria-label="Compare verified parallel edition"
+                  value={compareLanguage ?? ""}
+                  onChange={(event) => setCompareLanguage(event.target.value || null)}
+                  className="min-w-0 max-w-36 rounded-md bg-background px-2 py-1.5 text-sm text-foreground"
+                >
+                  <option value="">Off</option>
+                  {verifiedComparisonLanguages.map((candidate) => (
+                    <option value={candidate} key={candidate}>{candidate}</option>
+                  ))}
+                </select>
+              </label>
+            )}
             <button
               type="button"
               onClick={() => setContentsOpen((open) => !open)}
@@ -585,6 +617,7 @@ export function SacredTextReader({
           )}
         </section>
 
+        <div className={compareLanguage ? "grid items-start gap-5 lg:grid-cols-2" : ""}>
         <section
           className={
             readingMode === "book"
@@ -592,7 +625,7 @@ export function SacredTextReader({
               : "mx-auto rounded-xl border border-border bg-card p-3 sm:p-6"
           }
           style={{
-            maxWidth: sacredReaderMeasure(textMeasure, language),
+            maxWidth: compareLanguage ? "100%" : sacredReaderMeasure(textMeasure, language),
             fontSize: Math.max(16, profile.size + fontDelta) + "px",
             lineHeight: profile.leading + lineDelta,
           }}
@@ -788,6 +821,44 @@ export function SacredTextReader({
             );
           })}
         </section>
+        {compareLanguage && (
+          <section
+            lang={languageToBcp47(compareLanguage)}
+            dir={RTL_LANGUAGES.has(compareLanguage) ? "rtl" : "ltr"}
+            aria-label={"Parallel " + compareLanguage + " edition"}
+            className="min-w-0 rounded-xl border border-border bg-card px-4 py-7 shadow-sm sm:px-8 sm:py-10"
+          >
+            <h2 className="mb-2 font-display text-xl font-semibold text-foreground">{compareLanguage} edition</h2>
+            <p className="mb-5 text-xs text-muted-foreground">
+              Only source editions with independently verified canonical position mapping are offered.
+              References and text remain those of the selected edition.
+            </p>
+            {comparisonQuery.isLoading ? (
+              <p role="status" className="text-sm text-muted-foreground">Loading parallel edition…</p>
+            ) : !comparisonQuery.data || comparisonQuery.isError ? (
+              <p role="alert" className="text-sm text-destructive">
+                The matching published edition could not be loaded. The main source text is unchanged.
+              </p>
+            ) : (
+              comparisonQuery.data.chunks
+                .filter((chunk) => visibleSourceChunks.some((primary) => primary.chunkIndex === chunk.chunkIndex))
+                .map((chunk) => (
+                  <article key={chunk.chunkIndex} className="mb-5">
+                    <p className="mb-1 text-xs font-semibold text-primary" dir="auto">{chunk.label}</p>
+                    <p
+                      className="whitespace-pre-wrap break-words text-foreground"
+                      style={{
+                        fontFamily: scriptureFontFamily(compareLanguage) ?? "Georgia, serif",
+                        fontSize: Math.max(16, sacredReadingProfile(compareLanguage).size + fontDelta) + "px",
+                        lineHeight: sacredReadingProfile(compareLanguage).leading + lineDelta,
+                      }}
+                    >{renderSacredInline(chunk.content)}</p>
+                  </article>
+                ))
+            )}
+          </section>
+        )}
+        </div>
 
         {(hasPreviousGroup || hasNextGroup) && (
           <nav className="mx-auto mt-4 flex max-w-3xl items-center justify-between gap-3" aria-label="Passage groups">
