@@ -54,6 +54,17 @@ export function LandingPage() {
   const featured = pickFeaturedBook(booksQuery.data ?? []);
   const featuredCover = featured ? coverFor(featured.id, featured.cover_url) : null;
   const sacredCount = (booksQuery.data ?? []).filter(isReligiousBook).length;
+  const classicShelf = (booksQuery.data ?? [])
+    .filter((book) => !isReligiousBook(book) && Boolean(coverFor(book.id, book.cover_url)))
+    .slice(0, 6);
+  const languageShelf = ["English", "Urdu", "Hindi", "Arabic", "Hebrew", "Greek", "Chinese", "Pali"]
+    .map((name) => ({
+      name,
+      count: (booksQuery.data ?? []).filter(
+        (book) => book.source_language === name || book.available_languages.includes(name),
+      ).length,
+    }))
+    .filter(({ count }) => count > 0);
   const latestInsights = INSIGHT_ARTICLES.slice(0, 3);
 
   async function signInWithGoogle() {
@@ -263,6 +274,50 @@ export function LandingPage() {
               )}
             </div>
           </section>
+
+          {classicShelf.length > 0 && (
+            <section className="border-t border-border py-12" aria-labelledby="home-classics-title">
+              <div className="flex items-end justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">From the library</p>
+                  <h2 id="home-classics-title" className="mt-1 font-display text-3xl font-semibold text-foreground">Start with a classic</h2>
+                </div>
+                <Link to="/library" className="inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-primary hover:underline">
+                  See all books <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </Link>
+              </div>
+              <div className="mt-6 grid auto-cols-[minmax(145px,1fr)] grid-flow-col gap-4 overflow-x-auto pb-3 sm:auto-cols-auto sm:grid-cols-3 lg:grid-cols-6">
+                {classicShelf.map((book) => (
+                  <Link key={book.id} to="/book/$bookId" params={{ bookId: book.id }}
+                    className="group min-w-0 rounded-2xl border border-border bg-card p-2 card-shadow transition hover:-translate-y-0.5 hover:border-primary/50">
+                    <img src={coverFor(book.id, book.cover_url) ?? undefined}
+                      alt={"Cover of " + displayTitleCase(book.title)} width={320} height={480}
+                      loading="lazy" decoding="async" className="aspect-[2/3] w-full rounded-xl bg-secondary object-contain" />
+                    <p className="mt-2 line-clamp-2 font-display text-sm font-semibold leading-snug text-foreground">{displayTitleCase(book.title)}</p>
+                    <p className="mt-1 truncate text-xs text-muted-foreground">{formatAuthorName(book.author)}</p>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {languageShelf.length > 0 && (
+            <section className="border-t border-border py-10" aria-labelledby="home-languages-title">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">Browse by language</p>
+                <h2 id="home-languages-title" className="mt-1 font-display text-3xl font-semibold text-foreground">Read in your language</h2>
+              </div>
+              <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
+                {languageShelf.map(({ name, count }) => (
+                  <Link key={name} to="/library" search={{ lang: name }}
+                    className="flex min-h-24 flex-col justify-center rounded-xl border border-border bg-card px-3 py-3 text-center transition hover:border-primary/50 hover:bg-accent">
+                    <span className="font-display text-base font-semibold text-foreground">{name}</span>
+                    <span className="mt-1 text-xs text-muted-foreground">{count} {count === 1 ? "title" : "titles"}</span>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
 
           <section className="border-t border-border py-12">
             <div className="grid gap-5 lg:grid-cols-[1.15fr_0.85fr]">
