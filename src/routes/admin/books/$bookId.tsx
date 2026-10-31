@@ -6,6 +6,7 @@ import { ArrowLeft, Eye, Loader2, Pencil, Trash2 } from "lucide-react";
 import { GENRES, LANGUAGES } from "@/lib/data";
 import { getAccessToken, useResolvedAdminSession, can } from "@/lib/admin/use-admin-session";
 import { getPublicContentSettings } from "@/lib/admin/settings.functions";
+import { adminUploadBookCover } from "@/lib/admin/cover-upload.functions";
 import {
   adminGetCatalogBook,
   adminReviewBookRights,
@@ -80,6 +81,9 @@ function AdminBookDetail() {
 
   const [editOpen, setEditOpen] = useState(false);
   const [coverPreviewFailed, setCoverPreviewFailed] = useState(false);
+  const [coverAttribution, setCoverAttribution] = useState("");
+  const [coverSharedArtwork, setCoverSharedArtwork] = useState(false);
+  const [coverUploading, setCoverUploading] = useState(false);
   const [editDraft, setEditDraft] = useState({
     title: "",
     author: "",
@@ -423,6 +427,8 @@ function AdminBookDetail() {
 
   function openEdit() {
     setCoverPreviewFailed(false);
+    setCoverAttribution("");
+    setCoverSharedArtwork(false);
     setEditDraft({
       title: book.title,
       author: book.author,
@@ -439,6 +445,43 @@ function AdminBookDetail() {
         : "",
     });
     setEditOpen(true);
+  }
+
+  async function stageCoverFile(file: File) {
+    if (!coverAttribution.trim() || coverAttribution.trim().length < 3) {
+      toast.error("Provide the artwork attribution or source before uploading.");
+      return;
+    }
+    if (!["image/png", "image/jpeg", "image/webp"].includes(file.type) || file.size > 3 * 1024 * 1024) {
+      toast.error("Choose a PNG, JPEG or WebP image no larger than 3 MB.");
+      return;
+    }
+    setCoverUploading(true);
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onerror = () => reject(new Error("Could not read the selected cover file."));
+        reader.onload = () => resolve(String(reader.result ?? "").split(",")[1] ?? "");
+        reader.readAsDataURL(file);
+      });
+      const uploaded = await adminUploadBookCover({
+        data: {
+          accessToken: await getAccessToken(),
+          bookId,
+          fileBase64: base64,
+          mimeType: file.type as "image/png" | "image/jpeg" | "image/webp",
+          attribution: coverAttribution.trim(),
+          sharedArtwork: coverSharedArtwork,
+        },
+      });
+      setCoverPreviewFailed(false);
+      setEditDraft((draft) => ({ ...draft, coverUrl: uploaded.url }));
+      toast.success("Cover uploaded. Verify the preview and save metadata to assign it to this book.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Cover upload failed.");
+    } finally {
+      setCoverUploading(false);
+    }
   }
 
   async function saveEdit() {
@@ -2440,6 +2483,47 @@ function AdminBookDetail() {
                   placeholder="https://… or /book-covers/…"
                   className="mt-3 min-h-11 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 />
+                <div className="mt-3 grid gap-3 rounded-lg border border-border bg-card p-3">
+                  <label className="block text-xs font-semibold text-foreground">
+                    Artwork creator, publisher or licensed source (required)
+                    <input
+                      value={coverAttribution}
+                      onChange={(event) => setCoverAttribution(event.target.value)}
+                      placeholder="e.g., artwork created for this edition"
+                      maxLength={500}
+                      className="mt-1 min-h-11 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-normal text-foreground"
+                    />
+                  </label>
+                  <label className="inline-flex items-center gap-2 text-xs font-medium text-foreground">
+                    <input
+                      type="checkbox"
+                      checked={coverSharedArtwork}
+                      onChange={(event) => setCoverSharedArtwork(event.target.checked)}
+                      className="h-4 w-4"
+                    />
+                    Shared collection artwork (not specific to one translation)
+                  </label>
+                  <label className="block text-xs font-semibold text-foreground">
+                    Upload JPG, PNG or WebP (maximum 3 MB; 2:3 portrait recommended)
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      aria-label="Upload cover for this source edition"
+                      disabled={coverUploading || coverAttribution.trim().length < 3}
+                      onChange={(event) => {
+                        const file = event.target.files?.[0];
+                        if (file) void stageCoverFile(file);
+                        event.target.value = "";
+                      }}
+                      className="mt-2 block w-full cursor-pointer rounded-lg border border-border bg-background p-2 text-xs font-normal text-foreground file:mr-3 file:rounded-lg file:border-0 file:bg-primary file:px-3 file:py-2 file:font-semibold file:text-primary-foreground disabled:opacity-50"
+                    />
+                  </label>
+                  {coverUploading && <p role="status" className="text-xs text-primary">Uploading and validating cover…</p>}
+                  <p className="text-xs leading-relaxed text-muted-foreground">
+                    Uploads are staged in Supabase Storage with the book's edition identifier and attribution.
+                    No cover goes live until the metadata form is saved.
+                  </p>
+                </div>
                 {editDraft.coverUrl.trim() ? (
                   <div className="mt-3 flex items-start gap-3">
                     {!coverPreviewFailed && (
