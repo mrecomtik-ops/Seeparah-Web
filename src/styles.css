@@ -3,11 +3,11 @@
 @import "tw-animate-css";
 
 /* Bundled SIL OFL script fonts: local static assets, no third-party font requests. */
-@font-face { font-family: "Noto Nastaliq Urdu"; src: url("/fonts/noto-nastaliq-urdu-arabic-400-normal.woff2") format("woff2"); font-style: normal; font-weight: 400 700; font-display: swap; }
-@font-face { font-family: "Noto Naskh Arabic"; src: url("/fonts/noto-naskh-arabic-arabic-400-normal.woff2") format("woff2"); font-style: normal; font-weight: 400 700; font-display: swap; }
-@font-face { font-family: "Noto Serif Hebrew"; src: url("/fonts/noto-serif-hebrew-hebrew-400-normal.woff2") format("woff2"); font-style: normal; font-weight: 400 700; font-display: swap; }
-@font-face { font-family: "Noto Serif Devanagari"; src: url("/fonts/noto-serif-devanagari-devanagari-400-normal.woff2") format("woff2"); font-style: normal; font-weight: 400 700; font-display: swap; }
-@font-face { font-family: "Noto Serif Tibetan"; src: url("/fonts/noto-serif-tibetan-tibetan-400-normal.woff2") format("woff2"); font-style: normal; font-weight: 400 700; font-display: swap; }
+@font-face { font-family: "Noto Nastaliq Urdu"; src: url("/fonts/noto-nastaliq-urdu-arabic-400-normal.woff2") format("woff2"); font-style: normal; font-weight: 400; font-display: swap; }
+@font-face { font-family: "Noto Naskh Arabic"; src: url("/fonts/noto-naskh-arabic-arabic-400-normal.woff2") format("woff2"); font-style: normal; font-weight: 400; font-display: swap; }
+@font-face { font-family: "Noto Serif Hebrew"; src: url("/fonts/noto-serif-hebrew-hebrew-400-normal.woff2") format("woff2"); font-style: normal; font-weight: 400; font-display: swap; }
+@font-face { font-family: "Noto Serif Devanagari"; src: url("/fonts/noto-serif-devanagari-devanagari-400-normal.woff2") format("woff2"); font-style: normal; font-weight: 400; font-display: swap; }
+@font-face { font-family: "Noto Serif Tibetan"; src: url("/fonts/noto-serif-tibetan-tibetan-400-normal.woff2") format("woff2"); font-style: normal; font-weight: 400; font-display: swap; }
 
 :lang(ar) { font-family: "Noto Naskh Arabic", serif; }
 :lang(he) { font-family: "Noto Serif Hebrew", serif; }
