@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, BookOpen, ExternalLink, Search, ShieldCheck, X } from "lucide-react";
+import { ArrowRight, BookOpen, ChevronDown, ExternalLink, Search, ShieldCheck, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { listBooks, matchesBookSearch, normalizeCatalogQuery } from "@/lib/library";
 import { isReligiousBook, type Book } from "@/lib/data";
@@ -292,6 +292,7 @@ function SacredTextsPage() {
   const { books } = Route.useLoaderData();
   const [query, setQuery] = useState("");
   const [activeTradition, setActiveTradition] = useState("All");
+  const [expandedTraditions, setExpandedTraditions] = useState<string[]>(["Islam"]);
   const counts = useMemo(() => {
     const result = new Map<string, number>();
     for (const book of books) {
@@ -406,7 +407,10 @@ function SacredTextsPage() {
               <p className="mt-3 text-sm">No published text matches those filters.</p>
             </div>
           )}
-          {grouped.map(([tradition, traditionBooks]) => (
+          {grouped.map(([tradition, traditionBooks]) => {
+            const expanded = Boolean(query.trim()) || activeTradition !== "All" || expandedTraditions.includes(tradition);
+            const panelId = "works-" + tradition.toLowerCase().replace(/\\s+/g, "-");
+            return (
             <section key={tradition} id={"tradition-" + tradition.toLowerCase().replace(/\s+/g, "-")}
               aria-labelledby={"heading-" + tradition.toLowerCase().replace(/\s+/g, "-")} className="scroll-mt-8">
               <div className={"mb-5 rounded-2xl border px-5 py-5 sm:px-7 " + (TRADITION_TONES[tradition] || "border-border bg-secondary/30")}>
@@ -416,17 +420,38 @@ function SacredTextsPage() {
                     <h3 id={"heading-" + tradition.toLowerCase().replace(/\s+/g, "-")}
                       className="mt-1 font-display text-2xl font-semibold text-foreground sm:text-3xl">{tradition}</h3>
                   </div>
-                  <span className="rounded-full border border-border bg-background/70 px-3 py-1 text-xs font-semibold text-foreground">
-                    {traditionBooks.length} {traditionBooks.length === 1 ? "published title" : "published titles"}
-                  </span>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className="rounded-full border border-border bg-background/70 px-3 py-1 text-xs font-semibold text-foreground">
+                      {traditionBooks.length} {traditionBooks.length === 1 ? "published title" : "published titles"}
+                    </span>
+                    <button
+                      type="button"
+                      aria-expanded={expanded}
+                      aria-controls={panelId}
+                      onClick={() => {
+                        setExpandedTraditions((current) =>
+                          current.includes(tradition) ? current.filter((item) => item !== tradition) : [...current, tradition],
+                        );
+                      }}
+                      className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-border bg-card px-4 text-sm font-semibold text-primary hover:bg-secondary"
+                    >
+                      {expanded ? "Hide works" : "Browse works"}
+                      <ChevronDown aria-hidden="true" className={"h-4 w-4 transition-transform " + (expanded ? "rotate-180" : "")} />
+                    </button>
+                  </div>
                 </div>
                 <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">
                   {TRADITION_INTROS[tradition] || "Published titles from identified source editions."}
                 </p>
               </div>
-              <TraditionContent tradition={tradition} books={traditionBooks} />
+              {expanded && (
+                <div id={panelId}>
+                  <TraditionContent tradition={tradition} books={traditionBooks} />
+                </div>
+              )}
             </section>
-          ))}
+          );
+          })}
         </div>
 
         {!query && activeTradition === "All" && sourceOnlyTraditions.length > 0 && (
