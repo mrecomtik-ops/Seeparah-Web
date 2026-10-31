@@ -42,6 +42,9 @@ function AdminSettingsPage() {
   const [busy, setBusy] = useState(false);
   const [priceDraft, setPriceDraft] = useState("");
   const [priceBusy, setPriceBusy] = useState(false);
+  const [maintenanceDraft, setMaintenanceDraft] = useState({ active: false, message: "" });
+  const [supportDraft, setSupportDraft] = useState({ email: "", helpUrl: "" });
+  const [operationBusy, setOperationBusy] = useState<string | null>(null);
   const [suggestionBusy, setSuggestionBusy] = useState<string | null>(null);
   const [categoryDraft, setCategoryDraft] = useState("");
   const [categoryBusy, setCategoryBusy] = useState(false);
@@ -111,6 +114,55 @@ function AdminSettingsPage() {
     const value = categoryDraft.trim();
     if (!value) return;
     await saveCategories([...categories, value]);
+  }
+
+  const maintenanceQuery = useQuery({
+    queryKey: ["admin-setting", "maintenance_message"],
+    queryFn: () => getAccessToken().then((accessToken) =>
+      adminGetSetting({ data: { accessToken, key: "maintenance_message" } })),
+  });
+  const supportQuery = useQuery({
+    queryKey: ["admin-setting", "support_contact"],
+    queryFn: () => getAccessToken().then((accessToken) =>
+      adminGetSetting({ data: { accessToken, key: "support_contact" } })),
+  });
+  useEffect(() => {
+    const value = maintenanceQuery.data?.value;
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      setMaintenanceDraft({
+        active: value["active"] === true,
+        message: typeof value["message"] === "string" ? value["message"] : "",
+      });
+    }
+  }, [maintenanceQuery.data]);
+  useEffect(() => {
+    const value = supportQuery.data?.value;
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      setSupportDraft({
+        email: typeof value["email"] === "string" ? value["email"] : "",
+        helpUrl: typeof value["helpUrl"] === "string" ? value["helpUrl"] : "",
+      });
+    }
+  }, [supportQuery.data]);
+
+  async function publishOperationSetting(
+    name: "maintenance_message" | "support_contact",
+    value: unknown,
+  ) {
+    setOperationBusy(name);
+    try {
+      await adminPublishSetting({ data: {
+        accessToken: await getAccessToken(), key: name, value,
+      } });
+      toast.success("Setting saved and versioned");
+      await queryClient.invalidateQueries({ queryKey: ["admin-setting", name] });
+      await queryClient.invalidateQueries({ queryKey: ["admin-setting-history", name] });
+      await queryClient.invalidateQueries({ queryKey: ["public-content-settings"] });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not save this setting");
+    } finally {
+      setOperationBusy(null);
+    }
   }
 
   const planPriceQuery = useQuery({
@@ -249,6 +301,72 @@ function AdminSettingsPage() {
           </span>
         </div>
       )}
+
+      <div className="mt-6 grid gap-4 md:grid-cols-2">
+        <section className="rounded-2xl border border-border bg-card p-5 card-shadow">
+          <h2 className="font-display text-base font-semibold text-foreground">Maintenance notice</h2>
+          <p className="mt-1 text-xs text-muted-foreground">Typed, versioned public message. It is off unless enabled.</p>
+          {maintenanceQuery.isError ? (
+            <AdminQueryError message="Maintenance setting unavailable" onRetry={() => maintenanceQuery.refetch()} />
+          ) : (
+            <>
+              <label className="mt-3 flex min-h-11 items-center gap-3 text-sm">
+                <input type="checkbox" checked={maintenanceDraft.active}
+                  onChange={(event) => setMaintenanceDraft((prev) => ({ ...prev, active: event.target.checked }))} />
+                Show maintenance message
+              </label>
+              <label className="mt-2 block text-xs font-semibold">
+                Public message
+                <textarea value={maintenanceDraft.message} maxLength={1000}
+                  onChange={(event) => setMaintenanceDraft((prev) => ({ ...prev, message: event.target.value }))}
+                  rows={3} className="mt-2 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm font-normal" />
+              </label>
+              <button type="button"
+                disabled={operationBusy !== null || maintenanceQuery.isLoading ||
+                  (maintenanceDraft.active && !maintenanceDraft.message.trim())}
+                onClick={() => void publishOperationSetting("maintenance_message", {
+                  active: maintenanceDraft.active, message: maintenanceDraft.message.trim(),
+                })}
+                className="mt-3 min-h-11 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50">
+                Save maintenance notice
+              </button>
+            </>
+          )}
+        </section>
+        <section className="rounded-2xl border border-border bg-card p-5 card-shadow">
+          <h2 className="font-display text-base font-semibold text-foreground">Support contact</h2>
+          <p className="mt-1 text-xs text-muted-foreground">Public help address and optional HTTPS help page.</p>
+          {supportQuery.isError ? (
+            <AdminQueryError message="Support setting unavailable" onRetry={() => supportQuery.refetch()} />
+          ) : (
+            <>
+              <label className="mt-3 block text-xs font-semibold">
+                Support email
+                <input type="email" value={supportDraft.email}
+                  onChange={(event) => setSupportDraft((prev) => ({ ...prev, email: event.target.value }))}
+                  placeholder="support@example.com"
+                  className="mt-2 min-h-11 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-normal" />
+              </label>
+              <label className="mt-3 block text-xs font-semibold">
+                Help page URL (optional)
+                <input type="url" value={supportDraft.helpUrl}
+                  onChange={(event) => setSupportDraft((prev) => ({ ...prev, helpUrl: event.target.value }))}
+                  placeholder="https://…"
+                  className="mt-2 min-h-11 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-normal" />
+              </label>
+              <button type="button"
+                disabled={operationBusy !== null || supportQuery.isLoading || !supportDraft.email.trim()}
+                onClick={() => void publishOperationSetting("support_contact", {
+                  email: supportDraft.email.trim(),
+                  ...(supportDraft.helpUrl.trim() ? { helpUrl: supportDraft.helpUrl.trim() } : {}),
+                })}
+                className="mt-3 min-h-11 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50">
+                Save support contact
+              </button>
+            </>
+          )}
+        </section>
+      </div>
 
       <section className="mt-6 rounded-2xl border border-border bg-card p-5 card-shadow">
         <h2 className="font-display text-base font-semibold text-foreground">Future monthly plan price</h2>
