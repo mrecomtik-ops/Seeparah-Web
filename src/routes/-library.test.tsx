@@ -153,7 +153,7 @@ describe("Library filter selects — 'All ...' option text", () => {
       (select) => select.querySelector("option")?.textContent,
     );
     expect(firstOptionTexts).toEqual(
-      expect.arrayContaining(["All languages", "All authors", "All genre / themes", "All categories"]),
+      expect.arrayContaining(["All languages", "All authors", "All genre / themes", "All traditions", "All collections and topics"]),
     );
     expect(firstOptionTexts).not.toContain("All categorys");
   });
