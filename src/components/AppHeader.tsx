@@ -5,6 +5,7 @@ import {
   FileText,
   LayoutDashboard,
   LogIn,
+  Menu,
   ShieldCheck,
   User,
 } from "lucide-react";
@@ -74,7 +75,7 @@ export function AppHeader() {
               link, or disappearing for non-admins never moves the other
               items (the header is justify-between, so any width change here
               would shift the whole nav by half that change). */}
-          <nav className="relative hidden items-center gap-1 sm:flex">
+          <nav className="relative hidden items-center gap-1 lg:flex">
             {NAV.map(({ to, label, icon: Icon }) => {
               const active = pathname.startsWith(to);
               return (
@@ -129,7 +130,7 @@ export function AppHeader() {
               // resolved — see index.tsx's landing-page header for the
               // same established pattern.
               <div
-                className="hidden h-[38px] w-[96px] animate-pulse rounded-xl bg-secondary sm:block"
+                className="hidden h-[38px] w-[96px] animate-pulse rounded-xl bg-secondary lg:block"
                 aria-hidden="true"
               />
             ) : (
@@ -137,7 +138,7 @@ export function AppHeader() {
                 <Link
                   to="/auth"
                   search={{ redirect: href }}
-                  className="hidden items-center gap-1.5 rounded-xl border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground hover:bg-secondary sm:inline-flex"
+                  className="hidden items-center gap-1.5 rounded-xl border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground hover:bg-secondary lg:inline-flex"
                 >
                   <LogIn className="h-3.5 w-3.5" /> Sign in
                 </Link>
@@ -145,7 +146,7 @@ export function AppHeader() {
             )}
             <Link
               to="/library"
-              className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground sm:hidden"
+              className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground lg:hidden"
             >
               Start reading
             </Link>
@@ -153,37 +154,50 @@ export function AppHeader() {
         </div>
       </header>
 
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur sm:hidden">
-        <div className="flex items-stretch justify-around">
-          {NAV.map(({ to, label, icon: Icon }) => {
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur lg:hidden" aria-label="Mobile navigation">
+        <div className="mx-auto flex max-w-lg items-stretch justify-between">
+          {NAV.slice(0, 4).map(({ to, label, icon: Icon }) => {
             const active = pathname.startsWith(to);
             return (
               <Link
                 key={to}
                 to={to}
-                className={`flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium ${
-                  active ? "text-primary" : "text-muted-foreground"
-                }`}
+                className={`flex min-h-14 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-1 text-center text-[10px] font-medium leading-tight ${active ? "text-primary" : "text-muted-foreground"}`}
               >
-                <Icon className="h-5 w-5" />
+                <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />
                 {label}
               </Link>
             );
           })}
-          {/* The desktop nav shows Admin; without this, admins on phones had
-              no navigable path to /admin at all. Only for a resolved admin
-              role — never a guess, never for demo/signed-out visitors. */}
-          {isAdmin && (
-            <Link
-              to="/admin"
-              className={`flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium ${
-                pathname.startsWith("/admin") ? "text-primary" : "text-muted-foreground"
-              }`}
+          <details key={pathname} className="group relative flex min-w-0 flex-1">
+            <summary
+              className="flex min-h-14 w-full cursor-pointer list-none flex-col items-center justify-center gap-0.5 px-1 text-center text-[10px] font-medium text-muted-foreground group-open:text-primary"
+              aria-label="More navigation"
             >
-              <ShieldCheck className="h-5 w-5" />
-              Admin
-            </Link>
-          )}
+              <Menu className="h-5 w-5" aria-hidden="true" />
+              More
+            </summary>
+            <div className="absolute bottom-full right-0 mb-2 w-[min(18rem,calc(100vw-1rem))] rounded-2xl border border-border bg-card p-2 shadow-xl">
+              {NAV.slice(4).map(({ to, label, icon: Icon }) => (
+                <Link key={to} to={to} className="flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-medium text-foreground hover:bg-secondary">
+                  <Icon className="h-4 w-4 text-primary" aria-hidden="true" />
+                  {label}
+                </Link>
+              ))}
+              {isAdmin && (
+                <Link to="/admin" className="flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-medium text-foreground hover:bg-secondary">
+                  <ShieldCheck className="h-4 w-4 text-primary" aria-hidden="true" />
+                  Admin
+                </Link>
+              )}
+              {!authLoading && isDemo && (
+                <Link to="/auth" search={{ redirect: href }} className="flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-medium text-foreground hover:bg-secondary">
+                  <LogIn className="h-4 w-4 text-primary" aria-hidden="true" />
+                  Sign in
+                </Link>
+              )}
+            </div>
+          </details>
         </div>
       </nav>
     </>
