@@ -298,7 +298,7 @@ export function SacredTextReader({
     const observer = new IntersectionObserver((entries) => {
       const visibleIndices = entries
         .filter((entry) => entry.isIntersecting)
-        .map((entry) => Number((entry.target as HTMLElement).dataset.sacredVisibleChunk))
+        .map((entry) => Number((entry.target as HTMLElement).dataset["sacredVisibleChunk"]))
         .filter((value) => Number.isInteger(value) && value >= 0);
       if (!visibleIndices.length) return;
       const nextIndex = Math.max(...visibleIndices);
