@@ -63,7 +63,12 @@ function SacredTextDetail() {
     queryFn: () => getPublicBookEditions({ data: { bookId: book.id } }),
   });
 
-  const references = referenceIndexQuery.data?.references ?? [];
+  // Sort imported reference nodes by source position, not their insertion or ordinal order.
+  // Parent chapter headings precede child verses at the same offset.
+  const references = useMemo(() =>
+    [...(referenceIndexQuery.data?.references ?? [])].sort(
+      (a, b) => a.startChunkIndex - b.startChunkIndex || a.depth - b.depth || a.ordinal - b.ordinal,
+    ), [referenceIndexQuery.data?.references]);
   const filteredReferences = useMemo(() => {
     const q = referenceQuery.trim().toLocaleLowerCase();
     if (!q) return references.slice(0, 80);
@@ -173,7 +178,7 @@ function SacredTextDetail() {
                 <div>
                   <dt className="text-xs text-muted-foreground">Publisher / editor</dt>
                   <dd className="mt-0.5 font-semibold text-foreground" dir="auto">
-                    {[selectedPublisher, selectedEditor].filter(Boolean).join(" · ") || "Recorded source"}
+                    {[...new Set([selectedPublisher, selectedEditor].filter(Boolean))].join(" · ") || "Recorded source"}
                   </dd>
                 </div>
                 <div>
@@ -190,9 +195,9 @@ function SacredTextDetail() {
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-xs text-muted-foreground">Translator</dt>
+                  <dt className="text-xs text-muted-foreground">{selectedIsSource ? "Translation status" : "Translator"}</dt>
                   <dd className="mt-0.5 font-semibold text-foreground" dir="auto">
-                    {selectedTranslator || (selectedIsSource ? "Source text" : "Recorded sourced translation")}
+                    {selectedIsSource ? "Not applicable — original source" : selectedTranslator || "Translator not recorded"}
                   </dd>
                 </div>
               </dl>
