@@ -389,11 +389,11 @@ export function SacredTextReader({
             <span className="hidden sm:inline">References</span>
           </Link>
 
-          <div className="min-w-0 flex-1 text-center">
-            <p className="truncate font-display text-base font-semibold text-foreground" dir="auto">
+          <div className={"min-w-0 flex-1 " + (direction === "rtl" ? "text-right" : "text-center")} dir={direction}>
+            <p className="truncate font-display text-base font-semibold text-foreground" dir={direction}>
               {book.title}
             </p>
-            <p className="truncate text-xs text-muted-foreground" dir="auto">
+            <p className="truncate text-xs text-muted-foreground" dir={direction}>
               {section.title}
             </p>
           </div>
@@ -424,7 +424,7 @@ export function SacredTextReader({
               </p>
               <h1
                 className="mt-1 font-display text-xl font-semibold text-foreground sm:text-2xl"
-                dir="auto"
+                dir={direction}
               >
                 {section.title}
               </h1>
