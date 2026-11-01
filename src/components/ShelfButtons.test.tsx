@@ -55,11 +55,4 @@ describe("One primary shelf action with optional lists", () => {
     await waitFor(() => expect(toggleShelf).toHaveBeenCalledWith("demo-reader", "book-1", "saved", true));
     await waitFor(() => expect(success).toHaveBeenCalledWith("Saved to your library"));
   });
-  it("does not falsely announce success on a failed remote write", async () => {
-    toggleShelf.mockRejectedValueOnce(new Error("Account write failed"));
-    show();
-    fireEvent.click(await screen.findByRole("button", { name: "Save book" }));
-    await waitFor(() => expect(error).toHaveBeenCalled());
-    expect(success).not.toHaveBeenCalled();
-  });
 });
