@@ -434,3 +434,101 @@ export async function getSacredReaderSection(params: {
     }),
   };
 }
+
+/**
+ * Exact source-reference comparison for Matthew's non-positionally aligned
+ * Greek and English published editions. Only a matched imported node key AND
+ * canonical_ref is accepted. The three English-only verses do not acquire
+ * invented Greek text. No scripture records are updated.
+ */
+export async function getMatthewReferenceMatchedSection(params: {
+  bookId: string;
+  fromLanguage: string;
+  toLanguage: string;
+  chunkIndices: number[];
+}): Promise<SacredReaderSection | null> {
+  if (params.bookId !== "7bc812fd-6a4d-544e-903f-b2e333a5cc4f" ||
+      params.fromLanguage === params.toLanguage ||
+      !["Greek", "English"].includes(params.fromLanguage) ||
+      !["Greek", "English"].includes(params.toLanguage)) return null;
+  const db = await admin();
+  const { data: book, error: bookError } = await db.from("books")
+    .select("id,status,content_classification,source_version,available_languages")
+    .eq("id", params.bookId).maybeSingle();
+  if (bookError) throw new Error(bookError.message);
+  if (!book || book.status !== "published" ||
+      book.content_classification !== "religious" ||
+      !book.available_languages.includes(params.fromLanguage) ||
+      !book.available_languages.includes(params.toLanguage)) return null;
+
+  const indices = [...new Set(params.chunkIndices)].filter(
+    (index) => Number.isSafeInteger(index) && index >= 0,
+  ).slice(0, 32);
+  if (!indices.length) return null;
+  const version = book.source_version ?? 1;
+  const { data: original, error: originalError } = await db.from("book_structure_nodes")
+    .select("node_key,start_chunk_index,end_chunk_index,metadata")
+    .eq("book_id", params.bookId).eq("source_version", version)
+    .eq("language", params.fromLanguage).eq("node_type", "paragraph")
+    .in("start_chunk_index", indices);
+  if (originalError) throw new Error(originalError.message);
+  const sourceNodes = (original ?? []).filter((node) =>
+    node.start_chunk_index === node.end_chunk_index &&
+    typeof asRecord(node.metadata)?.["canonical_ref"] === "string",
+  );
+  if (!sourceNodes.length) return null;
+
+  const { data: destination, error: destinationError } = await db.from("book_structure_nodes")
+    .select("node_key,start_chunk_index,end_chunk_index,metadata")
+    .eq("book_id", params.bookId).eq("source_version", version)
+    .eq("language", params.toLanguage).eq("node_type", "paragraph")
+    .in("node_key", sourceNodes.map((node) => node.node_key));
+  if (destinationError) throw new Error(destinationError.message);
+
+  const byKey = new Map((destination ?? [])
+    .filter((node) => node.start_chunk_index === node.end_chunk_index)
+    .map((node) => [node.node_key, node]));
+  const aligned = sourceNodes.flatMap((node) => {
+    const target = byKey.get(node.node_key);
+    const ref = asRecord(node.metadata)?.["canonical_ref"];
+    if (!target || typeof ref !== "string" ||
+        asRecord(target.metadata)?.["canonical_ref"] !== ref) return [];
+    return [{
+      chunkIndex: node.start_chunk_index,
+      targetIndex: target.start_chunk_index,
+      canonicalRef: ref,
+      label: String(asRecord(target.metadata)?.["reference_label"] ?? ref),
+    }];
+  });
+  if (!aligned.length) return null;
+
+  const { data: chunks, error: chunkError } = await db.from("book_chunks")
+    .select("chunk_index,content").eq("book_id", params.bookId)
+    .eq("language", params.toLanguage).eq("source_version", version)
+    .eq("status", "published").in("chunk_index", aligned.map((row) => row.targetIndex));
+  if (chunkError) throw new Error(chunkError.message);
+  const byIndex = new Map((chunks ?? []).map((chunk) =>
+    [Number(chunk.chunk_index), String(chunk.content ?? "")]));
+  const matched = aligned
+    .filter((row) => byIndex.has(row.targetIndex))
+    .sort((a, b) => a.chunkIndex - b.chunkIndex)
+    .map((row) => ({
+      chunkIndex: row.chunkIndex, canonicalRef: row.canonicalRef,
+      label: row.label, kind: "verse", content: byIndex.get(row.targetIndex)!,
+      annotations: [],
+    }));
+  return {
+    bookId: params.bookId,
+    language: params.toLanguage,
+    sourceVersion: version,
+    title: "Published verses matched by canonical reference",
+    kind: "canonical-reference-match",
+    startChunkIndex: Math.min(...indices),
+    endChunkIndex: Math.max(...indices),
+    previousChunkIndex: null,
+    nextChunkIndex: null,
+    typographyProfile: "standard",
+    windowStartChunkIndex: Math.min(...indices),
+    chunks: matched,
+  };
+}
