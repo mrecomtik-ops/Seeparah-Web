@@ -37,7 +37,7 @@ export const getSacredReaderSection = createServerFn({ method: "GET" })
  */
 export const getMatthewReferenceMatchedSection = createServerFn({ method: "GET" })
   .validator((data) => z.object({
-    bookId: z.literal("7bc812fd-6a4d-544e-903f-b2e333a5cc4f"),
+    bookId: z.string().uuid().refine((id) => id === "7bc812fd-6a4d-544e-903f-b2e333a5cc4f"),
     fromLanguage: z.enum(["Greek", "English"]),
     toLanguage: z.enum(["Greek", "English"]),
     chunkIndices: z.array(z.number().int().min(0)).min(1).max(32),
