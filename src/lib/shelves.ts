@@ -36,27 +36,26 @@ export async function toggleShelf(
   on: boolean,
 ): Promise<void> {
   if (userId !== DEMO_USER_ID) {
-    try {
-      if (on) {
-        const { error } = await supabase
-          .from("book_shelves")
-          .upsert(
-            { user_id: userId, book_id: bookId, shelf },
-            { onConflict: "user_id,book_id,shelf" },
-          );
-        if (!error) return;
-      } else {
-        const { error } = await supabase
-          .from("book_shelves")
-          .delete()
-          .eq("user_id", userId)
-          .eq("book_id", bookId)
-          .eq("shelf", shelf);
-        if (!error) return;
-      }
-    } catch {
-      // fall through to local
+    // A failed remote write must not masquerade as a successful synchronized
+    // change. Keep the existing database rows and surface a retryable error.
+    if (on) {
+      const { error } = await supabase
+        .from("book_shelves")
+        .upsert(
+          { user_id: userId, book_id: bookId, shelf },
+          { onConflict: "user_id,book_id,shelf" },
+        );
+      if (error) throw new Error("Could not save shelf changes to your account. Please retry.");
+      return;
     }
+    const { error } = await supabase
+      .from("book_shelves")
+      .delete()
+      .eq("user_id", userId)
+      .eq("book_id", bookId)
+      .eq("shelf", shelf);
+    if (error) throw new Error("Could not remove the book from your shelf. Please retry.");
+    return;
   }
   const rows = demoStore
     .getShelves()
