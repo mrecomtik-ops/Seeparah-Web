@@ -41,13 +41,17 @@ describe("One primary shelf action with optional lists", () => {
     show();
     await screen.findByRole("button", { name: "Save book" });
     expect(screen.getByText("More shelf options")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Add to favorites" })).toBeNull();
+    const disclosure = screen.getByText("More shelf options").closest("details");
+    expect(disclosure?.open).toBe(false);
     fireEvent.click(screen.getByText("More shelf options"));
+    expect(disclosure?.open).toBe(true);
     expect(screen.getByRole("button", { name: "Add to favorites" })).toBeTruthy();
   });
   it("confirms saving only after the server mutation succeeds", async () => {
     show();
-    fireEvent.click(await screen.findByRole("button", { name: "Save book" }));
+    const button = await screen.findByRole("button", { name: "Save book" });
+    await waitFor(() => expect(button.hasAttribute("disabled")).toBe(false));
+    fireEvent.click(button);
     await waitFor(() => expect(toggleShelf).toHaveBeenCalledWith("demo-reader", "book-1", "saved", true));
     await waitFor(() => expect(success).toHaveBeenCalledWith("Saved to your library"));
   });
