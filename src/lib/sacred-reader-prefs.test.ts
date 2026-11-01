@@ -5,6 +5,7 @@ import {
   readSacredPrefs,
   persistSacredPrefs,
   canRetainCanonicalPosition,
+  canCompareByCanonicalReference,
   sacredEditionLayout,
   sacredReferenceGroupLabel,
   sacredSourceFingerprint,
@@ -94,6 +95,15 @@ describe("sacred preferences and language alignment", () => {
     expect(
       canRetainCanonicalPosition("3e2c1103-36a9-5a44-987c-259d27dea072", "Pali", "English", 423, 5),
     ).toBe(true);
+  });
+  it("never confuses Matthew's 1,068/1,071 Greek-English indexes with canonical matches", () => {
+    const matthew = "7bc812fd-6a4d-544e-903f-b2e333a5cc4f";
+    expect(canRetainCanonicalPosition(matthew, "Greek", "English", 1071, 100)).toBe(false);
+    expect(canCompareByCanonicalReference(matthew, "Greek", "English")).toBe(true);
+    expect(canCompareByCanonicalReference(matthew, "English", "Greek")).toBe(true);
+    expect(canCompareByCanonicalReference(matthew, "Greek", "Greek")).toBe(false);
+    expect(canCompareByCanonicalReference("random-book", "Greek", "English")).toBe(false);
+    expect(canCompareByCanonicalReference(matthew, "Urdu", "English")).toBe(false);
   });
   it("selects scripture profiles from verified title identities", () => {
     expect(sacredEditionLayout("The Qur’an")).toBe("quran");
