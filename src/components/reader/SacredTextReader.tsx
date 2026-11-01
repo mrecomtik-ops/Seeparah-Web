@@ -169,7 +169,7 @@ export function SacredTextReader({
       void queryClient.prefetchQuery({
         queryKey: ["sacred-reader-section", book.id, language, index],
         queryFn: () => getSacredReaderSection({
-          data: { bookId: book.id, language, chunkIndex: index },
+          data: { bookId: book.id, language, chunkIndex: index, windowSize: 32 },
         }),
         staleTime: 15 * 60 * 1000,
       });
