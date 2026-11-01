@@ -14,7 +14,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ShelfButtons } from "@/components/ShelfButtons";
 import { ProgressiveSourcePassage } from "@/components/reader/ProgressiveSourcePassage";
-import { getSacredReaderSection, getSacredTextReferenceIndex } from "@/lib/scripture.functions";
+import { getSacredReaderSection, getSacredTextReferenceIndex, getMatthewReferenceMatchedSection } from "@/lib/scripture.functions";
 import { getPublicBookEditions } from "@/lib/translation.functions";
 import { saveProgress } from "@/lib/library";
 import { RTL_LANGUAGES, type Book } from "@/lib/data";
@@ -24,6 +24,7 @@ import {
   readSacredPrefs,
   persistSacredPrefs,
   canRetainCanonicalPosition,
+  canCompareByCanonicalReference,
   sacredEditionLayout,
   sacredReferenceGroupLabel,
 } from "@/lib/sacred-reader-prefs";
@@ -151,12 +152,25 @@ export function SacredTextReader({
       previousQuery?.queryKey[2] === language ? previous : undefined,
   });
 
+  const canonicalComparison = Boolean(
+    compareLanguage && canCompareByCanonicalReference(book.id, language, compareLanguage),
+  );
   const comparisonQuery = useQuery({
-    queryKey: ["sacred-compare-section", book.id, compareLanguage, chunkIndex],
-    queryFn: () => getSacredReaderSection({
-      data: { bookId: book.id, language: compareLanguage ?? language, chunkIndex, windowSize: 32 },
-    }),
-    enabled: Boolean(compareLanguage),
+    queryKey: ["sacred-compare-section", book.id, language, compareLanguage, chunkIndex],
+    queryFn: () => canonicalComparison
+      ? getMatthewReferenceMatchedSection({
+          data: {
+            bookId: book.id,
+            fromLanguage: language as "Greek" | "English",
+            toLanguage: compareLanguage as "Greek" | "English",
+            chunkIndices: sectionQuery.data?.chunks.map((chunk) => chunk.chunkIndex) ?? [],
+          },
+        })
+      : getSacredReaderSection({
+          data: { bookId: book.id, language: compareLanguage ?? language, chunkIndex, windowSize: 32 },
+        }),
+    enabled: Boolean(compareLanguage && (!canonicalComparison ||
+      (sectionQuery.data && !sectionQuery.isPlaceholderData))),
     staleTime: 15 * 60 * 1000,
   });
 
@@ -263,7 +277,8 @@ export function SacredTextReader({
   };
   const verifiedComparisonLanguages = availableLanguages.filter(
     (candidate) => candidate !== language &&
-      canRetainCanonicalPosition(book.id, language, candidate, book.total_chunks, chunkIndex),
+      (canRetainCanonicalPosition(book.id, language, candidate, book.total_chunks, chunkIndex) ||
+       canCompareByCanonicalReference(book.id, language, candidate)),
   );
 
   const updateLocation = (nextLanguage: string, nextChunkIndex: number, replace = false) => {
@@ -888,8 +903,9 @@ export function SacredTextReader({
           >
             <h2 className="mb-2 font-display text-xl font-semibold text-foreground">{compareLanguage} edition</h2>
             <p className="mb-5 text-xs text-muted-foreground">
-              Only source editions with independently verified canonical position mapping are offered.
-              References and text remain those of the selected edition.
+              {canonicalComparison
+                ? "These editions differ in verse count. Verses are paired only when their imported source node keys and canonical references match, never by array index."
+                : "Only source editions with independently verified canonical position mapping are offered. References and text remain those of the selected edition."}
             </p>
             {comparisonQuery.isLoading ? (
               <p role="status" className="text-sm text-muted-foreground">Loading parallel edition…</p>
@@ -898,7 +914,15 @@ export function SacredTextReader({
                 The matching published edition could not be loaded. The main source text is unchanged.
               </p>
             ) : (
-              comparisonQuery.data.chunks
+              <>
+                {canonicalComparison && visibleSourceChunks.some((primary) =>
+                  !comparisonQuery.data.chunks.some((chunk) => chunk.chunkIndex === primary.chunkIndex)) && (
+                  <p role="status" className="mb-3 rounded-lg border border-border bg-secondary/50 p-3 text-xs text-foreground">
+                    Some original references have no matching verse in this published comparison edition.
+                    Unmatched verses are never fabricated or paired by neighboring index.
+                  </p>
+                )}
+                {comparisonQuery.data.chunks
                 .filter((chunk) => visibleSourceChunks.some((primary) => primary.chunkIndex === chunk.chunkIndex))
                 .map((chunk) => (
                   <article key={chunk.chunkIndex} className="mb-5">
@@ -919,7 +943,8 @@ export function SacredTextReader({
                       >{renderSacredInline(chunk.content)}</p>
                     </ProgressiveSourcePassage>
                   </article>
-                ))
+                ))}
+              </>
             )}
           </section>
         )}
