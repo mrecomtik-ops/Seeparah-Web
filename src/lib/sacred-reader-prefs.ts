@@ -53,7 +53,7 @@ export function persistSacredPrefs(storage: Pick<Storage, "setItem"> | null, pre
   }
 }
 
-/** These three identities have matching source-leaf node keys and canonical
+/** These four identities have matching source-leaf node keys and canonical
  * references verified on 19 Oct 2026 in production, for every language pair.
  * No cross-edition alignment is inferred for other texts.
  */
@@ -61,6 +61,7 @@ export const VERIFIED_LANGUAGE_ALIGNMENT = {
   "f7e3a9f0-931a-5207-9859-a27210cc2ca8": ["Arabic", "English", "Urdu", "Hindi", "Chinese"],
   "3e2c1103-36a9-5a44-987c-259d27dea072": ["Pali", "English"],
   "bbbca884-54f8-5d97-bf28-3a3346ea9e34": ["Hebrew", "English"],
+  "87205571-41a9-540a-abd2-3784a4079fad": ["Hebrew", "English"],
 } as const;
 export function canRetainCanonicalPosition(
   bookId: string,

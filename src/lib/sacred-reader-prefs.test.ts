@@ -64,6 +64,15 @@ describe("sacred preferences and language alignment", () => {
     const q = "f7e3a9f0-931a-5207-9859-a27210cc2ca8";
     expect(canRetainCanonicalPosition(q, "Arabic", "Urdu", 6236, 300)).toBe(true);
     expect(canRetainCanonicalPosition(q, "Arabic", "English", 6236, 6236)).toBe(false);
+    // The live source/English JPS 1917 records use 1,533 identical
+    // canonical_ref + node_key + chunk_index pairs throughout Genesis.
+    const genesis = "87205571-41a9-540a-abd2-3784a4079fad";
+    expect(canRetainCanonicalPosition(genesis, "Hebrew", "English", 1533, 0)).toBe(true);
+    expect(canRetainCanonicalPosition(genesis, "English", "Hebrew", 1533, 1532)).toBe(true);
+    expect(canRetainCanonicalPosition(genesis, "Hebrew", "English", 1533, 1533)).toBe(false);
+    // The Greek and English Matthew editions differ in source chunk count
+    // (1,068 vs 1,071). Never assume positional parallel alignment.
+    expect(canRetainCanonicalPosition("7bc812fd-6a4d-544e-903f-b2e333a5cc4f", "Greek", "English", 1071, 25)).toBe(false);
     expect(
       canRetainCanonicalPosition(
         "e0c836a6-6d04-5914-9196-aeb9871776e9",
