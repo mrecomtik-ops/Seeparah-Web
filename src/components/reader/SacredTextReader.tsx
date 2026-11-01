@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ShelfButtons } from "@/components/ShelfButtons";
+import { ProgressiveSourcePassage } from "@/components/reader/ProgressiveSourcePassage";
 import { getSacredReaderSection, getSacredTextReferenceIndex } from "@/lib/scripture.functions";
 import { getPublicBookEditions } from "@/lib/translation.functions";
 import { saveProgress } from "@/lib/library";
@@ -743,13 +744,11 @@ export function SacredTextReader({
                         <Copy className="h-3.5 w-3.5" /> Copy text
                       </button>
                     </div>
-                    <p
-                      className="whitespace-pre-wrap break-words text-foreground"
-                      dir={direction}
-                      style={contentStyle}
-                    >
-                      {renderSacredInline(chunk.content)}
-                    </p>
+                    <ProgressiveSourcePassage content={chunk.content} style={contentStyle} label={chunk.label}>
+                      <p className="whitespace-pre-wrap break-words text-foreground" dir={direction} style={contentStyle}>
+                        {renderSacredInline(chunk.content)}
+                      </p>
+                    </ProgressiveSourcePassage>
                   </>
                 ) : compactVerse ? (
                   <span
@@ -806,13 +805,15 @@ export function SacredTextReader({
                         />
                       </div>
                     ) : editionLayout === "digha" ? (
-                      <BilaraDiscourse
-                        content={chunk.content}
-                        ranges={section.sourceSegments}
-                        data={dnSource}
-                        style={contentStyle}
-                        language={language}
-                      />
+                      <ProgressiveSourcePassage content={chunk.content} style={contentStyle} label={chunk.label}>
+                        <BilaraDiscourse
+                          content={chunk.content}
+                          ranges={section.sourceSegments}
+                          data={dnSource}
+                          style={contentStyle}
+                          language={language}
+                        />
+                      </ProgressiveSourcePassage>
                     ) : editionLayout === "dao" ? (
                       <DaoWithWangBi content={chunk.content} style={contentStyle} />
                     ) : editionLayout === "gita" && language === "Sanskrit" ? (
@@ -848,12 +849,11 @@ export function SacredTextReader({
                         }
                         dir={direction}
                       >
-                        <p
-                          className="whitespace-pre-line break-words text-foreground"
-                          style={contentStyle}
-                        >
-                          {renderSacredInline(chunk.content)}
-                        </p>
+                        <ProgressiveSourcePassage content={chunk.content} style={contentStyle} label={chunk.label}>
+                          <p className="whitespace-pre-line break-words text-foreground" style={contentStyle}>
+                            {renderSacredInline(chunk.content)}
+                          </p>
+                        </ProgressiveSourcePassage>
                       </div>
                     )}
                   </>
@@ -903,14 +903,21 @@ export function SacredTextReader({
                 .map((chunk) => (
                   <article key={chunk.chunkIndex} className="mb-5">
                     <p className="mb-1 text-xs font-semibold text-primary" dir="auto">{chunk.label}</p>
-                    <p
-                      className="whitespace-pre-wrap break-words text-foreground"
+                    <ProgressiveSourcePassage content={chunk.content} label={chunk.label}
                       style={{
                         fontFamily: scriptureFontFamily(compareLanguage) ?? "Georgia, serif",
                         fontSize: Math.max(16, sacredReadingProfile(compareLanguage).size + fontDelta) + "px",
                         lineHeight: sacredReadingProfile(compareLanguage).leading + lineDelta,
-                      }}
-                    >{renderSacredInline(chunk.content)}</p>
+                      }}>
+                      <p
+                        className="whitespace-pre-wrap break-words text-foreground"
+                        style={{
+                          fontFamily: scriptureFontFamily(compareLanguage) ?? "Georgia, serif",
+                          fontSize: Math.max(16, sacredReadingProfile(compareLanguage).size + fontDelta) + "px",
+                          lineHeight: sacredReadingProfile(compareLanguage).leading + lineDelta,
+                        }}
+                      >{renderSacredInline(chunk.content)}</p>
+                    </ProgressiveSourcePassage>
                   </article>
                 ))
             )}
