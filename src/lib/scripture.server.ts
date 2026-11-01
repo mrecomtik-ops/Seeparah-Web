@@ -1,3 +1,4 @@
+import { matchCanonicalReferenceNodes } from "@/lib/sacred-reference-pairing";
 import type {
   SacredReaderSection,
   ScriptureReferenceEntry,
@@ -485,21 +486,7 @@ export async function getMatthewReferenceMatchedSection(params: {
     .in("node_key", sourceNodes.map((node) => node.node_key));
   if (destinationError) throw new Error(destinationError.message);
 
-  const byKey = new Map((destination ?? [])
-    .filter((node) => node.start_chunk_index === node.end_chunk_index)
-    .map((node) => [node.node_key, node]));
-  const aligned = sourceNodes.flatMap((node) => {
-    const target = byKey.get(node.node_key);
-    const ref = asRecord(node.metadata)?.["canonical_ref"];
-    if (!target || typeof ref !== "string" ||
-        asRecord(target.metadata)?.["canonical_ref"] !== ref) return [];
-    return [{
-      chunkIndex: node.start_chunk_index,
-      targetIndex: target.start_chunk_index,
-      canonicalRef: ref,
-      label: String(asRecord(target.metadata)?.["reference_label"] ?? ref),
-    }];
-  });
+  const aligned = matchCanonicalReferenceNodes(sourceNodes, destination ?? []);
   if (!aligned.length) return null;
 
   const { data: chunks, error: chunkError } = await db.from("book_chunks")
