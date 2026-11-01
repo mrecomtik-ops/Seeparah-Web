@@ -916,7 +916,7 @@ export function SacredTextReader({
             ) : (
               <>
                 {canonicalComparison && visibleSourceChunks.some((primary) =>
-                  !comparisonQuery.data.chunks.some((chunk) => chunk.chunkIndex === primary.chunkIndex)) && (
+                  !comparisonQuery.data?.chunks.some((chunk) => chunk.chunkIndex === primary.chunkIndex)) && (
                   <p role="status" className="mb-3 rounded-lg border border-border bg-secondary/50 p-3 text-xs text-foreground">
                     Some original references have no matching verse in this published comparison edition.
                     Unmatched verses are never fabricated or paired by neighboring index.
