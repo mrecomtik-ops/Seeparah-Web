@@ -63,6 +63,16 @@ export const VERIFIED_LANGUAGE_ALIGNMENT = {
   "bbbca884-54f8-5d97-bf28-3a3346ea9e34": ["Hebrew", "English"],
   "87205571-41a9-540a-abd2-3784a4079fad": ["Hebrew", "English"],
 } as const;
+/** Matthew's Greek/English editions differ by three verse records and have
+ * 492 shifted raw indexes. They may be compared ONLY by matching the
+ * published canonical reference and node key, never by chunk index.
+ */
+export function canCompareByCanonicalReference(bookId: string, from: string, to: string) {
+  return bookId === "7bc812fd-6a4d-544e-903f-b2e333a5cc4f" &&
+    from !== to && ["Greek", "English"].includes(from) &&
+    ["Greek", "English"].includes(to);
+}
+
 export function canRetainCanonicalPosition(
   bookId: string,
   fromLanguage: string,
