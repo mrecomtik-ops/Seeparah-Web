@@ -242,28 +242,16 @@ describe("deleteBookPermanently", () => {
     expect(mock.deleteSpy).not.toHaveBeenCalled();
   });
 
-  it("detaches referencing support tickets before deleting when any exist", async () => {
+  it("refuses deletion with linked support tickets without mutating or unlinking them", async () => {
     mock = makeMockSupabase([
       { data: { title: "Archived Book", status: "archived" }, error: null },
-      { count: 0, error: null },
-      { count: 0, error: null },
-      { count: 0, error: null },
-      { count: 0, error: null },
-      { count: 0, error: null },
-      { count: 0, error: null },
-      { count: 0, error: null },
-      { count: 0, error: null },
-      { count: 0, error: null },
-      { count: 1, error: null }, // one related support ticket
-      { data: null, error: null }, // detach update
-      { data: [{ id: "book-1" }], error: null }, // delete
+      ...Array.from({ length: 9 }, () => ({ count: 0, error: null })),
+      { count: 1, error: null }, // one support ticket, protected
     ]);
-    const result = await deleteBookPermanently({ bookId: "book-1" });
-    expect(result.impact.relatedSupportTicketCount).toBe(1);
-    expect(mock.updateSpy).toHaveBeenCalledWith({ related_book_id: null });
-    expect(mock.deleteSpy).toHaveBeenCalled();
-    expect(mock.inSpy).toHaveBeenCalledWith("status", ["archived", "unpublished"]);
-    expect(mock.eqSpy).toHaveBeenCalledWith("title", "Archived Book");
+    await expect(deleteBookPermanently({ bookId: "book-1" }))
+      .rejects.toThrow(/support tickets still reference/);
+    expect(mock.updateSpy).not.toHaveBeenCalled();
+    expect(mock.deleteSpy).not.toHaveBeenCalled();
   });
 
   it("refuses a permanent delete when the title/status changed during review", async () => {
