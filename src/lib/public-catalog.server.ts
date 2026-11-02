@@ -78,7 +78,11 @@ export async function getPublicLibraryPage(ids: string[]): Promise<Book[]> {
     .eq("status", "published")
     .in("id", ids);
   if (error) throw new Error(error.message);
-  const rows = new Map((data ?? []).map((item) => [String(item.id), asPublicBook(item)]));
+  const rows = new Map<string, Book>();
+  for (const raw of data ?? []) {
+    const book = asPublicBook(raw);
+    rows.set(book.id, book);
+  }
   return ids.flatMap((id) => rows.has(id) ? [rows.get(id)!] : []);
 }
 
