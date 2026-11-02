@@ -36,6 +36,7 @@ import { AdminBookOrganizer } from "@/components/admin/AdminBookOrganizer";
 import { AdminBookPublishingChecklist } from "@/components/admin/AdminBookPublishingChecklist";
 import { AdminBookContentPolicy } from "@/components/admin/AdminBookContentPolicy";
 import { AdminBookAccessCategories } from "@/components/admin/AdminBookAccessCategories";
+import { AdminBookDestructiveDialogs } from "@/components/admin/AdminBookDestructiveDialogs";
 import { cropCoverToPortrait } from "@/lib/admin/cover-crop";
 import { lockStagedCoverReview, stagedCoverAssignment, type StagedEditionCover } from "@/lib/admin/staged-cover";
 
@@ -2120,122 +2121,19 @@ function AdminBookDetail() {
         </div>
       )}
 
-      {deleteOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 card-shadow-lg">
-            <h2 className="font-display text-lg font-semibold text-foreground">
-              Delete “{book.title}”?
-            </h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              This archives the book — it stops being published and disappears from the catalog, but
-              nothing is erased. Chunks, translations, editions, reader highlights and progress,
-              requests, and audit history all stay intact, and this can be reversed from here
-              anytime. For irreversible deletion, use "Delete permanently" instead (owner/
-              administrator only).
-            </p>
-            <div className="mt-4 flex justify-end gap-2">
-              <button
-                onClick={() => setDeleteOpen(false)}
-                disabled={busy}
-                className="rounded-lg border border-border px-4 py-2 text-sm font-semibold hover:bg-secondary disabled:opacity-60"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => void confirmDelete()}
-                disabled={busy}
-                className="rounded-lg bg-destructive px-4 py-2 text-sm font-semibold text-destructive-foreground disabled:opacity-60"
-              >
-                {busy ? "Archiving…" : "Delete (archive)"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {permDeleteOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-lg rounded-2xl border border-destructive/40 bg-card p-6 card-shadow-lg">
-            <h2 className="font-display text-lg font-semibold text-destructive">
-              Permanently delete “{book.title}”?
-            </h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              This cannot be undone. Everything below is deleted along with the book:
-            </p>
-            {!permDeleteImpact ? (
-              <div className="mt-3 flex justify-center py-4">
-                <Loader2 className="h-5 w-5 animate-spin text-primary" />
-              </div>
-            ) : (
-              <ul className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 rounded-xl border border-border bg-background p-3 text-xs">
-                <li>Pages (chunks): {permDeleteImpact.chunkCount}</li>
-                <li>Translated editions: {permDeleteImpact.editionCount}</li>
-                <li>Translation jobs: {permDeleteImpact.translationJobCount}</li>
-                <li>Reading progress rows: {permDeleteImpact.progressCount}</li>
-                <li>Reader highlights: {permDeleteImpact.highlightCount}</li>
-                <li>Shelf entries: {permDeleteImpact.shelfCount}</li>
-                <li>Subscriptions: {permDeleteImpact.subscriptionCount}</li>
-                <li>Translation requests: {permDeleteImpact.translationRequestCount}</li>
-                <li>Issue reports: {permDeleteImpact.translationReportCount}</li>
-                <li>
-                  Support tickets referencing it: {permDeleteImpact.relatedSupportTicketCount}{" "}
-                  {permDeleteImpact.relatedSupportTicketCount > 0 ? "(must be reassociated first — deletion blocked)" : ""}
-                </li>
-              </ul>
-            )}
-            <p className="mt-3 text-xs text-muted-foreground">
-              Moderation and audit history for this book cannot be erased and is not affected by
-              this action.
-            </p>
-            {permDeleteImpact &&
-              permDeleteImpact.status !== "archived" &&
-              permDeleteImpact.status !== "unpublished" && (
-                <p className="mt-2 rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">
-                  This book is still {permDeleteImpact.status} — take it down (Delete/archive)
-                  first, then permanently delete it as a separate step.
-                </p>
-              )}
-            {permDeleteImpact && permDeleteImpact.relatedSupportTicketCount > 0 && (
-              <p role="alert" className="mt-3 rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">
-                Permanent deletion is blocked while support tickets still reference this book. Keep it archived, or have a reviewer explicitly reassociate those tickets first. No tickets will be detached automatically.
-              </p>
-            )}
-            <label className="mt-3 block">
-              <span className="text-xs font-medium text-muted-foreground">
-                Type the exact title to confirm: <strong>{book.title}</strong>
-              </span>
-              <input
-                value={permDeleteConfirmText}
-                onChange={(e) => setPermDeleteConfirmText(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              />
-            </label>
-            <div className="mt-4 flex justify-end gap-2">
-              <button
-                onClick={() => setPermDeleteOpen(false)}
-                disabled={busy}
-                className="rounded-lg border border-border px-4 py-2 text-sm font-semibold hover:bg-secondary disabled:opacity-60"
-              >
-                Cancel
-              </button>
-              <button
-                disabled={
-                  busy ||
-                  !permDeleteImpact ||
-                  permDeleteImpact.relatedSupportTicketCount > 0 ||
-                  permDeleteConfirmText !== book.title ||
-                  (permDeleteImpact.status !== "archived" &&
-                    permDeleteImpact.status !== "unpublished")
-                }
-                onClick={() => void confirmPermDelete()}
-                className="rounded-lg bg-destructive px-4 py-2 text-sm font-semibold text-destructive-foreground disabled:opacity-60"
-              >
-                {busy ? "Deleting…" : "Permanently delete"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <AdminBookDestructiveDialogs
+        title={book.title}
+        deleteOpen={deleteOpen}
+        permDeleteOpen={permDeleteOpen}
+        busy={busy}
+        permDeleteImpact={permDeleteImpact}
+        permDeleteConfirmText={permDeleteConfirmText}
+        onChangeConfirmText={setPermDeleteConfirmText}
+        onCloseArchive={() => setDeleteOpen(false)}
+        onClosePermanent={() => setPermDeleteOpen(false)}
+        onConfirmArchive={confirmDelete}
+        onConfirmPermanent={confirmPermDelete}
+      />
     </div>
   );
 }
