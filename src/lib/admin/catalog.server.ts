@@ -2189,21 +2189,17 @@ export async function deleteBookPermanently(params: {
     );
   }
   const db = await admin();
-  // support_tickets.related_book_id has no ON DELETE cascade, by design —
-  // a support ticket is a moderation/audit record and must survive the
-  // book it references being deleted, never disappearing along with it.
-  // Detach the reference explicitly so the DELETE below doesn't fail
-  // against this one non-cascading FK; every other related table (chunks,
-  // editions, jobs, progress, highlights, shelves, subscriptions,
-  // requests, reports) cascades automatically.
+  // This relation intentionally has no cascading delete. Never detach
+  // support tickets before a conditional book DELETE: if the DELETE later
+  // fails (for example, the book was just republished) that would still
+  // have mutated retained moderation records. Fail closed instead.
+  // The owner can archive the book without losing support history, or
+  // arrange an independently reviewed ticket reassignment before deleting.
   if (impact.relatedSupportTicketCount > 0) {
-    const { error: detachError } = await db
-      .from("support_tickets")
-      .update({ related_book_id: null })
-      .eq("related_book_id", params.bookId);
-    if (detachError) {
-      throw new Error(`Couldn't detach related support tickets: ${detachError.message}`);
-    }
+    throw new Error(
+      "Permanent deletion refused: support tickets still reference this book. " +
+      "Keep it archived or have an authorized reviewer explicitly reassociate those tickets first.",
+    );
   }
   // Re-check the destructive preconditions *in the final DELETE query*.
   // A previously archived book can be re-published or renamed while an
