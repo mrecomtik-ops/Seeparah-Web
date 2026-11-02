@@ -70,7 +70,8 @@ export function AdminBookDestructiveDialogs({
       )}
 
       {permDeleteOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+        <div role="dialog" aria-modal="true" aria-labelledby="permanent-delete-dialog-title"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-lg rounded-2xl border border-destructive/40 bg-card p-6 card-shadow-lg">
             <h2 id="permanent-delete-dialog-title" className="font-display text-lg font-semibold text-destructive">
               Permanently delete “{title}”?
