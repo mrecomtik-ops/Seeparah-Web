@@ -25,6 +25,7 @@ try {
   });
   await page.locator('[aria-label="Back to library"]').first().waitFor({ timeout: 45000 });
   await page.locator('.reader-v3-stage').first().waitFor({ timeout: 45000 });
+  await page.locator('[aria-label="Reader settings"]').first().waitFor({ timeout: 60000 });
   await page.waitForTimeout(1600);
   const normal = await page.evaluate(() => {
     const box = (el) => {
