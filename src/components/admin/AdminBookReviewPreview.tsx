@@ -16,14 +16,14 @@ export function AdminBookReviewPreview({
   onLoadChunk: (index: number) => Promise<void>;
 }) {
   return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3 sm:p-6">
+        <div role="dialog" aria-modal="true" aria-labelledby="admin-source-preview-title" className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3 sm:p-6">
           <div className="flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-border bg-card card-shadow-lg">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-4">
               <div className="min-w-0">
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                   Admin review preview · {sourceLanguage}
                 </p>
-                <h2 className="truncate font-display text-xl font-semibold text-foreground">
+                <h2 id="admin-source-preview-title" className="truncate font-display text-xl font-semibold text-foreground">
                   {title}
                 </h2>
                 <p className="text-xs text-muted-foreground">
