@@ -37,6 +37,7 @@ import { friendlyTranslationError } from "@/lib/translation-error";
 import { AdminReadablePreview, Row, formatPublicationYear } from "@/components/admin/AdminBookPresentation";
 import { AdminBookOrganizer } from "@/components/admin/AdminBookOrganizer";
 import { cropCoverToPortrait } from "@/lib/admin/cover-crop";
+import { lockStagedCoverReview, stagedCoverAssignment, type StagedEditionCover } from "@/lib/admin/staged-cover";
 
 export const Route = createFileRoute("/admin/books/$bookId")({
   component: AdminBookDetail,
@@ -58,9 +59,7 @@ function AdminBookDetail() {
   const [coverPreviewFailed, setCoverPreviewFailed] = useState(false);
   const [coverAttribution, setCoverAttribution] = useState("");
   const [coverTargetLanguage, setCoverTargetLanguage] = useState("");
-  const [stagedEditionCover, setStagedEditionCover] = useState<{
-    path: string; url: string; language: string; sourceEditionId: string;
-  } | null>(null);
+  const [stagedEditionCover, setStagedEditionCover] = useState<StagedEditionCover | null>(null);
   const [coverSharedArtwork, setCoverSharedArtwork] = useState(false);
   const [coverUploading, setCoverUploading] = useState(false);
   const [selectedCoverFile, setSelectedCoverFile] = useState<File | null>(null);
@@ -480,7 +479,7 @@ function AdminBookDetail() {
           sharedArtwork: coverSharedArtwork,
         },
       });
-      setStagedEditionCover(uploaded);
+      setStagedEditionCover(lockStagedCoverReview(uploaded, coverAttribution, coverSharedArtwork));
       setSelectedCoverFile(null);
       toast.success("Staged for the selected source edition. Review the image and assign it explicitly.");
     } catch (error) {
@@ -498,10 +497,7 @@ function AdminBookDetail() {
         data: {
           accessToken: await getAccessToken(),
           bookId,
-          language: staged.language,
-          path: staged.path,
-          attribution: coverAttribution.trim(),
-          sharedArtwork: coverSharedArtwork,
+          ...stagedCoverAssignment(staged, coverTargetLanguage),
         },
       });
       setStagedEditionCover(null);
@@ -2453,14 +2449,19 @@ function AdminBookDetail() {
                         {stagedEditionCover.language} · {stagedEditionCover.sourceEditionId}
                       </p>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        This image is staged only. Assigning it will not change other languages or books.
+                        This staged source and its attribution are locked until assignment. Other languages and books remain unchanged.
                       </p>
                       <button type="button"
-                        disabled={busy || coverUploading || !canPublish}
+                        disabled={busy || coverUploading || !canPublish || stagedEditionCover.language !== coverTargetLanguage}
                         onClick={() => void assignStagedEditionCover()}
                         className="mt-3 min-h-11 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50">
                         Assign to this verified edition
                       </button>
+                      {stagedEditionCover.language !== coverTargetLanguage && (
+                        <p role="status" className="mt-2 text-xs text-amber-700 dark:text-amber-300">
+                          Select {stagedEditionCover.language} before assigning this reviewed image.
+                        </p>
+                      )}
                     </div>
                   )}
                   <p className="text-xs leading-relaxed text-muted-foreground">
