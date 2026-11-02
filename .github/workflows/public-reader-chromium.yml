@@ -4,6 +4,7 @@ on:
     paths:
       - "scripts/qa/public-reader-chromium.mjs"
       - "scripts/qa/public-reader-native-zoom.mjs"
+      - "scripts/qa/public-reader-webkit.mjs"
       - ".github/workflows/public-reader-chromium.yml"
   workflow_dispatch:
 permissions:
@@ -21,11 +22,15 @@ jobs:
       # the Cloudflare worker or production application dependencies.
       - run: npm ci
       - run: npm install --no-save --package-lock=false playwright@1.56.1
-      - run: npx playwright install --with-deps chromium
+      - run: npx playwright install --with-deps chromium webkit
       - run: node scripts/qa/public-reader-chromium.mjs
         env:
           SEE_PARAH_QA_URL: https://seeparah.com
       - name: Verify real browser-tab 200% zoom (headed Chromium)
         run: xvfb-run -a node scripts/qa/public-reader-native-zoom.mjs
+        env:
+          SEE_PARAH_QA_URL: https://seeparah.com
+      - name: Verify multiscript glyphs in independent WebKit engine
+        run: node scripts/qa/public-reader-webkit.mjs
         env:
           SEE_PARAH_QA_URL: https://seeparah.com
