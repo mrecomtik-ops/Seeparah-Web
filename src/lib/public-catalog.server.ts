@@ -44,6 +44,48 @@ const PUBLIC_BOOK_COLUMNS = [
   "reuse_notice",
 ].join(",");
 
+/** Facet/search metadata only. Full edition/citation fields for the visible
+ * 24 cards are requested separately, avoiding an unbounded full-card payload.
+ * Server-side publication gate remains the same as all public catalog views.
+ */
+const LIBRARY_INDEX_COLUMNS = [
+  "id", "title", "author", "cover_url", "source_edition_id",
+  "available_languages", "total_chunks", "source_language",
+  "description", "genre", "categories", "status", "access_type",
+  "content_classification", "created_at",
+].join(",");
+
+export async function listPublicLibraryIndex(): Promise<Book[]> {
+  const db = await admin();
+  const { data, error } = await db.from("books")
+    .select(LIBRARY_INDEX_COLUMNS)
+    .eq("status", "published")
+    .order("created_at", { ascending: true });
+  if (error) throw new Error(error.message);
+  return (data ?? []).map(asPublicBook);
+}
+
+/** Exact bounded materialization of one 24-card Library page.
+ * Preserve the caller's stable filtered/sorted order and never return
+ * unpublished titles, even if an ID is supplied directly.
+ */
+export async function getPublicLibraryPage(ids: string[]): Promise<Book[]> {
+  if (ids.length === 0) return [];
+  if (ids.length > 24) throw new Error("A Library page may contain at most 24 books.");
+  const db = await admin();
+  const { data, error } = await db.from("books")
+    .select(PUBLIC_BOOK_COLUMNS)
+    .eq("status", "published")
+    .in("id", ids);
+  if (error) throw new Error(error.message);
+  const rows = new Map<string, Book>();
+  for (const raw of data ?? []) {
+    const book = asPublicBook(raw);
+    rows.set(book.id, book);
+  }
+  return ids.flatMap((id) => rows.has(id) ? [rows.get(id)!] : []);
+}
+
 function asPublicBook(row: unknown): Book {
   return row as Book;
 }
