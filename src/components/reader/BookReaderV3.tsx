@@ -31,6 +31,7 @@ import {
   findReaderChapterByChunk,
 } from "@/lib/reader-book-layout";
 import { BookReaderChapterContent } from "@/components/reader/BookReaderChapterContent";
+import { findReaderSourceAnchor } from "@/lib/reader-position-anchor";
 import { formatAuthorName } from "@/lib/author-name";
 import { displayTitleCase } from "@/lib/display-text";
 import { getPrefs, setPrefs, type ReaderTheme, type ReaderFontFamily, type ReaderContentWidth } from "@/lib/prefs";
@@ -480,37 +481,16 @@ export function BookReaderV3({
         '[data-reader-chapter-index="' + String(position.chapterIndex) + '"][data-chapter-offset]';
       const anchors = Array.from(flow.querySelectorAll<HTMLElement>(selector));
 
-      let target =
-        anchors.find(
-          (anchor) =>
-            Number(anchor.dataset["readerChunkIndex"] ?? -1) === position.chunkIndex,
-        ) ??
-        anchors[0] ??
-        null;
-
-      if (!target) {
+      const located = findReaderSourceAnchor(anchors, position);
+      if (!located) {
         setBodyPage(chapterStartPages[position.chapterIndex] ?? 0);
         return;
       }
 
-      let relative = 0;
-      if (Number(target.dataset["readerChunkIndex"] ?? -1) !== position.chunkIndex) {
-        for (const anchor of anchors) {
-          const start = Number(anchor.dataset["chapterOffset"] ?? 0);
-          const length = anchor.textContent?.length ?? 0;
-          if (position.charOffset >= start && position.charOffset <= start + length) {
-            target = anchor;
-            break;
-          }
-          if (start <= position.charOffset) target = anchor;
-        }
-        const start = Number(target.dataset["chapterOffset"] ?? 0);
-        relative = Math.max(
-          0,
-          Math.min((target.textContent?.length ?? 1) - 1, position.charOffset - start),
-        );
-      }
-      const boundary = textBoundaryAt(target, relative);
+      // Resolve the exact chapter-wide character even when several
+      // paragraphs share one source chunk. Previously the first matching
+      // chunk won and relative was forced to 0, losing the reading place.
+      const boundary = textBoundaryAt(located.anchor, located.relative);
       if (!boundary) return;
       const rawPage = pageForBoundary(flow, boundary, pageStride);
       const logicalPage = logicalLayout.rawToLogical[rawPage] ?? 0;
