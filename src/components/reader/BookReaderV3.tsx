@@ -31,6 +31,7 @@ import {
   findReaderChapterByChunk,
 } from "@/lib/reader-book-layout";
 import { BookReaderChapterContent } from "@/components/reader/BookReaderChapterContent";
+import { BookReaderSettings } from "@/components/reader/BookReaderSettings";
 import { findReaderSourceAnchor } from "@/lib/reader-position-anchor";
 import {
   clamp, buildLogicalBookPages, toRoman, scriptureFontFamily, splitSummary,
@@ -1382,151 +1383,27 @@ export function BookReaderV3({
       )}
 
       {settingsOpen && (
-        <div className="reader-v3-settings-backdrop" onMouseDown={() => setSettingsOpen(false)}>
-          <div className="reader-v3-settings" onMouseDown={(event) => event.stopPropagation()}>
-            <div className="flex items-center justify-between">
-              <h2 className="font-display text-lg font-semibold">Reading settings</h2>
-              <button
-                onClick={() => setSettingsOpen(false)}
-                className="inline-flex min-h-11 items-center rounded-lg px-2 text-sm font-semibold text-primary"
-              >
-                Done
-              </button>
-            </div>
-            <div className="mt-4 sm:hidden">
-              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Book actions
-              </div>
-              <ShelfButtons bookId={book.id} />
-            </div>
-            <label className="mt-5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Language
-              <select
-                value={language}
-                onChange={(event) => changeLanguage(event.target.value)}
-                className="mt-2 w-full rounded-lg border bg-card px-3 py-2 text-sm normal-case text-foreground"
-              >
-                {book.available_languages.map((item) => (
-                  <option key={item}>{item}</option>
-                ))}
-              </select>
-            </label>
-            <div className="mt-5">
-              <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                <span>Text size</span>
-                <span>{fontSizeDraft}px</span>
-              </div>
-              <input
-                type="range"
-                min={16}
-                max={20}
-                step={1}
-                value={fontSizeDraft}
-                onChange={(event) => changeFontSize(Number(event.target.value))}
-                className="mt-2 w-full"
-              />
-            </div>
-            <fieldset className="mt-5">
-              <legend className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Typeface</legend>
-              {language === "English" ? (
-                <div className="mt-2 grid grid-cols-3 gap-2">
-                  {(["literary", "serif", "sans"] as const).map((item) => (
-                    <button key={item} type="button" onClick={() => changeTypeface(item)}
-                      aria-pressed={typeface === item}
-                      className={"min-h-11 rounded-lg border px-2 py-2 text-xs font-semibold capitalize " +
-                        (typeface === item ? "bg-primary text-primary-foreground" : "bg-card")}>
-                      {item}
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <p className="mt-2 text-xs text-muted-foreground">
-                  The verified {language} source uses a script-appropriate font to preserve legibility.
-                </p>
-              )}
-            </fieldset>
-            <label className="mt-5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Line spacing
-              <select aria-label="Line spacing" value={lineSpacing}
-                onChange={(event) => changeLineSpacing(Number(event.target.value))}
-                className="mt-2 min-h-11 w-full rounded-lg border border-border bg-card px-3 py-2 text-sm normal-case text-foreground">
-                <option value={1.4}>Compact</option>
-                <option value={1.5}>Comfortable</option>
-                <option value={1.65}>Relaxed</option>
-                <option value={1.8}>Spacious</option>
-              </select>
-            </label>
-            <fieldset className="mt-5">
-              <legend className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Page margins</legend>
-              <div className="mt-2 grid grid-cols-3 gap-2">
-                {(["narrow", "medium", "wide"] as const).map((item) => (
-                  <button type="button" key={item}
-                    onClick={() => changeTextMeasure(item)}
-                    aria-pressed={textMeasure === item}
-                    className={"min-h-11 rounded-lg border px-2 py-2 text-xs font-semibold " +
-                      (textMeasure === item ? "bg-primary text-primary-foreground" : "bg-card")}>
-                    {item === "narrow" ? "Roomy" : item === "wide" ? "Compact" : "Standard"}
-                  </button>
-                ))}
-              </div>
-            </fieldset>
-            <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
-              These settings reflow fixed-size book pages and retain your source reading position.
-            </p>
-            {requestableLanguages.length > 0 && (
-              <div className="mt-5">
-                <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Request translation
-                </div>
-                <div className="mt-2 flex gap-2">
-                  <select
-                    value={requestLanguage}
-                    onChange={(event) => setRequestLanguage(event.target.value)}
-                    className="min-w-0 flex-1 rounded-lg border bg-card px-3 py-2 text-sm text-foreground"
-                  >
-                    <option value="">Choose language…</option>
-                    {requestableLanguages.map((item) => (
-                      <option key={item} value={item}>
-                        {item}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    type="button"
-                    onClick={() => void handleTranslationRequest()}
-                    disabled={!requestLanguage || requestingTranslation}
-                    className="rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-40"
-                  >
-                    {requestingTranslation ? "Sending…" : "Request"}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            <div className="mt-5">
-              <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Theme
-              </div>
-              <div className="mt-2 grid grid-cols-3 gap-2">
-                {(["light", "sepia", "dark"] as const).map((item) => (
-                  <button
-                    key={item}
-                    onClick={() => {
-                      setTheme(item);
-                      setPrefs({ theme: item });
-                    }}
-                    className={
-                      "rounded-lg border px-3 py-2 text-sm font-semibold capitalize " +
-                      (theme === item ? "bg-primary text-primary-foreground" : "bg-card")
-                    }
-                  >
-                    {item}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
+        <BookReaderSettings
+          book={book}
+          language={language}
+          fontSizeDraft={fontSizeDraft}
+          typeface={typeface}
+          lineSpacing={lineSpacing}
+          textMeasure={textMeasure}
+          requestableLanguages={requestableLanguages}
+          requestLanguage={requestLanguage}
+          requestingTranslation={requestingTranslation}
+          theme={theme}
+          onClose={() => setSettingsOpen(false)}
+          onLanguageChange={changeLanguage}
+          onFontSizeChange={changeFontSize}
+          onTypefaceChange={changeTypeface}
+          onLineSpacingChange={changeLineSpacing}
+          onTextMeasureChange={changeTextMeasure}
+          onRequestLanguageChange={setRequestLanguage}
+          onTranslationRequest={() => void handleTranslationRequest()}
+          onThemeChange={(item) => { setTheme(item); setPrefs({ theme: item }); }}
+        />
       )}
     </div>
   );
