@@ -127,6 +127,11 @@ At 320 CSS px, DOM-driven public-browser selection of verified comparison editio
 - Independent 320px mobile Jekyll reader test: book opened Page 1 of 326; Next advanced to 2 of 326; setting font 20 produced Page 3 of 440 without overflow, missing content or premature Finish. Combined with the exact desktop source-offset 16→20→16 restoration, this establishes SP-16's primary repagination/finish-state behavior. Native browser 200% zoom and wider device matrix remain tracked under SP-23/SP-29.
 
 
+### Approximate 200% zoom browser exploration — not full signoff
+- Read-only TinyFish browser on live Jekyll/Hyde attempted native zoom with repeated Ctrl+ and appeared visually close to 200%. The automation could not inspect the browser chrome zoom percentage, so exact native 200% was **not independently verified**.
+- At the approximated zoom, next/previous controls remained visible and functional; Page 1 of 154 advanced through Pages 2–3 and 4–5; reader settings, chapter contents, and ArrowRight navigation worked; source text remained visible and no false Finish state appeared. This is positive exploratory evidence for SP-23/SP-29, not conclusive accessibility signoff.
+- The authorized desktop bridge was offline and TinyFish's saved browser profile had no Seeparah authenticated session; no privileged admin/owner/MFA actions were attempted.
+
 ### 2 November — SP-33 and SP-36 safe implementation continuation
 - **PR #105** merged after successful TypeScript, tests and Cloudflare preview; stops stale local shelf rows from being concatenated onto authoritative signed-in server memberships. Guest/offline records remain stored unmodified; independent Favorite, Save and Want-to-read flags remain separate, and duplicate flags collapse in display. This fixes an observable code-level regression but requires authenticated browser QA before full sign-off.
 - **PR #106** merged after successful CI including production build. Moves admin book preview, year rendering and metadata definition-row markup out of the privileged 2,986-line route into a presentation-only module, without touching roles, source texts or database. This is a partial SP-36 maintainability improvement; the large organizer and admin CRUD route still need separate extraction.
