@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { ArrowLeft, Eye, Loader2, Pencil, Trash2 } from "lucide-react";
+import { ArrowLeft, Loader2, Pencil } from "lucide-react";
 import { getAccessToken, useResolvedAdminSession, can } from "@/lib/admin/use-admin-session";
 import { getPublicContentSettings } from "@/lib/admin/settings.functions";
 import { adminUploadBookCover, adminAssignBookEditionCover } from "@/lib/admin/cover-upload.functions";
@@ -36,6 +36,7 @@ import { AdminBookDestructiveDialogs } from "@/components/admin/AdminBookDestruc
 import { AdminBookMetadataDialog } from "@/components/admin/AdminBookMetadataDialog";
 import { AdminBookRightsDialog } from "@/components/admin/AdminBookRightsDialog";
 import { AdminBookSourceEditPanel } from "@/components/admin/AdminBookSourceEditPanel";
+import { AdminBookHeaderActions } from "@/components/admin/AdminBookHeaderActions";
 import { AdminTranslationJobsPanel } from "@/components/admin/AdminTranslationJobsPanel";
 import { AdminVerifiedSourcedEdition } from "@/components/admin/AdminVerifiedSourcedEdition";
 import { cropCoverToPortrait } from "@/lib/admin/cover-crop";
@@ -766,40 +767,14 @@ function AdminBookDetail() {
             by {book.author} · {book.source_language} · status: {book.status}
           </p>
         </div>
-        {canPublish && (
-          <div className="flex flex-wrap gap-2">
-            {canReview && (
-              <button
-                onClick={() => void openPreview()}
-                className="inline-flex items-center gap-1.5 min-h-10 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground hover:opacity-90"
-              >
-                <Eye className="h-3.5 w-3.5" /> Preview book
-              </button>
-            )}
-            <button
-              onClick={openEdit}
-              className="inline-flex items-center gap-1.5 min-h-10 rounded-lg border border-border px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary"
-            >
-              <Pencil className="h-3.5 w-3.5" /> Edit
-            </button>
-            {book.status !== "archived" && (
-              <button
-                onClick={() => setDeleteOpen(true)}
-                className="inline-flex items-center gap-1.5 min-h-10 rounded-lg border border-destructive/40 px-3 py-2 text-xs font-semibold text-destructive hover:bg-destructive/10"
-              >
-                <Trash2 className="h-3.5 w-3.5" /> Archive
-              </button>
-            )}
-            {canDeletePermanently && book.status !== "published" && (
-              <button
-                onClick={() => void openPermDelete()}
-                className="inline-flex items-center gap-1.5 min-h-10 rounded-lg bg-destructive px-3 py-2 text-xs font-semibold text-destructive-foreground hover:opacity-90"
-              >
-                <Trash2 className="h-3.5 w-3.5" /> Delete permanently
-              </button>
-            )}
-          </div>
-        )}
+        <AdminBookHeaderActions
+          status={book.status}
+          role={session.role}
+          onPreview={openPreview}
+          onEdit={openEdit}
+          onArchive={() => setDeleteOpen(true)}
+          onPermanentDelete={openPermDelete}
+        />
       </div>
 
       <section className="mt-6 grid gap-4 lg:grid-cols-2">
