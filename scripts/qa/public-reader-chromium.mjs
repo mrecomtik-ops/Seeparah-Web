@@ -3,7 +3,7 @@
  * simulated by CSS zoom; report these as separate human acceptance gates.
  * No sign-in, user mutation, or privileged account credentials.
  */
-import { chromium } from "playwright";
+import { chromium, devices } from "playwright";
 
 const BASE = process.env.SEEPARAH_QA_URL || "https://seeparah.com";
 const readerId = "8c20a875-ed09-4be7-bda0-acccc1a3000a";
@@ -98,6 +98,42 @@ try {
   }));
   output.push({ area: "Chinese-Analects", ...chineseStyle });
   if (chineseStyle.scrollWidth > chineseStyle.width + 1) fail("Chinese 320px page scrolls sideways");
+
+  // Real Chromium device emulation is not equivalent to Safari / physical phones.
+  // It does exercise DPR, touch and narrow viewport sizing independently of
+  // the earlier generic 320px context (including an iPhone-style profile).
+  for (const deviceName of ["iPhone 13", "Pixel 5"]) {
+    const handsetContext = await browser.newContext({ ...devices[deviceName] });
+    const handset = await handsetContext.newPage();
+    try {
+      await handset.goto(`${BASE}/read/${readerId}?lang=English&page=1`, {
+        waitUntil: "domcontentloaded", timeout: 60000,
+      });
+      await handset.locator('[aria-label="Reader settings"]').first().waitFor({ timeout: 60000 });
+      const shape = await handset.evaluate(() => {
+        const rect = (query) => {
+          const el = document.querySelector(query);
+          if (!el) return null;
+          const b = el.getBoundingClientRect();
+          return { w: Math.round(b.width), h: Math.round(b.height) };
+        };
+        return {
+          viewport: innerWidth, document: document.documentElement.scrollWidth,
+          dpr: devicePixelRatio,
+          back: rect('[aria-label="Back to library"]'),
+          settings: rect('[aria-label="Reader settings"]'),
+          stage: rect('.reader-v3-stage'),
+        };
+      });
+      output.push({ area: deviceName + "-chromium-emulation", ...shape });
+      if (shape.document > shape.viewport + 1) fail(deviceName + " horizontal overflow");
+      if (!shape.back || shape.back.w < 44 || shape.back.h < 44) fail(deviceName + " back hit area");
+      if (!shape.settings || shape.settings.w < 44 || shape.settings.h < 44) fail(deviceName + " settings hit area");
+      if (!shape.stage || shape.stage.h < 120) fail(deviceName + " reader not visible");
+    } finally {
+      await handsetContext.close();
+    }
+  }
   console.log("SEE_PARAH_PUBLIC_BROWSER_QA " + JSON.stringify({ status: "passed", output }));
 } catch (e) {
   console.error("SEE_PARAH_PUBLIC_BROWSER_QA " + JSON.stringify({ status: "failed", output, error: String(e) }));
