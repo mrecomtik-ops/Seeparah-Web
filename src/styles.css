@@ -13,6 +13,11 @@
 :lang(he) { font-family: "Noto Serif Hebrew", serif; }
 :lang(hi), :lang(sa) { font-family: "Noto Serif Devanagari", serif; }
 :lang(bo) { font-family: "Noto Serif Tibetan", serif; }
+/* Book-like text for historically important Greek and Chinese editions.
+   Prefer platform script-serif faces; preserve exact Unicode and marks. */
+:lang(el) { font-family: "Noto Serif", "Palatino Linotype", "DejaVu Serif", Georgia, serif; }
+:lang(zh) { font-family: "Noto Serif CJK SC", "Songti SC", "SimSun", serif; }
+:lang(zh-Hant) { font-family: "Noto Serif CJK TC", "Songti TC", "PMingLiU", serif; }
 
 @custom-variant dark (&:is(.dark *));
 
