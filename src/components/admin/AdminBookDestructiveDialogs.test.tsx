@@ -71,6 +71,7 @@ describe("SP-04 permanent delete modal safety", () => {
     display({ onClosePermanent });
     const cancel = screen.getByRole("button", { name: "Cancel" });
     expect(document.activeElement).toBe(cancel);
+    screen.getByRole("textbox").focus();
     fireEvent.keyDown(document, { key: "Tab", shiftKey: true });
     expect(document.activeElement).toBe(screen.getByRole("button", { name: "Permanently delete" }));
     fireEvent.keyDown(document, { key: "Tab" });
