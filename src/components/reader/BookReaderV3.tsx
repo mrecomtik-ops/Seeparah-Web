@@ -263,6 +263,10 @@ export function BookReaderV3({
   const pendingRestoreRef = useRef<ReaderPosition | null>(null);
   const capturePositionFnRef = useRef<(() => ReaderPosition | null) | null>(null);
   const fontChangeAnchorRef = useRef<ReaderPosition | null>(null);
+  // Unlike a transient font-change timer, keep this exact source character
+  // through *successive* typography edits until deliberate navigation.
+  // Re-capturing the top of a reflowed page drifts earlier on every edit.
+  const lastTypographySourceAnchorRef = useRef<ReaderPosition | null>(null);
   const fontApplyTimerRef = useRef<number | null>(null);
   const fontChangeTimerRef = useRef<number | null>(null);
   const lastPageSizeRef = useRef({ width: 360, height: 540 });
@@ -762,6 +766,9 @@ export function BookReaderV3({
 
   const goBodyPage = useCallback(
     (delta: number) => {
+      // Reader deliberately changed the passage: allow a fresh anchor next
+      // time typography is edited rather than restoring an earlier location.
+      lastTypographySourceAnchorRef.current = null;
       const direction = delta > 0 ? 1 : -1;
       setTurning(direction > 0 ? "next" : "prev");
 
@@ -853,7 +860,7 @@ export function BookReaderV3({
 
   const openContents = useCallback(() => {
     if (frontIndex === null) {
-      const position = capturePosition();
+      const position = lastTypographySourceAnchorRef.current ?? capturePosition();
       if (position) setContentsReturnPosition(position);
     }
     setFrontIndex(Math.min(1, frontPages.length - 1));
@@ -877,6 +884,8 @@ export function BookReaderV3({
 
   const jumpToChapter = useCallback(
     (chapterIndex: number) => {
+      lastTypographySourceAnchorRef.current = null;
+      fontChangeAnchorRef.current = null;
       setContentsReturnPosition(null);
       setFrontIndex(null);
       setBodyPage(chapterStartPages[chapterIndex] ?? 0);
@@ -934,7 +943,8 @@ export function BookReaderV3({
    */
   const reflowFromCurrentSource = () => {
     if (frontIndex === null) {
-      const anchor = capturePosition() ?? positionRef.current;
+      const anchor = lastTypographySourceAnchorRef.current ?? capturePosition() ?? positionRef.current;
+      if (anchor) lastTypographySourceAnchorRef.current = anchor;
       if (anchor) {
         positionRef.current = anchor;
         pendingRestoreRef.current = anchor;
@@ -947,11 +957,12 @@ export function BookReaderV3({
     setFontSizeDraft(next);
 
     if (frontIndex === null) {
-      let anchor = fontChangeAnchorRef.current;
+      let anchor = fontChangeAnchorRef.current ?? lastTypographySourceAnchorRef.current;
       if (!anchor && layoutMeasured) anchor = capturePosition();
       if (!anchor) anchor = positionRef.current;
       if (anchor) {
         fontChangeAnchorRef.current = anchor;
+        lastTypographySourceAnchorRef.current = anchor;
         positionRef.current = anchor;
         pendingRestoreRef.current = anchor;
       }
@@ -994,6 +1005,8 @@ export function BookReaderV3({
   };
 
   const changeLanguage = (next: string) => {
+    lastTypographySourceAnchorRef.current = null;
+    fontChangeAnchorRef.current = null;
     seededKeyRef.current = null;
     setFrontIndex(0);
     setBodyPage(0);
