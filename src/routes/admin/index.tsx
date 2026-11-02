@@ -168,7 +168,7 @@ function AdminOverview() {
           <AlertTriangle className="h-4 w-4 text-gold" />
           <h2 className="font-display text-lg font-semibold text-foreground">Needs attention</h2>
         </div>
-        {draftsQuery.isPending || analyticsQuery.isPending || missingPublishedCoversQuery.isPending ? (
+        {draftsQuery.isFetching || analyticsQuery.isFetching || missingPublishedCoversQuery.isFetching ? (
           <div className="mt-3 rounded-2xl border border-border bg-card p-4 text-sm text-muted-foreground card-shadow" role="status">
             Checking review queues…
           </div>
