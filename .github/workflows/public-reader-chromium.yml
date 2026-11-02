@@ -1,0 +1,26 @@
+name: Public reader Chromium QA (320px, script fonts, controls)
+on:
+  pull_request:
+    paths:
+      - "scripts/qa/public-reader-chromium.mjs"
+      - ".github/workflows/public-reader-chromium.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  reader-qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # Playwright is intentionally CI-only; avoid adding browser binaries to
+      # the Cloudflare worker or production application dependencies.
+      - run: npm ci
+      - run: npm install --no-save --package-lock=false playwright@1.56.1
+      - run: npx playwright install --with-deps chromium
+      - run: node scripts/qa/public-reader-chromium.mjs
+        env:
+          SEE_PARAH_QA_URL: https://seeparah.com
