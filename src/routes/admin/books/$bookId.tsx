@@ -2645,7 +2645,7 @@ function AdminBookDetail() {
                 <li>Issue reports: {permDeleteImpact.translationReportCount}</li>
                 <li>
                   Support tickets referencing it: {permDeleteImpact.relatedSupportTicketCount}{" "}
-                  {permDeleteImpact.relatedSupportTicketCount > 0 ? "(kept, unlinked)" : ""}
+                  {permDeleteImpact.relatedSupportTicketCount > 0 ? "(must be reassociated first — deletion blocked)" : ""}
                 </li>
               </ul>
             )}
@@ -2661,6 +2661,11 @@ function AdminBookDetail() {
                   first, then permanently delete it as a separate step.
                 </p>
               )}
+            {permDeleteImpact && permDeleteImpact.relatedSupportTicketCount > 0 && (
+              <p role="alert" className="mt-3 rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                Permanent deletion is blocked while support tickets still reference this book. Keep it archived, or have a reviewer explicitly reassociate those tickets first. No tickets will be detached automatically.
+              </p>
+            )}
             <label className="mt-3 block">
               <span className="text-xs font-medium text-muted-foreground">
                 Type the exact title to confirm: <strong>{book.title}</strong>
@@ -2683,6 +2688,7 @@ function AdminBookDetail() {
                 disabled={
                   busy ||
                   !permDeleteImpact ||
+                  permDeleteImpact.relatedSupportTicketCount > 0 ||
                   permDeleteConfirmText !== book.title ||
                   (permDeleteImpact.status !== "archived" &&
                     permDeleteImpact.status !== "unpublished")
