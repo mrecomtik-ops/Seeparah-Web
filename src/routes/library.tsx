@@ -253,7 +253,7 @@ function LibraryPage() {
                   <Link
                     to="/auth"
                     search={{ redirect: "/library" }}
-                    className="font-semibold text-primary hover:underline"
+                    className="inline-flex min-h-11 items-center font-semibold text-primary hover:underline"
                   >
                     sign in to sync across devices
                   </Link>
@@ -295,7 +295,7 @@ function LibraryPage() {
                 </span>
                 <Link
                   to="/sacred-texts"
-                  className="rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground"
+                  className="inline-flex min-h-11 items-center rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground"
                 >
                   Explore Sacred Texts
                 </Link>
