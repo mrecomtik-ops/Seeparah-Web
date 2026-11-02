@@ -77,8 +77,31 @@ describe("SP-33 account shelf reconciliation and offline fallback", () => {
     const rows = await listShelves("reader1");
     expect(selectByUser).toHaveBeenCalledWith("user_id", "reader1");
     expect(rows.map((row) => row.id)).toEqual(["server"]);
-    expect(writeDeviceRows).not.toHaveBeenCalled();
+    expect(writeDeviceRows).toHaveBeenCalledWith([item("server", "favorite")]);
   });
+  it("does not resurrect a removed shelf after a successful read followed by offline mode", async () => {
+    const old = item("stale-local", "saved");
+    const otherReader = { ...item("unrelated", "saved"), user_id: "reader2" };
+    let cached = [old, otherReader];
+    readDeviceRows.mockImplementation(() => cached);
+    writeDeviceRows.mockImplementation((rows) => { cached = rows; });
+    selectByUser.mockResolvedValueOnce({ data: [item("live", "favorite")], error: null })
+      .mockResolvedValueOnce({ data: null, error: { message: "offline" } });
+
+    expect((await listShelves("reader1")).map((row) => row.id)).toEqual(["live"]);
+    expect(cached.map((row) => row.id)).toEqual(["unrelated", "live"]);
+    // A failed read falls back to the last CONFIRMED account state, not stale data.
+    expect((await listShelves("reader1")).map((row) => row.id)).toEqual(["live"]);
+    expect(cached.filter((row) => row.user_id === "reader2")).toEqual([otherReader]);
+  });
+
+  it("returns the server result even if browser device storage rejects cache writes", async () => {
+    readDeviceRows.mockReturnValue([item("stale-local", "saved")]);
+    writeDeviceRows.mockImplementationOnce(() => { throw new Error("storage blocked"); });
+    selectByUser.mockResolvedValueOnce({ data: [item("server", "favorite")], error: null });
+    expect((await listShelves("reader1")).map((row) => row.id)).toEqual(["server"]);
+  });
+
   it("retains the current device memberships when account service is offline", async () => {
     readDeviceRows.mockReturnValue([item("local", "saved")]);
     selectByUser.mockResolvedValue({ data: null, error: { message: "network unavailable" } });
