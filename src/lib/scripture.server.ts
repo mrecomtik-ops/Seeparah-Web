@@ -1,5 +1,6 @@
 import { matchCanonicalReferenceNodes } from "@/lib/sacred-reference-pairing";
 import { canCompareByCanonicalReference } from "@/lib/sacred-bible-alignment";
+import { isProgressiveDighaSource, sourcePreviewEnd, LARGE_SOURCE_LIMIT } from "@/lib/source-preview";
 import type {
   SacredReaderSection,
   ScriptureReferenceEntry,
@@ -214,7 +215,7 @@ export async function getSacredReaderSection(params: {
   const { data: book, error: bookError } = await db
     .from("books")
     .select(
-      "id,status,content_classification,source_version,source_language,available_languages,total_chunks,typography_profile",
+      "id,title,status,content_classification,source_version,source_language,available_languages,total_chunks,typography_profile",
     )
     .eq("id", params.bookId)
     .maybeSingle();
@@ -425,16 +426,61 @@ export async function getSacredReaderSection(params: {
         label: String(chunkIndex + 1),
         kind: "section",
       };
+      const originalContent = String(row.content ?? "");
+      const bounded = isProgressiveDighaSource(book.title, originalContent, params.windowSize);
       return {
         chunkIndex,
         canonicalRef: ref.canonicalRef,
         label: ref.label,
         kind: ref.kind,
-        content: String(row.content ?? ""),
+        // This is an exact source substring, not an alternate edition or
+        // a modified/normalized verse. See getFullSacredSourceChunk below.
+        content: bounded ? originalContent.slice(0, sourcePreviewEnd(originalContent)) : originalContent,
+        ...(bounded ? { fullContentLength: originalContent.length } : {}),
         annotations: annotationByRef.get(ref.canonicalRef) ?? [],
       };
     }),
   };
+}
+
+/**
+ * Independently authorized, read-only retrieval of an exact very-long published
+ * Dīgha source unit. Only the original unmodified database content is returned.
+ * Guest access is limited to public, published editions as in section reads.
+ */
+export async function getFullSacredSourceChunk(params: {
+  bookId: string;
+  language: string;
+  chunkIndex: number;
+}): Promise<string | null> {
+  const db = await admin();
+  const { data: book, error: bookError } = await db.from("books")
+    .select("id,title,status,content_classification,source_language,source_version,available_languages,total_chunks")
+    .eq("id", params.bookId).maybeSingle();
+  if (bookError) throw new Error(bookError.message);
+  if (!book || book.status !== "published" || book.content_classification !== "religious" ||
+      !/dīgha nikāya/iu.test(book.title) ||
+      ![book.source_language, ...(book.available_languages ?? [])].includes(params.language) ||
+      params.chunkIndex >= Number(book.total_chunks ?? 0)) return null;
+
+  if (params.language !== book.source_language) {
+    const { data: edition, error: editionError } = await db.from("book_editions")
+      .select("language").eq("book_id", params.bookId)
+      .eq("language", params.language).maybeSingle();
+    if (editionError) throw new Error(editionError.message);
+    if (!edition) return null;
+  }
+
+  const { data: chunk, error: chunkError } = await db.from("book_chunks")
+    .select("content")
+    .eq("book_id", params.bookId).eq("language", params.language)
+    .eq("source_version", book.source_version ?? 1)
+    .eq("chunk_index", params.chunkIndex).eq("status", "published")
+    .maybeSingle();
+  if (chunkError) throw new Error(chunkError.message);
+  if (!chunk || typeof chunk.content !== "string" ||
+      chunk.content.length <= LARGE_SOURCE_LIMIT) return null;
+  return chunk.content;
 }
 
 /**

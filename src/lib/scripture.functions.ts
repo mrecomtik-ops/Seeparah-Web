@@ -33,6 +33,18 @@ export const getSacredReaderSection = createServerFn({ method: "GET" })
     return run(data);
   });
 
+/** Full published Dīgha source is requested only after explicit reader action. */
+export const getFullSacredSourceChunk = createServerFn({ method: "GET" })
+  .validator((data) => z.object({
+    bookId: z.string().uuid(),
+    language: z.string().trim().min(1).max(80),
+    chunkIndex: z.number().int().min(0),
+  }).parse(data))
+  .handler(async ({ data }) => {
+    const { getFullSacredSourceChunk: run } = await import("@/lib/scripture.server");
+    return run(data);
+  });
+
 /** Server matches the exact published canonical reference and source node.
  * It never assumes published English/Greek source indexes align.
  */
