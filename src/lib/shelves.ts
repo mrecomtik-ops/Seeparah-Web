@@ -31,12 +31,19 @@ export async function listShelves(userId: string): Promise<ShelfRow[]> {
         .select("*")
         .eq("user_id", userId);
       if (error) throw error;
-      // A successful authenticated read is authoritative. Older versions
-      // concatenated stale on-device rows after remote records, which could
-      // resurrect a shelf the reader had explicitly removed online.
-      // Local records are not erased, and are only shown as an offline
-      // fallback when the database cannot be reached.
-      return dedupeShelfRows((data as ShelfRow[] | null) ?? []);
+      // A successful authenticated read is authoritative. Reconcile ONLY
+      // this account's device fallback to the confirmed server state.
+      // Otherwise a removed membership could reappear when the reader
+      // subsequently goes offline, despite disappearing while connected.
+      const accountRows = dedupeShelfRows((data as ShelfRow[] | null) ?? []);
+      try {
+        const otherAccounts = demoStore.getShelves().filter((row) => row.user_id !== userId);
+        demoStore.setShelves([...otherAccounts, ...accountRows]);
+      } catch {
+        // Device storage can be unavailable in strict/private browsers.
+        // It is just an offline cache: never discard a valid server result.
+      }
+      return accountRows;
     } catch {
       // Keep existing on-device memberships visible during connection
       // errors without claiming they have synced to the account.
