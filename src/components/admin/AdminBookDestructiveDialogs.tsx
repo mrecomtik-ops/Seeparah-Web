@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { Loader2 } from "lucide-react";
 import type { BookDeletionImpact } from "@/lib/admin/catalog.server";
 
@@ -33,10 +34,49 @@ export function AdminBookDestructiveDialogs({
   onConfirmArchive: () => Promise<void>;
   onConfirmPermanent: () => Promise<void>;
 }) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  // Parent passes new callbacks on re-render while typing the exact title.
+  // Keep listeners current WITHOUT resetting keyboard focus on each keystroke.
+  const actions = useRef({ busy, onCloseArchive, onClosePermanent });
+  actions.current = { busy, onCloseArchive, onClosePermanent };
+  useEffect(() => {
+    if (!deleteOpen && !permDeleteOpen) return;
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    dialog.querySelector<HTMLButtonElement>('button[data-dialog-cancel]')?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        if (actions.current.busy) return;
+        event.preventDefault();
+        if (permDeleteOpen) actions.current.onClosePermanent();
+        else actions.current.onCloseArchive();
+      }
+      if (event.key !== "Tab") return;
+      const focusables = Array.from(
+        dialog.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled])'),
+      );
+      if (!focusables.length) return;
+      const first = focusables[0]!;
+      const last = focusables[focusables.length - 1]!;
+      if (event.shiftKey && (document.activeElement === first || !dialog.contains(document.activeElement))) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (document.activeElement === last || !dialog.contains(document.activeElement))) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      if (previouslyFocused?.isConnected) previouslyFocused.focus();
+    };
+  }, [deleteOpen, permDeleteOpen]);
   return (
     <>
       {deleteOpen && (
-        <div role="dialog" aria-modal="true" aria-labelledby="archive-dialog-title"
+        <div role="dialog" aria-modal="true" aria-labelledby="archive-dialog-title" ref={dialogRef}
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 card-shadow-lg">
             <h2 id="archive-dialog-title" className="font-display text-lg font-semibold text-foreground">
@@ -51,6 +91,7 @@ export function AdminBookDestructiveDialogs({
             </p>
             <div className="mt-4 flex justify-end gap-2">
               <button
+                data-dialog-cancel
                 onClick={() => onCloseArchive()}
                 disabled={busy}
                 className="min-h-11 rounded-lg border border-border px-4 py-2 text-sm font-semibold hover:bg-secondary disabled:opacity-60"
@@ -70,9 +111,9 @@ export function AdminBookDestructiveDialogs({
       )}
 
       {permDeleteOpen && (
-        <div role="dialog" aria-modal="true" aria-labelledby="permanent-delete-dialog-title"
+        <div role="dialog" aria-modal="true" aria-labelledby="permanent-delete-dialog-title" ref={dialogRef}
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-lg rounded-2xl border border-destructive/40 bg-card p-6 card-shadow-lg">
+          <div className="max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-2xl border border-destructive/40 bg-card p-6 card-shadow-lg">
             <h2 id="permanent-delete-dialog-title" className="font-display text-lg font-semibold text-destructive">
               Permanently delete “{title}”?
             </h2>
@@ -129,9 +170,10 @@ export function AdminBookDestructiveDialogs({
             </label>
             <div className="mt-4 flex justify-end gap-2">
               <button
+                data-dialog-cancel
                 onClick={() => onClosePermanent()}
                 disabled={busy}
-                className="rounded-lg border border-border px-4 py-2 text-sm font-semibold hover:bg-secondary disabled:opacity-60"
+                className="min-h-11 rounded-lg border border-border px-4 py-2 text-sm font-semibold hover:bg-secondary disabled:opacity-60"
               >
                 Cancel
               </button>
@@ -140,7 +182,7 @@ export function AdminBookDestructiveDialogs({
                   busy || !canConfirmPermanentDeletion(title, permDeleteImpact, permDeleteConfirmText)
                 }
                 onClick={() => void onConfirmPermanent()}
-                className="rounded-lg bg-destructive px-4 py-2 text-sm font-semibold text-destructive-foreground disabled:opacity-60"
+                className="min-h-11 rounded-lg bg-destructive px-4 py-2 text-sm font-semibold text-destructive-foreground disabled:opacity-60"
               >
                 {busy ? "Deleting…" : "Permanently delete"}
               </button>
