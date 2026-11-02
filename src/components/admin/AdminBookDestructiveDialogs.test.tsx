@@ -66,6 +66,25 @@ describe("SP-04 permanent delete modal safety", () => {
     fireEvent.click(btn);
     expect(onConfirmPermanent).toHaveBeenCalledTimes(1);
   });
+  it("focuses Cancel, handles Escape, and keeps Tab within the dangerous dialog", () => {
+    const onClosePermanent = vi.fn();
+    display({ onClosePermanent });
+    const cancel = screen.getByRole("button", { name: "Cancel" });
+    expect(document.activeElement).toBe(cancel);
+    fireEvent.keyDown(document, { key: "Tab", shiftKey: true });
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Permanently delete" }));
+    fireEvent.keyDown(document, { key: "Tab" });
+    expect(document.activeElement).toBe(screen.getByRole("textbox"));
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(onClosePermanent).toHaveBeenCalledTimes(1);
+  });
+  it("does not allow Escape while a destructive operation is busy", () => {
+    const onClosePermanent = vi.fn();
+    display({ onClosePermanent, busy: true });
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(onClosePermanent).not.toHaveBeenCalled();
+  });
+
   it("distinguishes reversible Archive from permanent deletion", () => {
     display({ deleteOpen: true, permDeleteOpen: false });
     expect(screen.getByRole("dialog", { name: /Delete.*Read Only Book/i })).toBeTruthy();
