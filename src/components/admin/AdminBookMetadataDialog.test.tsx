@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { AdminBookMetadataDialog } from "./AdminBookMetadataDialog";
 
 const noop = vi.fn();
@@ -48,6 +48,40 @@ describe("SP-14/36 extracted editor presentation", () => {
     expect(assign.disabled).toBe(true);
     expect(screen.getByRole("status").textContent).toMatch(/Select Urdu/i);
     expect(props.assignStagedEditionCover).not.toHaveBeenCalled();
+  });
+
+  it("permits an authorized editor to assign only the matching staged edition after an explicit click", () => {
+    const assign = vi.fn(async () => {});
+    render(<AdminBookMetadataDialog {...props}
+      coverTargetLanguage="Urdu"
+      assignStagedEditionCover={assign}
+    />);
+    const assignButton = screen.getByRole("button", { name: /Assign to this verified edition/i }) as HTMLButtonElement;
+    expect(assignButton.disabled).toBe(false);
+    expect(assign).not.toHaveBeenCalled();
+    fireEvent.click(assignButton);
+    expect(assign).toHaveBeenCalledTimes(1);
+  });
+  it("revokes the old staged selection when a different edition is selected", () => {
+    const changeTarget = vi.fn();
+    const clearStaged = vi.fn();
+    const clearSelectedFile = vi.fn();
+    render(<AdminBookMetadataDialog {...props}
+      coverTargetLanguage="Urdu"
+      setCoverTargetLanguage={changeTarget}
+      setStagedEditionCover={clearStaged}
+      setSelectedCoverFile={clearSelectedFile}
+    />);
+    fireEvent.change(screen.getByRole("combobox", { name: /Target verified source edition/i }), {
+      target: { value: "English" },
+    });
+    expect(changeTarget).toHaveBeenCalledWith("English");
+    expect(clearStaged).toHaveBeenCalledWith(null);
+    expect(clearSelectedFile).toHaveBeenCalledWith(null);
+  });
+  it("never enables assigning a staged cover without publication permission", () => {
+    render(<AdminBookMetadataDialog {...props} coverTargetLanguage="Urdu" canPublish={false} />);
+    expect((screen.getByRole("button", { name: /Assign to this verified edition/i }) as HTMLButtonElement).disabled).toBe(true);
   });
   it("does not render the editor when it is closed", () => {
     render(<AdminBookMetadataDialog {...props} editOpen={false} />);
