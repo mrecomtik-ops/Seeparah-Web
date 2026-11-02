@@ -21,7 +21,7 @@ import {
   isReligiousBook,
   type Book,
 } from "@/lib/data";
-import { listBooks, listProgress, matchesBookSearch } from "@/lib/library";
+import { listLibraryIndex, getLibraryPageBooks, listProgress, matchesBookSearch } from "@/lib/library";
 import { useAuth } from "@/lib/use-auth";
 import { BookCard } from "@/components/BookCard";
 import { useShelves } from "@/components/ShelfButtons";
@@ -98,7 +98,7 @@ function LibraryPage() {
     navigate({ search: (prev) => ({ ...prev, ...patch, p: patch.p ?? 1 }), replace: true });
   }
 
-  const booksQuery = useQuery({ queryKey: ["books"], queryFn: listBooks });
+  const booksQuery = useQuery({ queryKey: ["library-index"], queryFn: listLibraryIndex });
   const progressQuery = useQuery({
     queryKey: ["progress", userId],
     queryFn: () => listProgress(userId),
@@ -217,7 +217,15 @@ function LibraryPage() {
   });
   const pageCount = Math.max(1, Math.ceil(sorted.length / 24));
   const currentPage = Math.min(requestedPage, pageCount);
-  const visibleBooks = sorted.slice((currentPage - 1) * 24, currentPage * 24);
+  const visibleBookIndex = sorted.slice((currentPage - 1) * 24, currentPage * 24);
+  const visibleIds = visibleBookIndex.map((book) => book.id);
+  const bookPageQuery = useQuery({
+    queryKey: ["library-visible-page", visibleIds],
+    queryFn: () => getLibraryPageBooks(visibleIds),
+    enabled: booksQuery.isSuccess && visibleIds.length > 0,
+    staleTime: 10 * 60 * 1000,
+  });
+  const visibleBooks = bookPageQuery.data ?? [];
 
   const isEmptyShelf = tabBooks.length === 0 && !hasActiveFilters;
   const isNoSearchMatch = filtered.length === 0 && !isEmptyShelf;
@@ -643,18 +651,33 @@ function LibraryPage() {
             </div>
           ) : (
             <>
-              <div className="mt-6 grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-4">
-              {visibleBooks.map((b) => (
-                <BookCard
-                  key={b.id}
-                  book={b}
-                  progress={progressByBook.get(b.id)?.lastChunkIndex ?? null}
-                  preferredLanguage={lang}
-                  progressLanguage={progressByBook.get(b.id)?.language ?? null}
-                  monetizationEnabled={monetizationEnabled}
-                />
-              ))}
-              </div>
+              {bookPageQuery.isError ? (
+                <div role="alert" className="mt-6 rounded-xl border border-destructive/30 bg-card p-6 text-sm">
+                  <p>These published books could not be loaded. Your filters and lists are unchanged.</p>
+                  <button type="button" onClick={() => void bookPageQuery.refetch()}
+                    className="mt-3 min-h-11 rounded-lg border border-border px-4 font-semibold">
+                    Retry loading books
+                  </button>
+                </div>
+              ) : bookPageQuery.isPending ? (
+                <div role="status" aria-busy="true" aria-label="Loading the selected page of books"
+                  className="mt-6 grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-4">
+                  {visibleBookIndex.map((b) => (
+                    <div key={b.id} className="aspect-[2/3] animate-pulse rounded-2xl bg-secondary" />
+                  ))}
+                </div>
+              ) : (
+                <div className="mt-6 grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-4">
+                  {visibleBooks.map((b) => (
+                    <BookCard key={b.id} book={b}
+                      progress={progressByBook.get(b.id)?.lastChunkIndex ?? null}
+                      preferredLanguage={lang}
+                      progressLanguage={progressByBook.get(b.id)?.language ?? null}
+                      monetizationEnabled={monetizationEnabled}
+                    />
+                  ))}
+                </div>
+              )}
               {pageCount > 1 && (
                 <nav className="mt-6 flex flex-wrap items-center justify-center gap-3" aria-label="Library result pages">
                   <button type="button" disabled={currentPage <= 1} onClick={() => updateSearch({ p: currentPage - 1 })} className="min-h-11 rounded-xl border border-border bg-card px-4 text-sm font-semibold text-foreground disabled:opacity-40">Previous</button>
