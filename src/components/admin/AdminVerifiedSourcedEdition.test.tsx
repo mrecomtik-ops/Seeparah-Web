@@ -26,7 +26,8 @@ describe("SP-36 sourced religious importer presentation", () => {
     expect(screen.getByRole("option", { name: /Verified human translation/ })).toBeTruthy();
     expect(screen.getByRole("option", { name: /Licensed translation/ })).toBeTruthy();
     expect(screen.getByRole("option", { name: /Public-domain translation/ })).toBeTruthy();
-    expect(screen.getByRole("option", { name: /Urdu/ })).toBeTruthy(); // provenance/type option only? no duplicate source?
+    expect(screen.queryByRole("option", { name: /Urdu/ })).toBeNull();
+    expect(screen.getByRole("option", { name: /English/ })).toBeTruthy();
   });
   it("hides source-import controls for non-religious works or insufficient capability", () => {
     render(<AdminVerifiedSourcedEdition {...base} canManageTranslations={false} />);
