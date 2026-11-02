@@ -584,6 +584,21 @@ export function BookReaderV3({
     return () => cancelAnimationFrame(frame);
   }, [layoutMeasured, logicalPages.length, restorePosition]);
 
+  // A font-size edit can publish two column layouts in quick succession:
+  // the first frame restores against the old line metrics, then the font
+  // settles and shifts the true raw page. Re-resolve the *same* saved source
+  // character after the final measured columns, before saving progress.
+  // Do not capture a different character from that intermediate page.
+  useEffect(() => {
+    if (!layoutMeasured || frontIndex !== null || !fontChangeAnchorRef.current ||
+        pendingRestoreRef.current) return;
+    const timer = window.setTimeout(() => {
+      const exact = fontChangeAnchorRef.current;
+      if (exact && !pendingRestoreRef.current) restorePosition(exact);
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [fontSize, layoutMeasured, bodyPageCount, frontIndex, restorePosition]);
+
   useEffect(() => {
     if (!chapters.length || seededKeyRef.current === seedKey) return;
     if (initialChunkIndex == null && !progressQuery.data) return;
