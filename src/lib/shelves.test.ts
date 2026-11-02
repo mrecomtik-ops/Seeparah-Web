@@ -1,13 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { upsert, writeDeviceRows, readDeviceRows, selectByUser } = vi.hoisted(() => ({
+const { upsert, deleteByUser, deleteByBook, deleteByShelf, writeDeviceRows, readDeviceRows, selectByUser } = vi.hoisted(() => ({
   upsert: vi.fn(),
+  deleteByUser: vi.fn(),
+  deleteByBook: vi.fn(),
+  deleteByShelf: vi.fn(),
   writeDeviceRows: vi.fn(),
   readDeviceRows: vi.fn(),
   selectByUser: vi.fn(),
 }));
 vi.mock("@/integrations/supabase/client", () => ({
-  supabase: { from: () => ({ upsert, select: () => ({ eq: selectByUser }) }) },
+  supabase: { from: () => ({ upsert, select: () => ({ eq: selectByUser }), delete: () => ({ eq: deleteByUser }) }) },
 }));
 vi.mock("@/lib/library", () => ({ DEMO_USER_ID: "demo-reader" }));
 vi.mock("@/lib/data", () => ({
@@ -21,7 +24,10 @@ const { toggleShelf, listShelves, dedupeShelfRows } = await import("./shelves");
 
 beforeEach(() => {
   upsert.mockReset();
-  writeDeviceRows.mockClear();
+  deleteByUser.mockReset().mockImplementation(() => ({ eq: deleteByBook }));
+  deleteByBook.mockReset().mockImplementation(() => ({ eq: deleteByShelf }));
+  deleteByShelf.mockReset().mockResolvedValue({ error: null });
+  writeDeviceRows.mockReset();
   readDeviceRows.mockReset().mockReturnValue([]);
   selectByUser.mockReset();
 });
@@ -40,7 +46,9 @@ describe("shelf changes for authenticated readers", () => {
       { user_id: "signed-in-user", book_id: "book-1", shelf: "favorite" },
       { onConflict: "user_id,book_id,shelf" },
     );
-    expect(writeDeviceRows).not.toHaveBeenCalled();
+    expect(writeDeviceRows).toHaveBeenCalledWith([
+      expect.objectContaining({ user_id: "signed-in-user", book_id: "book-1", shelf: "favorite" }),
+    ]);
   });
 });
 
@@ -113,5 +121,54 @@ describe("SP-33 account shelf reconciliation and offline fallback", () => {
       error: null,
     });
     expect((await listShelves("reader1")).map((row) => row.id)).toEqual(["one", "other"]);
+  });
+});
+
+describe("SP-33 confirmed account writes survive immediate offline fallback", () => {
+  const item = (user: string, shelf: "saved" | "favorite") => ({
+    id: `${user}-${shelf}`, user_id: user, book_id: "book1", shelf,
+    created_at: "2026-01-01T00:00:00Z",
+  });
+  it("does not resurrect a deleted shelf when connectivity drops before the next server read", async () => {
+    const unrelated = item("reader2", "saved");
+    let cached = [item("reader1", "saved"), unrelated];
+    readDeviceRows.mockImplementation(() => cached);
+    writeDeviceRows.mockImplementation((rows) => { cached = rows; });
+    await toggleShelf("reader1", "book1", "saved", false);
+    expect(deleteByUser).toHaveBeenCalledWith("user_id", "reader1");
+    expect(deleteByBook).toHaveBeenCalledWith("book_id", "book1");
+    expect(deleteByShelf).toHaveBeenCalledWith("shelf", "saved");
+    selectByUser.mockResolvedValue({ data: null, error: { message: "offline" } });
+    expect(await listShelves("reader1")).toEqual([]);
+    expect(cached).toEqual([unrelated]);
+  });
+  it("reflects a successfully saved shelf offline without duplicating other readers", async () => {
+    const unrelated = item("reader2", "saved");
+    let cached = [unrelated];
+    readDeviceRows.mockImplementation(() => cached);
+    writeDeviceRows.mockImplementation((rows) => { cached = rows; });
+    upsert.mockResolvedValueOnce({ error: null });
+    await toggleShelf("reader1", "book1", "favorite", true);
+    selectByUser.mockResolvedValue({ data: null, error: { message: "offline" } });
+    const offline = await listShelves("reader1");
+    expect(offline).toHaveLength(1);
+    expect(offline[0]).toEqual(expect.objectContaining({
+      user_id: "reader1", book_id: "book1", shelf: "favorite",
+    }));
+    expect(cached.filter((row) => row.user_id === "reader2")).toEqual([unrelated]);
+  });
+  it("never changes fallback after rejected removal", async () => {
+    const original = item("reader1", "saved");
+    readDeviceRows.mockReturnValue([original]);
+    deleteByShelf.mockResolvedValueOnce({ error: { message: "denied" } });
+    await expect(toggleShelf("reader1", "book1", "saved", false))
+      .rejects.toThrow("Could not remove the book from your shelf");
+    expect(writeDeviceRows).not.toHaveBeenCalled();
+  });
+  it("never masks a confirmed server save when browser storage is blocked", async () => {
+    upsert.mockResolvedValueOnce({ error: null });
+    readDeviceRows.mockImplementation(() => { throw new Error("storage not available"); });
+    await expect(toggleShelf("reader1", "book1", "favorite", true))
+      .resolves.toBeUndefined();
   });
 });
