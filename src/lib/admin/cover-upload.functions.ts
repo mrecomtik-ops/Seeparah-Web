@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/admin/require-admin.server";
 import { recordAudit } from "@/lib/admin/audit.server";
+import { verifyStagedCoverProvenance } from "@/lib/admin/cover-provenance";
 
 const MAX_IMAGE_BYTES = 3 * 1024 * 1024;
 const MAX_BASE64_CHARS = Math.ceil(MAX_IMAGE_BYTES / 3) * 4;
@@ -130,15 +131,34 @@ export const adminAssignBookEditionCover = createServerFn({ method: "POST" })
     const { data: objectInfo, error: objectError } = await supabaseAdmin.storage
       .from("book-covers").info(data.path);
     if (objectError || !objectInfo) throw new Error("Staged cover could not be verified in storage.");
+    // Storage's file-info endpoint returns the custom upload metadata. The
+    // book/language path is necessary but insufficient: source editions and
+    // artwork attribution may change between Stage and Assign. Reject a
+    // stale or tampered assignment before touching the edition record.
+    verifyStagedCoverProvenance(objectInfo.metadata as Record<string, unknown> | undefined, {
+      language: data.language,
+      sourceEditionId: edition.source_edition_id || "unrecorded",
+      attribution: data.attribution,
+      sharedArtwork: data.sharedArtwork,
+    });
     const { data: publicAsset } = supabaseAdmin.storage.from("book-covers").getPublicUrl(data.path);
     const update = {
       cover_url: publicAsset.publicUrl,
       cover_attribution: data.attribution,
       cover_shared_artwork: data.sharedArtwork,
     };
-    const { error } = await supabaseAdmin.from("book_editions").update(update)
+    // A concurrent change of source edition between our metadata check
+    // and the UPDATE must not attach this staged artwork to a new edition.
+    let editionUpdate = supabaseAdmin.from("book_editions").update(update)
       .eq("book_id", data.bookId).eq("language", data.language);
+    editionUpdate = edition.source_edition_id
+      ? editionUpdate.eq("source_edition_id", edition.source_edition_id)
+      : editionUpdate.is("source_edition_id", null);
+    const { data: changed, error } = await editionUpdate.select("language");
     if (error) throw new Error(error.message);
+    if (!changed || changed.length !== 1) {
+      throw new Error("Source edition changed while assigning the cover. No cover was assigned; review it again.");
+    }
     await recordAudit({
       actorId: userId,
       actorRole: role,
