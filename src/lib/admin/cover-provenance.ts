@@ -14,10 +14,10 @@ export function verifyStagedCoverProvenance(
   if (!stored) {
     throw new Error("Staged cover has no stored rights provenance. Stage and review the artwork again.");
   }
-  const isSame = stored.edition_language === expected.language
-    && stored.source_edition_id === expected.sourceEditionId
-    && stored.attribution === expected.attribution
-    && stored.shared_artwork === String(expected.sharedArtwork);
+  const isSame = stored['edition_language'] === expected.language
+    && stored['source_edition_id'] === expected.sourceEditionId
+    && stored['attribution'] === expected.attribution
+    && stored['shared_artwork'] === String(expected.sharedArtwork);
   if (!isSame) {
     throw new Error("Staged cover rights or source edition changed. Review and stage the correct edition artwork again.");
   }
