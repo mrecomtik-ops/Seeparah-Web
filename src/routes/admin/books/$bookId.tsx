@@ -35,6 +35,7 @@ import { AdminBookAccessCategories } from "@/components/admin/AdminBookAccessCat
 import { AdminBookDestructiveDialogs } from "@/components/admin/AdminBookDestructiveDialogs";
 import { AdminBookMetadataDialog } from "@/components/admin/AdminBookMetadataDialog";
 import { AdminBookRightsDialog } from "@/components/admin/AdminBookRightsDialog";
+import { AdminBookSourceEditPanel } from "@/components/admin/AdminBookSourceEditPanel";
 import { AdminTranslationJobsPanel } from "@/components/admin/AdminTranslationJobsPanel";
 import { AdminVerifiedSourcedEdition } from "@/components/admin/AdminVerifiedSourcedEdition";
 import { cropCoverToPortrait } from "@/lib/admin/cover-crop";
@@ -1219,97 +1220,24 @@ function AdminBookDetail() {
       />
 
       {canReview && (
-        <section className="mt-6 rounded-2xl border border-border bg-card p-5 card-shadow">
-          <h2 className="font-display text-base font-semibold text-foreground">
-            Edit page content
-          </h2>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Works on any language, original or translated. An edit is staged, not published
-            immediately — readers keep seeing the current text until you explicitly publish it.
-          </p>
-          <div className="mt-3 flex flex-wrap items-end gap-2">
-            <label className="flex flex-col gap-1">
-              <span className="text-xs font-medium text-muted-foreground">Language</span>
-              <select
-                value={editorLanguage}
-                onChange={(e) => setEditorLanguage(e.target.value)}
-                className="rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <option value="">Choose…</option>
-                {allLanguages.map((l) => (
-                  <option key={l} value={l}>
-                    {l}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="flex flex-col gap-1">
-              <span className="text-xs font-medium text-muted-foreground">
-                Page (0–{book.total_chunks - 1})
-              </span>
-              <input
-                type="number"
-                min={0}
-                max={book.total_chunks - 1}
-                value={editorChunkIndex}
-                onChange={(e) => setEditorChunkIndex(Number(e.target.value))}
-                className="w-28 rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              />
-            </label>
-            <button
-              disabled={!editorLanguage || editorLoading}
-              onClick={() => void loadChunkForEdit()}
-              className="rounded-lg border border-border px-3 py-2 text-sm font-semibold text-foreground hover:bg-secondary disabled:opacity-60"
-            >
-              {editorLoading ? "Loading…" : "Load"}
-            </button>
-          </div>
-
-          {editorContent !== null && (
-            <div className="mt-4">
-              {editorPending && (
-                <p className="mb-2 rounded-lg bg-gold/10 px-3 py-2 text-xs text-gold-foreground">
-                  Pending edit staged
-                  {editorPending.at ? ` ${new Date(editorPending.at).toLocaleString()}` : ""} — not
-                  yet visible to readers.
-                </p>
-              )}
-              <textarea
-                value={editorDraft}
-                onChange={(e) => setEditorDraft(e.target.value)}
-                rows={10}
-                className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              />
-              <div className="mt-2 flex flex-wrap gap-2">
-                <button
-                  disabled={busy || editorDraft === editorContent}
-                  onClick={() => void stageEdit()}
-                  className="min-h-10 rounded-lg border border-border px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary disabled:opacity-60"
-                >
-                  Stage edit
-                </button>
-                {editorPending && (
-                  <>
-                    <button
-                      disabled={busy}
-                      onClick={() => void publishEdit()}
-                      className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-60"
-                    >
-                      Publish staged edit
-                    </button>
-                    <button
-                      disabled={busy}
-                      onClick={() => void discardEdit()}
-                      className="min-h-10 rounded-lg border border-destructive/40 px-3 py-2 text-xs font-semibold text-destructive disabled:opacity-60"
-                    >
-                      Discard staged edit
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
-          )}
-        </section>
+        <AdminBookSourceEditPanel
+          totalChunks={book.total_chunks}
+          allLanguages={allLanguages}
+          editorLanguage={editorLanguage}
+          onEditorLanguageChange={setEditorLanguage}
+          editorChunkIndex={editorChunkIndex}
+          onEditorChunkIndexChange={setEditorChunkIndex}
+          editorLoading={editorLoading}
+          editorContent={editorContent}
+          editorPending={editorPending}
+          editorDraft={editorDraft}
+          onEditorDraftChange={setEditorDraft}
+          busy={busy}
+          onLoadChunk={loadChunkForEdit}
+          onStageEdit={stageEdit}
+          onPublishEdit={publishEdit}
+          onDiscardEdit={discardEdit}
+        />
       )}
 
       {previewOpen && (
