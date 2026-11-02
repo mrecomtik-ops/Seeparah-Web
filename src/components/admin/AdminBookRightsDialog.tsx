@@ -21,9 +21,9 @@ export function AdminBookRightsDialog({
   onSave: () => Promise<void>;
 }) {
   return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+        <div role="dialog" aria-modal="true" aria-labelledby="admin-rights-dialog-title" className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-xl rounded-2xl border border-border bg-card p-6 card-shadow-lg">
-            <h2 className="font-display text-lg font-semibold text-foreground">
+            <h2 id="admin-rights-dialog-title" className="font-display text-lg font-semibold text-foreground">
               Edit rights & provenance
             </h2>
             <p className="mt-1 text-xs text-muted-foreground">
