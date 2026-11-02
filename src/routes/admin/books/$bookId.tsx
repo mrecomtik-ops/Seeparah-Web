@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { ArrowLeft, Eye, Loader2, Pencil, Trash2 } from "lucide-react";
+import { ArrowLeft, Loader2, Pencil } from "lucide-react";
 import { getAccessToken, useResolvedAdminSession, can } from "@/lib/admin/use-admin-session";
 import { getPublicContentSettings } from "@/lib/admin/settings.functions";
 import { adminUploadBookCover, adminAssignBookEditionCover } from "@/lib/admin/cover-upload.functions";
@@ -27,13 +27,17 @@ import {
   adminSetBookCategories,
 } from "@/lib/admin/catalog.functions";
 import type { BookDeletionImpact, SacredReferenceManifestNode } from "@/lib/admin/catalog.server";
-import { AdminReadablePreview, Row, formatPublicationYear } from "@/components/admin/AdminBookPresentation";
+import { Row, formatPublicationYear } from "@/components/admin/AdminBookPresentation";
 import { AdminBookOrganizer } from "@/components/admin/AdminBookOrganizer";
 import { AdminBookPublishingChecklist } from "@/components/admin/AdminBookPublishingChecklist";
 import { AdminBookContentPolicy } from "@/components/admin/AdminBookContentPolicy";
 import { AdminBookAccessCategories } from "@/components/admin/AdminBookAccessCategories";
 import { AdminBookDestructiveDialogs } from "@/components/admin/AdminBookDestructiveDialogs";
 import { AdminBookMetadataDialog } from "@/components/admin/AdminBookMetadataDialog";
+import { AdminBookRightsDialog } from "@/components/admin/AdminBookRightsDialog";
+import { AdminBookSourceEditPanel } from "@/components/admin/AdminBookSourceEditPanel";
+import { AdminBookHeaderActions } from "@/components/admin/AdminBookHeaderActions";
+import { AdminBookReviewPreview } from "@/components/admin/AdminBookReviewPreview";
 import { AdminTranslationJobsPanel } from "@/components/admin/AdminTranslationJobsPanel";
 import { AdminVerifiedSourcedEdition } from "@/components/admin/AdminVerifiedSourcedEdition";
 import { cropCoverToPortrait } from "@/lib/admin/cover-crop";
@@ -764,40 +768,14 @@ function AdminBookDetail() {
             by {book.author} · {book.source_language} · status: {book.status}
           </p>
         </div>
-        {canPublish && (
-          <div className="flex flex-wrap gap-2">
-            {canReview && (
-              <button
-                onClick={() => void openPreview()}
-                className="inline-flex items-center gap-1.5 min-h-10 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground hover:opacity-90"
-              >
-                <Eye className="h-3.5 w-3.5" /> Preview book
-              </button>
-            )}
-            <button
-              onClick={openEdit}
-              className="inline-flex items-center gap-1.5 min-h-10 rounded-lg border border-border px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary"
-            >
-              <Pencil className="h-3.5 w-3.5" /> Edit
-            </button>
-            {book.status !== "archived" && (
-              <button
-                onClick={() => setDeleteOpen(true)}
-                className="inline-flex items-center gap-1.5 min-h-10 rounded-lg border border-destructive/40 px-3 py-2 text-xs font-semibold text-destructive hover:bg-destructive/10"
-              >
-                <Trash2 className="h-3.5 w-3.5" /> Archive
-              </button>
-            )}
-            {canDeletePermanently && book.status !== "published" && (
-              <button
-                onClick={() => void openPermDelete()}
-                className="inline-flex items-center gap-1.5 min-h-10 rounded-lg bg-destructive px-3 py-2 text-xs font-semibold text-destructive-foreground hover:opacity-90"
-              >
-                <Trash2 className="h-3.5 w-3.5" /> Delete permanently
-              </button>
-            )}
-          </div>
-        )}
+        <AdminBookHeaderActions
+          status={book.status}
+          role={session.role}
+          onPreview={openPreview}
+          onEdit={openEdit}
+          onArchive={() => setDeleteOpen(true)}
+          onPermanentDelete={openPermDelete}
+        />
       </div>
 
       <section className="mt-6 grid gap-4 lg:grid-cols-2">
@@ -1218,259 +1196,47 @@ function AdminBookDetail() {
       />
 
       {canReview && (
-        <section className="mt-6 rounded-2xl border border-border bg-card p-5 card-shadow">
-          <h2 className="font-display text-base font-semibold text-foreground">
-            Edit page content
-          </h2>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Works on any language, original or translated. An edit is staged, not published
-            immediately — readers keep seeing the current text until you explicitly publish it.
-          </p>
-          <div className="mt-3 flex flex-wrap items-end gap-2">
-            <label className="flex flex-col gap-1">
-              <span className="text-xs font-medium text-muted-foreground">Language</span>
-              <select
-                value={editorLanguage}
-                onChange={(e) => setEditorLanguage(e.target.value)}
-                className="rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <option value="">Choose…</option>
-                {allLanguages.map((l) => (
-                  <option key={l} value={l}>
-                    {l}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="flex flex-col gap-1">
-              <span className="text-xs font-medium text-muted-foreground">
-                Page (0–{book.total_chunks - 1})
-              </span>
-              <input
-                type="number"
-                min={0}
-                max={book.total_chunks - 1}
-                value={editorChunkIndex}
-                onChange={(e) => setEditorChunkIndex(Number(e.target.value))}
-                className="w-28 rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              />
-            </label>
-            <button
-              disabled={!editorLanguage || editorLoading}
-              onClick={() => void loadChunkForEdit()}
-              className="rounded-lg border border-border px-3 py-2 text-sm font-semibold text-foreground hover:bg-secondary disabled:opacity-60"
-            >
-              {editorLoading ? "Loading…" : "Load"}
-            </button>
-          </div>
-
-          {editorContent !== null && (
-            <div className="mt-4">
-              {editorPending && (
-                <p className="mb-2 rounded-lg bg-gold/10 px-3 py-2 text-xs text-gold-foreground">
-                  Pending edit staged
-                  {editorPending.at ? ` ${new Date(editorPending.at).toLocaleString()}` : ""} — not
-                  yet visible to readers.
-                </p>
-              )}
-              <textarea
-                value={editorDraft}
-                onChange={(e) => setEditorDraft(e.target.value)}
-                rows={10}
-                className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              />
-              <div className="mt-2 flex flex-wrap gap-2">
-                <button
-                  disabled={busy || editorDraft === editorContent}
-                  onClick={() => void stageEdit()}
-                  className="min-h-10 rounded-lg border border-border px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary disabled:opacity-60"
-                >
-                  Stage edit
-                </button>
-                {editorPending && (
-                  <>
-                    <button
-                      disabled={busy}
-                      onClick={() => void publishEdit()}
-                      className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-60"
-                    >
-                      Publish staged edit
-                    </button>
-                    <button
-                      disabled={busy}
-                      onClick={() => void discardEdit()}
-                      className="min-h-10 rounded-lg border border-destructive/40 px-3 py-2 text-xs font-semibold text-destructive disabled:opacity-60"
-                    >
-                      Discard staged edit
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
-          )}
-        </section>
+        <AdminBookSourceEditPanel
+          totalChunks={book.total_chunks}
+          allLanguages={allLanguages}
+          editorLanguage={editorLanguage}
+          onEditorLanguageChange={setEditorLanguage}
+          editorChunkIndex={editorChunkIndex}
+          onEditorChunkIndexChange={setEditorChunkIndex}
+          editorLoading={editorLoading}
+          editorContent={editorContent}
+          editorPending={editorPending}
+          editorDraft={editorDraft}
+          onEditorDraftChange={setEditorDraft}
+          busy={busy}
+          onLoadChunk={loadChunkForEdit}
+          onStageEdit={stageEdit}
+          onPublishEdit={publishEdit}
+          onDiscardEdit={discardEdit}
+        />
       )}
 
       {previewOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3 sm:p-6">
-          <div className="flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-border bg-card card-shadow-lg">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-4">
-              <div className="min-w-0">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  Admin review preview · {book.source_language}
-                </p>
-                <h2 className="truncate font-display text-xl font-semibold text-foreground">
-                  {book.title}
-                </h2>
-                <p className="text-xs text-muted-foreground">
-                  Page {previewChunkIndex + 1} of {book.total_chunks}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setPreviewOpen(false)}
-                className="rounded-lg border border-border px-3 py-2 text-xs font-semibold hover:bg-secondary"
-              >
-                Close preview
-              </button>
-            </div>
-            <div className="min-h-0 flex-1 overflow-y-auto bg-background px-5 py-6 sm:px-10">
-              {previewLoading ? (
-                <div className="flex min-h-64 items-center justify-center">
-                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                </div>
-              ) : (
-                <article className="mx-auto max-w-3xl rounded-xl border border-border bg-card px-6 py-8 font-serif text-[18px] leading-[1.75] text-foreground sm:px-10">
-                  <AdminReadablePreview content={previewContent} />
-                </article>
-              )}
-            </div>
-            <div className="flex items-center justify-between border-t border-border px-5 py-3">
-              <button
-                type="button"
-                disabled={previewLoading || previewChunkIndex <= 0}
-                onClick={() => void loadPreviewChunk(previewChunkIndex - 1)}
-                className="rounded-lg border border-border px-4 py-2 text-xs font-semibold hover:bg-secondary disabled:opacity-40"
-              >
-                Previous page
-              </button>
-              <span className="text-xs text-muted-foreground">
-                Review the actual stored text before approving quality.
-              </span>
-              <button
-                type="button"
-                disabled={previewLoading || previewChunkIndex >= book.total_chunks - 1}
-                onClick={() => void loadPreviewChunk(previewChunkIndex + 1)}
-                className="rounded-lg border border-border px-4 py-2 text-xs font-semibold hover:bg-secondary disabled:opacity-40"
-              >
-                Next page
-              </button>
-            </div>
-          </div>
-        </div>
+        <AdminBookReviewPreview
+          title={book.title}
+          sourceLanguage={book.source_language}
+          totalChunks={book.total_chunks}
+          previewChunkIndex={previewChunkIndex}
+          previewContent={previewContent}
+          previewLoading={previewLoading}
+          onClose={() => setPreviewOpen(false)}
+          onLoadChunk={loadPreviewChunk}
+        />
       )}
 
       {rightsEditOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-xl rounded-2xl border border-border bg-card p-6 card-shadow-lg">
-            <h2 className="font-display text-lg font-semibold text-foreground">
-              Edit rights & provenance
-            </h2>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Record only evidence you have actually verified for this exact edition. Saving does
-              not approve the book; the rights review remains pending/unverified until you approve
-              it separately.
-            </p>
-            <div className="mt-4 space-y-3">
-              <label className="block">
-                <span className="text-xs font-medium text-muted-foreground">Rights basis *</span>
-                <textarea
-                  value={rightsDraft.rightsBasis}
-                  onChange={(e) => setRightsDraft((d) => ({ ...d, rightsBasis: e.target.value }))}
-                  rows={4}
-                  placeholder="Explain what establishes permission for this exact edition…"
-                  className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                />
-              </label>
-              <label className="block">
-                <span className="text-xs font-medium text-muted-foreground">
-                  Rights evidence URL
-                </span>
-                <input
-                  value={rightsDraft.rightsEvidenceUrl}
-                  onChange={(e) =>
-                    setRightsDraft((d) => ({ ...d, rightsEvidenceUrl: e.target.value }))
-                  }
-                  placeholder="https://…"
-                  className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                />
-                <span className="mt-1 block text-[11px] text-muted-foreground">
-                  A valid http(s) evidence URL is required before approval.
-                </span>
-              </label>
-              <label className="block">
-                <span className="text-xs font-medium text-muted-foreground">Source URL</span>
-                <input
-                  value={rightsDraft.sourceUrl}
-                  onChange={(e) => setRightsDraft((d) => ({ ...d, sourceUrl: e.target.value }))}
-                  placeholder="https://…"
-                  className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                />
-              </label>
-              <label className="block">
-                <span className="text-xs font-medium text-muted-foreground">Attribution</span>
-                <textarea
-                  value={rightsDraft.attribution}
-                  onChange={(e) => setRightsDraft((d) => ({ ...d, attribution: e.target.value }))}
-                  rows={2}
-                  placeholder="Required credit or attribution, if any"
-                  className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                />
-              </label>
-              <label className="block">
-                <span className="text-xs font-medium text-muted-foreground">
-                  Permitted territories
-                </span>
-                <input
-                  value={rightsDraft.permittedTerritories}
-                  onChange={(e) =>
-                    setRightsDraft((d) => ({ ...d, permittedTerritories: e.target.value }))
-                  }
-                  placeholder="Leave blank for unrestricted; otherwise comma-separated"
-                  className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                />
-              </label>
-              <label className="flex items-center gap-2 text-sm text-foreground">
-                <input
-                  type="checkbox"
-                  checked={rightsDraft.translationPermission}
-                  onChange={(e) =>
-                    setRightsDraft((d) => ({ ...d, translationPermission: e.target.checked }))
-                  }
-                />
-                Translation permission is documented
-              </label>
-            </div>
-            <div className="mt-5 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setRightsEditOpen(false)}
-                disabled={busy}
-                className="rounded-lg border border-border px-4 py-2 text-sm font-semibold hover:bg-secondary disabled:opacity-60"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => void saveRightsEdit()}
-                disabled={busy || !rightsDraft.rightsBasis.trim()}
-                className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60"
-              >
-                {busy ? "Saving…" : "Save rights information"}
-              </button>
-            </div>
-          </div>
-        </div>
+        <AdminBookRightsDialog
+          rightsDraft={rightsDraft}
+          setRightsDraft={setRightsDraft}
+          busy={busy}
+          onClose={() => setRightsEditOpen(false)}
+          onSave={saveRightsEdit}
+        />
       )}
 
       <AdminBookMetadataDialog
