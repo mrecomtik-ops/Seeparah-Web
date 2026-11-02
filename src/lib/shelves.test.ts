@@ -1,25 +1,29 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { upsert, writeDeviceRows } = vi.hoisted(() => ({
+const { upsert, writeDeviceRows, readDeviceRows, selectByUser } = vi.hoisted(() => ({
   upsert: vi.fn(),
   writeDeviceRows: vi.fn(),
+  readDeviceRows: vi.fn(),
+  selectByUser: vi.fn(),
 }));
 vi.mock("@/integrations/supabase/client", () => ({
-  supabase: { from: () => ({ upsert }) },
+  supabase: { from: () => ({ upsert, select: () => ({ eq: selectByUser }) }) },
 }));
 vi.mock("@/lib/library", () => ({ DEMO_USER_ID: "demo-reader" }));
 vi.mock("@/lib/data", () => ({
   demoStore: {
-    getShelves: () => [],
+    getShelves: readDeviceRows,
     setShelves: writeDeviceRows,
   },
 }));
 
-const { toggleShelf, dedupeShelfRows } = await import("./shelves");
+const { toggleShelf, listShelves, dedupeShelfRows } = await import("./shelves");
 
 beforeEach(() => {
   upsert.mockReset();
   writeDeviceRows.mockClear();
+  readDeviceRows.mockReset().mockReturnValue([]);
+  selectByUser.mockReset();
 });
 
 describe("shelf changes for authenticated readers", () => {
@@ -59,5 +63,32 @@ describe("SP-33 independent memberships and legacy duplicates", () => {
       make("b","reader2","book1","saved"),
       make("c","reader1","book2","saved"),
     ])).toHaveLength(3);
+  });
+});
+
+
+describe("SP-33 account shelf reconciliation and offline fallback", () => {
+  const item = (id: string, shelf: "saved" | "favorite") => ({
+    id, user_id: "reader1", book_id: "book1", shelf, created_at: "2026-01-01T00:00:00Z",
+  });
+  it("trusts a successful server response over outdated device memberships", async () => {
+    readDeviceRows.mockReturnValue([item("stale-local", "saved")]);
+    selectByUser.mockResolvedValue({ data: [item("server", "favorite")], error: null });
+    const rows = await listShelves("reader1");
+    expect(selectByUser).toHaveBeenCalledWith("user_id", "reader1");
+    expect(rows.map((row) => row.id)).toEqual(["server"]);
+    expect(writeDeviceRows).not.toHaveBeenCalled();
+  });
+  it("retains the current device memberships when account service is offline", async () => {
+    readDeviceRows.mockReturnValue([item("local", "saved")]);
+    selectByUser.mockResolvedValue({ data: null, error: { message: "network unavailable" } });
+    expect((await listShelves("reader1")).map((row) => row.id)).toEqual(["local"]);
+  });
+  it("deduplicates server retries without collapsing independent shelf flags", async () => {
+    selectByUser.mockResolvedValue({
+      data: [item("one", "saved"), item("duplicate", "saved"), item("other", "favorite")],
+      error: null,
+    });
+    expect((await listShelves("reader1")).map((row) => row.id)).toEqual(["one", "other"]);
   });
 });
