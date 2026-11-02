@@ -10,6 +10,19 @@ export const SHELF_LABELS: Record<ShelfKind, string> = {
   want_to_read: "Want to read",
 };
 
+/** A work has one membership per optional shelf type. Duplicated legacy
+ * rows or reconnection retries must not produce repeated badges/counters.
+ * This never writes, merges, or deletes any original user records.
+ */
+export function dedupeShelfRows(rows: readonly ShelfRow[]): ShelfRow[] {
+  const unique = new Map<string, ShelfRow>();
+  for (const row of rows) {
+    const key = row.user_id + "\u0000" + row.book_id + "\u0000" + row.shelf;
+    if (!unique.has(key)) unique.set(key, row);
+  }
+  return [...unique.values()];
+}
+
 export async function listShelves(userId: string): Promise<ShelfRow[]> {
   if (userId !== DEMO_USER_ID) {
     try {
@@ -17,16 +30,19 @@ export async function listShelves(userId: string): Promise<ShelfRow[]> {
         .from("book_shelves")
         .select("*")
         .eq("user_id", userId);
-      if (!error && data) {
-        return (data as ShelfRow[]).concat(
-          demoStore.getShelves().filter((s) => s.user_id === userId),
-        );
-      }
+      if (error) throw error;
+      // A successful authenticated read is authoritative. Older versions
+      // concatenated stale on-device rows after remote records, which could
+      // resurrect a shelf the reader had explicitly removed online.
+      // Local records are not erased, and are only shown as an offline
+      // fallback when the database cannot be reached.
+      return dedupeShelfRows((data as ShelfRow[] | null) ?? []);
     } catch {
-      // fall through to local
+      // Keep existing on-device memberships visible during connection
+      // errors without claiming they have synced to the account.
     }
   }
-  return demoStore.getShelves().filter((s) => s.user_id === userId);
+  return dedupeShelfRows(demoStore.getShelves().filter((s) => s.user_id === userId));
 }
 
 export async function toggleShelf(
