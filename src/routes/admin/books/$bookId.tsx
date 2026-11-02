@@ -3,7 +3,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ArrowLeft, Eye, Loader2, Pencil, Trash2 } from "lucide-react";
-import { LANGUAGES } from "@/lib/data";
 import { getAccessToken, useResolvedAdminSession, can } from "@/lib/admin/use-admin-session";
 import { getPublicContentSettings } from "@/lib/admin/settings.functions";
 import { adminUploadBookCover, adminAssignBookEditionCover } from "@/lib/admin/cover-upload.functions";
@@ -14,8 +13,6 @@ import {
   adminAcknowledgeBookRightsSignals,
   adminReviewBookReaderQuality,
   adminSetBookLifecycle,
-  adminReviewAndPublishTranslationEdition,
-  adminProcessTranslationJobBatch,
   adminSetBookContentPolicy,
   adminImportVerifiedSourcedEdition,
   adminReplaceSacredReferenceManifest,
@@ -30,7 +27,6 @@ import {
   adminSetBookCategories,
 } from "@/lib/admin/catalog.functions";
 import type { BookDeletionImpact, SacredReferenceManifestNode } from "@/lib/admin/catalog.server";
-import { friendlyTranslationError } from "@/lib/translation-error";
 import { AdminReadablePreview, Row, formatPublicationYear } from "@/components/admin/AdminBookPresentation";
 import { AdminBookOrganizer } from "@/components/admin/AdminBookOrganizer";
 import { AdminBookPublishingChecklist } from "@/components/admin/AdminBookPublishingChecklist";
@@ -38,6 +34,8 @@ import { AdminBookContentPolicy } from "@/components/admin/AdminBookContentPolic
 import { AdminBookAccessCategories } from "@/components/admin/AdminBookAccessCategories";
 import { AdminBookDestructiveDialogs } from "@/components/admin/AdminBookDestructiveDialogs";
 import { AdminBookMetadataDialog } from "@/components/admin/AdminBookMetadataDialog";
+import { AdminTranslationJobsPanel } from "@/components/admin/AdminTranslationJobsPanel";
+import { AdminVerifiedSourcedEdition } from "@/components/admin/AdminVerifiedSourcedEdition";
 import { cropCoverToPortrait } from "@/lib/admin/cover-crop";
 import { lockStagedCoverReview, stagedCoverAssignment, type StagedEditionCover } from "@/lib/admin/staged-cover";
 
@@ -1200,353 +1198,24 @@ function AdminBookDetail() {
         toggleCategory={toggleCategory}
       />
 
-      <section className="mt-6 rounded-2xl border border-border bg-card p-5 card-shadow">
-        <h2 className="font-display text-base font-semibold text-foreground">
-          Translation editions
-        </h2>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Approved jobs are processed automatically by the translation worker. “Process next batch”
-          is a manual fallback. Before publishing an awaiting-review edition, inspect every
-          translated section below in Edit page content.
-        </p>
-        <ul className="mt-3 space-y-2">
-          {jobs.map((j) => (
-            <li
-              key={j.id}
-              className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-background px-4 py-2 text-sm"
-            >
-              <div className="min-w-0">
-                <span>
-                  {j.language} — {j.status} ({j.completed_sections}/{j.total_sections},{" "}
-                  {j.human_reviewed ? "reviewed" : "not yet reviewed"})
-                </span>
-                {j.failed_sections > 0 && (
-                  <p className="mt-1 text-xs font-semibold text-destructive">
-                    {j.failed_sections} section{j.failed_sections === 1 ? "" : "s"} currently failed
-                  </p>
-                )}
-                {j.last_error && (
-                  <p className="mt-1 max-w-2xl break-words rounded-lg bg-destructive/10 px-2.5 py-2 text-xs text-destructive">
-                    {friendlyTranslationError(j.last_error)}
-                  </p>
-                )}
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                {canManageTranslations && ["pending", "processing"].includes(j.status) && (
-                  <button
-                    disabled={busy}
-                    onClick={() =>
-                      withBusy(async () => {
-                        const result = await adminProcessTranslationJobBatch({
-                          data: { accessToken: await getAccessToken(), jobId: j.id },
-                        });
-                        if (result.failed > 0) {
-                          toast.error(
-                            result.errors[0] ?? `${result.failed} translation section(s) failed`,
-                            { duration: 9000 },
-                          );
-                        } else {
-                          toast.success(
-                            result.jobStatus === "awaiting_review"
-                              ? `${j.language} translation is ready for review`
-                              : `Processed ${result.processed} section(s); status: ${result.jobStatus}`,
-                          );
-                        }
-                      })
-                    }
-                    className="min-h-10 rounded-lg border border-border px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary disabled:opacity-60"
-                  >
-                    Process next batch
-                  </button>
-                )}
-                {canManageTranslations && j.status === "failed" && (
-                  <button
-                    disabled={busy}
-                    onClick={() =>
-                      withBusy(async () => {
-                        if (
-                          !window.confirm(
-                            `Retry only the failed ${j.language} sections? Do this only after the provider/configuration problem shown above has been fixed.`,
-                          )
-                        ) {
-                          return;
-                        }
-                        const result = await adminProcessTranslationJobBatch({
-                          data: { accessToken: await getAccessToken(), jobId: j.id },
-                        });
-                        if (result.failed > 0) {
-                          toast.error(
-                            result.errors[0] ??
-                              `${result.failed} translation section(s) are still failing`,
-                            { duration: 9000 },
-                          );
-                        } else {
-                          toast.success(
-                            result.jobStatus === "awaiting_review"
-                              ? `${j.language} translation is ready for review`
-                              : `Retry processed ${result.processed} section(s)`,
-                          );
-                        }
-                      })
-                    }
-                    className="min-h-11 rounded-lg border border-destructive/30 px-3 py-2 text-xs font-semibold text-destructive hover:bg-destructive/10 disabled:opacity-60"
-                  >
-                    Retry failed sections…
-                  </button>
-                )}
-                {canManageTranslations && j.status === "awaiting_review" && (
-                  <button
-                    disabled={busy}
-                    onClick={() =>
-                      withBusy(async () => {
-                        if (
-                          !window.confirm(
-                            `Publish the ${j.language} edition? Confirm only after reviewing every translated section in “Edit page content”.`,
-                          )
-                        ) {
-                          return;
-                        }
-                        await adminReviewAndPublishTranslationEdition({
-                          data: { accessToken: await getAccessToken(), jobId: j.id },
-                        });
-                        toast.success(`${j.language} edition published`);
-                      })
-                    }
-                    className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-60"
-                  >
-                    Review & publish
-                  </button>
-                )}
-              </div>
-            </li>
-          ))}
-          {jobs.length === 0 && (
-            <p className="text-sm text-muted-foreground">No translation jobs yet.</p>
-          )}
-        </ul>
-      </section>
+      <AdminTranslationJobsPanel
+        jobs={jobs}
+        canManageTranslations={canManageTranslations}
+        busy={busy}
+        withBusy={withBusy}
+      />
 
-      {book.content_classification === "religious" && canManageTranslations && (
-        <section className="mt-6 rounded-2xl border border-accent/60 bg-card p-5 card-shadow">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h2 className="font-display text-base font-semibold text-foreground">
-                Verified sourced Religious translation
-              </h2>
-              <p className="mt-1 max-w-2xl text-xs leading-relaxed text-muted-foreground">
-                Religious books never use Seeparah AI translation. Add an existing human, licensed,
-                or public-domain translation only after verifying the exact edition and its rights.
-                It publishes free and preserves the supplied lineation and small textual marks.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setSourcedEditionOpen((value) => !value)}
-              className="rounded-xl border border-border px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary"
-            >
-              {sourcedEditionOpen ? "Close importer" : "Add sourced translation"}
-            </button>
-          </div>
-
-          {sourcedEditionOpen && (
-            <div className="mt-4 grid gap-3 md:grid-cols-2">
-              <label className="block">
-                <span className="text-xs font-medium text-muted-foreground">Language *</span>
-                <select
-                  value={sourcedEditionDraft.language}
-                  onChange={(e) =>
-                    setSourcedEditionDraft((d) => ({ ...d, language: e.target.value }))
-                  }
-                  className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
-                >
-                  <option value="">Choose language…</option>
-                  {LANGUAGES.filter(
-                    (language) =>
-                      language !== book.source_language &&
-                      !editions.some((edition) => edition.language === language),
-                  ).map((language) => (
-                    <option key={language} value={language}>
-                      {language}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="block">
-                <span className="text-xs font-medium text-muted-foreground">Provenance *</span>
-                <select
-                  value={sourcedEditionDraft.provenanceType}
-                  onChange={(e) =>
-                    setSourcedEditionDraft((d) => ({
-                      ...d,
-                      provenanceType: e.target.value as
-                        "human_translation" | "licensed_translation" | "public_domain_translation",
-                    }))
-                  }
-                  className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
-                >
-                  <option value="human_translation">Verified human translation</option>
-                  <option value="licensed_translation">Licensed translation</option>
-                  <option value="public_domain_translation">Public-domain translation</option>
-                </select>
-              </label>
-
-              <label className="block">
-                <span className="text-xs font-medium text-muted-foreground">Edition title</span>
-                <input
-                  value={sourcedEditionDraft.editionTitle}
-                  onChange={(e) =>
-                    setSourcedEditionDraft((d) => ({ ...d, editionTitle: e.target.value }))
-                  }
-                  className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
-                  placeholder="Exact published edition title"
-                />
-              </label>
-
-              <label className="block">
-                <span className="text-xs font-medium text-muted-foreground">
-                  Translator / editor
-                </span>
-                <input
-                  value={sourcedEditionDraft.translator}
-                  onChange={(e) =>
-                    setSourcedEditionDraft((d) => ({ ...d, translator: e.target.value }))
-                  }
-                  className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
-                  placeholder="As credited by the source edition"
-                />
-              </label>
-
-              <label className="block">
-                <span className="text-xs font-medium text-muted-foreground">Source URL *</span>
-                <input
-                  value={sourcedEditionDraft.sourceUrl}
-                  onChange={(e) =>
-                    setSourcedEditionDraft((d) => ({ ...d, sourceUrl: e.target.value }))
-                  }
-                  className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
-                  placeholder="https://… exact sourced edition"
-                />
-              </label>
-
-              <label className="block">
-                <span className="text-xs font-medium text-muted-foreground">Source edition ID</span>
-                <input
-                  value={sourcedEditionDraft.sourceEditionId}
-                  onChange={(e) =>
-                    setSourcedEditionDraft((d) => ({ ...d, sourceEditionId: e.target.value }))
-                  }
-                  className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
-                  placeholder="Archive/edition/catalogue identifier"
-                />
-              </label>
-
-              <label className="block">
-                <span className="text-xs font-medium text-muted-foreground">
-                  Typography profile *
-                </span>
-                <select
-                  value={sourcedEditionDraft.typographyProfile}
-                  onChange={(e) =>
-                    setSourcedEditionDraft((d) => ({
-                      ...d,
-                      typographyProfile: e.target.value,
-                    }))
-                  }
-                  className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
-                >
-                  <option value="facsimile_preserving">Preserve source/facsimile styling</option>
-                  <option value="scripture_arabic">Arabic scripture / Naskh-style stack</option>
-                  <option value="scripture_urdu">Urdu scripture / Nastaliq-style stack</option>
-                  <option value="scripture_hebrew">Hebrew scripture-style stack</option>
-                  <option value="scripture_indic">Indic scripture-style stack</option>
-                  <option value="standard">Standard reader</option>
-                </select>
-              </label>
-
-              <label className="block">
-                <span className="text-xs font-medium text-muted-foreground">
-                  Rights evidence URL *
-                </span>
-                <input
-                  value={sourcedEditionDraft.rightsEvidenceUrl}
-                  onChange={(e) =>
-                    setSourcedEditionDraft((d) => ({
-                      ...d,
-                      rightsEvidenceUrl: e.target.value,
-                    }))
-                  }
-                  className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
-                  placeholder="https://… evidence for this exact translation"
-                />
-              </label>
-
-              <label className="block md:col-span-2">
-                <span className="text-xs font-medium text-muted-foreground">
-                  Rights basis for this exact translation *
-                </span>
-                <textarea
-                  rows={3}
-                  value={sourcedEditionDraft.rightsBasis}
-                  onChange={(e) =>
-                    setSourcedEditionDraft((d) => ({ ...d, rightsBasis: e.target.value }))
-                  }
-                  className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
-                  placeholder="Explain why Seeparah may reproduce this exact translated edition…"
-                />
-              </label>
-
-              <label className="block md:col-span-2">
-                <span className="text-xs font-medium text-muted-foreground">
-                  Authenticity / text-preservation notes
-                </span>
-                <textarea
-                  rows={3}
-                  value={sourcedEditionDraft.authenticityNotes}
-                  onChange={(e) =>
-                    setSourcedEditionDraft((d) => ({
-                      ...d,
-                      authenticityNotes: e.target.value,
-                    }))
-                  }
-                  className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
-                  placeholder="Script, diacritics, cantillation/recitation marks, verse numbering, lineation, headings, punctuation, special glyphs…"
-                />
-              </label>
-
-              <label className="block md:col-span-2">
-                <span className="text-xs font-medium text-muted-foreground">
-                  Verified sourced text *
-                </span>
-                <textarea
-                  rows={12}
-                  value={sourcedEditionDraft.manuscriptText}
-                  onChange={(e) =>
-                    setSourcedEditionDraft((d) => ({ ...d, manuscriptText: e.target.value }))
-                  }
-                  className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 font-mono text-sm"
-                  placeholder={`Paste the verified text. Separate the ${book.total_chunks} aligned reading sections with a line containing exactly:\n\n===SEEPARAH_SECTION===\n\nInternal line breaks and textual marks are preserved.`}
-                />
-                <span className="mt-1 block text-[11px] text-muted-foreground">
-                  Required alignment: exactly {book.total_chunks} reading sections. This keeps
-                  cross-language page positions stable without altering the sourced text inside each
-                  section.
-                </span>
-              </label>
-
-              <div className="md:col-span-2">
-                <button
-                  disabled={sourcedEditionBusy}
-                  onClick={() => void importSourcedEdition()}
-                  className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60"
-                >
-                  {sourcedEditionBusy ? "Importing…" : "Verify & publish free sourced edition"}
-                </button>
-              </div>
-            </div>
-          )}
-        </section>
-      )}
+      <AdminVerifiedSourcedEdition
+        book={book}
+        editions={editions}
+        canManageTranslations={canManageTranslations}
+        sourcedEditionOpen={sourcedEditionOpen}
+        setSourcedEditionOpen={setSourcedEditionOpen}
+        sourcedEditionDraft={sourcedEditionDraft}
+        setSourcedEditionDraft={setSourcedEditionDraft}
+        sourcedEditionBusy={sourcedEditionBusy}
+        importSourcedEdition={importSourcedEdition}
+      />
 
       {canReview && (
         <section className="mt-6 rounded-2xl border border-border bg-card p-5 card-shadow">
