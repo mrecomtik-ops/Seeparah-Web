@@ -52,6 +52,38 @@ export async function listShelves(userId: string): Promise<ShelfRow[]> {
   return dedupeShelfRows(demoStore.getShelves().filter((s) => s.user_id === userId));
 }
 
+/** After an acknowledged account write, keep the same account's offline fallback
+ * consistent even when connectivity drops before the next listShelves refetch.
+ * Cache failures are deliberately nonfatal: the server write already succeeded.
+ */
+function cacheConfirmedShelfChange(
+  userId: string,
+  bookId: string,
+  shelf: ShelfKind,
+  on: boolean,
+): void {
+  try {
+    const cached = demoStore.getShelves();
+    const matching = (row: ShelfRow) =>
+      row.user_id === userId && row.book_id === bookId && row.shelf === shelf;
+    const existing = cached.find(matching);
+    const remaining = cached.filter((row) => !matching(row));
+    if (on) {
+      remaining.push(existing ?? {
+        id: crypto.randomUUID(),
+        user_id: userId,
+        book_id: bookId,
+        shelf,
+        created_at: new Date().toISOString(),
+      });
+    }
+    demoStore.setShelves(dedupeShelfRows(remaining));
+  } catch {
+    // Storage can be blocked or unavailable. Do not report a successful
+    // remote operation as failed merely because its offline cache failed.
+  }
+}
+
 export async function toggleShelf(
   userId: string,
   bookId: string,
@@ -69,6 +101,7 @@ export async function toggleShelf(
           { onConflict: "user_id,book_id,shelf" },
         );
       if (error) throw new Error("Could not save shelf changes to your account. Please retry.");
+      cacheConfirmedShelfChange(userId, bookId, shelf, true);
       return;
     }
     const { error } = await supabase
@@ -78,6 +111,7 @@ export async function toggleShelf(
       .eq("book_id", bookId)
       .eq("shelf", shelf);
     if (error) throw new Error("Could not remove the book from your shelf. Please retry.");
+    cacheConfirmedShelfChange(userId, bookId, shelf, false);
     return;
   }
   const rows = demoStore
