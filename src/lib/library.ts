@@ -8,6 +8,8 @@ import {
 } from "@/lib/reader.functions";
 import {
   listPublicBooks as fetchPublicBooks,
+  listPublicLibraryIndex as fetchLibraryIndex,
+  getPublicLibraryPage as fetchLibraryPage,
   getPublicBook as fetchPublicBook,
   searchPublicBooks as fetchPublicBookSearch,
   listPublicBooksByAuthorId as fetchPublicBooksByAuthorId,
@@ -56,6 +58,17 @@ export async function currentUser() {
  * this function pretending a failure is "just an empty catalog with demo
  * placeholders."
  */
+/** Metadata-only Library facets; full cards are requested one page at a time. */
+export async function listLibraryIndex(): Promise<Book[]> {
+  return fetchLibraryIndex();
+}
+
+/** Read-only server page of at most 24 approved books, in input order. */
+export async function getLibraryPageBooks(ids: string[]): Promise<Book[]> {
+  if (!ids.length) return [];
+  return fetchLibraryPage({ data: { ids } });
+}
+
 export async function listBooks(): Promise<Book[]> {
   return fetchPublicBooks();
 }
