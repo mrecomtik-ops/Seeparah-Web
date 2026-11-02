@@ -379,7 +379,7 @@ function AdminBooksList() {
               setPage(1);
               void navigate({ search: (old) => ({ ...old, status: s || undefined }) });
             }}
-            className={`rounded-full px-3 py-1 text-xs font-semibold ${status === s ? "bg-primary text-primary-foreground" : "border border-border bg-card text-foreground hover:bg-secondary"}`}
+            className={`inline-flex min-h-11 items-center rounded-full px-3 py-2 text-xs font-semibold ${status === s ? "bg-primary text-primary-foreground" : "border border-border bg-card text-foreground hover:bg-secondary"}`}
           >
             {statusLabel(s)}
           </button>
@@ -435,7 +435,8 @@ function AdminBooksList() {
             setPage(1);
           }}
           placeholder="Title or author…"
-          className="ml-auto rounded-xl border border-border bg-card px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-ring"
+          aria-label="Search catalog by title or author"
+          className="ml-auto min-h-11 rounded-xl border border-border bg-card px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-ring"
         />
       </div>
 
@@ -554,8 +555,10 @@ function AdminBooksList() {
           onRetry={() => booksQuery.refetch()}
         />
       ) : (
-        <div className="mt-4 overflow-x-auto rounded-2xl border border-border bg-card card-shadow">
+        <div tabIndex={0} role="region" aria-label="Catalog review table — scroll horizontally to view additional columns"
+          className="mt-4 overflow-x-auto rounded-2xl border border-border bg-card card-shadow focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">
           <table className="w-full min-w-[1100px] table-fixed text-sm">
+            <caption className="sr-only">Published and unpublished book records, review status, source access, and management actions</caption>
             <thead>
               <tr className="border-b border-border text-left text-xs text-muted-foreground">
                 <th className="w-8 px-4 py-2">
