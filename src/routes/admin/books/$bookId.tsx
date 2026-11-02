@@ -3,7 +3,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ArrowLeft, Eye, Loader2, Pencil, Trash2 } from "lucide-react";
-import { LANGUAGES } from "@/lib/data";
 import { getAccessToken, useResolvedAdminSession, can } from "@/lib/admin/use-admin-session";
 import { getPublicContentSettings } from "@/lib/admin/settings.functions";
 import { adminUploadBookCover, adminAssignBookEditionCover } from "@/lib/admin/cover-upload.functions";
@@ -28,7 +27,6 @@ import {
   adminSetBookCategories,
 } from "@/lib/admin/catalog.functions";
 import type { BookDeletionImpact, SacredReferenceManifestNode } from "@/lib/admin/catalog.server";
-import { friendlyTranslationError } from "@/lib/translation-error";
 import { AdminReadablePreview, Row, formatPublicationYear } from "@/components/admin/AdminBookPresentation";
 import { AdminBookOrganizer } from "@/components/admin/AdminBookOrganizer";
 import { AdminBookPublishingChecklist } from "@/components/admin/AdminBookPublishingChecklist";
