@@ -291,7 +291,7 @@ describe("deleteBookPermanently", () => {
       { count: 0, error: null },
       { count: 0, error: null },
       { count: 0, error: null }, // zero related support tickets
-      { data: null, error: null }, // delete
+      { data: [{ id: "book-1" }], error: null }, // verified one-row delete
     ]);
     await deleteBookPermanently({ bookId: "book-1" });
     expect(mock.updateSpy).not.toHaveBeenCalled();
