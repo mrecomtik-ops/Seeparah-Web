@@ -36,6 +36,8 @@ export interface SacredReaderChunk {
   label: string;
   kind: string;
   content: string;
+  /** True full source length if this response carries a verbatim prefix only. */
+  fullContentLength?: number;
   annotations: SacredReaderAnnotation[];
 }
 
