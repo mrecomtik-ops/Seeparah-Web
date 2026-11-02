@@ -14,7 +14,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ShelfButtons } from "@/components/ShelfButtons";
 import { ProgressiveSourcePassage } from "@/components/reader/ProgressiveSourcePassage";
-import { getSacredReaderSection, getSacredTextReferenceIndex, getBibleReferenceMatchedSection } from "@/lib/scripture.functions";
+import { getSacredReaderSection, getSacredTextReferenceIndex, getBibleReferenceMatchedSection, getFullSacredSourceChunk } from "@/lib/scripture.functions";
 import { getPublicBookEditions } from "@/lib/translation.functions";
 import { saveProgress } from "@/lib/library";
 import { RTL_LANGUAGES, type Book } from "@/lib/data";
@@ -103,6 +103,14 @@ export function SacredTextReader({
   const [dhpSource, setDhpSource] = useState<DhammapadaLayoutData | null>(null);
   const [dnSource, setDnSource] = useState<DiscourseLayoutData | null>(null);
   const editionLayout = sacredEditionLayout(book.title);
+  const loadExactFullSource = (index: number) => queryClient.fetchQuery({
+    queryKey: ["sacred-exact-full-source", book.id, language, index],
+    queryFn: () => getFullSacredSourceChunk({
+      data: { bookId: book.id, language, chunkIndex: index },
+    }),
+    staleTime: 15 * 60 * 1000,
+  });
+
 
   useEffect(() => {
     const prefs = readSacredPrefs(window.localStorage);
@@ -753,13 +761,31 @@ export function SacredTextReader({
                       <button
                         type="button"
                         title="Copy exact original source text"
-                        onClick={() => void navigator.clipboard?.writeText(chunk.content)}
+                        onClick={() => void (async () => {
+                          try {
+                            const text = chunk.fullContentLength
+                              ? await loadExactFullSource(chunk.chunkIndex)
+                              : chunk.content;
+                            if (!text) throw new Error("Source unavailable");
+                            await navigator.clipboard?.writeText(text);
+                          } catch {
+                            window.alert("The full published source could not be verified. Please retry.");
+                          }
+                        })()}
                         className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
                       >
                         <Copy className="h-3.5 w-3.5" /> Copy text
                       </button>
                     </div>
-                    <ProgressiveSourcePassage content={chunk.content} style={contentStyle} label={chunk.label}>
+                    <ProgressiveSourcePassage key={language + ":" + chunk.chunkIndex}
+                      content={chunk.content} style={contentStyle} label={chunk.label}
+                      fullContentLength={chunk.fullContentLength}
+                      loadFullContent={chunk.fullContentLength ? () => loadExactFullSource(chunk.chunkIndex) : undefined}
+                      renderFullContent={(original) => (
+                        <p className="whitespace-pre-wrap break-words text-foreground" dir={direction} style={contentStyle}>
+                          {renderSacredInline(original)}
+                        </p>
+                      )}>
                       <p className="whitespace-pre-wrap break-words text-foreground" dir={direction} style={contentStyle}>
                         {renderSacredInline(chunk.content)}
                       </p>
@@ -820,7 +846,19 @@ export function SacredTextReader({
                         />
                       </div>
                     ) : editionLayout === "digha" ? (
-                      <ProgressiveSourcePassage content={chunk.content} style={contentStyle} label={chunk.label}>
+                      <ProgressiveSourcePassage key={language + ":" + chunk.chunkIndex}
+                          content={chunk.content} style={contentStyle} label={chunk.label}
+                          fullContentLength={chunk.fullContentLength}
+                          loadFullContent={chunk.fullContentLength ? () => loadExactFullSource(chunk.chunkIndex) : undefined}
+                          renderFullContent={(original) => (
+                            <BilaraDiscourse
+                              content={original}
+                              ranges={section.sourceSegments}
+                              data={dnSource}
+                              style={contentStyle}
+                              language={language}
+                            />
+                          )}>
                         <BilaraDiscourse
                           content={chunk.content}
                           ranges={section.sourceSegments}
