@@ -1,4 +1,5 @@
 import { matchCanonicalReferenceNodes } from "@/lib/sacred-reference-pairing";
+import { canCompareByCanonicalReference } from "@/lib/sacred-bible-alignment";
 import type {
   SacredReaderSection,
   ScriptureReferenceEntry,
@@ -437,21 +438,18 @@ export async function getSacredReaderSection(params: {
 }
 
 /**
- * Exact source-reference comparison for Matthew's non-positionally aligned
+ * Exact source-reference comparison for verified Greek-English Bible editions, including non-positionally aligned
  * Greek and English published editions. Only a matched imported node key AND
- * canonical_ref is accepted. The three English-only verses do not acquire
- * invented Greek text. No scripture records are updated.
+ * canonical_ref is accepted. English-only verses never acquire invented
+ * Greek text. No scripture records are updated.
  */
-export async function getMatthewReferenceMatchedSection(params: {
+export async function getBibleReferenceMatchedSection(params: {
   bookId: string;
   fromLanguage: string;
   toLanguage: string;
   chunkIndices: number[];
 }): Promise<SacredReaderSection | null> {
-  if (params.bookId !== "7bc812fd-6a4d-544e-903f-b2e333a5cc4f" ||
-      params.fromLanguage === params.toLanguage ||
-      !["Greek", "English"].includes(params.fromLanguage) ||
-      !["Greek", "English"].includes(params.toLanguage)) return null;
+  if (!canCompareByCanonicalReference(params.bookId, params.fromLanguage, params.toLanguage)) return null;
   const db = await admin();
   const { data: book, error: bookError } = await db.from("books")
     .select("id,status,content_classification,source_version,available_languages")
