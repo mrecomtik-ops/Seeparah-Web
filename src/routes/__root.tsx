@@ -149,7 +149,7 @@ function RootComponent() {
           bare page, before ever navigating to an admin route. */}
       <AdminSessionSync />
       {!bare && (
-        <a href="#main-content" className="sr-only fixed left-3 top-3 z-[100] rounded-lg bg-primary px-4 py-3 font-semibold text-primary-foreground focus:not-sr-only">
+        <a href="#main-content" className="sr-only fixed left-3 top-3 z-[100] rounded-lg bg-primary px-4 py-3 font-semibold text-primary-foreground focus:not-sr-only focus:inline-flex focus:min-h-11 focus:items-center">
           Skip to main content
         </a>
       )}
