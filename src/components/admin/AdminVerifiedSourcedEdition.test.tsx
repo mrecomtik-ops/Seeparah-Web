@@ -26,8 +26,10 @@ describe("SP-36 sourced religious importer presentation", () => {
     expect(screen.getByRole("option", { name: /Verified human translation/ })).toBeTruthy();
     expect(screen.getByRole("option", { name: /Licensed translation/ })).toBeTruthy();
     expect(screen.getByRole("option", { name: /Public-domain translation/ })).toBeTruthy();
-    expect(screen.queryByRole("option", { name: /Urdu/ })).toBeNull();
-    expect(screen.getByRole("option", { name: /English/ })).toBeTruthy();
+    const language = document.querySelector("select") as HTMLSelectElement;
+    const languageValues = [...language.options].map((option) => option.value);
+    expect(languageValues).not.toContain("Urdu"); // existing sourced edition
+    expect(languageValues).toContain("English");
   });
   it("hides source-import controls for non-religious works or insufficient capability", () => {
     render(<AdminVerifiedSourcedEdition {...base} canManageTranslations={false} />);
