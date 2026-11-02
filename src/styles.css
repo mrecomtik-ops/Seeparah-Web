@@ -467,8 +467,8 @@ body.reader-sepia {
 
 .reader-v3-icon,
 .reader-v3-icon-label {
-  height: 34px;
-  min-width: 34px;
+  height: 44px;
+  min-width: 44px;
   border: 1px solid var(--color-border);
   border-radius: 0.5rem;
   background: var(--color-card);
@@ -484,7 +484,7 @@ body.reader-sepia {
 
 .reader-v3-language {
   max-width: 8rem;
-  height: 34px;
+  height: 44px;
   border: 1px solid var(--color-border);
   border-radius: 0.5rem;
   background: var(--color-card);
@@ -954,9 +954,11 @@ body.reader-sepia {
 
 @media (max-width: 639px) {
   .reader-v3-icon-label {
-    min-width: 32px;
-    width: 32px;
-    height: 32px;
+    /* Do not shrink the Back-to-library hit area below 44px; the
+       earlier mobile rule was unintentionally overridden here. */
+    min-width: 44px;
+    width: 44px;
+    height: 44px;
     padding: 0;
   }
 }
