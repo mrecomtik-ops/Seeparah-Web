@@ -14,6 +14,7 @@ interface MockChain {
   update(payload: unknown): MockChain;
   delete(): MockChain;
   eq(...args: unknown[]): MockChain;
+  in(...args: unknown[]): MockChain;
   single(): Promise<ScriptEntry>;
   maybeSingle(): Promise<ScriptEntry>;
   then<T>(resolve: (value: ScriptEntry) => T, reject: (error: unknown) => T): Promise<T>;
@@ -29,6 +30,8 @@ function makeMockSupabase(script: ScriptEntry[]) {
   };
   const updateSpy = vi.fn();
   const deleteSpy = vi.fn();
+  const inSpy = vi.fn();
+  const eqSpy = vi.fn();
   const fromSpy = vi.fn();
 
   function chain(): MockChain {
@@ -42,7 +45,8 @@ function makeMockSupabase(script: ScriptEntry[]) {
         deleteSpy();
         return builder;
       },
-      eq: () => builder,
+      eq: (...args: unknown[]) => { eqSpy(...args); return builder; },
+      in: (...args: unknown[]) => { inSpy(...args); return builder; },
       single: async () => next(),
       maybeSingle: async () => next(),
       then: (resolve, reject) => Promise.resolve(next()).then(resolve, reject),
@@ -59,6 +63,8 @@ function makeMockSupabase(script: ScriptEntry[]) {
     },
     updateSpy,
     deleteSpy,
+    inSpy,
+    eqSpy,
     fromSpy,
   };
 }
@@ -250,12 +256,26 @@ describe("deleteBookPermanently", () => {
       { count: 0, error: null },
       { count: 1, error: null }, // one related support ticket
       { data: null, error: null }, // detach update
-      { data: null, error: null }, // delete
+      { data: [{ id: "book-1" }], error: null }, // delete
     ]);
     const result = await deleteBookPermanently({ bookId: "book-1" });
     expect(result.impact.relatedSupportTicketCount).toBe(1);
     expect(mock.updateSpy).toHaveBeenCalledWith({ related_book_id: null });
     expect(mock.deleteSpy).toHaveBeenCalled();
+    expect(mock.inSpy).toHaveBeenCalledWith("status", ["archived", "unpublished"]);
+    expect(mock.eqSpy).toHaveBeenCalledWith("title", "Archived Book");
+  });
+
+  it("refuses a permanent delete when the title/status changed during review", async () => {
+    mock = makeMockSupabase([
+      { data: { title: "Archived Book", status: "archived" }, error: null },
+      ...Array.from({ length: 10 }, () => ({ count: 0, error: null })),
+      { data: [], error: null }, // no final DELETE row matched the unchanged preconditions
+    ]);
+    await expect(deleteBookPermanently({ bookId: "book-1" }))
+      .rejects.toThrow(/changed while deletion was pending/);
+    expect(mock.inSpy).toHaveBeenCalledWith("status", ["archived", "unpublished"]);
+    expect(mock.eqSpy).toHaveBeenCalledWith("title", "Archived Book");
   });
 
   it("skips the detach step and deletes directly when no support tickets reference the book", async () => {
@@ -271,7 +291,7 @@ describe("deleteBookPermanently", () => {
       { count: 0, error: null },
       { count: 0, error: null },
       { count: 0, error: null }, // zero related support tickets
-      { data: null, error: null }, // delete
+      { data: [{ id: "book-1" }], error: null }, // verified one-row delete
     ]);
     await deleteBookPermanently({ bookId: "book-1" });
     expect(mock.updateSpy).not.toHaveBeenCalled();
