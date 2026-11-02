@@ -2205,8 +2205,20 @@ export async function deleteBookPermanently(params: {
       throw new Error(`Couldn't detach related support tickets: ${detachError.message}`);
     }
   }
-  const { error } = await db.from("books").delete().eq("id", params.bookId);
+  // Re-check the destructive preconditions *in the final DELETE query*.
+  // A previously archived book can be re-published or renamed while an
+  // owner is reviewing the impact modal. A stale preflight check must
+  // never delete the newly published or newly named record.
+  const { data: deleted, error } = await db.from("books")
+    .delete()
+    .eq("id", params.bookId)
+    .eq("title", impact.title)
+    .in("status", ["archived", "unpublished"])
+    .select("id");
   if (error) throw new Error(error.message);
+  if (!deleted || deleted.length !== 1) {
+    throw new Error("Book changed while deletion was pending. No book was deleted; refresh the impact review and try again.");
+  }
   return { impact };
 }
 
