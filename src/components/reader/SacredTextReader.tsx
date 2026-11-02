@@ -14,7 +14,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ShelfButtons } from "@/components/ShelfButtons";
 import { ProgressiveSourcePassage } from "@/components/reader/ProgressiveSourcePassage";
-import { getSacredReaderSection, getSacredTextReferenceIndex, getMatthewReferenceMatchedSection } from "@/lib/scripture.functions";
+import { getSacredReaderSection, getSacredTextReferenceIndex, getBibleReferenceMatchedSection } from "@/lib/scripture.functions";
 import { getPublicBookEditions } from "@/lib/translation.functions";
 import { saveProgress } from "@/lib/library";
 import { RTL_LANGUAGES, type Book } from "@/lib/data";
@@ -158,7 +158,7 @@ export function SacredTextReader({
   const comparisonQuery = useQuery({
     queryKey: ["sacred-compare-section", book.id, language, compareLanguage, chunkIndex],
     queryFn: () => canonicalComparison
-      ? getMatthewReferenceMatchedSection({
+      ? getBibleReferenceMatchedSection({
           data: {
             bookId: book.id,
             fromLanguage: language as "Greek" | "English",
