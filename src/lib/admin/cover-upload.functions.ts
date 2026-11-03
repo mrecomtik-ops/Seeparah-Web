@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/admin/require-admin.server";
 import { recordAudit } from "@/lib/admin/audit.server";
-import { verifyStagedCoverProvenance } from "@/lib/admin/cover-provenance";
+import { verifyStagedCoverProvenance, requireVerifiedSourceEditionId } from "@/lib/admin/cover-provenance";
 
 const MAX_IMAGE_BYTES = 3 * 1024 * 1024;
 const MAX_BASE64_CHARS = Math.ceil(MAX_IMAGE_BYTES / 3) * 4;
@@ -54,6 +54,10 @@ export const adminUploadBookCover = createServerFn({ method: "POST" })
     if (editionError) throw new Error(editionError.message);
     if (!edition) throw new Error("No verified source-edition record exists in that language.");
 
+    // A language row without a source identifier is not a verified edition.
+    // Never use the old "unrecorded" placeholder as authoritative provenance.
+    const sourceEditionId = requireVerifiedSourceEditionId(edition.source_edition_id);
+
     const bytes = new Uint8Array(Buffer.from(data.fileBase64, "base64"));
     if (bytes.length === 0 || bytes.length > MAX_IMAGE_BYTES || !validSignature(bytes, data.mimeType))
       throw new Error("Upload must be a valid PNG, JPEG or WebP image of at most 3 MB.");
@@ -61,7 +65,7 @@ export const adminUploadBookCover = createServerFn({ method: "POST" })
     const extension = data.mimeType === "image/png" ? "png" :
       data.mimeType === "image/webp" ? "webp" : "jpg";
     const path = `editorial/${data.bookId}/${encodeURIComponent(data.language)}/${crypto.randomUUID()}.${extension}`;
-    const sourceEditionId = edition.source_edition_id || "unrecorded";
+
     const { error } = await supabaseAdmin.storage.from("book-covers").upload(path, bytes, {
       contentType: data.mimeType,
       upsert: false,
@@ -127,6 +131,7 @@ export const adminAssignBookEditionCover = createServerFn({ method: "POST" })
       .maybeSingle();
     if (editionError) throw new Error(editionError.message);
     if (!edition) throw new Error("That language does not have a verified edition.");
+    const sourceEditionId = requireVerifiedSourceEditionId(edition.source_edition_id);
 
     const { data: objectInfo, error: objectError } = await supabaseAdmin.storage
       .from("book-covers").info(data.path);
@@ -137,7 +142,7 @@ export const adminAssignBookEditionCover = createServerFn({ method: "POST" })
     // stale or tampered assignment before touching the edition record.
     verifyStagedCoverProvenance(objectInfo.metadata as Record<string, unknown> | undefined, {
       language: data.language,
-      sourceEditionId: edition.source_edition_id || "unrecorded",
+      sourceEditionId,
       attribution: data.attribution,
       sharedArtwork: data.sharedArtwork,
     });
