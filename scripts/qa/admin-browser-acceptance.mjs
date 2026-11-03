@@ -48,10 +48,10 @@ async function runEngine(engine, browserType) {
     // the production-shipped components; no actual server deletion.
     await page.getByTestId("role-support").click();
     await assertCount(page.getByRole("button", { name: "Delete permanently" }), 0);
-    await assertCount(page.getByRole("button", { name: "Edit" }), 0);
+    await assertCount(page.getByRole("button", { name: "Edit", exact: true }), 0);
     await page.getByTestId("role-editor").click();
     await assertCount(page.getByRole("button", { name: "Delete permanently" }), 0);
-    await assertCount(page.getByRole("button", { name: "Edit" }), 1);
+    await assertCount(page.getByRole("button", { name: "Edit", exact: true }), 1);
     await page.getByTestId("role-owner").click();
     await page.getByTestId("status-published").click();
     await assertCount(page.getByRole("button", { name: "Delete permanently" }), 0);
@@ -74,7 +74,7 @@ async function runEngine(engine, browserType) {
     // stage is separate from explicit same-edition assign, with
     // exact language/source ID and attribution locked in the fixture.
     await page.getByTestId("role-editor").click();
-    await page.getByRole("button", { name: "Edit" }).click();
+    await page.getByRole("button", { name: "Edit", exact: true }).click();
     const metadataDialog = page.getByRole("dialog", { name: "Edit metadata" });
     await metadataDialog.waitFor();
     await metadataDialog.getByLabel("Target verified source edition").selectOption("Urdu");
