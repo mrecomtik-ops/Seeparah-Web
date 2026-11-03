@@ -65,9 +65,14 @@ assert.match(gate,/auth\.getClaims\(accessToken\)/);
 assert.match(gate,/\.from\("admin_users"\)/);
 assert.match(gate,/aal\s*!==\s*"aal2"/);
 assert.match(gate,/roleHasCapability\(role, capability\)/);
-const deleteServer=src("src/lib/admin/catalog.server.ts");
-assert.ok(deleteServer.includes('"catalog.delete_permanent"'),
-    "permanent deletion lost capability verification");
+const deleteEntrypoint=src("src/lib/admin/catalog.functions.ts");
+// Source repository helper is deliberately authority-free: the exposed
+// server function checks the role/MFA before invoking it.
+const destructive=deleteEntrypoint.slice(deleteEntrypoint.indexOf("export const adminDeleteBookPermanently"));
+assert.ok(destructive.includes('requireAdmin(data.accessToken, "catalog.delete_permanent")'),
+    "permanent delete endpoint lost authenticated AAL2/capability verification");
+assert.ok(destructive.includes("data.confirmTitle.trim() !== impact.title"),
+    "server-side exact-title confirmation was removed");
 for(const p of [
 "src/components/reader/BookReaderPhysicalPage.test.tsx",
 "src/components/reader/BookReaderFrontMatterPage.test.tsx",
