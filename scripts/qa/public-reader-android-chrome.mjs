@@ -24,6 +24,51 @@ async function connectCDP(){
   }
   throw new Error("Android Chrome DevTools was unavailable over adb localabstract socket");
 }
+/** Dismiss Google Chrome's disposable emulator FirstRunActivity, never
+ * authenticating or accepting any Seeparah data changes. */
+async function dismissChromeFirstRun(){
+  const preferences=[
+    /use without an account/i,
+    /continue without/i,
+    /accept\s*(?:&amp;|&|and)\s*continue/i,
+    /agree and continue/i,
+    /no thanks/i,
+    /not now/i,
+    /skip/i,
+    /^continue$/i,
+    /^next$/i,
+    /got it/i,
+  ];
+  for(let attempt=0;attempt<9;attempt++){
+    const activity=adb("shell","dumpsys","activity","activities").split("\n")
+      .find(x=>x.includes("topResumedActivity="))||"";
+    if(!activity.includes("FirstRunActivity"))return;
+    const target="/sdcard/chrome-first-run.xml";
+    adb("shell","uiautomator","dump",target);
+    const xml=adb("shell","cat",target);
+    const nodes=[...xml.matchAll(/<node\s+[^>]+>/g)].map(([markup])=>{
+      const text=markup.match(/text="([^"]*)"/)?.[1]||"";
+      const description=markup.match(/content-desc="([^"]*)"/)?.[1]||"";
+      const bounds=markup.match(/bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/);
+      return {label:text+" "+description,bounds};
+    });
+    console.log("ANDROID_CHROME_ONBOARDING "+JSON.stringify(nodes.map(n=>n.label.trim())
+      .filter(Boolean).slice(0,25)));
+    let choice;
+    for(const pattern of preferences){
+      choice=nodes.find(n=>pattern.test(n.label)&&n.bounds);
+      if(choice)break;
+    }
+    if(!choice?.bounds)throw new Error("Chrome first-run buttons could not be identified: "+xml.slice(0,3000));
+    const b=choice.bounds;
+    const x=Math.round((Number(b[1])+Number(b[3]))/2);
+    const y=Math.round((Number(b[2])+Number(b[4]))/2);
+    adb("shell","input","tap",String(x),String(y));
+    await sleep(1700);
+  }
+  throw new Error("Chrome first-run did not complete after 9 accessibility-guided steps");
+}
+
 const metrics=[];
 let browser;
 try{
@@ -37,6 +82,7 @@ try{
   // must be quoted or Android treats it as shell background syntax.
   adb("shell","am","start","-a","android.intent.action.VIEW","-d",`'${first}'`,"-p","com.android.chrome");
   // Android Chrome's native debugging socket, not a desktop Chrome binary.
+  await dismissChromeFirstRun();
   adb("forward","tcp:9222","localabstract:chrome_devtools_remote");
   // Diagnose Chrome's first-run screen and available debugger sockets. This
   // only reads the disposable emulator, never a production account.
