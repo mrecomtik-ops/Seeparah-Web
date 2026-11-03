@@ -1,0 +1,30 @@
+name: Native iOS Mobile Safari simulator evidence
+on:
+  pull_request:
+    paths:
+      - "scripts/qa/public-reader-ios-simulator.mjs"
+      - "scripts/qa/ios-screenshot-metrics.swift"
+      - ".github/workflows/public-reader-ios-simulator.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native-ios-safari:
+    runs-on: macos-15
+    timeout-minutes: 28
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Native Mobile Safari on iPhone 16 Simulator, source editions only
+        run: node scripts/qa/public-reader-ios-simulator.mjs
+        env:
+          SEE_PARAH_QA_URL: https://seeparah.com
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-safari-original-language-evidence
+          path: artifacts/ios-simulator/
+          if-no-files-found: warn
+          retention-days: 14

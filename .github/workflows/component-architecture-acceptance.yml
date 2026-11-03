@@ -1,0 +1,21 @@
+name: SP-36 architecture acceptance gate
+on:
+  pull_request:
+    paths:
+      - "scripts/qa/component-architecture-acceptance.mjs"
+      - ".github/workflows/component-architecture-acceptance.yml"
+      - "src/components/reader/**"
+      - "src/components/admin/**"
+      - "src/routes/admin/books/**"
+      - "src/lib/admin/require-admin.server.ts"
+      - "src/lib/admin/catalog.server.ts"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  modularity:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify module budgets, source immutability, test coverage and privileged server boundary
+        run: node scripts/qa/component-architecture-acceptance.mjs
