@@ -1,4 +1,3 @@
-import { languageToBcp47 } from "@/lib/languages";
 import { Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -25,17 +24,16 @@ import {
   buildReaderChapters,
   findReaderChapterByChunk,
 } from "@/lib/reader-book-layout";
-import { BookReaderChapterContent } from "@/components/reader/BookReaderChapterContent";
 import { BookReaderSettings } from "@/components/reader/BookReaderSettings";
 import { BookReaderTopbar } from "@/components/reader/BookReaderTopbar";
 import { BookReaderBottomBar } from "@/components/reader/BookReaderBottomBar";
 import { BookReaderFinishDialog } from "@/components/reader/BookReaderFinishDialog";
-import { FrontMatterPage } from "@/components/reader/BookReaderFrontMatterPage";
+import { BookReaderPhysicalPage, type PhysicalPageOptions } from "@/components/reader/BookReaderPhysicalPage";
 import { findReaderSourceAnchor } from "@/lib/reader-position-anchor";
 import {
   clamp, buildLogicalBookPages, toRoman, scriptureFontFamily, splitSummary,
   findTextAnchor, textOffsetWithinAnchor, textBoundaryAt, pageForBoundary,
-  type FrontPage, type ReaderPosition, type LogicalBookPage,
+  type FrontPage, type ReaderPosition,
 } from "@/lib/reader-v3-helpers";
 import { formatAuthorName } from "@/lib/author-name";
 import { displayTitleCase } from "@/lib/display-text";
@@ -43,7 +41,6 @@ import { getPrefs, setPrefs, type ReaderTheme, type ReaderFontFamily, type Reade
 import { useAuth } from "@/lib/use-auth";
 import {
   REQUESTABLE_TRANSLATION_LANGUAGES,
-  RTL_LANGUAGES,
   type Book,
   type Highlight,
 } from "@/lib/data";
@@ -992,135 +989,18 @@ export function BookReaderV3({
     bodyPageCount % 2 === 0 &&
     bodyPage >= bodyPageCount;
 
-  const renderPhysicalPage = (options: {
-    logicalIndex?: number;
-    frontPageIndex?: number;
-    side: "left" | "right" | "single";
-    master?: boolean;
-  }) => {
-    const frontPageIndex = options.frontPageIndex;
-    const frontPage =
-      frontPageIndex != null && frontPageIndex >= 0 && frontPageIndex < frontPages.length
-        ? frontPages[frontPageIndex]
-        : null;
-    const logicalIndex = options.logicalIndex;
-    const logicalPage =
-      logicalIndex != null && logicalIndex >= 0 && logicalIndex < logicalPages.length
-        ? logicalPages[logicalIndex]
-        : null;
-    const rawPage = frontPage ? 0 : (logicalPage?.rawPage ?? null);
-    const blank = !frontPage && rawPage == null;
-    const chapterIndex =
-      logicalIndex != null && !blank ? chapterIndexForLogicalPage(logicalIndex) : 0;
-    const chapter = chapters[chapterIndex];
-    const chapterOpening =
-      logicalIndex != null && !blank && chapterStartPages[chapterIndex] === logicalIndex;
-    const runningHeadText =
-      options.side === "left" && spreadMode
-        ? displayBookTitle
-        : (chapter?.title ?? displayBookTitle);
-    const pageClass =
-      "reader-v3-page reader-v3-page-" +
-      options.side +
-      " reader-v3-page-turn-" +
-      (turning ?? "idle") +
-      (blank ? " reader-v3-page-blank" : "");
-
-    if (blank) {
-      return (
-        <article
-          className={pageClass}
-          style={{ width: pageSize.width, height: pageSize.height, padding: pagePadding }}
-          aria-hidden="true"
-        />
-      );
-    }
-
-    return (
-      <article
-        className={pageClass}
-        style={{
-          width: pageSize.width,
-          height: pageSize.height,
-          padding: pagePadding,
-          fontFamily: scriptureFontFamily(language),
-        }}
-        lang={languageToBcp47(language)}
-        dir={RTL_LANGUAGES.has(language) ? "rtl" : "ltr"}
-        data-book-page={logicalIndex != null ? logicalIndex + 1 : undefined}
-        data-front-page={frontPageIndex != null ? frontPageIndex + 1 : undefined}
-      >
-        <div
-          className={"reader-v3-body-layer " + (frontPage ? "reader-v3-body-layer-hidden" : "")}
-          aria-hidden={frontPage ? true : undefined}
-        >
-          <div
-            className={
-              "reader-v3-running-head " +
-              (chapterOpening ? "reader-v3-running-head-hidden " : "") +
-              (spreadMode
-                ? "reader-v3-running-head-" + options.side
-                : "reader-v3-running-head-single")
-            }
-            style={{ height: runningHeadHeight, marginBottom: runningHeadGap }}
-          >
-            <span>{runningHeadText}</span>
-          </div>
-          <div
-            ref={options.master ? viewportRef : undefined}
-            className="reader-v3-content-viewport"
-            style={{ height: bodyGridHeight, flex: "0 0 auto" }}
-          >
-            <div
-              ref={options.master ? flowRef : undefined}
-              data-reader-master={options.master ? "true" : undefined}
-              data-reader-visible-raw-page={rawPage ?? undefined}
-              className="reader-v3-flow"
-              style={{
-                width: contentSize.width,
-                height: bodyGridHeight,
-                columnWidth: contentSize.width,
-                columnGap: PHYSICAL_PAGE_GUTTER,
-                columnFill: "auto",
-                transform: "translate3d(" + String(-(rawPage ?? 0) * pageStride) + "px,0,0)",
-                fontSize: readerFontSize + "px",
-                lineHeight: lineHeightPx + "px",
-                fontFamily: selectedFontStack,
-              }}
-            >
-              {chapters.map((readerChapter, chapterNumber) => (
-                <BookReaderChapterContent
-                  key={readerChapter.key}
-                  chapter={readerChapter}
-                  chapterIndex={chapterNumber}
-                  highlights={highlights}
-                />
-              ))}
-            </div>
-          </div>
-          <div
-            className={
-              "reader-v3-page-number " + (chapterOpening ? "reader-v3-page-number-hidden" : "")
-            }
-            style={{ height: folioHeight, minHeight: folioHeight }}
-          >
-            {logicalIndex != null ? logicalIndex + 1 : ""}
-          </div>
-        </div>
-        {frontPage && (
-          <div className="reader-v3-front-overlay" style={{ padding: pagePadding }}>
-            <FrontMatterPage
-              page={frontPage}
-              frontNumber={toRoman((frontPageIndex ?? 0) + 1)}
-              book={book}
-              displayBookTitle={displayBookTitle}
-              onChapter={jumpToChapter}
-            />
-          </div>
-        )}
-      </article>
-    );
+  const physicalPageModel = {
+    book, frontPages, logicalPages, chapterStartPages, chapters, highlights,
+    chapterIndexForLogicalPage, onChapterJump: jumpToChapter, spreadMode,
+    displayBookTitle, turning, pageSize, pagePadding, language,
+    viewportRef, flowRef, bodyGridHeight, contentSize,
+    physicalPageGutter: PHYSICAL_PAGE_GUTTER, pageStride,
+    readerFontSize, lineHeightPx, selectedFontStack,
+    runningHeadHeight, runningHeadGap, folioHeight,
   };
+  const renderPhysicalPage = (options: PhysicalPageOptions) => (
+    <BookReaderPhysicalPage options={options} model={physicalPageModel} />
+  );
 
   if (payloadQuery.isLoading) {
     const loadingPageStyle = {
