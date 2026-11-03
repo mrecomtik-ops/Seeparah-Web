@@ -1,0 +1,26 @@
+name: Public reader native macOS Safari language and RTL QA
+on:
+  pull_request:
+    paths:
+      - "scripts/qa/public-reader-macos-safari.mjs"
+      - ".github/workflows/public-reader-macos-safari.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native-safari:
+    runs-on: macos-15
+    timeout-minutes: 22
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Enable Apple's bundled native Safari WebDriver
+        run: |
+          /usr/bin/safaridriver --version
+          sudo /usr/bin/safaridriver --enable
+      - name: Test exact published source languages and RTL in genuine desktop Safari
+        run: node scripts/qa/public-reader-macos-safari.mjs
+        env:
+          SEE_PARAH_QA_URL: https://seeparah.com
