@@ -38,6 +38,17 @@ try{
   adb("shell","am","start","-a","android.intent.action.VIEW","-d",`'${first}'`,"-p","com.android.chrome");
   // Android Chrome's native debugging socket, not a desktop Chrome binary.
   adb("forward","tcp:9222","localabstract:chrome_devtools_remote");
+  // Diagnose Chrome's first-run screen and available debugger sockets. This
+  // only reads the disposable emulator, never a production account.
+  await sleep(2500);
+  try {
+    const sockets=adb("shell","cat","/proc/net/unix").split("\n")
+      .filter(x=>/chrome|devtools|webview/i.test(x)).slice(0,20);
+    console.log("ANDROID_DEVTOOLS_SOCKETS "+JSON.stringify(sockets));
+    console.log("ANDROID_RUNNING_APP "+
+      adb("shell","dumpsys","activity","activities").split("\n")
+        .filter(x=>/mResumed|topResumed|com.android.chrome/.test(x)).slice(0,6).join(" | "));
+  } catch(e){ console.log("ANDROID_DIAGNOSTIC_UNAVAILABLE "+String(e).slice(0,250)); }
   browser=await connectCDP();
   const context=browser.contexts()[0];
   assert.ok(context,"No Android Chrome browser context");
