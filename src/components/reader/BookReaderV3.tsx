@@ -33,6 +33,7 @@ import {
 import { BookReaderChapterContent } from "@/components/reader/BookReaderChapterContent";
 import { BookReaderSettings } from "@/components/reader/BookReaderSettings";
 import { BookReaderTopbar } from "@/components/reader/BookReaderTopbar";
+import { BookReaderBottomBar } from "@/components/reader/BookReaderBottomBar";
 import { FrontMatterPage } from "@/components/reader/BookReaderFrontMatterPage";
 import { findReaderSourceAnchor } from "@/lib/reader-position-anchor";
 import {
@@ -1288,24 +1289,14 @@ export function BookReaderV3({
         </div>
       </main>
 
-      <footer className="reader-v3-bottombar">
-        <button
-          onClick={() => goBodyPage(-1)}
-          disabled={atBeginning}
-          className="reader-v3-nav-button"
-        >
-          <ChevronLeft className="h-4 w-4" />
-          Previous
-        </button>
-        <div className="text-xs font-medium text-muted-foreground">{pageLabel}</div>
-        <button
-          onClick={() => (atEnd ? setFinishOpen(true) : goBodyPage(1))}
-          className="reader-v3-nav-button reader-v3-next"
-        >
-          {atEnd ? "Finish" : "Next"}
-          <ChevronRight className="h-4 w-4" />
-        </button>
-      </footer>
+      <BookReaderBottomBar
+        atBeginning={atBeginning}
+        atEnd={atEnd}
+        pageLabel={pageLabel}
+        onPrevious={() => goBodyPage(-1)}
+        onNext={() => goBodyPage(1)}
+        onFinish={() => setFinishOpen(true)}
+      />
 
       {finishOpen && (
         <div className="reader-v3-settings-backdrop" onMouseDown={() => setFinishOpen(false)}>
