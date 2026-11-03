@@ -154,7 +154,7 @@ try {
   console.log("SEE_PARAH_ISOLATED_BROWSER_QA " + JSON.stringify({ status: "passed", results }));
 } catch (error) {
   console.error("SEE_PARAH_ISOLATED_BROWSER_QA " + JSON.stringify({
-    status: "failed", error: String(error), serverLog: serverLog.slice(-2500),
+    status: "failed", error: error?.stack || String(error), serverLog: serverLog.slice(-2500),
   }));
   process.exitCode = 1;
 } finally {
