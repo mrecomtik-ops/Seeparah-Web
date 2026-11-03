@@ -10,7 +10,7 @@ import assert from "node:assert/strict";
 const src=(p)=>readFileSync(p,"utf8");
 const cases=[
   {path:"src/components/reader/BookReaderV3.tsx",budget:1250,
-   children:["BookReaderSettings","BookReaderTopbar","BookReaderBottomBar","BookReaderFinishDialog","BookReaderPhysicalPage","BookReaderFrontMatterPage"]},
+   children:["BookReaderSettings","BookReaderTopbar","BookReaderBottomBar","BookReaderFinishDialog","BookReaderPhysicalPage"]},
   {path:"src/routes/admin/books/$bookId.tsx",budget:1000,
    children:["AdminBookHeaderActions","AdminBookReviewPanels","AdminBookRightsDialog","AdminBookMetadataDialog","AdminBookDestructiveDialogs","AdminBookSourceEditPanel","AdminBookReviewPreview","AdminBookOrganizer","AdminBookPublishingChecklist"]},
 ];
@@ -28,6 +28,10 @@ for(const item of cases){
   }
   evidence.push({module:item.path,lines,budget:item.budget,delegations:item.children.length});
 }
+assert.ok(src("src/components/reader/BookReaderPhysicalPage.tsx").includes("FrontMatterPage"),
+  "Physical page no longer delegates front matter");
+assert.ok(existsSync("src/components/reader/BookReaderFrontMatterPage.tsx"),
+  "Book mode front matter component is missing");
 // Reader presentational layers never write source or own persistent book state.
 const readerSurfaces=[
 "src/components/reader/BookReaderPhysicalPage.tsx",
