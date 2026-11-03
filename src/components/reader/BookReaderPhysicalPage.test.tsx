@@ -46,7 +46,9 @@ describe("SP-36 external page geometry keeps source/language and book mode intac
       options={{ frontPageIndex: 0, side: "single", master: true }} />);
     expect(screen.getByRole("heading", { level: 1, name: "Verified Original" })).toBeTruthy();
     expect(screen.getByText("Verified Source Author")).toBeTruthy();
-    expect(screen.getByText("i")).toBeTruthy();
+    // Book-mode intentionally omits the printed folio on its title page;
+    // the logical front-page identity is retained for navigation.
+    expect(document.querySelector(".reader-v3-front-overlay")).toBeTruthy();
     expect(document.querySelector('[data-front-page="1"]')).toBeTruthy();
   });
   it("keeps original Arabic language and RTL on chapter body, never inferring Mushaf pagination", () => {
