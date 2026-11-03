@@ -25,6 +25,15 @@ async function waitForServer() {
   }
   throw new Error("Fixture server did not start: " + serverLog);
 }
+async function assertCount(locator, expected) {
+  // React 19 commits event-driven changes asynchronously. A bare count()
+  // immediately after the click may inspect the DOM before React commits.
+  for (let i = 0; i < 70; i++) {
+    if ((await locator.count()) === expected) return;
+    await sleep(50);
+  }
+  assert.equal(await locator.count(), expected);
+}
 async function runEngine(engine, browserType) {
   const browser = await browserType.launch({ headless: true });
   try {
@@ -38,14 +47,14 @@ async function runEngine(engine, browserType) {
     // SP-04: real browser event, focus and exact-title safeguards on
     // the production-shipped components; no actual server deletion.
     await page.getByTestId("role-support").click();
-    assert.equal(await page.getByRole("button", { name: "Delete permanently" }).count(), 0);
-    assert.equal(await page.getByRole("button", { name: "Edit" }).count(), 0);
+    await assertCount(page.getByRole("button", { name: "Delete permanently" }), 0);
+    await assertCount(page.getByRole("button", { name: "Edit" }), 0);
     await page.getByTestId("role-editor").click();
-    assert.equal(await page.getByRole("button", { name: "Delete permanently" }).count(), 0);
-    assert.equal(await page.getByRole("button", { name: "Edit" }).count(), 1);
+    await assertCount(page.getByRole("button", { name: "Delete permanently" }), 0);
+    await assertCount(page.getByRole("button", { name: "Edit" }), 1);
     await page.getByTestId("role-owner").click();
     await page.getByTestId("status-published").click();
-    assert.equal(await page.getByRole("button", { name: "Delete permanently" }).count(), 0);
+    await assertCount(page.getByRole("button", { name: "Delete permanently" }), 0);
     await page.getByTestId("status-archived").click();
     await page.getByRole("button", { name: "Delete permanently" }).click();
     const permanentDialog = page.getByRole("dialog", { name: /Permanently delete/ });
@@ -59,7 +68,7 @@ async function runEngine(engine, browserType) {
     await dangerousAction.click();
     assert.equal((await page.evaluate(() => window.__qa.snapshot())).events.includes("would-delete:owner"), true);
     await page.getByTestId("role-administrator").click();
-    assert.equal(await page.getByRole("button", { name: "Delete permanently" }).count(), 1);
+    await assertCount(page.getByRole("button", { name: "Delete permanently" }), 1);
 
     // SP-14: real canvas/image decoding, optional 2:3 crop,
     // stage is separate from explicit same-edition assign, with
@@ -87,7 +96,7 @@ async function runEngine(engine, browserType) {
     await page.waitForFunction(() => window.__qa.snapshot().events.includes("stage:Urdu:900x1350"), null, { timeout: 15000 });
     assert.equal((await page.evaluate(() => window.__qa.snapshot())).events.some(x => x.startsWith("assign:")), false);
     await metadataDialog.getByLabel("Target verified source edition").selectOption("English");
-    assert.equal(await metadataDialog.getByRole("button", { name: "Assign to this verified edition" }).count(), 0);
+    await assertCount(metadataDialog.getByRole("button", { name: "Assign to this verified edition" }), 0);
     await metadataDialog.getByLabel("Target verified source edition").selectOption("Urdu");
     await metadataDialog.getByLabel("Upload cover for this source edition").setInputFiles({
       name: "synthetic-edition-qa-cover.png",
