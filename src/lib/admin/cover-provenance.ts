@@ -22,3 +22,12 @@ export function verifyStagedCoverProvenance(
     throw new Error("Staged cover rights or source edition changed. Review and stage the correct edition artwork again.");
   }
 }
+
+/** Never stage or assign an edition-specific cover to an unidentified source.
+ * Preserve every byte of an existing ID; do not "normalize" canonical IDs. */
+export function requireVerifiedSourceEditionId(sourceEditionId: string | null | undefined): string {
+  if (!sourceEditionId || sourceEditionId.trim().length === 0) {
+    throw new Error("The source edition has no verified identifier. Record and review the exact edition before assigning artwork.");
+  }
+  return sourceEditionId;
+}
