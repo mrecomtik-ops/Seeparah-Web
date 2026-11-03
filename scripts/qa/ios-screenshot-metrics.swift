@@ -16,7 +16,7 @@ for path in CommandLine.arguments.dropFirst() {
     let url = URL(fileURLWithPath: path)
     guard let data=try? Data(contentsOf: url),
           let image=NSBitmapImageRep(data: data) else {
-        fputs("Cannot parse native screenshot at \\(path)\n", stderr)
+        fputs("Cannot parse native screenshot at \(path)\n", stderr)
         exit(1)
     }
     let width=image.pixelsWide, height=image.pixelsHigh
