@@ -72,7 +72,7 @@ describe("SP-04/14/36 guarded admin rights and edition reviewer extraction", () 
     view();
     fireEvent.click(screen.getByRole("button", {name:"Approve rights"}));
     await waitFor(() => expect(actions.rights).toHaveBeenCalledTimes(1));
-    expect(actions.rights.mock.calls[0][0]).toEqual({
+    expect(actions.rights.mock.calls[0]![0]).toEqual({
       data:{ accessToken:"synthetic-never-production-token",bookId:"synthetic-book-id",
         decision:"approved",notes:"Human reviewer proof" },
     });
