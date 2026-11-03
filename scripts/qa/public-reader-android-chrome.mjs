@@ -40,9 +40,16 @@ async function dismissChromeFirstRun(){
     /got it/i,
   ];
   for(let attempt=0;attempt<9;attempt++){
-    const activity=adb("shell","dumpsys","activity","activities").split("\n")
-      .find(x=>x.includes("topResumedActivity="))||"";
-    if(!activity.includes("FirstRunActivity"))return;
+    const activityLines=adb("shell","dumpsys","activity","activities").split("\n")
+      .filter(x=>x.includes("topResumedActivity="));
+    console.log("ANDROID_CHROME_TOP_ACTIVITY "+JSON.stringify(activityLines.slice(0,4)));
+    if(!activityLines.some(x=>x.includes("FirstRunActivity"))){
+      // An Android intent can return before its first-run activity resumes.
+      // Only finish the handler after Chrome itself becomes the active app.
+      if(activityLines.some(x=>x.includes("com.android.chrome")))return;
+      await sleep(1400);
+      continue;
+    }
     const target="/sdcard/chrome-first-run.xml";
     adb("shell","uiautomator","dump",target);
     const xml=adb("shell","cat",target);
@@ -82,6 +89,7 @@ try{
   // must be quoted or Android treats it as shell background syntax.
   adb("shell","am","start","-a","android.intent.action.VIEW","-d",`'${first}'`,"-p","com.android.chrome");
   // Android Chrome's native debugging socket, not a desktop Chrome binary.
+  await sleep(2500);
   await dismissChromeFirstRun();
   adb("forward","tcp:9222","localabstract:chrome_devtools_remote");
   // Diagnose Chrome's first-run screen and available debugger sockets. This
