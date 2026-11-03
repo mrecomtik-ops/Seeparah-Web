@@ -132,8 +132,8 @@ export function AdminBookMetadataDialog({
                       {[...new Set([book.source_language, ...book.available_languages])].map((language) => {
                         const edition = editions.find((item) => item.language === language);
                         return (
-                          <option key={language} value={language} disabled={!edition}>
-                            {language} · {edition?.source_edition_id || "No verified edition record"}
+                          <option key={language} value={language} disabled={!edition?.source_edition_id?.trim()}>
+                            {language} · {edition?.source_edition_id || "No verified source-edition ID"}
                           </option>
                         );
                       })}
