@@ -4,7 +4,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 
 const actions = vi.hoisted(() => ({
   token: vi.fn(async () => "synthetic-never-production-token"),
-  rights: vi.fn(async () => ({})),
+  rights: vi.fn(async (_payload: unknown) => ({})),
   edition: vi.fn(async () => ({})),
   quality: vi.fn(async () => ({})),
   acknowledge: vi.fn(async () => ({})),
