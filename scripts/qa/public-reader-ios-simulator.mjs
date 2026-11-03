@@ -48,21 +48,41 @@ try{
   }
   // Visual sampling is confined to Safari's content middle, not status/nav bars.
   // No OCR or inferred reading text: proof of nonblank and changed rendering.
-  const output=execFileSync("swift",["scripts/qa/ios-screenshot-metrics.swift",...results.map(x=>x.screenshot)],{
-    encoding:"utf8",timeout:120000
-  }).trim();
-  const screenshots=JSON.parse(output);
+  function readVisualMetrics() {
+    const output=execFileSync("swift",[
+      "scripts/qa/ios-screenshot-metrics.swift",
+      ...results.map(x=>x.screenshot)
+    ],{encoding:"utf8",timeout:120000}).trim();
+    return JSON.parse(output);
+  }
+  let screenshots=readVisualMetrics();
   if(screenshots.length!==items.length)throw new Error("Screenshot count mismatch");
+  const blank = (m) => m.width<600 || m.height<1100 ||
+    m.quantizedColorCount<12 || m.luminanceRange<65 ||
+    m.darkSampleRatio<0.003;
+  // Native Simulator Safari occasionally starts a tab on a white paint frame
+  // before hydration. Preserve evidence of the initial failure and verify a
+  // full browser reload instead of treating an empty screenshot as success.
+  const firstPassBlank=screenshots.filter(blank).map(m=>m.name);
+  if(firstPassBlank.length) {
+    console.warn("SEE_PARAH_IOS_FIRST_PASS_BLANK "+JSON.stringify(firstPassBlank));
+    for(const name of firstPassBlank){
+      const item=results.find(x=>x.screenshot.endsWith("/"+name));
+      if(!item) throw new Error("Cannot identify blank screenshot: "+name);
+      xcrun("simctl","openurl",chosen.udid,item.url);
+      await sleep(19000);
+      xcrun("simctl","io",chosen.udid,"screenshot","--type=png",item.screenshot);
+    }
+    screenshots=readVisualMetrics();
+  }
   for(const m of screenshots){
-    if(m.width<600||m.height<1100)throw new Error("Unexpected simulator image geometry: "+JSON.stringify(m));
-    if(m.quantizedColorCount<12||m.luminanceRange<65||m.darkSampleRatio<0.003)
-      throw new Error("Mobile Safari's middle content looks blank: "+JSON.stringify(m));
+    if(blank(m)) throw new Error("Mobile Safari page still blank after retry: "+JSON.stringify(m));
   }
   if(new Set(screenshots.map(x=>x.centerDigest)).size<3)
     throw new Error("Five independent original-language pages rendered indistinguishably");
   const evidence={status:"passed",engine:"Apple iOS Mobile Safari (iPhone 16 Simulator)",
     runtime:chosen.runtime,device:chosen.name,
-    screens:screenshots,productionMutations:0,
+    screens:screenshots,initialBlankScreens:firstPassBlank,productionMutations:0,
     limitations:"Simulator screenshots prove original-language pages visibly render; NOT physical iOS hardware, VoiceOver, or glyph-by-glyph validation",
   };
   writeFileSync(out+"/acceptance.json",JSON.stringify(evidence,null,2));
