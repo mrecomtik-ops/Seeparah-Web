@@ -3,12 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
-  ChevronLeft,
-  ChevronRight,
-  Highlighter,
-  List,
   Loader2,
-  Settings2,
 } from "lucide-react";
 import {
   useCallback,
@@ -34,6 +29,7 @@ import { BookReaderChapterContent } from "@/components/reader/BookReaderChapterC
 import { BookReaderSettings } from "@/components/reader/BookReaderSettings";
 import { BookReaderTopbar } from "@/components/reader/BookReaderTopbar";
 import { BookReaderBottomBar } from "@/components/reader/BookReaderBottomBar";
+import { BookReaderFinishDialog } from "@/components/reader/BookReaderFinishDialog";
 import { FrontMatterPage } from "@/components/reader/BookReaderFrontMatterPage";
 import { findReaderSourceAnchor } from "@/lib/reader-position-anchor";
 import {
@@ -1298,39 +1294,7 @@ export function BookReaderV3({
         onFinish={() => setFinishOpen(true)}
       />
 
-      {finishOpen && (
-        <div className="reader-v3-settings-backdrop" onMouseDown={() => setFinishOpen(false)}>
-          <div
-            className="reader-v3-finish-card"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="reader-finish-title"
-            onMouseDown={(event) => event.stopPropagation()}
-          >
-            <div className="text-3xl" aria-hidden="true">
-              ❧
-            </div>
-            <h2 id="reader-finish-title" className="mt-3 font-display text-2xl font-semibold">
-              Finished
-            </h2>
-            <p className="mt-2 text-sm text-muted-foreground">{displayBookTitle}</p>
-            <div className="mt-6 flex justify-center gap-3">
-              <button
-                onClick={() => setFinishOpen(false)}
-                className="rounded-xl border border-border px-4 py-2 text-sm font-semibold"
-              >
-                Keep reading
-              </button>
-              <Link
-                to="/library"
-                className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
-              >
-                Back to library
-              </Link>
-            </div>
-          </div>
-        </div>
-      )}
+      {finishOpen && <BookReaderFinishDialog title={displayBookTitle} onClose={() => setFinishOpen(false)} />}
 
       {settingsOpen && (
         <BookReaderSettings
