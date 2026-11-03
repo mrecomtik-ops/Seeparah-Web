@@ -53,10 +53,10 @@ async function execute(sessionId, script, args=[]){
 async function waitForLanguage(sessionId, code, timeoutMs=60000){
   const started=Date.now();
   while(Date.now()-started<timeoutMs){
-    const state=await execute(sessionId,`return (function(){
-      const e=document.querySelector('[lang="'${arguments[0]}'"]');
+    const state=await execute(sessionId,`
+      const e=document.querySelector('[lang="'+arguments[0]+'"]');
       return e?{length:(e.textContent||'').trim().length,ready:document.fonts.status}:null;
-    })();`,[code]);
+    `,[code]);
     if(state?.length>5&&state.ready==="loaded")return;
     await sleep(900);
   }
