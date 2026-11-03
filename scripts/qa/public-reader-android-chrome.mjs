@@ -92,11 +92,18 @@ try{
   const model=adb("shell","getprop","ro.product.model");
   const android=adb("shell","getprop","ro.build.version.release");
   const first=`${BASE}/read/${qa[0].book}?lang=${qa[0].language}&page=1`;
-  // adb shell concatenates arguments into a shell command: the URL's '&'
-  // must be quoted or Android treats it as shell background syntax.
-  adb("shell","am","start","-a","android.intent.action.VIEW","-d",`'${first}'`,"-p","com.android.chrome");
-  // Android Chrome's native debugging socket, not a desktop Chrome binary.
+  // First-run can be blank on hosted emulators before account services
+  // initialize. Use Chromium's documented disposable test-device flags
+  // rather than touching a Google account or changing production settings.
+  adb("shell","am","set-debug-app","--persistent","com.android.chrome");
+  adb("shell",`echo 'chrome --disable-fre --no-first-run --no-default-browser-check --skip_first_run_ui' > /data/local/tmp/chrome-command-line`);
+  adb("shell","am","force-stop","com.android.chrome");
+  adb("shell","am","start","-n","com.android.chrome/com.google.android.apps.chrome.Main");
   await sleep(2500);
+  // Also pass the Chromium FirstRunFlowSequencer per-intent skip flag.
+  // adb shell re-parses &, so quote the full synthetic public URL.
+  adb("shell","am","start","-a","android.intent.action.VIEW","-d",`'${first}'`,"-p","com.android.chrome","--ez","skip_first_run_experience","true");
+  await sleep(2000);
   await dismissChromeFirstRun();
   adb("forward","tcp:9222","localabstract:chrome_devtools_remote");
   // Diagnose Chrome's first-run screen and available debugger sockets. This
