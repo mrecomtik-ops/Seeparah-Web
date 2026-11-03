@@ -49,7 +49,14 @@ export async function listShelves(userId: string): Promise<ShelfRow[]> {
       // errors without claiming they have synced to the account.
     }
   }
-  return dedupeShelfRows(demoStore.getShelves().filter((s) => s.user_id === userId));
+  try {
+    return dedupeShelfRows(demoStore.getShelves().filter((s) => s.user_id === userId));
+  } catch {
+    // A storage-blocked browser while disconnected cannot read a fallback.
+    // Fail gracefully with an empty shelf, not a broken library screen.
+    // Never synthesize account rows or claim offline changes synced.
+    return [];
+  }
 }
 
 /** After an acknowledged account write, keep the same account's offline fallback
