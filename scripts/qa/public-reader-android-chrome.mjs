@@ -33,7 +33,9 @@ try{
   const model=adb("shell","getprop","ro.product.model");
   const android=adb("shell","getprop","ro.build.version.release");
   const first=`${BASE}/read/${qa[0].book}?lang=${qa[0].language}&page=1`;
-  adb("shell","am","start","-a","android.intent.action.VIEW","-d",first,"-p","com.android.chrome");
+  // adb shell concatenates arguments into a shell command: the URL's '&'
+  // must be quoted or Android treats it as shell background syntax.
+  adb("shell","am","start","-a","android.intent.action.VIEW","-d",`'${first}'`,"-p","com.android.chrome");
   // Android Chrome's native debugging socket, not a desktop Chrome binary.
   adb("forward","tcp:9222","localabstract:chrome_devtools_remote");
   browser=await connectCDP();
