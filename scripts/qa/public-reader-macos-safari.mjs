@@ -66,9 +66,21 @@ const metrics=[];
 let sessionId=null;
 try{
   await waitDriver();
-  const created=await command("POST","/session",{
-    capabilities:{alwaysMatch:{browserName:"safari"}}
-  },90000);
+  // Hosted macOS runners can start Safari slowly on first boot, even after
+  // safaridriver becomes ready. Retry ONLY new-session establishment (no
+  // page checks or acceptance failures are retried).
+  let created;
+  for (let attempt=0;attempt<3;attempt++){
+    try {
+      created=await command("POST","/session",{
+        capabilities:{alwaysMatch:{browserName:"safari"}}
+      },90000);
+      break;
+    } catch (error) {
+      if (attempt===2 || !String(error).includes("session not created")) throw error;
+      await sleep(3000);
+    }
+  }
   sessionId=created?.sessionId;
   assert.ok(sessionId,"Safari returned no WebDriver session ID");
   // macOS Safari may clamp very narrow requested window widths.
