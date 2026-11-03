@@ -55,7 +55,7 @@ describe("SP-36 external page geometry keeps source/language and book mode intac
     const page = document.querySelector("article.reader-v3-page") as HTMLElement;
     expect(page.getAttribute("lang")).toBe("ar");
     expect(page.getAttribute("dir")).toBe("rtl");
-    expect(page.dataset.bookPage).toBe("1");
+    expect(page.dataset["bookPage"]).toBe("1");
     expect(page.querySelector('[data-reader-master="true"]')).toBeTruthy();
     expect(page.querySelector('[data-reader-visible-raw-page="0"]')).toBeTruthy();
   });
