@@ -32,6 +32,7 @@ import {
 } from "@/lib/reader-book-layout";
 import { BookReaderChapterContent } from "@/components/reader/BookReaderChapterContent";
 import { BookReaderSettings } from "@/components/reader/BookReaderSettings";
+import { BookReaderTopbar } from "@/components/reader/BookReaderTopbar";
 import { FrontMatterPage } from "@/components/reader/BookReaderFrontMatterPage";
 import { findReaderSourceAnchor } from "@/lib/reader-position-anchor";
 import {
@@ -43,7 +44,6 @@ import { formatAuthorName } from "@/lib/author-name";
 import { displayTitleCase } from "@/lib/display-text";
 import { getPrefs, setPrefs, type ReaderTheme, type ReaderFontFamily, type ReaderContentWidth } from "@/lib/prefs";
 import { useAuth } from "@/lib/use-auth";
-import { ShelfButtons } from "@/components/ShelfButtons";
 import {
   REQUESTABLE_TRANSLATION_LANGUAGES,
   RTL_LANGUAGES,
@@ -1202,62 +1202,20 @@ export function BookReaderV3({
         "reader-v3-root " + (theme === "dark" ? "dark" : theme === "sepia" ? "reader-sepia" : "")
       }
     >
-      <header className="reader-v3-topbar">
-        <Link to="/library" className="reader-v3-icon-label" aria-label="Back to library">
-          <ArrowLeft className="h-4 w-4" />
-          <span className="hidden sm:inline">Library</span>
-        </Link>
-        <div className="min-w-0 flex-1 text-center">
-          <div className="truncate font-display text-sm font-semibold">{displayBookTitle}</div>
-          <div className="text-[11px] text-muted-foreground">{pageLabel}</div>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <select
-            value={language}
-            onChange={(event) => changeLanguage(event.target.value)}
-            aria-label="Reading language"
-            className="reader-v3-language"
-          >
-            {book.available_languages.map((item) => (
-              <option key={item}>{item}</option>
-            ))}
-          </select>
-          {frontIndex !== null && contentsReturnPosition ? (
-            <button
-              onClick={returnFromContents}
-              className="reader-v3-icon-label"
-              aria-label="Back to reading position"
-            >
-              <ChevronRight className="h-4 w-4" />
-              <span className="hidden sm:inline">Back to reading</span>
-            </button>
-          ) : (
-            <button onClick={openContents} className="reader-v3-icon" aria-label="Contents">
-              <List className="h-4 w-4" />
-            </button>
-          )}
-          <div className="hidden sm:block">
-            <ShelfButtons bookId={book.id} />
-          </div>
-          <button
-            onClick={handleHighlight}
-            className="reader-v3-icon"
-            aria-label="Highlight selection"
-          >
-            <Highlighter className="h-4 w-4" />
-          </button>
-          <button
-            onClick={() => setSettingsOpen(true)}
-            className="reader-v3-icon"
-            aria-label="Reader settings"
-          >
-            <Settings2 className="h-4 w-4" />
-          </button>
-        </div>
-        <div className="reader-v3-progress-track" aria-label={pageLabel}>
-          <div style={{ width: String(progress) + "%" }} />
-        </div>
-      </header>
+      <BookReaderTopbar
+        title={displayBookTitle}
+        pageLabel={pageLabel}
+        language={language}
+        availableLanguages={book.available_languages}
+        bookId={book.id}
+        canReturnToReading={frontIndex !== null && !!contentsReturnPosition}
+        progress={progress}
+        onLanguageChange={changeLanguage}
+        onBackToReading={returnFromContents}
+        onContents={openContents}
+        onHighlight={handleHighlight}
+        onOpenSettings={() => setSettingsOpen(true)}
+      />
 
       <main
         ref={stageRef}
