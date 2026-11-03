@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { verifyStagedCoverProvenance } from "./cover-provenance";
+import { verifyStagedCoverProvenance, requireVerifiedSourceEditionId } from "./cover-provenance";
 
 const metadata = {
   edition_language: "Urdu",
@@ -35,5 +35,18 @@ describe("SP-14 exact staged cover metadata", () => {
       ...expected, language: "Arabic",
     })).toThrow(/rights or source edition changed/i);
     expect(() => verifyStagedCoverProvenance(null, expected)).toThrow(/no stored rights provenance/i);
+  });
+});
+
+describe("SP-14 no unrecorded exact-edition placeholder for cover publication", () => {
+  it("rejects missing or whitespace-only source identifiers before any storage write", () => {
+    expect(() => requireVerifiedSourceEditionId(null)).toThrow(/no verified identifier/i);
+    expect(() => requireVerifiedSourceEditionId(undefined)).toThrow(/no verified identifier/i);
+    expect(() => requireVerifiedSourceEditionId("  ")).toThrow(/no verified identifier/i);
+    expect(() => requireVerifiedSourceEditionId("")).toThrow(/no verified identifier/i);
+  });
+  it("preserves canonical source ID byte-for-byte rather than silently normalizing", () => {
+    const exact = "  source edition : 2026 / اصل  ";
+    expect(requireVerifiedSourceEditionId(exact)).toBe(exact);
   });
 });

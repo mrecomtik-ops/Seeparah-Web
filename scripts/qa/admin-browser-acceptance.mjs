@@ -118,23 +118,39 @@ async function runEngine(engine, browserType) {
     await page.getByRole("button", { name: "Save book" }).click();
     await page.getByRole("button", { name: "Remove saved book" }).waitFor();
     assert.equal((await page.evaluate(() => window.__qa.snapshot())).server.length, 1);
+    await context.setOffline(true);
     await page.evaluate(() => window.__qa.network(false));
+    assert.equal(await page.evaluate(async () => {
+      try { await fetch("/?offline-probe=" + Date.now(), { cache: "no-store" }); return false; }
+      catch { return true; }
+    }), true, engine + " real browser network disconnect");
+
     await page.getByRole("button", { name: "Remove saved book" }).waitFor();
     await page.evaluate(() => window.__qa.switchUser("reader-beta"));
     await page.getByRole("button", { name: "Save book" }).waitFor();
     assert.equal((await page.evaluate(() => window.__qa.snapshot())).cached.some(x => x.user_id === "reader-beta"), false);
+    await context.setOffline(false);
     await page.evaluate(() => window.__qa.network(true));
+
     await page.getByRole("button", { name: "Save book" }).waitFor();
     await page.evaluate(() => window.__qa.switchUser("reader-alpha"));
     await page.getByRole("button", { name: "Remove saved book" }).waitFor();
     await page.getByRole("button", { name: "Remove saved book" }).click();
     await page.getByRole("button", { name: "Save book" }).waitFor();
+    await context.setOffline(true);
     await page.evaluate(() => window.__qa.network(false));
+    assert.equal(await page.evaluate(async () => {
+      try { await fetch("/?offline-probe=" + Date.now(), { cache: "no-store" }); return false; }
+      catch { return true; }
+    }), true, engine + " real browser network disconnect");
+
     await page.getByRole("button", { name: "Save book" }).waitFor();
     const state = await page.evaluate(() => window.__qa.snapshot());
     assert.equal(state.server.filter(x => x.user_id === "reader-alpha").length, 0);
     assert.equal(state.cached.filter(x => x.user_id === "reader-alpha").length, 0);
+    await context.setOffline(false);
     await page.evaluate(() => window.__qa.network(true));
+
     await page.getByRole("button", { name: "Save book" }).waitFor();
 
     assert.deepEqual(pageErrors, [], engine + " runtime errors");
@@ -143,7 +159,7 @@ async function runEngine(engine, browserType) {
       roleModalAndExactTitle: "passed",
       optionalCrop: "1200x600 PNG to 900x1350 JPEG",
       exactEditionStaging: "Urdu only, explicit assign",
-      shelves: "online-offline-identity-switch-remove-offline-reconnect",
+      shelves: "browser-network-offline-identity-switch-remove-reconnect",
       productionAuth: "not used (synthetic)",
       productionMutations: 0,
       viewport: await page.evaluate(() => ({ width: innerWidth, dpr: devicePixelRatio })),

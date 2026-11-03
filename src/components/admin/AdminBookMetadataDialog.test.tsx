@@ -83,6 +83,14 @@ describe("SP-14/36 extracted editor presentation", () => {
     render(<AdminBookMetadataDialog {...props} coverTargetLanguage="Urdu" canPublish={false} />);
     expect((screen.getByRole("button", { name: /Assign to this verified edition/i }) as HTMLButtonElement).disabled).toBe(true);
   });
+  it("does not offer an unidentified source edition as a cover upload destination", () => {
+    render(<AdminBookMetadataDialog {...props} editions={[
+      { language: "English", source_edition_id: "English-001" },
+      { language: "Urdu", source_edition_id: null },
+    ]} />);
+    const option = screen.getByRole("option", { name: /Urdu · No verified source-edition ID/ }) as HTMLOptionElement;
+    expect(option.disabled).toBe(true);
+  });
   it("does not render the editor when it is closed", () => {
     render(<AdminBookMetadataDialog {...props} editOpen={false} />);
     expect(screen.queryByRole("dialog")).toBeNull();
