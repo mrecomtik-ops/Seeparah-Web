@@ -39,6 +39,7 @@ import {
   findTextAnchor, textOffsetWithinAnchor, textBoundaryAt, pageForBoundary,
   type FrontPage, type ReaderPosition, type LogicalBookPage,
 } from "@/lib/reader-v3-helpers";
+import { formatAuthorName } from "@/lib/author-name";
 import { displayTitleCase } from "@/lib/display-text";
 import { getPrefs, setPrefs, type ReaderTheme, type ReaderFontFamily, type ReaderContentWidth } from "@/lib/prefs";
 import { useAuth } from "@/lib/use-auth";
