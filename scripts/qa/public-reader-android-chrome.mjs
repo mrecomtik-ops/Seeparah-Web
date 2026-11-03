@@ -39,7 +39,7 @@ async function dismissChromeFirstRun(){
     /^next$/i,
     /got it/i,
   ];
-  for(let attempt=0;attempt<9;attempt++){
+  for(let attempt=0;attempt<18;attempt++){
     const activityLines=adb("shell","dumpsys","activity","activities").split("\n")
       .filter(x=>x.includes("topResumedActivity="));
     console.log("ANDROID_CHROME_TOP_ACTIVITY "+JSON.stringify(activityLines.slice(0,4)));
@@ -66,14 +66,21 @@ async function dismissChromeFirstRun(){
       choice=nodes.find(n=>pattern.test(n.label)&&n.bounds);
       if(choice)break;
     }
-    if(!choice?.bounds)throw new Error("Chrome first-run buttons could not be identified: "+xml.slice(0,3000));
+    if(!choice?.bounds){
+      // Fresh Google Play images can report Chrome's FirstRunActivity before
+      // it exposes child accessibility nodes. Do not prematurely fail or
+      // randomly tap the screen: wait for a button we can actually identify.
+      console.log("ANDROID_CHROME_ONBOARDING_NOT_READY "+String(attempt+1));
+      await sleep(3500);
+      continue;
+    }
     const b=choice.bounds;
     const x=Math.round((Number(b[1])+Number(b[3]))/2);
     const y=Math.round((Number(b[2])+Number(b[4]))/2);
     adb("shell","input","tap",String(x),String(y));
     await sleep(1700);
   }
-  throw new Error("Chrome first-run did not complete after 9 accessibility-guided steps");
+  throw new Error("Chrome first-run never provided an accessible sign-in-free continue button after 18 checks");
 }
 
 const metrics=[];
