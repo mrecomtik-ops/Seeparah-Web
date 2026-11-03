@@ -110,6 +110,15 @@ describe("SP-33 account shelf reconciliation and offline fallback", () => {
     expect((await listShelves("reader1")).map((row) => row.id)).toEqual(["server"]);
   });
 
+  it("keeps the reader usable if both Supabase and private-mode local storage are unavailable", async () => {
+    readDeviceRows.mockImplementation(() => { throw new Error("Storage blocked"); });
+    selectByUser.mockResolvedValue({ data: null, error: { message: "Offline" } });
+    await expect(listShelves("reader1")).resolves.toEqual([]);
+  });
+  it("keeps guest shelf UI usable when private browser refuses local storage", async () => {
+    readDeviceRows.mockImplementation(() => { throw new Error("Storage blocked"); });
+    await expect(listShelves("demo-reader")).resolves.toEqual([]);
+  });
   it("retains the current device memberships when account service is offline", async () => {
     readDeviceRows.mockReturnValue([item("local", "saved")]);
     selectByUser.mockResolvedValue({ data: null, error: { message: "network unavailable" } });
