@@ -241,4 +241,13 @@ PR #146 adds evidence and code changes in **one tested batch**; this is not a cl
 - The [architecture gate](https://github.com/mrecomtik-ops/Seeparah-Web/actions/runs/41647922876) **passed**: reader maximum 1,250 lines; admin-detail maximum 1,000; independently typed modules present, no source-changing effects in the reader surfaces, no service-role imports in admin UI, existing unit-regression files present, actual privileged server DELETE endpoint still checks active AAL2/role/capability and exact original title. Full TypeScript, unit tests and production build remain independent mandatory CI gates.
 - Separation of acceptance dimensions: SP-36 is code architecture and regression safety, **not** a claim that an owner account performed MFA-backed permanent-delete preflight, an editor assigned a real published cover, or a user completed live offline/reconnection. Those remain SP-04, SP-14 and SP-33. Physical iPhone and screen-reader coverage remains SP-01. Code quality is no longer blocked merely because those manual access-dependent acceptance checks are pending.
 
-**Latest formal acceptance: 32/36. Unaccepted: SP-01, SP-04, SP-14, SP-33.** No production records were changed to award SP-36 signoff.
+**Latest formal acceptance: 32/36. Unaccepted: SP-01, SP-04, SP-14, SP-33.**
+
+### Native iOS Mobile Safari original-language evidence — 3 November
+
+The real Apple **iOS 26.2 Mobile Safari** binary on an iPhone 16 **Simulator** displayed the public Qur'an Arabic and Urdu, Genesis Hebrew, Matthew Greek and Analects Chinese readers. Five separately rendered 1179×2556 screenshots contained different nonblank mid-page content, with original-language public edition URLs; the simulator did not sign in or mutate accounts. [Successful native iOS run](https://github.com/mrecomtik-ops/Seeparah-Web/actions/runs/41647922837) · [five source screenshots](https://github.com/mrecomtik-ops/Seeparah-Web/actions/runs/41647922837/artifacts/13235748359).
+
+An earlier cold-run screenshot of Genesis was blank after the initial 11-second render window while the next independent iOS run passed; the test now records first-pass blank evidence and retries an actual browser load once, failing if the screen stays blank. This is a test for first-paint stability, not a guarantee that every slow device can never show a blank intermediate frame.
+
+**SP-01 remains open** for *physical iPhone* Safari and VoiceOver, physical Android/TalkBack (emulator Chrome already passed), and human glyph-shaping inspection. No UI screenshot emulator can certify the tactile assistive-technology acceptance requirement.
+ No production records were changed to award SP-36 signoff.
