@@ -14,6 +14,8 @@ export const GENERAL_REQUEST_TYPE = z.enum([
   "safety_abuse",
   "privacy_request",
   "accessibility",
+  "technical_issue",
+  "platform_suggestion",
   "other",
 ]);
 
@@ -37,6 +39,7 @@ export const SUPPORT_REQUEST_SCHEMA = z.object({
   subject: z.string().trim().min(3).max(200),
   message: z.string().trim().min(1).max(5000),
   pageUrl: OPTIONAL_URL,
+  audience: z.enum(["reader", "author", "visitor"]).optional(),
   confirmedAccurate: z.literal(true),
   honeypot: z.string().optional(),
   accessToken: z.string().optional(),

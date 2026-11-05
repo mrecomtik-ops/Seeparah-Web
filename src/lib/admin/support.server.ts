@@ -34,7 +34,9 @@ export type SupportCategory =
   | "complaint"
   | "safety_abuse"
   | "privacy_request"
-  | "accessibility";
+  | "accessibility"
+  | "technical_issue"
+  | "platform_suggestion";
 
 export type RequestKind = "ticket" | "copyright_notice" | "copyright_counter_notice";
 
@@ -174,6 +176,7 @@ export async function checkAnonymousReportRateLimit(ipHash: string, limit = 5): 
 export interface TicketListFilters {
   status?: string | undefined;
   assignedTo?: string | undefined;
+  category?: "technical_issue" | "platform_suggestion" | undefined;
   page: number;
   perPage: number;
 }
@@ -186,6 +189,7 @@ export async function listTickets(filters: TicketListFilters) {
     .order("created_at", { ascending: false });
   if (filters.status) q = q.eq("status", filters.status);
   if (filters.assignedTo) q = q.eq("assigned_to", filters.assignedTo);
+  if (filters.category) q = q.eq("category", filters.category);
   const from = (filters.page - 1) * filters.perPage;
   const { data, error, count } = await q.range(from, from + filters.perPage - 1);
   if (error) throw new Error(error.message);
