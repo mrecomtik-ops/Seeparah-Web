@@ -8,7 +8,7 @@ function request(body:unknown,origin="https://seeparah.com") {
     method:"POST",headers:{"origin":origin,"content-type":"application/json","user-agent":"Mozilla/5.0"},
     body:JSON.stringify(body),
   });
-  Object.defineProperty(req,"cf",{value:{country:"AE",region:"Dubai"}});
+  Object.defineProperty(req,"cf",{value:{country:"AE",region:"Dubai"},configurable:true});
   return req;
 }
 describe("anonymous platform usage privacy/security",()=>{
