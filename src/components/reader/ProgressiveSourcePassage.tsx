@@ -65,7 +65,7 @@ export function ProgressiveSourcePassage({
             {renderSacredInline(content.slice(0, end))}
           </p>
         )}
-      <div className="mt-4 rounded-lg border border-border/70 bg-secondary/30 px-3 py-3 text-sm">
+      <div lang="en" className="mt-4 rounded-lg border border-border/70 bg-secondary/30 px-3 py-3 text-sm">
         <p className="text-xs leading-relaxed text-muted-foreground" role="status">
           {expanded
             ? "The complete source passage is displayed without changing its text."
