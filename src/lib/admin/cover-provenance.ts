@@ -23,6 +23,26 @@ export function verifyStagedCoverProvenance(
   }
 }
 
+/** Supabase Storage file-info returns technical fields in `metadata` and
+ * custom upload rights fields in `user_metadata`. We must verify the latter.
+ * Do not fall back to technical metadata or to client-submitted declarations:
+ * doing so can either reject all valid covers or bypass the original rights
+ * snapshot if a future API response shape changes.
+ */
+export function verifyStagedCoverObjectProvenance(
+  fileInfo: unknown,
+  expected: Parameters<typeof verifyStagedCoverProvenance>[1],
+): void {
+  const object = fileInfo && typeof fileInfo === "object" && !Array.isArray(fileInfo)
+    ? fileInfo as Record<string, unknown>
+    : null;
+  const userMetadata = object?.user_metadata;
+  const stored = userMetadata && typeof userMetadata === "object" && !Array.isArray(userMetadata)
+    ? userMetadata as Record<string, unknown>
+    : null;
+  verifyStagedCoverProvenance(stored, expected);
+}
+
 /** Never stage or assign an edition-specific cover to an unidentified source.
  * Preserve every byte of an existing ID; do not "normalize" canonical IDs. */
 export function requireVerifiedSourceEditionId(sourceEditionId: string | null | undefined): string {
