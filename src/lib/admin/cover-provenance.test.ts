@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { verifyStagedCoverProvenance, verifyStagedCoverObjectProvenance, requireVerifiedSourceEditionId } from "./cover-provenance";
+import { verifyStagedCoverProvenance, verifyStagedCoverObjectProvenance, verifyStagedCoverAuditProvenance, requireVerifiedSourceEditionId } from "./cover-provenance";
 
 const metadata = {
   edition_language: "Urdu",
@@ -134,6 +134,45 @@ describe("SP-14 actual storage-js .info recursive camelCase response", () => {
       ...liveLikeResponse,
       user_metadata: { ...metadata, source_edition_id: "other" },
     }, expected)).toThrow(/rights or source edition changed/i);
+  });
+});
+
+describe("SP-14 server-owned stage-audit rights authority", () => {
+  const audited = {
+    path: "editorial/898fc232-957e-52e6-8339-01a38c2a9da8/Bilingual/4912e0e2-c506-4705-ac5c-b05cbedc63bc.webp",
+    language: "Bilingual",
+    sourceEditionId: "wikisource-legge-analects-1893-bilingual",
+    attribution: "Seeparah original editorial cover artwork - The Analects, James Legge 1893 bilingual edition, named cover 30",
+    sharedArtwork: false,
+    sizeBytes: 293666,
+  };
+  const verify = (stored: unknown, patch = {}) => verifyStagedCoverAuditProvenance(stored, {
+    path: audited.path, language: audited.language,
+    sourceEditionId: audited.sourceEditionId,
+    attribution: audited.attribution, sharedArtwork: audited.sharedArtwork,
+    ...patch,
+  });
+  it("accepts real production stage audit fields for the exact stored image", () => {
+    expect(() => verify(audited)).not.toThrow();
+  });
+  it("requires an actual server audit entry and a positive recorded image size", () => {
+    expect(() => verify(null)).toThrow(/server audit provenance/i);
+    expect(() => verify({ ...audited, sizeBytes: null })).toThrow(/rights or source edition changed/i);
+    expect(() => verify({ ...audited, sizeBytes: 0 })).toThrow(/rights or source edition changed/i);
+  });
+  it("rejects a different storage object even under the correct book path", () => {
+    expect(() => verify({ ...audited, path: audited.path.replace("4912e0e2", "11111111") }))
+      .toThrow(/rights or source edition changed/i);
+  });
+  it("rejects changed attribution, language, edition or shared collection flag", () => {
+    expect(() => verify(audited, { attribution: "Unreviewed artist" })).toThrow(/rights or source edition changed/i);
+    expect(() => verify(audited, { sourceEditionId: "gutenberg:analects:3330" })).toThrow(/rights or source edition changed/i);
+    expect(() => verify(audited, { language: "English" })).toThrow(/rights or source edition changed/i);
+    expect(() => verify(audited, { sharedArtwork: true })).toThrow(/rights or source edition changed/i);
+  });
+  it("does not infer approval from technical Storage metadata", () => {
+    expect(() => verify({ metadata: { mimetype: "image/webp", size: 293666 } }))
+      .toThrow(/rights or source edition changed/i);
   });
 });
 
