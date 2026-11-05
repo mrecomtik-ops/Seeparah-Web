@@ -10,14 +10,17 @@ import {
   ExternalLink,
   Loader2,
   Copy,
+  Highlighter,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 import { ShelfButtons } from "@/components/ShelfButtons";
 import { ProgressiveSourcePassage } from "@/components/reader/ProgressiveSourcePassage";
 import { getSacredReaderSection, getSacredTextReferenceIndex, getBibleReferenceMatchedSection, getFullSacredSourceChunk } from "@/lib/scripture.functions";
 import { getPublicBookEditions } from "@/lib/translation.functions";
-import { saveProgress } from "@/lib/library";
-import { RTL_LANGUAGES, type Book } from "@/lib/data";
+import { addHighlight, listHighlights, saveProgress } from "@/lib/library";
+import { RTL_LANGUAGES, type Book, type Highlight } from "@/lib/data";
+import { captureSacredHighlightSelection, sacredSavedHighlightRanges, type SacredHighlightSelection } from "@/lib/sacred-highlight-selection";
 import { useAuth } from "@/lib/use-auth";
 import { renderSacredInline } from "@/lib/sacred-inline-markup";
 import {
@@ -91,6 +94,12 @@ export function SacredTextReader({
     Math.max(0, Math.min(book.total_chunks - 1, initialChunkIndex ?? 0)),
   );
   const lastSavedRef = useRef<string>("");
+  const sacredSourceRef = useRef<HTMLElement | null>(null);
+  const pendingSacredHighlightRef = useRef<{
+    value: SacredHighlightSelection;
+    contextKey: string;
+    recordedAt: number;
+  } | null>(null);
   const [readingMode, setReadingMode] = useState<SacredReadingMode>("book");
   const [fontDelta, setFontDelta] = useState(0);
   const [lineDelta, setLineDelta] = useState(0);
@@ -103,6 +112,52 @@ export function SacredTextReader({
   const [dhpSource, setDhpSource] = useState<DhammapadaLayoutData | null>(null);
   const [dnSource, setDnSource] = useState<DiscourseLayoutData | null>(null);
   const editionLayout = sacredEditionLayout(book.title);
+  const highlightContextKey = book.id + ":" + language + ":" + String(chunkIndex) + ":" + readingMode;
+  const rememberSacredSelection = useCallback(() => {
+    const selected = captureSacredHighlightSelection(window.getSelection(), sacredSourceRef.current);
+    if (selected) pendingSacredHighlightRef.current = {
+      value: selected,
+      contextKey: highlightContextKey,
+      recordedAt: Date.now(),
+    };
+    return selected;
+  }, [highlightContextKey]);
+
+  useEffect(() => {
+    const onSelection = () => { rememberSacredSelection(); };
+    document.addEventListener("selectionchange", onSelection);
+    return () => document.removeEventListener("selectionchange", onSelection);
+  }, [rememberSacredSelection]);
+  useEffect(() => { pendingSacredHighlightRef.current = null; }, [highlightContextKey]);
+
+  async function saveSacredHighlight() {
+    const current = rememberSacredSelection();
+    const cached = pendingSacredHighlightRef.current;
+    const pending = cached?.contextKey === highlightContextKey &&
+      Date.now() - cached.recordedAt < 90_000 ? cached.value : null;
+    const anchored = current ?? pending;
+    if (!anchored) {
+      toast.info(window.getSelection()?.toString().trim()
+        ? "Select within one source passage, excluding the verse reference."
+        : "Long-press or drag to select original source text, then tap Highlight.");
+      return;
+    }
+    try {
+      const saved = await addHighlight(
+        userId, book.id, language, anchored.chunkIndex,
+        anchored.text, anchored.startOffset, anchored.endOffset,
+      );
+      queryClient.setQueryData<Highlight[]>(["highlights", userId], (rows = []) => [
+        saved, ...rows.filter((row) => row.id !== saved.id),
+      ]);
+      pendingSacredHighlightRef.current = null;
+      window.getSelection()?.removeAllRanges();
+      toast.success("Highlighted");
+    } catch {
+      toast.error("Could not save the highlight. Please try again.");
+    }
+  }
+
   const loadExactFullSource = (index: number) => queryClient.fetchQuery({
     queryKey: ["sacred-exact-full-source", book.id, language, index],
     queryFn: () => getFullSacredSourceChunk({
@@ -147,6 +202,16 @@ export function SacredTextReader({
     };
   }, [editionLayout]);
 
+  const highlightsQuery = useQuery({
+    queryKey: ["highlights", userId],
+    queryFn: () => listHighlights(userId),
+  });
+  const sacredHighlights = useMemo(
+    () => (highlightsQuery.data ?? []).filter(
+      (item) => item.book_id === book.id && item.language === language,
+    ),
+    [highlightsQuery.data, book.id, language],
+  );
   const sectionQuery = useQuery({
     queryKey: ["sacred-reader-section", book.id, language, chunkIndex],
     queryFn: () =>
@@ -181,6 +246,23 @@ export function SacredTextReader({
       (sectionQuery.data && !sectionQuery.isPlaceholderData))),
     staleTime: 15 * 60 * 1000,
   });
+
+  useEffect(() => {
+    const root = sacredSourceRef.current;
+    if (!root || typeof CSS === "undefined") return;
+    const registry = (CSS as unknown as {
+      highlights?: { set: (name: string, value: unknown) => void; delete: (name: string) => void };
+    }).highlights;
+    const HighlightConstructor = (window as unknown as {
+      Highlight?: new (...ranges: Range[]) => unknown;
+    }).Highlight;
+    if (!registry || !HighlightConstructor) return;
+    const label = "seeparah-sacred-saved";
+    const ranges = sacredSavedHighlightRanges(root, sacredHighlights);
+    if (ranges.length) registry.set(label, new HighlightConstructor(...ranges));
+    else registry.delete(label);
+    return () => registry.delete(label);
+  }, [sacredHighlights, sectionQuery.data, readingMode, compareLanguage, textMeasure, fontDelta, lineDelta, useSans]);
 
   useEffect(() => {
     const section = sectionQuery.data;
@@ -534,6 +616,18 @@ export function SacredTextReader({
             )}
             <button
               type="button"
+              onPointerDown={rememberSacredSelection}
+              onMouseDown={(event) => {
+                if (window.getSelection()?.toString().trim()) event.preventDefault();
+              }}
+              onClick={() => void saveSacredHighlight()}
+              aria-label="Highlight selected source text"
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-border bg-card px-3 text-sm font-medium text-foreground hover:bg-secondary"
+            >
+              <Highlighter className="h-4 w-4" aria-hidden="true" /> Highlight
+            </button>
+            <button
+              type="button"
               onClick={() => setContentsOpen((open) => !open)}
               aria-expanded={contentsOpen}
               className="min-h-11 rounded-lg border border-border bg-card px-3 text-sm font-medium text-foreground hover:bg-secondary"
@@ -710,6 +804,7 @@ export function SacredTextReader({
             fontSize: Math.max(16, profile.size + fontDelta) + "px",
             lineHeight: profile.leading + lineDelta,
           }}
+          ref={sacredSourceRef}
           data-reading-mode={readingMode}
           data-text-size-px={Math.max(16, profile.size + fontDelta)}
           lang={languageToBcp47(language)}
