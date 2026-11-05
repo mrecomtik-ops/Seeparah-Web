@@ -36,7 +36,7 @@ export function verifyStagedCoverObjectProvenance(
   const object = fileInfo && typeof fileInfo === "object" && !Array.isArray(fileInfo)
     ? fileInfo as Record<string, unknown>
     : null;
-  const userMetadata = object?.user_metadata;
+  const userMetadata = object?.["user_metadata"];
   const stored = userMetadata && typeof userMetadata === "object" && !Array.isArray(userMetadata)
     ? userMetadata as Record<string, unknown>
     : null;
