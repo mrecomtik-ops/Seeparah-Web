@@ -13,6 +13,8 @@ const REQUEST_TYPES = [
   { value: "safety_abuse", label: "Safety or abuse report" },
   { value: "privacy_request", label: "Privacy request" },
   { value: "accessibility", label: "Accessibility issue" },
+  { value: "technical_issue", label: "Platform bug / technical issue" },
+  { value: "platform_suggestion", label: "Suggestion / improvement idea" },
   { value: "other", label: "Other" },
 ] as const;
 
