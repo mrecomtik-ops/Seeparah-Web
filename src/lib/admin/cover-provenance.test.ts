@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { verifyStagedCoverProvenance, requireVerifiedSourceEditionId } from "./cover-provenance";
+import { verifyStagedCoverProvenance, verifyStagedCoverObjectProvenance, requireVerifiedSourceEditionId } from "./cover-provenance";
 
 const metadata = {
   edition_language: "Urdu",
@@ -35,6 +35,54 @@ describe("SP-14 exact staged cover metadata", () => {
       ...expected, language: "Arabic",
     })).toThrow(/rights or source edition changed/i);
     expect(() => verifyStagedCoverProvenance(null, expected)).toThrow(/no stored rights provenance/i);
+  });
+});
+
+
+describe("SP-14 real Supabase Storage file-info metadata split", () => {
+  const info = {
+    name: "editorial/book-id/Bilingual/some-id.webp",
+    metadata: {
+      mimetype: "image/webp",
+      size: 293666,
+      eTag: "storage-generated",
+    },
+    user_metadata: metadata,
+  };
+
+  it("uses user_metadata rather than the separate system metadata", () => {
+    expect(() => verifyStagedCoverObjectProvenance(info, expected)).not.toThrow();
+    // This was the live production failure: passing info.metadata produced
+    // a false rights mismatch for a correctly staged artwork.
+    expect(() => verifyStagedCoverProvenance(info.metadata, expected))
+      .toThrow(/rights or source edition changed/i);
+  });
+
+  it("never accepts rights declarations from technical metadata when user_metadata is missing", () => {
+    expect(() => verifyStagedCoverObjectProvenance({
+      metadata: { ...metadata, mimetype: "image/webp" },
+    }, expected)).toThrow(/no stored rights provenance/i);
+    expect(() => verifyStagedCoverObjectProvenance(null, expected))
+      .toThrow(/no stored rights provenance/i);
+  });
+
+  it("rejects tampered or cross-language custom metadata despite valid system file metadata", () => {
+    expect(() => verifyStagedCoverObjectProvenance({
+      ...info,
+      user_metadata: { ...metadata, attribution: "Unreviewed art" },
+    }, expected)).toThrow(/rights or source edition changed/i);
+    expect(() => verifyStagedCoverObjectProvenance(info, {
+      ...expected,
+      sourceEditionId: "unrelated-edition",
+    })).toThrow(/rights or source edition changed/i);
+    expect(() => verifyStagedCoverObjectProvenance(info, {
+      ...expected,
+      language: "Arabic",
+    })).toThrow(/rights or source edition changed/i);
+    expect(() => verifyStagedCoverObjectProvenance(info, {
+      ...expected,
+      sharedArtwork: true,
+    })).toThrow(/rights or source edition changed/i);
   });
 });
 
