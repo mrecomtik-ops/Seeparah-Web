@@ -38,8 +38,8 @@ describe("SP-HL literature reader selection anchoring", () => {
   it("rejects selection that originates outside the actual book page", () => {
     const reader = document.createElement("main");
     const outside = document.createElement("span");
-    outside.dataset.readerTextStart = "0";
-    outside.dataset.readerChunkIndex = "2";
+    outside.dataset["readerTextStart"] = "0";
+    outside.dataset["readerChunkIndex"] = "2";
     outside.textContent = "Outside the reader";
     document.body.append(reader, outside);
     const range = document.createRange();
