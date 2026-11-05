@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/admin/require-admin.server";
 import { recordAudit } from "@/lib/admin/audit.server";
-import { verifyStagedCoverObjectProvenance, requireVerifiedSourceEditionId } from "@/lib/admin/cover-provenance";
+import { verifyStagedCoverAuditProvenance, requireVerifiedSourceEditionId } from "@/lib/admin/cover-provenance";
 
 const MAX_IMAGE_BYTES = 3 * 1024 * 1024;
 const MAX_BASE64_CHARS = Math.ceil(MAX_IMAGE_BYTES / 3) * 4;
@@ -136,11 +136,29 @@ export const adminAssignBookEditionCover = createServerFn({ method: "POST" })
     const { data: objectInfo, error: objectError } = await supabaseAdmin.storage
       .from("book-covers").info(data.path);
     if (objectError || !objectInfo) throw new Error("Staged cover could not be verified in storage.");
-    // Supabase returns technical file metadata and custom upload rights in
-    // separate fields. Validate Storage's immutable user_metadata snapshot,
-    // not metadata (which contains MIME, size, etag and other system fields).
-    // A stale or tampered assignment must fail before updating the edition.
-    verifyStagedCoverObjectProvenance(objectInfo, {
+    // Storage .info(path) proves the object exists but does not reliably
+    // include custom user_metadata on all deployed API versions. The stage
+    // handler recorded a trusted server-side audit snapshot only after its
+    // successful authenticated upload. Verify that exact object's path and
+    // complete source/rights facts against the current edition before write.
+    // audit_log has no authenticated INSERT/UPDATE policy; this query uses
+    // the server service-role client after requireAdmin() above.
+    const { data: stageAudit, error: stageAuditError } = await supabaseAdmin
+      .from("audit_log")
+      .select("after,actor_id")
+      .eq("action", "catalog.stage_cover_artwork")
+      .eq("entity_type", "book")
+      .eq("entity_id", data.bookId)
+      .eq("after->>path", data.path)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (stageAuditError) throw new Error(stageAuditError.message);
+    if (!stageAudit?.actor_id) {
+      throw new Error("Staged cover has no verified server audit provenance. Stage and review the artwork again.");
+    }
+    verifyStagedCoverAuditProvenance(stageAudit.after, {
+      path: data.path,
       language: data.language,
       sourceEditionId,
       attribution: data.attribution,
