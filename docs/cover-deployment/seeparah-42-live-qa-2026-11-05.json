@@ -1,0 +1,417 @@
+[
+  {
+    "candidate": "SP-CAND-0058",
+    "status": "VERIFIED_LIVE",
+    "url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0058_a-honeymoon-in-space.webp",
+    "http": 200,
+    "mime": "image/webp",
+    "bytes": 419344,
+    "sha256": "c8c36c5cc06853fd88985f9870b0246e956755c2c3b6d9905b08f69b37b73178",
+    "expected_sha256": "c8c36c5cc06853fd88985f9870b0246e956755c2c3b6d9905b08f69b37b73178"
+  },
+  {
+    "candidate": "SP-CAND-0074",
+    "status": "VERIFIED_LIVE",
+    "url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0074_an-inquiry-into-the-nature-and-causes-of-the-wealth-of-nations.webp",
+    "http": 200,
+    "mime": "image/webp",
+    "bytes": 179212,
+    "sha256": "e39f92acac077def133a17f971b9b8b749b5a468565f43fbed7fd3e8d3467209",
+    "expected_sha256": "e39f92acac077def133a17f971b9b8b749b5a468565f43fbed7fd3e8d3467209"
+  },
+  {
+    "candidate": "SP-CAND-0333",
+    "status": "VERIFIED_LIVE",
+    "url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0333_barchester-towers.webp",
+    "http": 200,
+    "mime": "image/webp",
+    "bytes": 62818,
+    "sha256": "6283f09cbd93c53fe6ab490a3754aada0c7fd53f7ad7b4d945fb2e380c03ff23",
+    "expected_sha256": "6283f09cbd93c53fe6ab490a3754aada0c7fd53f7ad7b4d945fb2e380c03ff23"
+  },
+  {
+    "candidate": "SACRED-EDITION-PENDING_bhagavad-gita.webp",
+    "status": "VERIFIED_LIVE",
+    "url": "https://seeparah.com/book-covers/premium-42/sacred/sacred-bhagavad-gita-sanskrit.webp",
+    "http": 200,
+    "mime": "image/webp",
+    "bytes": 179432,
+    "sha256": "a6b4df75d7269aad603284a01fd7b11d8df11f02b192e2d069496fef5fde03ea",
+    "expected_sha256": "a6b4df75d7269aad603284a01fd7b11d8df11f02b192e2d069496fef5fde03ea"
+  },
+  {
+    "candidate": "SP-CAND-0320",
+    "status": "VERIFIED_LIVE",
+    "url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0320_black-beauty.webp",
+    "http": 200,
+    "mime": "image/webp",
+    "bytes": 322562,
+    "sha256": "6c5a2feba61e66e6f0b6faa0ad9e4937b4b37897e1d7ab9da48d5a0518c648d8",
+    "expected_sha256": "6c5a2feba61e66e6f0b6faa0ad9e4937b4b37897e1d7ab9da48d5a0518c648d8"
+  },
+  {
+    "candidate": "SP-CAND-0229",
+    "status": "VERIFIED_LIVE",
+    "url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0229_bouvard-et-pecuchet.webp",
+    "http": 200,
+    "mime": "image/webp",
+    "bytes": 71260,
+    "sha256": "137e6a173649d10fd53a4221a5e4f9e2416d1fe6fcd840ca2a8be112f80652ba",
+    "expected_sha256": "137e6a173649d10fd53a4221a5e4f9e2416d1fe6fcd840ca2a8be112f80652ba"
+  },
+  {
+    "candidate": "SACRED-EDITION-PENDING_dao-de-jing-wang-bi-commentary.webp",
+    "status": "VERIFIED_LIVE",
+    "url": "https://seeparah.com/book-covers/premium-42/sacred/sacred-dao-de-jing-wang-bi-chinese.webp",
+    "http": 200,
+    "mime": "image/webp",
+    "bytes": 116852,
+    "sha256": "c9c57be1fdaec7d599196429893e560b4c2824d23719312ea455e4194576ea91",
+    "expected_sha256": "c9c57be1fdaec7d599196429893e560b4c2824d23719312ea455e4194576ea91"
+  },
+  {
+    "candidate": "SACRED-EDITION-PENDING_dhammapada.webp",
+    "status": "VERIFIED_LIVE",
+    "url": "https://seeparah.com/book-covers/premium-42/sacred/sacred-dhammapada-pali.webp",
+    "http": 200,
+    "mime": "image/webp",
+    "bytes": 169826,
+    "sha256": "80f172b5e8edb98b9b1a80f96723bce68cc51f902063fe5addc3a5a553548bd4",
+    "expected_sha256": "80f172b5e8edb98b9b1a80f96723bce68cc51f902063fe5addc3a5a553548bd4"
+  },
+  {
+    "candidate": "SP-CAND-0306",
+    "status": "VERIFIED_LIVE",
+    "url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0306_divina-commedia-di-dante-inferno.webp",
+    "http": 200,
+    "mime": "image/webp",
+    "bytes": 73880,
+    "sha256": "abbc0b4a488c8f6f7c67e4a50d4567935de039407875227927e3d4c60c5355cf",
+    "expected_sha256": "abbc0b4a488c8f6f7c67e4a50d4567935de039407875227927e3d4c60c5355cf"
+  },
+  {
+    "candidate": "SP-CAND-0308",
+    "status": "VERIFIED_LIVE",
+    "url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0308_divina-commedia-di-dante-paradiso.webp",
+    "http": 200,
+    "mime": "image/webp",
+    "bytes": 85876,
+    "sha256": "4203157f3706c7b04cc4e1abae25b005ae729f8f2b33bade710e9f76cf554f60",
+    "expected_sha256": "4203157f3706c7b04cc4e1abae25b005ae729f8f2b33bade710e9f76cf554f60"
+  },
+  {
+    "candidate": "SP-CAND-0307",
+    "status": "VERIFIED_LIVE",
+    "url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0307_divina-commedia-di-dante-purgatorio.webp",
+    "http": 200,
+    "mime": "image/webp",
+    "bytes": 408870,
+    "sha256": "c1493e9dba012e1adafed6fae510a3e9745463c6bdc5779c4cce776bdd467063",
+    "expected_sha256": "c1493e9dba012e1adafed6fae510a3e9745463c6bdc5779c4cce776bdd467063"
+  },
+  {
+    "candidate": "SP-CAND-0411",
+    "status": "VERIFIED_LIVE",
+    "url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0411_erewhon-or-over-the-range.webp",
+    "http": 200,
+    "mime": "image/webp",
+    "bytes": 431864,
+    "sha256": "df001967e75ed7cf620d9a3f2502cc01b04501cd43a88680154d6d3422b76a4c",
+    "expected_sha256": "df001967e75ed7cf620d9a3f2502cc01b04501cd43a88680154d6d3422b76a4c"
+  },
+  {
+    "candidate": "SP-CAND-0183",
+    "status": "VERIFIED_LIVE",
+    "url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0183_essays-on-work-and-culture.webp",
+    "http": 200,
+    "mime": "image/webp",
+    "bytes": 301734,
+    "sha256": "5a2579145760d50f38c21306bf8413e8dc45b0cacc6191c735be0f85e6ee19bc",
+    "expected_sha256": "5a2579145760d50f38c21306bf8413e8dc45b0cacc6191c735be0f85e6ee19bc"
+  },
+  {
+    "candidate": "SP-CAND-0399",
+    "status": "VERIFIED_LIVE",
+    "url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0399_ivanhoe-a-romance.webp",
+    "http": 200,
+    "mime": "image/webp",
+    "bytes": 507650,
+    "sha256": "c336de31e3f69e407900977027f5c4cdcd40197d425955d2b36e7dc39ad116c7",
+    "expected_sha256": "c336de31e3f69e407900977027f5c4cdcd40197d425955d2b36e7dc39ad116c7"
+  },
+  {
+    "candidate": "SP-CAND-0360",
+    "status": "VERIFIED_LIVE",
+    "url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0360_king-solomon-s-mines.webp",
+    "http": 200,
+    "mime": "image/webp",
+    "bytes": 501890,
+    "sha256": "b39bdba9522208efd8700a2a6b7f2808172a68dacfe6400960dac45135cb78b8",
+    "expected_sha256": "b39bdba9522208efd8700a2a6b7f2808172a68dacfe6400960dac45135cb78b8"
+  },
+  {
+    "candidate": "SP-CAND-0226",
+    "status": "VERIFIED_LIVE",
+    "url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0226_la-chartreuse-de-parme.webp",
+    "http": 200,
+    "mime": "image/webp",
+    "bytes": 319096,
+    "sha256": "72666ef56ad5b7be18ea49a88678350adfce8d22f2eb6f34b01f6eb2045c8e26",
+    "expected_sha256": "72666ef56ad5b7be18ea49a88678350adfce8d22f2eb6f34b01f6eb2045c8e26"
+  },
+  {
+    "candidate": "SP-CAND-0059",
+    "status": "VERIFIED_LIVE",
+    "url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0059_manon-lescaut.webp",
+    "http": 200,
+    "mime": "image/webp",
+    "bytes": 293874,
+    "sha256": "1237d47f549a8b6ed98abb4f4b844bc322bd49f41ffc00dd30f05c9e79704a64",
+    "expected_sha256": "1237d47f549a8b6ed98abb4f4b844bc322bd49f41ffc00dd30f05c9e79704a64"
+  },
+  {
+    "candidate": "SP-CAND-0329",
+    "status": "VERIFIED_LIVE",
+    "url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0329_martin-chuzzlewit.webp",
+    "http": 200,
+    "mime": "image/webp",
+    "bytes": 454818,
+    "sha256": "b23d904f265f1e424cd1d30ba2ffa1c0d238faf4169417cf066b3178f765611b",
+    "expected_sha256": "b23d904f265f1e424cd1d30ba2ffa1c0d238faf4169417cf066b3178f765611b"
+  },
+  {
+    "candidate": "SP-CAND-0413",
+    "status": "VERIFIED_LIVE",
+    "url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0413_nostromo-a-tale-of-the-seaboard.webp",
+    "http": 200,
+    "mime": "image/webp",
+    "bytes": 310020,
+    "sha256": "9b875bf5672f8964e9558fc93ba712762869dd350d9b6418bea7e21f37cac289",
+    "expected_sha256": "9b875bf5672f8964e9558fc93ba712762869dd350d9b6418bea7e21f37cac289"
+  },
+  {
+    "candidate": "SP-CAND-0125",
+    "status": "VERIFIED_LIVE",
+    "url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0125_on-the-economy-of-machinery-and-manufactures.webp",
+    "http": 200,
+    "mime": "image/webp",
+    "bytes": 400930,
+    "sha256": "99567061ad6f797751d937eeee5f91ff1912701ed3966a6c566633655bedc425",
+    "expected_sha256": "99567061ad6f797751d937eeee5f91ff1912701ed3966a6c566633655bedc425"
+  },
+  {
+    "candidate": "SP-CAND-0304",
+    "status": "VERIFIED_LIVE",
+    "url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0304_orlando-furioso.webp",
+    "http": 200,
+    "mime": "image/webp",
+    "bytes": 527216,
+    "sha256": "f6eb4f96168b95e004091c5e7a011a459dadac932ff514aeff7f17cc493cf313",
+    "expected_sha256": "f6eb4f96168b95e004091c5e7a011a459dadac932ff514aeff7f17cc493cf313"
+  },
+  {
+    "candidate": "SP-CAND-0280",
+    "status": "VERIFIED_LIVE",
+    "url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0280_pepita-jimenez.webp",
+    "http": 200,
+    "mime": "image/webp",
+    "bytes": 339112,
+    "sha256": "b396a7cc059608d9a954e9fc5a7301e6f95007894c34e57881135de637a5692a",
+    "expected_sha256": "b396a7cc059608d9a954e9fc5a7301e6f95007894c34e57881135de637a5692a"
+  },
+  {
+    "candidate": "SP-CAND-0405",
+    "status": "VERIFIED_LIVE",
+    "url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0405_rasselas-prince-of-abyssinia.webp",
+    "http": 200,
+    "mime": "image/webp",
+    "bytes": 421820,
+    "sha256": "76d21aa412406134e1b622fee1dd5696e1b2f3acf167e91f468cdd94995387e8",
+    "expected_sha256": "76d21aa412406134e1b622fee1dd5696e1b2f3acf167e91f468cdd94995387e8"
+  },
+  {
+    "candidate": "SP-CAND-0105",
+    "status": "STAGED_NOT_PUBLIC",
+    "url": null
+  },
+  {
+    "candidate": "SP-CAND-0419",
+    "status": "VERIFIED_LIVE",
+    "url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0419_the-adventures-of-peregrine-pickle.webp",
+    "http": 200,
+    "mime": "image/webp",
+    "bytes": 519802,
+    "sha256": "2c0e2926079112eee007c8e457fa583dd5e41f2f0fe5a6e3d83863d18c35a695",
+    "expected_sha256": "2c0e2926079112eee007c8e457fa583dd5e41f2f0fe5a6e3d83863d18c35a695"
+  },
+  {
+    "candidate": "SP-CAND-0383",
+    "status": "VERIFIED_LIVE",
+    "url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0383_the-coming-race.webp",
+    "http": 200,
+    "mime": "image/webp",
+    "bytes": 471798,
+    "sha256": "dcad413cf785bbfc03028716665a77279f27f7caba0f1b32d42a923c115ae718",
+    "expected_sha256": "dcad413cf785bbfc03028716665a77279f27f7caba0f1b32d42a923c115ae718"
+  },
+  {
+    "candidate": "SP-CAND-0408",
+    "status": "VERIFIED_LIVE",
+    "url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0408_the-diary-of-a-nobody.webp",
+    "http": 200,
+    "mime": "image/webp",
+    "bytes": 485952,
+    "sha256": "e60d9f71166170101a4a6f8bf2d86a2f7309f58d1c716461909e5ae3d61358f8",
+    "expected_sha256": "e60d9f71166170101a4a6f8bf2d86a2f7309f58d1c716461909e5ae3d61358f8"
+  },
+  {
+    "candidate": "SP-CAND-0163",
+    "status": "VERIFIED_LIVE",
+    "url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0163_the-essays-or-counsels-civil-and-moral.webp",
+    "http": 200,
+    "mime": "image/webp",
+    "bytes": 364502,
+    "sha256": "a5a513fed5ff5f64587b67635f35697f22cd53709c9463c6afca6ecb500e09de",
+    "expected_sha256": "a5a513fed5ff5f64587b67635f35697f22cd53709c9463c6afca6ecb500e09de"
+  },
+  {
+    "candidate": "SP-CAND-0323",
+    "status": "VERIFIED_LIVE",
+    "url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0323_the-further-adventures-of-robinson-crusoe.webp",
+    "http": 200,
+    "mime": "image/webp",
+    "bytes": 533750,
+    "sha256": "e2e6112c2a8f7626383c4ad5a76ff1bcfad76d27518aef324dcd7c1bd9caa038",
+    "expected_sha256": "e2e6112c2a8f7626383c4ad5a76ff1bcfad76d27518aef324dcd7c1bd9caa038"
+  },
+  {
+    "candidate": "SP-CAND-0063",
+    "status": "VERIFIED_LIVE",
+    "url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0063_the-mystery-of-edwin-drood.webp",
+    "http": 200,
+    "mime": "image/webp",
+    "bytes": 394510,
+    "sha256": "040282b72bbae4ee8e6da7ae4a9caae659ed30c010dec0b64c7e0ac417198ce8",
+    "expected_sha256": "040282b72bbae4ee8e6da7ae4a9caae659ed30c010dec0b64c7e0ac417198ce8"
+  },
+  {
+    "candidate": "SP-CAND-0385",
+    "status": "VERIFIED_LIVE",
+    "url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0385_the-pathfinder-or-the-inland-sea.webp",
+    "http": 200,
+    "mime": "image/webp",
+    "bytes": 95832,
+    "sha256": "13f88ff36b07023ae557adc862996f225bd579e965b145a6eabb90d231a7d3f6",
+    "expected_sha256": "13f88ff36b07023ae557adc862996f225bd579e965b145a6eabb90d231a7d3f6"
+  },
+  {
+    "candidate": "SP-CAND-0327",
+    "status": "VERIFIED_LIVE",
+    "url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0327_the-pickwick-papers.webp",
+    "http": 200,
+    "mime": "image/webp",
+    "bytes": 63106,
+    "sha256": "1c3af12cf635eec60fb15ed8fad34c22fda91371a9ce440c9503c4c60834f661",
+    "expected_sha256": "1c3af12cf635eec60fb15ed8fad34c22fda91371a9ce440c9503c4c60834f661"
+  },
+  {
+    "candidate": "SP-CAND-0415",
+    "status": "VERIFIED_LIVE",
+    "url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0415_the-private-memoirs-and-confessions-of-a-justified-sinner.webp",
+    "http": 200,
+    "mime": "image/webp",
+    "bytes": 56912,
+    "sha256": "57c0ce9b06ffdcd6bea8191064f165c89b70f043c3dede4fd5a7062b75d84d87",
+    "expected_sha256": "57c0ce9b06ffdcd6bea8191064f165c89b70f043c3dede4fd5a7062b75d84d87"
+  },
+  {
+    "candidate": "SP-CAND-0387",
+    "status": "VERIFIED_LIVE",
+    "url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0387_the-tragical-history-of-doctor-faustus-from-the-quarto-of-1616.webp",
+    "http": 200,
+    "mime": "image/webp",
+    "bytes": 123724,
+    "sha256": "43c81e3529d7ee0e0a4ff98c85b0a7a2a9877222ee79517bfb8d47f84a05def5",
+    "expected_sha256": "43c81e3529d7ee0e0a4ff98c85b0a7a2a9877222ee79517bfb8d47f84a05def5"
+  },
+  {
+    "candidate": "SP-CAND-0404",
+    "status": "VERIFIED_LIVE",
+    "url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0404_the-unbearable-bassington.webp",
+    "http": 200,
+    "mime": "image/webp",
+    "bytes": 64122,
+    "sha256": "9c82726e0e4f3049b73c861e6f999781589f7734cc31676fd87f4361b0a442ad",
+    "expected_sha256": "9c82726e0e4f3049b73c861e6f999781589f7734cc31676fd87f4361b0a442ad"
+  },
+  {
+    "candidate": "SP-CAND-0353",
+    "status": "VERIFIED_LIVE",
+    "url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0353_through-the-looking-glass.webp",
+    "http": 200,
+    "mime": "image/webp",
+    "bytes": 68698,
+    "sha256": "9f47d4e9dc896a64e17eba0e7a433d0fe680de7863183bd7a0e06d0661353ffa",
+    "expected_sha256": "9f47d4e9dc896a64e17eba0e7a433d0fe680de7863183bd7a0e06d0661353ffa"
+  },
+  {
+    "candidate": "SP-CAND-0069",
+    "status": "VERIFIED_LIVE",
+    "url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0069_under-the-red-dragon.webp",
+    "http": 200,
+    "mime": "image/webp",
+    "bytes": 324524,
+    "sha256": "ea9b96426834c74dbf43d3885327309ec1a32ddbad5814de4d88db58f53a01b8",
+    "expected_sha256": "ea9b96426834c74dbf43d3885327309ec1a32ddbad5814de4d88db58f53a01b8"
+  },
+  {
+    "candidate": "SP-CAND-0167",
+    "status": "VERIFIED_LIVE",
+    "url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0167_valerius-terminus-of-the-interpretation-of-nature.webp",
+    "http": 200,
+    "mime": "image/webp",
+    "bytes": 115176,
+    "sha256": "f936eeaf2c2eeadae471d217e897c96702ebfd6b9b4eb51bd600ece86f38385f",
+    "expected_sha256": "f936eeaf2c2eeadae471d217e897c96702ebfd6b9b4eb51bd600ece86f38385f"
+  },
+  {
+    "candidate": "SP-CAND-0281",
+    "status": "VERIFIED_LIVE",
+    "url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0281_vida-de-lazarillo-de-tormes-y-de-sus-fortunas-y-adversidades.webp",
+    "http": 200,
+    "mime": "image/webp",
+    "bytes": 50432,
+    "sha256": "9ae4303387bbc064a6b6b6e22512f1bbcbb97589145f10fc271cc3ca7e786f67",
+    "expected_sha256": "9ae4303387bbc064a6b6b6e22512f1bbcbb97589145f10fc271cc3ca7e786f67"
+  },
+  {
+    "candidate": "SP-CAND-0246",
+    "status": "VERIFIED_LIVE",
+    "url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0246_voyage-au-centre-de-la-terre.webp",
+    "http": 200,
+    "mime": "image/webp",
+    "bytes": 82808,
+    "sha256": "823f79d8271224ab5e77b75446bbc1b4bfdd39b4e4896aa5658aff16094cd435",
+    "expected_sha256": "823f79d8271224ab5e77b75446bbc1b4bfdd39b4e4896aa5658aff16094cd435"
+  },
+  {
+    "candidate": "SP-CAND-0407",
+    "status": "VERIFIED_LIVE",
+    "url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0407_wieland-or-the-transformation-an-american-tale.webp",
+    "http": 200,
+    "mime": "image/webp",
+    "bytes": 259660,
+    "sha256": "c42f500b546b86b421dbbd3fde65e77d2d546d703ab7493476182467512a4649",
+    "expected_sha256": "c42f500b546b86b421dbbd3fde65e77d2d546d703ab7493476182467512a4649"
+  },
+  {
+    "candidate": "SACRED-EDITION-PENDING_li-ji-book-of-rites.webp",
+    "status": "VERIFIED_LIVE",
+    "url": "https://seeparah.com/book-covers/premium-42/sacred/sacred-li-ji-chinese.webp",
+    "http": 200,
+    "mime": "image/webp",
+    "bytes": 344880,
+    "sha256": "54e96ae5d2b82722a60563d948976e29c5bf78574548cf6dd16e18bbdbf317b4",
+    "expected_sha256": "54e96ae5d2b82722a60563d948976e29c5bf78574548cf6dd16e18bbdbf317b4"
+  }
+]
