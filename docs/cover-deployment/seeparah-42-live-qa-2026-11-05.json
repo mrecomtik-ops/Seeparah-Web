@@ -231,8 +231,13 @@
   },
   {
     "candidate": "SP-CAND-0105",
-    "status": "STAGED_NOT_PUBLIC",
-    "url": null
+    "status": "VERIFIED_LIVE",
+    "url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0105_tenda-e-castello.webp",
+    "http": 200,
+    "mime": "image/webp",
+    "bytes": 520398,
+    "sha256": "97ed730530b6b8c26c78844907e2046e55aae7d39489b11f108521080ccd347f",
+    "expected_sha256": "97ed730530b6b8c26c78844907e2046e55aae7d39489b11f108521080ccd347f"
   },
   {
     "candidate": "SP-CAND-0419",

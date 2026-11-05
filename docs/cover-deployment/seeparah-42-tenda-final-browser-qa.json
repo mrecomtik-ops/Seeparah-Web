@@ -1,0 +1,28 @@
+[
+  {
+    "type": "mobile",
+    "http": 200,
+    "passed": true,
+    "alt": "Cover of Tenda e castello",
+    "naturalWidth": 1024,
+    "naturalHeight": 1536,
+    "visibleWidth": 218,
+    "left": 86,
+    "right": 304,
+    "viewport": 390,
+    "loaded": true
+  },
+  {
+    "type": "desktop",
+    "http": 200,
+    "passed": true,
+    "alt": "Cover of Tenda e castello",
+    "naturalWidth": 1024,
+    "naturalHeight": 1536,
+    "visibleWidth": 218,
+    "left": 297,
+    "right": 515,
+    "viewport": 1440,
+    "loaded": true
+  }
+]

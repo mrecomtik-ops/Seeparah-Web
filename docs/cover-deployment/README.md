@@ -1,15 +1,8 @@
-# Seeparah premium 42 cover deployment — verified 5 November 2026
+# Seeparah premium 42 covers — 42/42 live, 5 November 2026
 
-**41 newly deployed, 0 previously covered, 1 staged, 0 unmatched book records.**
+**All 42 matched and rights-approved book covers have been published.**
+38 literary books (including the corrected Tenda e castello cover) and 4 original-language sacred editions. No covers remain staged for publishing.
 
-- 37 literary covers: published books, exact SP-CAND / title / author / Gutenberg source IDs, previously NULL cover URLs.
-- 4 sacred original-language covers: published books, exact approved original-language source editions and matching edition-specific artwork; sibling translation edition cover records untouched.
-- SP-CAND-0105 (Tenda e castello): art credits Carlo Dossi, while Gutenberg source credits Roberto Sacchetti. Staged privately, no public URL or database assignment.
-- All 42 original WebPs individually verified as 1024x1536 using the original handoff SHA-256 list.
-- Cloudflare Worker v439 deployed at 100%; all 41 WebP URLs returned HTTP 200, image/webp and matching SHA-256.
-- Idempotent protected SQL applied transactionally. Post-check: 41 matched book URLs, 4 original-language edition cover records.
-- Browser QA: 16/16 book detail cover checks passed (8 books x mobile and desktop); library book cards use the same book cover field.
-- Code: PR #152, merge eaf5fa3e636e76ab72db1e0d9ded4becb8a7f093. Final evidence and manifest: follow-up PR.
-- No authentication, environment variables, translations, source text, rights approvals, user data, reading positions, publication statuses or unrelated covers changed.
+The initial artwork for SP-CAND-0105 incorrectly named Carlo Dossi; the actual approved source is Roberto Sacchetti, Project Gutenberg #71320. The original failed-author image remains isolated in non-public staging for provenance; a separate corrected 1024x1536 WebP was committed and deployed, retaining the illustration and Seeparah branding. Original handoff checksums remain in the manifest; corrected SHA stored separately.
 
-Per-cover evidence and book detail links: see status CSV/JSON. Original handoff manifest retained separately.
+All original editions, publication rights, source text, translations and user records were preserved. Cloudflare-only deployment. New asset URLs were independently SHA-256 verified and mapped via guarded SQL; see deployment manifest and browser QA evidence for details.
