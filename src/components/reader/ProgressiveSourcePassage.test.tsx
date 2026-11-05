@@ -72,4 +72,15 @@ describe("very long canonical source passages", () => {
     expect(screen.queryByText("Corrupted" + full)).toBeNull();
   });
 
+  it("marks English preview notices and actions correctly inside non-English scripture", () => {
+    const content = "ن".repeat(LARGE_SOURCE_LIMIT + 10);
+    render(<section lang="ar"><ProgressiveSourcePassage content={content} label="1:1">
+      <p>{content}</p>
+    </ProgressiveSourcePassage></section>);
+    const read = screen.getByRole("button", { name: "Read complete source passage" });
+    expect(read.closest("[lang]")?.getAttribute("lang")).toBe("en");
+    expect(screen.getByRole("status").closest("[lang]")?.getAttribute("lang")).toBe("en");
+    expect(screen.getByText(content.slice(0, sourcePreviewEnd(content))).closest("[lang]")?.getAttribute("lang")).toBe("ar");
+  });
+
 });
