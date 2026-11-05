@@ -123,7 +123,7 @@ export const submitSupportRequest = createServerFn({ method: "POST" })
       description: data.message,
       category: data.requestType,
       requestKind: "ticket",
-      structuredData: { fullName: data.fullName, pageUrl: data.pageUrl ?? null },
+      structuredData: { fullName: data.fullName, pageUrl: data.pageUrl ?? null, audience: data.audience ?? null },
       notify: (ref) =>
         sendSupportNotificationEmail({
           referenceCode: ref,
