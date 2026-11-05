@@ -219,6 +219,7 @@ export const adminListTickets = createServerFn({ method: "POST" })
     withToken({
       status: z.string().optional(),
       assignedTo: z.string().optional(),
+      category: z.enum(["technical_issue", "platform_suggestion"]).optional(),
       page: z.number().int().min(1).default(1),
       perPage: z.number().int().min(1).max(100).default(25),
     }).parse(data),
@@ -229,6 +230,7 @@ export const adminListTickets = createServerFn({ method: "POST" })
     return listTickets({
       status: data.status,
       assignedTo: data.assignedTo,
+      category: data.category,
       page: data.page,
       perPage: data.perPage,
     });
