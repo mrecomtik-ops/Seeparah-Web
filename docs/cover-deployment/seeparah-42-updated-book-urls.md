@@ -1,14 +1,14 @@
-# Published Seeparah book URLs updated — 5 November 2026
+# Published Seeparah books — all 42 premium covers (5 November 2026)
 
-41 cover references changed from missing to verified premium artwork.
-Every link below is a published book detail page; the cover links are immutable source artwork.
+42 of 42 book cover URLs are live and verified; 38 literary books and 4 original-language sacred texts.
 
-## Literary books (37)
+## Literary books (38)
 - [A Honeymoon in Space](https://seeparah.com/book/ef9f374c-b11c-49b3-8c54-05e5b7e9bf4c) — SP-CAND-0058 — [WebP](https://seeparah.com/book-covers/premium-42/SP-CAND-0058_a-honeymoon-in-space.webp)
 - [Manon Lescaut](https://seeparah.com/book/984b8ffa-c016-4e7a-8d9f-5d1b813d6435) — SP-CAND-0059 — [WebP](https://seeparah.com/book-covers/premium-42/SP-CAND-0059_manon-lescaut.webp)
 - [The Mystery of Edwin Drood](https://seeparah.com/book/92d0a324-d8cf-4c8d-887a-0e6c6007a25a) — SP-CAND-0063 — [WebP](https://seeparah.com/book-covers/premium-42/SP-CAND-0063_the-mystery-of-edwin-drood.webp)
 - [Under the Red Dragon](https://seeparah.com/book/e1abe3c7-1333-40fe-8def-e34f994f033c) — SP-CAND-0069 — [WebP](https://seeparah.com/book-covers/premium-42/SP-CAND-0069_under-the-red-dragon.webp)
 - [An Inquiry into the Nature and Causes of the Wealth of Nations](https://seeparah.com/book/340ab023-e335-4efd-925e-6f5c40a98ea0) — SP-CAND-0074 — [WebP](https://seeparah.com/book-covers/premium-42/SP-CAND-0074_an-inquiry-into-the-nature-and-causes-of-the-wealth-of-nations.webp)
+- [Tenda e castello](https://seeparah.com/book/935c4918-3380-464d-91fe-872825d8f40d) — SP-CAND-0105 — [WebP](https://seeparah.com/book-covers/premium-42/SP-CAND-0105_tenda-e-castello.webp)
 - [On the Economy of Machinery and Manufactures](https://seeparah.com/book/123f4016-fc70-4015-b04f-b99e71638022) — SP-CAND-0125 — [WebP](https://seeparah.com/book-covers/premium-42/SP-CAND-0125_on-the-economy-of-machinery-and-manufactures.webp)
 - [The Essays or Counsels, Civil and Moral](https://seeparah.com/book/05a31640-067f-4742-a52f-8c32773480bb) — SP-CAND-0163 — [WebP](https://seeparah.com/book-covers/premium-42/SP-CAND-0163_the-essays-or-counsels-civil-and-moral.webp)
 - [Valerius Terminus: Of the Interpretation of Nature](https://seeparah.com/book/bd1ce16f-9461-4f9c-ac0a-a63418bf7a2f) — SP-CAND-0167 — [WebP](https://seeparah.com/book-covers/premium-42/SP-CAND-0167_valerius-terminus-of-the-interpretation-of-nature.webp)
@@ -43,10 +43,7 @@ Every link below is a published book detail page; the cover links are immutable 
 - [The Adventures of Peregrine Pickle](https://seeparah.com/book/a9573e06-5bea-452a-a4eb-033db97eb19e) — SP-CAND-0419 — [WebP](https://seeparah.com/book-covers/premium-42/SP-CAND-0419_the-adventures-of-peregrine-pickle.webp)
 
 ## Sacred original-language books (4)
-- [](https://seeparah.com/book/e0c836a6-6d04-5914-9196-aeb9871776e9) — Sanskrit / gita-gita-sanskrit-c6fce3959544 — [WebP](https://seeparah.com/book-covers/premium-42/sacred/sacred-bhagavad-gita-sanskrit.webp)
-- [](https://seeparah.com/book/83acc105-30e9-58f5-9db4-8bcc35b7ab4b) — Chinese / zh-wikisource-wangbi-dao-de-jing-rev2354026 — [WebP](https://seeparah.com/book-covers/premium-42/sacred/sacred-dao-de-jing-wang-bi-chinese.webp)
-- [](https://seeparah.com/book/3e2c1103-36a9-5a44-987c-259d27dea072) — Pali / bilara-root-pli-ms-dhp — [WebP](https://seeparah.com/book-covers/premium-42/sacred/sacred-dhammapada-pali.webp)
-- [](https://seeparah.com/book/85eb2806-8964-5fb7-9236-0f8ac79a4ca2) — Chinese / gutenberg:liji:24048 — [WebP](https://seeparah.com/book-covers/premium-42/sacred/sacred-li-ji-chinese.webp)
-
-## Held in staging (1)
-- Tenda e castello (SP-CAND-0105): no cover URL assigned; artwork incorrectly credits Carlo Dossi rather than Roberto Sacchetti.
+- [Bhagavad Gita](https://seeparah.com/book/e0c836a6-6d04-5914-9196-aeb9871776e9) — Sanskrit / gita-gita-sanskrit-c6fce3959544 — [WebP](https://seeparah.com/book-covers/premium-42/sacred/sacred-bhagavad-gita-sanskrit.webp)
+- [Dao De Jing — Wang Bi Commentary](https://seeparah.com/book/83acc105-30e9-58f5-9db4-8bcc35b7ab4b) — Chinese / zh-wikisource-wangbi-dao-de-jing-rev2354026 — [WebP](https://seeparah.com/book-covers/premium-42/sacred/sacred-dao-de-jing-wang-bi-chinese.webp)
+- [Dhammapada](https://seeparah.com/book/3e2c1103-36a9-5a44-987c-259d27dea072) — Pali / bilara-root-pli-ms-dhp — [WebP](https://seeparah.com/book-covers/premium-42/sacred/sacred-dhammapada-pali.webp)
+- [禮記 (Li Ji — Book of Rites)](https://seeparah.com/book/85eb2806-8964-5fb7-9236-0f8ac79a4ca2) — Chinese / gutenberg:liji:24048 — [WebP](https://seeparah.com/book-covers/premium-42/sacred/sacred-li-ji-chinese.webp)
