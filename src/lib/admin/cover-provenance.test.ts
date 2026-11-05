@@ -86,6 +86,57 @@ describe("SP-14 real Supabase Storage file-info metadata split", () => {
   });
 });
 
+describe("SP-14 actual storage-js .info recursive camelCase response", () => {
+  // StorageFileApi.info performs recursiveToCamel over the full REST JSON.
+  // The storage.objects DB row is snake_case; the client response is NOT.
+  const liveLikeResponse = {
+    metadata: {
+      size: 293666,
+      mimetype: "image/webp",
+      cacheControl: "max-age=86400",
+    },
+    userMetadata: {
+      editionLanguage: expected.language,
+      sourceEditionId: expected.sourceEditionId,
+      attribution: expected.attribution,
+      sharedArtwork: "false",
+      uploadedBy: "authorized-owner",
+    },
+  };
+  it("accepts the actual camelized immutable rights namespace", () => {
+    expect(() => verifyStagedCoverObjectProvenance(liveLikeResponse, expected)).not.toThrow();
+  });
+  it("rejects tampered author/source/rights even when the technical object exists", () => {
+    expect(() => verifyStagedCoverObjectProvenance({
+      ...liveLikeResponse,
+      userMetadata: { ...liveLikeResponse.userMetadata, sourceEditionId: "different" },
+    }, expected)).toThrow(/rights or source edition changed/i);
+    expect(() => verifyStagedCoverObjectProvenance({
+      ...liveLikeResponse,
+      userMetadata: { ...liveLikeResponse.userMetadata, sharedArtwork: "true" },
+    }, expected)).toThrow(/rights or source edition changed/i);
+    expect(() => verifyStagedCoverObjectProvenance({
+      ...liveLikeResponse,
+      userMetadata: { ...liveLikeResponse.userMetadata, attribution: "not-reviewed" },
+    }, expected)).toThrow(/rights or source edition changed/i);
+  });
+  it("never falls back to technical fields when the custom namespace is absent", () => {
+    expect(() => verifyStagedCoverObjectProvenance({
+      metadata: { ...metadata, editionLanguage: expected.language, sourceEditionId: expected.sourceEditionId },
+    }, expected)).toThrow(/no stored rights provenance/i);
+  });
+  it("fails on conflicting duplicate camel/snake rights fields", () => {
+    expect(() => verifyStagedCoverObjectProvenance({
+      ...liveLikeResponse,
+      userMetadata: { ...liveLikeResponse.userMetadata, source_edition_id: "other" },
+    }, expected)).toThrow(/rights or source edition changed/i);
+    expect(() => verifyStagedCoverObjectProvenance({
+      ...liveLikeResponse,
+      user_metadata: { ...metadata, source_edition_id: "other" },
+    }, expected)).toThrow(/rights or source edition changed/i);
+  });
+});
+
 describe("SP-14 no unrecorded exact-edition placeholder for cover publication", () => {
   it("rejects missing or whitespace-only source identifiers before any storage write", () => {
     expect(() => requireVerifiedSourceEditionId(null)).toThrow(/no verified identifier/i);
