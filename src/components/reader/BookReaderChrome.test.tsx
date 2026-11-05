@@ -15,6 +15,7 @@ const onContents = vi.fn();
 const onBackToReading = vi.fn();
 const onLanguageChange = vi.fn();
 const onHighlight = vi.fn();
+const onBeforeHighlight = vi.fn();
 const onOpenSettings = vi.fn();
 afterEach(() => { cleanup(); vi.clearAllMocks(); });
 
@@ -25,7 +26,7 @@ function drawTopbar(canReturnToReading = false) {
     bookId="book-1" canReturnToReading={canReturnToReading}
     progress={15} onLanguageChange={onLanguageChange}
     onBackToReading={onBackToReading} onContents={onContents}
-    onHighlight={onHighlight} onOpenSettings={onOpenSettings}
+    onHighlight={onHighlight} onBeforeHighlight={onBeforeHighlight} onOpenSettings={onOpenSettings}
   />);
 }
 describe("SP-36 modular reader chrome preserves source actions and accessible navigation", () => {
@@ -38,7 +39,10 @@ describe("SP-36 modular reader chrome preserves source actions and accessible na
     expect(onLanguageChange).toHaveBeenCalledWith("Urdu");
     fireEvent.click(screen.getByRole("button", { name: "Contents" }));
     expect(onContents).toHaveBeenCalledTimes(1);
-    fireEvent.click(screen.getByRole("button", { name: "Highlight selection" }));
+    const button = screen.getByRole("button", { name: "Highlight selection" });
+    fireEvent.pointerDown(button);
+    expect(onBeforeHighlight).toHaveBeenCalledTimes(1);
+    fireEvent.click(button);
     expect(onHighlight).toHaveBeenCalledTimes(1);
     fireEvent.click(screen.getByRole("button", { name: "Reader settings" }));
     expect(onOpenSettings).toHaveBeenCalledTimes(1);

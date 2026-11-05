@@ -7,7 +7,7 @@ import { ShelfButtons } from "@/components/ShelfButtons";
  * BookReaderV3's guarded controllers, never in this component. */
 export function BookReaderTopbar({
   title, pageLabel, language, availableLanguages, bookId, canReturnToReading, progress,
-  onLanguageChange, onBackToReading, onContents, onHighlight, onOpenSettings,
+  onLanguageChange, onBackToReading, onContents, onHighlight, onBeforeHighlight, onOpenSettings,
 }: {
   title: string;
   pageLabel: string;
@@ -20,6 +20,7 @@ export function BookReaderTopbar({
   onBackToReading: () => void;
   onContents: () => void;
   onHighlight: () => void | Promise<void>;
+  onBeforeHighlight: () => void;
   onOpenSettings: () => void;
 }) {
   const displayBookTitle=title;
@@ -62,6 +63,11 @@ export function BookReaderTopbar({
             <ShelfButtons bookId={bookId} />
           </div>
           <button
+            onPointerDown={onBeforeHighlight}
+            onMouseDown={(event) => {
+              // Preserve desktop selection focus until the click handler saves it.
+              if (window.getSelection()?.toString().trim()) event.preventDefault();
+            }}
             onClick={onHighlight}
             className="reader-v3-icon"
             aria-label="Highlight selection"

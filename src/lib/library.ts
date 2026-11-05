@@ -339,9 +339,12 @@ export async function addHighlight(
   if (userId !== DEMO_USER_ID) {
     try {
       const { error } = await supabase.from("book_highlights").insert(row);
-      if (!error) return row;
+      if (error) throw error;
+      return row;
     } catch {
-      // fall through
+      // Never pretend an authenticated user's highlight was synced by
+      // falling back to the guest-only store. That mark vanishes on reload.
+      throw new Error("Highlight could not sync to your account. Please retry.");
     }
   }
   const rows = demoStore.getHighlights();

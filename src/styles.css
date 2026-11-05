@@ -257,6 +257,13 @@
   box-decoration-break: clone;
 }
 
+/* Saved sacred marks paint over source glyphs without inserting DOM nodes
+   or changing canonical scripture content, diacritics or verse structure. */
+::highlight(seeparah-sacred-saved) {
+  background-color: color-mix(in oklab, var(--gold) 50%, transparent);
+  color: inherit;
+}
+
 .dark .reader-highlight {
   background-color: color-mix(in oklab, var(--gold) 42%, transparent);
 }

@@ -32,9 +32,10 @@ import { BookReaderPhysicalPage, type PhysicalPageOptions } from "@/components/r
 import { findReaderSourceAnchor } from "@/lib/reader-position-anchor";
 import {
   clamp, buildLogicalBookPages, toRoman, scriptureFontFamily, splitSummary,
-  findTextAnchor, textOffsetWithinAnchor, textBoundaryAt, pageForBoundary,
+  textBoundaryAt, pageForBoundary,
   type FrontPage, type ReaderPosition,
 } from "@/lib/reader-v3-helpers";
+import { captureReaderHighlightSelection, type ReaderHighlightSelection } from "@/lib/reader-highlight-selection";
 import { formatAuthorName } from "@/lib/author-name";
 import { displayTitleCase } from "@/lib/display-text";
 import { getPrefs, setPrefs, type ReaderTheme, type ReaderFontFamily, type ReaderContentWidth } from "@/lib/prefs";
@@ -114,6 +115,11 @@ export function BookReaderV3({
   const fontChangeTimerRef = useRef<number | null>(null);
   const lastPageSizeRef = useRef({ width: 360, height: 540 });
   const touchStartRef = useRef<number | null>(null);
+  const pendingHighlightRef = useRef<{
+    selection: ReaderHighlightSelection;
+    contextKey: string;
+    recordedAt: number;
+  } | null>(null);
   const seededKeyRef = useRef<string | null>(null);
 
   const payloadQuery = useQuery({
@@ -219,6 +225,31 @@ export function BookReaderV3({
   const currentChapterIndex = chapterIndexForLogicalPage(activeLogicalPage);
   const storageKey = "seeparah:reader-v3:" + userId + ":" + book.id + ":" + language;
   const seedKey = userId + ":" + book.id + ":" + language;
+  const highlightContextKey = book.id + ":" + language + ":" + String(frontIndex) + ":" + String(bodyPage);
+
+  const rememberSelectedText = useCallback(() => {
+    const sourceSelection = captureReaderHighlightSelection(window.getSelection(), stageRef.current);
+    if (sourceSelection) {
+      pendingHighlightRef.current = {
+        selection: sourceSelection,
+        contextKey: highlightContextKey,
+        recordedAt: Date.now(),
+      };
+    }
+    return sourceSelection;
+  }, [highlightContextKey]);
+
+  // Mobile Safari/Chrome may collapse native selection when the user touches
+  // the topbar; remember exact source offsets during the selection gesture.
+  useEffect(() => {
+    const onSelectionChange = () => { rememberSelectedText(); };
+    document.addEventListener("selectionchange", onSelectionChange);
+    return () => document.removeEventListener("selectionchange", onSelectionChange);
+  }, [rememberSelectedText]);
+
+  // Never offer a stale highlight after paging, changing editions or opening
+  // front matter. Only the current physical reading position may be saved.
+  useEffect(() => { pendingHighlightRef.current = null; }, [highlightContextKey]);
 
   useLayoutEffect(() => {
     const stage = stageRef.current;
@@ -892,47 +923,43 @@ export function BookReaderV3({
   }
 
   async function handleHighlight() {
-    const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0 || !selection.toString().trim()) {
-      toast.info("Select text on the page first.");
+    const currentSelection = rememberSelectedText();
+    const cached = pendingHighlightRef.current;
+    const usableCached =
+      cached?.contextKey === highlightContextKey &&
+      Date.now() - cached.recordedAt < 90_000
+        ? cached.selection
+        : null;
+    const anchored = currentSelection ?? usableCached;
+    if (!anchored) {
+      const unanchoredText = window.getSelection()?.toString().trim();
+      toast.info(unanchoredText
+        ? "Keep one highlight within a source paragraph boundary."
+        : "Select text on the book page first, then tap Highlight.");
       return;
     }
-    const range = selection.getRangeAt(0);
-    const start = findTextAnchor(range.startContainer);
-    const end = findTextAnchor(range.endContainer);
-    if (!start || !end) {
-      toast.info("Select text from the book page itself.");
-      return;
+    try {
+      const saved = await addHighlight(
+        userId,
+        book.id,
+        language,
+        anchored.chunkIndex,
+        anchored.text,
+        anchored.startOffset,
+        anchored.endOffset,
+      );
+      queryClient.setQueryData<Highlight[]>(["highlights", userId], (rows = []) => [
+        saved,
+        ...rows.filter((item) => item.id !== saved.id),
+      ]);
+      pendingHighlightRef.current = null;
+      window.getSelection()?.removeAllRanges();
+      toast.success("Highlighted");
+    } catch {
+      // Don't silently claim that an authenticated highlight was saved if
+      // Supabase rejected the write. Keep the source selection for retry.
+      toast.error("Could not save the highlight. Please try again.");
     }
-    const startChunk = Number(start.dataset["readerChunkIndex"]);
-    const endChunk = Number(end.dataset["readerChunkIndex"]);
-    if (startChunk !== endChunk) {
-      toast.info("Keep one highlight within a source paragraph boundary.");
-      return;
-    }
-    const startOffset =
-      Number(start.dataset["readerTextStart"]) +
-      textOffsetWithinAnchor(start, range.startContainer, range.startOffset);
-    const endOffset =
-      Number(end.dataset["readerTextStart"]) +
-      textOffsetWithinAnchor(end, range.endContainer, range.endOffset);
-    if (!Number.isFinite(startOffset) || !Number.isFinite(endOffset) || endOffset <= startOffset)
-      return;
-    const saved = await addHighlight(
-      userId,
-      book.id,
-      language,
-      startChunk,
-      selection.toString().replace(/\s+/gu, " ").trim(),
-      startOffset,
-      endOffset,
-    );
-    queryClient.setQueryData<Highlight[]>(["highlights", userId], (rows = []) => [
-      saved,
-      ...rows.filter((item) => item.id !== saved.id),
-    ]);
-    selection.removeAllRanges();
-    toast.success("Highlighted");
   }
 
   const measurePadding = textMeasure === "narrow" ? 0.095 : textMeasure === "wide" ? 0.045 : 0.065;
@@ -1091,6 +1118,7 @@ export function BookReaderV3({
         onBackToReading={returnFromContents}
         onContents={openContents}
         onHighlight={handleHighlight}
+        onBeforeHighlight={rememberSelectedText}
         onOpenSettings={() => setSettingsOpen(true)}
       />
 
@@ -1106,6 +1134,8 @@ export function BookReaderV3({
           touchStartRef.current = event.touches[0]?.clientX ?? null;
         }}
         onTouchEnd={(event) => {
+          // Dragging a native text-selection handle must never turn the page.
+          if (rememberSelectedText()) { touchStartRef.current = null; return; }
           const start = touchStartRef.current;
           const end = event.changedTouches[0]?.clientX ?? null;
           touchStartRef.current = null;
