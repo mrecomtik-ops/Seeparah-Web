@@ -13,6 +13,8 @@ import { Toaster } from "sonner";
 
 import appCss from "../styles.css?url";
 import { AppHeader } from "@/components/AppHeader";
+import { PlatformUsageTracker } from "@/components/PlatformUsageTracker";
+import { FloatingFeedback } from "@/components/FloatingFeedback";
 import { AdminSessionSync } from "@/lib/admin/use-admin-session";
 
 function NotFoundComponent() {
@@ -156,6 +158,8 @@ function RootComponent() {
       {!bare && <AppHeader />}
       <span id="main-content" tabIndex={-1} className="sr-only" />
       <Outlet />
+      <PlatformUsageTracker pathname={pathname} />
+      {!pathname.startsWith("/admin") && <FloatingFeedback bare={bare} />}
       {!bare && !home && (
         <footer className="border-t border-border py-5 pb-20 text-center text-xs text-muted-foreground sm:pb-5">
           <nav
