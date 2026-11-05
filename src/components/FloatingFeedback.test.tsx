@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 
-const supportSubmit=vi.fn(async()=>({ok:true as const,referenceCode:"SP-TEST-123"}));
+const supportSubmit=vi.hoisted(()=>vi.fn(async()=>({ok:true as const,referenceCode:"SP-TEST-123"})));
 vi.mock("@/lib/admin/support.functions",()=>({submitSupportRequest:supportSubmit}));
 vi.mock("@/integrations/supabase/client",()=>({
   supabase:{auth:{getSession:vi.fn(async()=>({data:{session:null}}))}},
