@@ -877,11 +877,11 @@ export function SacredTextReader({
                       fullContentLength={chunk.fullContentLength}
                       loadFullContent={chunk.fullContentLength ? () => loadExactFullSource(chunk.chunkIndex) : undefined}
                       renderFullContent={(original) => (
-                        <p className="whitespace-pre-wrap break-words text-foreground" dir={direction} style={contentStyle}>
+                        <p data-sacred-source-text="true" className="whitespace-pre-wrap break-words text-foreground" dir={direction} style={contentStyle}>
                           {renderSacredInline(original)}
                         </p>
                       )}>
-                      <p className="whitespace-pre-wrap break-words text-foreground" dir={direction} style={contentStyle}>
+                      <p data-sacred-source-text="true" className="whitespace-pre-wrap break-words text-foreground" dir={direction} style={contentStyle}>
                         {renderSacredInline(chunk.content)}
                       </p>
                     </ProgressiveSourcePassage>
@@ -901,7 +901,7 @@ export function SacredTextReader({
                         {chunk.label}
                       </sup>
                     )}
-                    {renderSacredInline(chunk.content)}
+                    <span data-sacred-source-text="true">{renderSacredInline(chunk.content)}</span>
                     {editionLayout === "quran" && (
                       <sup
                         dir="ltr"
@@ -934,13 +934,15 @@ export function SacredTextReader({
                         >
                           {chunk.label}
                         </p>
-                        <DhammapadaStanza
-                          content={chunk.content}
-                          language={language}
-                          verseNumber={sourceVerseNumber}
-                          data={dhpSource}
-                          style={contentStyle}
-                        />
+                        <div data-sacred-source-text="true">
+                          <DhammapadaStanza
+                            content={chunk.content}
+                            language={language}
+                            verseNumber={sourceVerseNumber}
+                            data={dhpSource}
+                            style={contentStyle}
+                          />
+                        </div>
                       </div>
                     ) : editionLayout === "digha" ? (
                       <ProgressiveSourcePassage key={language + ":" + chunk.chunkIndex}
@@ -948,24 +950,24 @@ export function SacredTextReader({
                           fullContentLength={chunk.fullContentLength}
                           loadFullContent={chunk.fullContentLength ? () => loadExactFullSource(chunk.chunkIndex) : undefined}
                           renderFullContent={(original) => (
-                            <BilaraDiscourse
+                            <div data-sacred-source-text="true"><BilaraDiscourse
                               content={original}
                               ranges={section.sourceSegments}
                               data={dnSource}
                               style={contentStyle}
                               language={language}
-                            />
+                            /></div>
                           )}>
-                        <BilaraDiscourse
+                        <div data-sacred-source-text="true"><BilaraDiscourse
                           content={chunk.content}
                           ranges={section.sourceSegments}
                           data={dnSource}
                           style={contentStyle}
                           language={language}
-                        />
+                        /></div>
                       </ProgressiveSourcePassage>
                     ) : editionLayout === "dao" ? (
-                      <DaoWithWangBi content={chunk.content} style={contentStyle} />
+                      <div data-sacred-source-text="true"><DaoWithWangBi content={chunk.content} style={contentStyle} /></div>
                     ) : editionLayout === "gita" && language === "Sanskrit" ? (
                       <div
                         className="sacred-shloka whitespace-normal break-words text-foreground"
@@ -981,6 +983,7 @@ export function SacredTextReader({
                           .map((line, i) => (
                             <p
                               key={i}
+                              data-sacred-source-text="true"
                               className={
                                 line.trim().endsWith("उवाच") ? "mb-1 font-semibold" : "my-0"
                               }
@@ -1000,7 +1003,7 @@ export function SacredTextReader({
                         dir={direction}
                       >
                         <ProgressiveSourcePassage content={chunk.content} style={contentStyle} label={chunk.label}>
-                          <p className="whitespace-pre-line break-words text-foreground" style={contentStyle}>
+                          <p data-sacred-source-text="true" className="whitespace-pre-line break-words text-foreground" style={contentStyle}>
                             {renderSacredInline(chunk.content)}
                           </p>
                         </ProgressiveSourcePassage>
