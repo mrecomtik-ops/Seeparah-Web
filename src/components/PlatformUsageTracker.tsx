@@ -89,7 +89,7 @@ export function PlatformUsageTracker({pathname}:{pathname:string}) {
   },[pathname,consent,ready]);
   if(!ready || consent!==null || !usageArea(pathname)) return null;
   return <section aria-label="Anonymous visitor statistics choice"
-    className="fixed bottom-4 left-3 z-[65] w-[min(21rem,calc(100vw-1.5rem))] rounded-2xl border border-border bg-card p-4 shadow-xl">
+    className="fixed bottom-20 left-3 z-[65] sm:bottom-4 w-[min(21rem,calc(100vw-1.5rem))] rounded-2xl border border-border bg-card p-4 shadow-xl">
     <p className="text-sm font-semibold text-foreground">Help improve Seeparah</p>
     <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
       May we count anonymous page visits and return visits by country or region?
