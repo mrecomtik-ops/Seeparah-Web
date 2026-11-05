@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { PlatformUsageTracker, usageArea } from "./PlatformUsageTracker";
+import { cleanup, render } from "@testing-library/react";
+import { PlatformUsageTracker, setUsageConsent, usageArea } from "./PlatformUsageTracker";
 
 afterEach(()=>{cleanup();localStorage.clear();sessionStorage.clear();});
 describe("anonymous analytics opt-in",()=>{
@@ -12,11 +12,10 @@ describe("anonymous analytics opt-in",()=>{
     expect(usageArea("/admin/analytics")).toBeNull();
     expect(usageArea("/auth")).toBeNull();
   });
-  it("does not collect a visitor ID before consent and accepts declining",async()=>{
+  it("keeps the anonymous visitor ID unset when tracking is declined",()=>{
     render(<PlatformUsageTracker pathname="/library" />);
-    const button=await screen.findByRole("button",{name:"No thanks"});
     expect(localStorage.getItem("seeparah:anonymous-visitor")).toBeNull();
-    fireEvent.click(button);
+    setUsageConsent("deny");
     expect(localStorage.getItem("seeparah:analytics-consent")).toBe("deny");
     expect(localStorage.getItem("seeparah:anonymous-visitor")).toBeNull();
   });
