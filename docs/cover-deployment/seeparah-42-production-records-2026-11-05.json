@@ -1,0 +1,422 @@
+[
+  {
+    "id": "3e2c1103-36a9-5a44-987c-259d27dea072",
+    "import_key": "sacred:buddhism:suttacentral:dhammapada",
+    "title": "Dhammapada",
+    "author": "Sacred text",
+    "status": "published",
+    "rights_status": "approved",
+    "source_edition_id": "suttacentral-bilara-dhp-06ab1b50b259",
+    "cover_url": "https://seeparah.com/book-covers/premium-42/sacred/sacred-dhammapada-pali.webp"
+  },
+  {
+    "id": "85eb2806-8964-5fb7-9236-0f8ac79a4ca2",
+    "import_key": "sacred:confucian:liji:original-chinese:gutenberg24048",
+    "title": "禮記 (Li Ji — Book of Rites)",
+    "author": "Traditional anonymous compilers",
+    "status": "published",
+    "rights_status": "approved",
+    "source_edition_id": "gutenberg:liji:24048",
+    "cover_url": "https://seeparah.com/book-covers/premium-42/sacred/sacred-li-ji-chinese.webp"
+  },
+  {
+    "id": "83acc105-30e9-58f5-9db4-8bcc35b7ab4b",
+    "import_key": "sacred:daoism:dao-de-jing:wang-bi:2354026",
+    "title": "Dao De Jing — Wang Bi Commentary",
+    "author": "Laozi (traditional attribution); commentary by Wang Bi",
+    "status": "published",
+    "rights_status": "approved",
+    "source_edition_id": "zh-wikisource-wangbi-dao-de-jing-rev2354026",
+    "cover_url": "https://seeparah.com/book-covers/premium-42/sacred/sacred-dao-de-jing-wang-bi-chinese.webp"
+  },
+  {
+    "id": "e0c836a6-6d04-5914-9196-aeb9871776e9",
+    "import_key": "sacred:hinduism:bhagavad-gita:gita-gita:c6fce39595445768876ddbb8d1268a9c935e1d2b",
+    "title": "Bhagavad Gita",
+    "author": "Traditional Sanskrit scripture",
+    "status": "published",
+    "rights_status": "approved",
+    "source_edition_id": "gita-gita-sanskrit-c6fce3959544",
+    "cover_url": "https://seeparah.com/book-covers/premium-42/sacred/sacred-bhagavad-gita-sanskrit.webp"
+  },
+  {
+    "id": "ef9f374c-b11c-49b3-8c54-05e5b7e9bf4c",
+    "import_key": "SP-CAND-0058",
+    "title": "A Honeymoon in Space",
+    "author": "George Chetwynd Griffith",
+    "status": "published",
+    "rights_status": "approved",
+    "source_edition_id": "gutenberg:19476",
+    "cover_url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0058_a-honeymoon-in-space.webp"
+  },
+  {
+    "id": "984b8ffa-c016-4e7a-8d9f-5d1b813d6435",
+    "import_key": "SP-CAND-0059",
+    "title": "Manon Lescaut",
+    "author": "Abbé Prévost",
+    "status": "published",
+    "rights_status": "approved",
+    "source_edition_id": "gutenberg:17983",
+    "cover_url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0059_manon-lescaut.webp"
+  },
+  {
+    "id": "92d0a324-d8cf-4c8d-887a-0e6c6007a25a",
+    "import_key": "SP-CAND-0063",
+    "title": "The Mystery of Edwin Drood",
+    "author": "Charles Dickens",
+    "status": "published",
+    "rights_status": "approved",
+    "source_edition_id": "gutenberg:564",
+    "cover_url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0063_the-mystery-of-edwin-drood.webp"
+  },
+  {
+    "id": "e1abe3c7-1333-40fe-8def-e34f994f033c",
+    "import_key": "SP-CAND-0069",
+    "title": "Under the Red Dragon",
+    "author": "James Grant",
+    "status": "published",
+    "rights_status": "approved",
+    "source_edition_id": "gutenberg:53874",
+    "cover_url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0069_under-the-red-dragon.webp"
+  },
+  {
+    "id": "340ab023-e335-4efd-925e-6f5c40a98ea0",
+    "import_key": "SP-CAND-0074",
+    "title": "An Inquiry into the Nature and Causes of the Wealth of Nations",
+    "author": "ADAM SMITH",
+    "status": "published",
+    "rights_status": "approved",
+    "source_edition_id": "gutenberg:3300",
+    "cover_url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0074_an-inquiry-into-the-nature-and-causes-of-the-wealth-of-nations.webp"
+  },
+  {
+    "id": "935c4918-3380-464d-91fe-872825d8f40d",
+    "import_key": "SP-CAND-0105",
+    "title": "Tenda e castello",
+    "author": "Roberto Sacchetti",
+    "status": "published",
+    "rights_status": "approved",
+    "source_edition_id": "gutenberg:71320",
+    "cover_url": null
+  },
+  {
+    "id": "123f4016-fc70-4015-b04f-b99e71638022",
+    "import_key": "SP-CAND-0125",
+    "title": "On the Economy of Machinery and Manufactures",
+    "author": "Charles Babbage",
+    "status": "published",
+    "rights_status": "approved",
+    "source_edition_id": "gutenberg:4238",
+    "cover_url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0125_on-the-economy-of-machinery-and-manufactures.webp"
+  },
+  {
+    "id": "05a31640-067f-4742-a52f-8c32773480bb",
+    "import_key": "SP-CAND-0163",
+    "title": "The Essays or Counsels, Civil and Moral",
+    "author": "Francis Bacon",
+    "status": "published",
+    "rights_status": "approved",
+    "source_edition_id": "gutenberg:575",
+    "cover_url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0163_the-essays-or-counsels-civil-and-moral.webp"
+  },
+  {
+    "id": "bd1ce16f-9461-4f9c-ac0a-a63418bf7a2f",
+    "import_key": "SP-CAND-0167",
+    "title": "Valerius Terminus: Of the Interpretation of Nature",
+    "author": "Francis Bacon",
+    "status": "published",
+    "rights_status": "approved",
+    "source_edition_id": "gutenberg:3290",
+    "cover_url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0167_valerius-terminus-of-the-interpretation-of-nature.webp"
+  },
+  {
+    "id": "5ad93165-db8a-4783-8964-2cc670ca6eeb",
+    "import_key": "SP-CAND-0183",
+    "title": "Essays on Work and Culture",
+    "author": "Hamilton Wright Mabie",
+    "status": "published",
+    "rights_status": "approved",
+    "source_edition_id": "gutenberg:6143",
+    "cover_url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0183_essays-on-work-and-culture.webp"
+  },
+  {
+    "id": "f330a625-b6db-4076-978a-4fb41bdf140c",
+    "import_key": "SP-CAND-0226",
+    "title": "La Chartreuse De Parme",
+    "author": "Stendhal",
+    "status": "published",
+    "rights_status": "approved",
+    "source_edition_id": "gutenberg:796",
+    "cover_url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0226_la-chartreuse-de-parme.webp"
+  },
+  {
+    "id": "97a73c4f-2741-4260-9f42-db4d0bb5a4d9",
+    "import_key": "SP-CAND-0229",
+    "title": "Bouvard et Pécuchet",
+    "author": "Gustave Flaubert",
+    "status": "published",
+    "rights_status": "approved",
+    "source_edition_id": "gutenberg:14157",
+    "cover_url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0229_bouvard-et-pecuchet.webp"
+  },
+  {
+    "id": "c2edfeca-071e-42af-b764-40e10ecdf57a",
+    "import_key": "SP-CAND-0246",
+    "title": "Voyage au Centre de la Terre",
+    "author": "Jules Verne",
+    "status": "published",
+    "rights_status": "approved",
+    "source_edition_id": "gutenberg:4791",
+    "cover_url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0246_voyage-au-centre-de-la-terre.webp"
+  },
+  {
+    "id": "7009788c-bd53-438f-b66e-102bbd964795",
+    "import_key": "SP-CAND-0280",
+    "title": "Pepita Jiménez",
+    "author": "Juan Valera",
+    "status": "published",
+    "rights_status": "approved",
+    "source_edition_id": "gutenberg:17223",
+    "cover_url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0280_pepita-jimenez.webp"
+  },
+  {
+    "id": "872d3257-36f1-4cbd-8bfc-aff0fa69eac8",
+    "import_key": "SP-CAND-0281",
+    "title": "Vida de Lazarillo de Tormes y de sus fortunas y adversidades",
+    "author": "Anónimo",
+    "status": "published",
+    "rights_status": "approved",
+    "source_edition_id": "gutenberg:320",
+    "cover_url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0281_vida-de-lazarillo-de-tormes-y-de-sus-fortunas-y-adversidades.webp"
+  },
+  {
+    "id": "80e9d43b-da89-4631-8c5b-ffb0cc177a07",
+    "import_key": "SP-CAND-0304",
+    "title": "Orlando Furioso",
+    "author": "Ludovico Ariosto",
+    "status": "published",
+    "rights_status": "approved",
+    "source_edition_id": "gutenberg:3747",
+    "cover_url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0304_orlando-furioso.webp"
+  },
+  {
+    "id": "f78eb57a-9381-4332-9dbc-5dd2e6c79d10",
+    "import_key": "SP-CAND-0306",
+    "title": "Divina Commedia di Dante: Inferno",
+    "author": "Dante Alighieri",
+    "status": "published",
+    "rights_status": "approved",
+    "source_edition_id": "gutenberg:997",
+    "cover_url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0306_divina-commedia-di-dante-inferno.webp"
+  },
+  {
+    "id": "bc423bcf-08f1-4571-9d58-3e0c6d686f52",
+    "import_key": "SP-CAND-0307",
+    "title": "Divina Commedia di Dante: Purgatorio",
+    "author": "Dante Alighieri",
+    "status": "published",
+    "rights_status": "approved",
+    "source_edition_id": "gutenberg:998",
+    "cover_url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0307_divina-commedia-di-dante-purgatorio.webp"
+  },
+  {
+    "id": "c280053e-9183-47bb-83d4-3dd6b443ea51",
+    "import_key": "SP-CAND-0308",
+    "title": "Divina Commedia di Dante: Paradiso",
+    "author": "Dante Alighieri",
+    "status": "published",
+    "rights_status": "approved",
+    "source_edition_id": "gutenberg:999",
+    "cover_url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0308_divina-commedia-di-dante-paradiso.webp"
+  },
+  {
+    "id": "0ad8ece8-7b9a-4ed1-a295-bb72e89e5bbb",
+    "import_key": "SP-CAND-0320",
+    "title": "Black Beauty",
+    "author": "Anna Sewell",
+    "status": "published",
+    "rights_status": "approved",
+    "source_edition_id": "gutenberg:271",
+    "cover_url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0320_black-beauty.webp"
+  },
+  {
+    "id": "2cdc3fe7-a100-451c-9a84-2231f42e0df1",
+    "import_key": "SP-CAND-0323",
+    "title": "The Further Adventures of Robinson Crusoe",
+    "author": "Daniel Defoe",
+    "status": "published",
+    "rights_status": "approved",
+    "source_edition_id": "gutenberg:561",
+    "cover_url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0323_the-further-adventures-of-robinson-crusoe.webp"
+  },
+  {
+    "id": "907fc18a-b49e-44d8-af76-ac381b04813d",
+    "import_key": "SP-CAND-0327",
+    "title": "The Pickwick Papers",
+    "author": "Charles Dickens",
+    "status": "published",
+    "rights_status": "approved",
+    "source_edition_id": "gutenberg:580",
+    "cover_url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0327_the-pickwick-papers.webp"
+  },
+  {
+    "id": "69318683-0c70-4082-b432-9f702c02a5c9",
+    "import_key": "SP-CAND-0329",
+    "title": "Martin Chuzzlewit",
+    "author": "Charles Dickens",
+    "status": "published",
+    "rights_status": "approved",
+    "source_edition_id": "gutenberg:968",
+    "cover_url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0329_martin-chuzzlewit.webp"
+  },
+  {
+    "id": "72f06949-735b-4b02-9a71-76890d26cc53",
+    "import_key": "SP-CAND-0333",
+    "title": "Barchester Towers",
+    "author": "Anthony Trollope",
+    "status": "published",
+    "rights_status": "approved",
+    "source_edition_id": "gutenberg:2432",
+    "cover_url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0333_barchester-towers.webp"
+  },
+  {
+    "id": "4d1175cf-a644-45c8-8f23-7932e467de1b",
+    "import_key": "SP-CAND-0353",
+    "title": "Through the Looking-Glass",
+    "author": "Lewis Carroll",
+    "status": "published",
+    "rights_status": "approved",
+    "source_edition_id": "gutenberg:12",
+    "cover_url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0353_through-the-looking-glass.webp"
+  },
+  {
+    "id": "cab845ed-2150-45cf-982e-afe6b59b073b",
+    "import_key": "SP-CAND-0360",
+    "title": "King Solomon's Mines",
+    "author": "H. Rider Haggard",
+    "status": "published",
+    "rights_status": "approved",
+    "source_edition_id": "gutenberg:2166",
+    "cover_url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0360_king-solomon-s-mines.webp"
+  },
+  {
+    "id": "c642260e-7e06-4946-8c61-3f1d1584f621",
+    "import_key": "SP-CAND-0383",
+    "title": "The Coming Race",
+    "author": "Edward Bulwer-Lytton",
+    "status": "published",
+    "rights_status": "approved",
+    "source_edition_id": "gutenberg:1951",
+    "cover_url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0383_the-coming-race.webp"
+  },
+  {
+    "id": "e8cfe792-564f-40ab-b317-840711e192f3",
+    "import_key": "SP-CAND-0385",
+    "title": "The Pathfinder; Or, The Inland Sea",
+    "author": "James Fenimore Cooper",
+    "status": "published",
+    "rights_status": "approved",
+    "source_edition_id": "gutenberg:1880",
+    "cover_url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0385_the-pathfinder-or-the-inland-sea.webp"
+  },
+  {
+    "id": "cc6a9fd5-927c-4fa0-88dd-c5c5eb06bce4",
+    "import_key": "SP-CAND-0387",
+    "title": "The Tragical History of Doctor Faustus From the Quarto of 1616",
+    "author": "Christopher Marlowe",
+    "status": "published",
+    "rights_status": "approved",
+    "source_edition_id": "gutenberg:811",
+    "cover_url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0387_the-tragical-history-of-doctor-faustus-from-the-quarto-of-1616.webp"
+  },
+  {
+    "id": "8a487ee3-6411-43bd-918d-a5d9f186dc91",
+    "import_key": "SP-CAND-0399",
+    "title": "Ivanhoe: A Romance",
+    "author": "Sir Walter Scott",
+    "status": "published",
+    "rights_status": "approved",
+    "source_edition_id": "gutenberg:82",
+    "cover_url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0399_ivanhoe-a-romance.webp"
+  },
+  {
+    "id": "6bc604a3-41fb-48b2-9d87-dcfa43e2e82e",
+    "import_key": "SP-CAND-0404",
+    "title": "The Unbearable Bassington",
+    "author": "Saki",
+    "status": "published",
+    "rights_status": "approved",
+    "source_edition_id": "gutenberg:555",
+    "cover_url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0404_the-unbearable-bassington.webp"
+  },
+  {
+    "id": "09187b16-52b1-453f-a998-0ba0274ea1e6",
+    "import_key": "SP-CAND-0405",
+    "title": "Rasselas, Prince of Abyssinia",
+    "author": "Samuel Johnson",
+    "status": "published",
+    "rights_status": "approved",
+    "source_edition_id": "gutenberg:652",
+    "cover_url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0405_rasselas-prince-of-abyssinia.webp"
+  },
+  {
+    "id": "d4d1b26b-7e66-43ed-97f6-8c1b184d48e9",
+    "import_key": "SP-CAND-0407",
+    "title": "Wieland; Or, The Transformation: An American Tale",
+    "author": "Charles Brockden Brown",
+    "status": "published",
+    "rights_status": "approved",
+    "source_edition_id": "gutenberg:792",
+    "cover_url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0407_wieland-or-the-transformation-an-american-tale.webp"
+  },
+  {
+    "id": "8f5cc573-fa3c-413c-a826-2ef135f06cc8",
+    "import_key": "SP-CAND-0408",
+    "title": "The Diary of a Nobody",
+    "author": "George & Weedon Grossmith",
+    "status": "published",
+    "rights_status": "approved",
+    "source_edition_id": "gutenberg:1026",
+    "cover_url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0408_the-diary-of-a-nobody.webp"
+  },
+  {
+    "id": "b452ec7b-4a94-4ffc-8ed4-16f9b5a763cb",
+    "import_key": "SP-CAND-0411",
+    "title": "Erewhon; Or, Over the Range",
+    "author": "Samuel Butler",
+    "status": "published",
+    "rights_status": "approved",
+    "source_edition_id": "gutenberg:1906",
+    "cover_url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0411_erewhon-or-over-the-range.webp"
+  },
+  {
+    "id": "6083c589-3b78-4036-b59e-1b17e4f7b967",
+    "import_key": "SP-CAND-0413",
+    "title": "Nostromo: A Tale of the Seaboard",
+    "author": "Joseph Conrad",
+    "status": "published",
+    "rights_status": "approved",
+    "source_edition_id": "gutenberg:2021",
+    "cover_url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0413_nostromo-a-tale-of-the-seaboard.webp"
+  },
+  {
+    "id": "5261b1f7-4ad5-49cb-8352-8f9589ba90aa",
+    "import_key": "SP-CAND-0415",
+    "title": "The Private Memoirs and Confessions of a Justified Sinner",
+    "author": "James Hogg",
+    "status": "published",
+    "rights_status": "approved",
+    "source_edition_id": "gutenberg:2276",
+    "cover_url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0415_the-private-memoirs-and-confessions-of-a-justified-sinner.webp"
+  },
+  {
+    "id": "a9573e06-5bea-452a-a4eb-033db97eb19e",
+    "import_key": "SP-CAND-0419",
+    "title": "The Adventures of Peregrine Pickle",
+    "author": "Tobias Smollett",
+    "status": "published",
+    "rights_status": "approved",
+    "source_edition_id": "gutenberg:4084",
+    "cover_url": "https://seeparah.com/book-covers/premium-42/SP-CAND-0419_the-adventures-of-peregrine-pickle.webp"
+  }
+]
