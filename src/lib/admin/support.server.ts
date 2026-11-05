@@ -34,7 +34,9 @@ export type SupportCategory =
   | "complaint"
   | "safety_abuse"
   | "privacy_request"
-  | "accessibility";
+  | "accessibility"
+  | "technical_issue"
+  | "platform_suggestion";
 
 export type RequestKind = "ticket" | "copyright_notice" | "copyright_counter_notice";
 
