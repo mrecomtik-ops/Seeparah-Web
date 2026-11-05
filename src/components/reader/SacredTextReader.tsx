@@ -748,11 +748,11 @@ export function SacredTextReader({
               >
                 {isStudy ? (
                   <>
-                    <div className="mb-2 flex items-baseline justify-between gap-3" dir="auto">
+                    <div className="mb-2 flex items-baseline justify-between gap-3" dir="auto" lang="en">
                       <button
                         type="button"
                         onClick={() => updateLocation(language, chunk.chunkIndex, true)}
-                        className="text-xs font-semibold text-primary hover:underline"
+                        className="inline-flex min-h-6 min-w-6 shrink-0 items-center justify-center text-xs font-semibold text-primary hover:underline"
                         aria-label={"Go to reference " + chunk.label}
                       >
                         {chunk.label}
@@ -772,7 +772,7 @@ export function SacredTextReader({
                             window.alert("The full published source could not be verified. Please retry.");
                           }
                         })()}
-                        className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                        className="inline-flex min-h-6 items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
                       >
                         <Copy className="h-3.5 w-3.5" /> Copy text
                       </button>
@@ -799,6 +799,7 @@ export function SacredTextReader({
                     {editionLayout !== "quran" && (
                       <sup
                         aria-label={"Reference " + chunk.label}
+                        lang="en"
                         dir="ltr"
                         className="me-1 align-super text-[0.68em] font-medium text-primary/80"
                       >
@@ -809,6 +810,7 @@ export function SacredTextReader({
                     {editionLayout === "quran" && (
                       <sup
                         dir="ltr"
+                        lang="en"
                         aria-label={"Ayah " + chunk.label}
                         className="ms-1 inline-block align-middle text-[0.63em] font-semibold text-primary/80"
                       >
@@ -819,7 +821,7 @@ export function SacredTextReader({
                 ) : (
                   <>
                     {analectsKind && (
-                      <p className="mb-1 text-xs font-medium text-muted-foreground" dir="auto">
+                      <p className="mb-1 text-xs font-medium text-muted-foreground" dir="auto" lang="en">
                         {analectsKind === "chinese-heading"
                           ? "Chinese source · book heading"
                           : analectsKind === "english-heading"
@@ -918,7 +920,7 @@ export function SacredTextReader({
                         key={annotation.type + "-" + annotation.ordinal}
                         className="rounded-md border border-border/60 px-3 py-2 text-sm"
                       >
-                        <summary className="cursor-pointer font-medium text-muted-foreground">
+                        <summary className="cursor-pointer font-medium text-muted-foreground" lang="en">
                           {annotationLabel(annotation.type)}
                         </summary>
                         <p className="mt-2 whitespace-pre-wrap leading-relaxed text-foreground">
@@ -939,23 +941,23 @@ export function SacredTextReader({
             aria-label={"Parallel " + compareLanguage + " edition"}
             className="min-w-0 rounded-xl border border-border bg-card px-4 py-7 shadow-sm sm:px-8 sm:py-10"
           >
-            <h2 className="mb-2 font-display text-xl font-semibold text-foreground">{compareLanguage} edition</h2>
-            <p className="mb-5 text-xs text-muted-foreground">
+            <h2 className="mb-2 font-display text-xl font-semibold text-foreground" lang="en">{compareLanguage} edition</h2>
+            <p className="mb-5 text-xs text-muted-foreground" lang="en">
               {canonicalComparison
                 ? "These editions differ in verse count. Verses are paired only when their imported source node keys and canonical references match, never by array index."
                 : "Only source editions with independently verified canonical position mapping are offered. References and text remain those of the selected edition."}
             </p>
             {comparisonQuery.isLoading ? (
-              <p role="status" className="text-sm text-muted-foreground">Loading parallel edition…</p>
+              <p role="status" className="text-sm text-muted-foreground" lang="en">Loading parallel edition…</p>
             ) : !comparisonQuery.data || comparisonQuery.isError ? (
-              <p role="alert" className="text-sm text-destructive">
+              <p role="alert" className="text-sm text-destructive" lang="en">
                 The matching published edition could not be loaded. The main source text is unchanged.
               </p>
             ) : (
               <>
                 {canonicalComparison && visibleSourceChunks.some((primary) =>
                   !comparisonQuery.data?.chunks.some((chunk) => chunk.chunkIndex === primary.chunkIndex)) && (
-                  <p role="status" className="mb-3 rounded-lg border border-border bg-secondary/50 p-3 text-xs text-foreground">
+                  <p role="status" className="mb-3 rounded-lg border border-border bg-secondary/50 p-3 text-xs text-foreground" lang="en">
                     Some original references have no matching verse in this published comparison edition.
                     Unmatched verses are never fabricated or paired by neighboring index.
                   </p>
