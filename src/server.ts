@@ -96,6 +96,10 @@ export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
       const url = new URL(request.url);
+      if (url.pathname === "/api/platform-usage") {
+        const { handlePlatformUsageRequest } = await import("./lib/platform-usage.server");
+        return withSecurityHeaders(await handlePlatformUsageRequest(request, env));
+      }
       if (url.pathname === "/sitemap.xml") {
         const { buildLiveSitemapResponse } = await import("./lib/sitemap.server");
         return withSecurityHeaders(await buildLiveSitemapResponse());
@@ -115,7 +119,14 @@ export default {
     }
   },
 
-  scheduled(_event: unknown, _env: unknown, ctx: ScheduledContext) {
+  scheduled(_event: unknown, env: unknown, ctx: ScheduledContext) {
     ctx.waitUntil(runScheduledTranslationWork());
+    const utcNow = new Date();
+    // Execute data retention once per UTC day, never every minute.
+    if (utcNow.getUTCHours() === 2 && utcNow.getUTCMinutes() === 30) {
+      ctx.waitUntil(import("./lib/platform-usage.server")
+        .then(({ prunePlatformUsage }) => prunePlatformUsage(env))
+        .catch((error) => console.error("[usage] retention error", error)));
+    }
   },
 };
