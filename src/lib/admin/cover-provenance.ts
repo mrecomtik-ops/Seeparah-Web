@@ -70,6 +70,40 @@ export function verifyStagedCoverObjectProvenance(
   }
 }
 
+/** Storage's file-info endpoint does not expose custom user_metadata in every
+ * deployed Storage API version. The privileged stage handler writes these
+ * exact facts to the server-owned audit_log after the successful upload.
+ * Only use a matching authenticated stage audit row as rights evidence;
+ * technical Storage metadata, caller values and the uploaded filename are
+ * insufficient. The audit row must be found by the exact opaque object path.
+ */
+export function verifyStagedCoverAuditProvenance(
+  auditAfter: unknown,
+  expected: {
+    path: string;
+    language: string;
+    sourceEditionId: string;
+    attribution: string;
+    sharedArtwork: boolean;
+  },
+): void {
+  if (!auditAfter || typeof auditAfter !== "object" || Array.isArray(auditAfter)) {
+    throw new Error("Staged cover has no verified server audit provenance. Stage and review the artwork again.");
+  }
+  const stored = auditAfter as Record<string, unknown>;
+  const agrees = stored["path"] === expected.path
+    && stored["language"] === expected.language
+    && stored["sourceEditionId"] === expected.sourceEditionId
+    && stored["attribution"] === expected.attribution
+    && stored["sharedArtwork"] === expected.sharedArtwork
+    && typeof stored["sizeBytes"] === "number"
+    && Number.isSafeInteger(stored["sizeBytes"])
+    && (stored["sizeBytes"] as number) > 0;
+  if (!agrees) {
+    throw new Error("Staged cover rights or source edition changed. Review and stage the correct edition artwork again.");
+  }
+}
+
 /** Never stage or assign an edition-specific cover to an unidentified source.
  * Preserve every byte of an existing ID; do not "normalize" canonical IDs. */
 export function requireVerifiedSourceEditionId(sourceEditionId: string | null | undefined): string {
