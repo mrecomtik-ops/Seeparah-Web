@@ -17,19 +17,23 @@ function statusLabel(value: string) {
 
 const REQUEST_KIND_LABEL: Record<string, string> = {
   ticket: "General request",
+  platform_suggestion: "Platform suggestion",
+  technical_issue: "Technical issue",
   copyright_notice: "Copyright notice",
   copyright_counter_notice: "Copyright counter-notice",
 };
 
 function AdminSupportList() {
   const [status, setStatus] = useState("open");
+  const [category, setCategory] = useState<"" | "technical_issue" | "platform_suggestion">("");
   const ticketsQuery = useQuery({
-    queryKey: ["admin-tickets", status],
+    queryKey: ["admin-tickets", status, category],
     queryFn: async () =>
       adminListTickets({
         data: {
           accessToken: await getAccessToken(),
           status: status || undefined,
+          category: category || undefined,
           page: 1,
           perPage: 50,
         },
@@ -43,7 +47,21 @@ function AdminSupportList() {
         Reader support, account issues and copyright workflows. Legal notices stay visibly
         distinct from ordinary support requests.
       </p>
-      <div className="mt-4 flex flex-wrap gap-2">
+      <div role="group" aria-label="Filter support request types" className="mt-4 flex flex-wrap gap-2">
+        {([
+          { value: "" as const, label: "All requests" },
+          { value: "technical_issue" as const, label: "Technical issues" },
+          { value: "platform_suggestion" as const, label: "Suggestions" },
+        ]).map((option) => (
+          <button key={option.value || "all"} type="button" aria-pressed={category === option.value}
+            onClick={() => setCategory(option.value)}
+            className={"min-h-10 rounded-full border px-3 text-xs font-semibold " +
+              (category === option.value ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-foreground")}>
+            {option.label}
+          </button>
+        ))}
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2">
         {STATUSES.map((s) => (
           <button
             key={s || "all"}
@@ -71,9 +89,9 @@ function AdminSupportList() {
               <div className="flex items-center justify-between gap-2">
                 <p className="font-semibold text-foreground">{t.subject}</p>
                 <div className="flex shrink-0 items-center gap-1.5">
-                  {t.request_kind !== "ticket" && (
+                  {(t.request_kind !== "ticket" || t.category === "technical_issue" || t.category === "platform_suggestion") && (
                     <span className="rounded-full bg-gold/15 px-2 py-0.5 text-xs font-semibold text-gold">
-                      {REQUEST_KIND_LABEL[t.request_kind] ?? t.request_kind}
+                      {t.category === "platform_suggestion" ? "Suggestion" : t.category === "technical_issue" ? "Platform issue" : REQUEST_KIND_LABEL[t.request_kind] ?? t.request_kind}
                     </span>
                   )}
                   <span className="rounded-full bg-secondary px-2 py-0.5 text-xs font-semibold text-secondary-foreground">
