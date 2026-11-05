@@ -2,13 +2,14 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import { SupportRequestForm } from "@/components/legal/SupportRequestForm";
 import { CopyrightRequestForm } from "@/components/legal/CopyrightRequestForm";
+import { AnalyticsPrivacyChoice } from "@/components/AnalyticsPrivacyChoice";
 
 export const Route = createFileRoute("/legal")({
   head: () => ({ meta: [{ title: "Legal & support — Seeparah" }] }),
   component: LegalPage,
 });
 
-const LAST_UPDATED = "2026-09-24";
+const LAST_UPDATED = "2026-11-05";
 
 // Exported (in addition to being wired as the route's component below) so
 // it can be rendered directly in tests without a full router harness.
@@ -69,8 +70,18 @@ export function LegalPage() {
               <li>
                 <span className="font-semibold text-foreground">Technical and security data</span> —
                 for anonymous form submissions, a hashed (never raw) copy of your IP address, used
-                only to limit abuse of that form. We don't otherwise track your browsing beyond
-                what's needed to operate the reading experience itself.
+                only to limit abuse of that form. Separate anonymous site statistics only start
+                after you choose to allow them.
+              </li>
+              <li>
+                <span className="font-semibold text-foreground">Optional visitor statistics</span> —
+                if you opt in, the browser generates a random visitor identifier and a session
+                identifier. Our Cloudflare server records a page-area category, event time and
+                approximate country/region from the incoming request. It does not store the IP
+                address, account ID, email, full URL, search query or which specific book you read.
+                These first-party statistics are used only for anonymous platform usage reports.
+                New sessions start after 30 minutes of inactivity; usage events are deleted after
+                180 days. Browser Do Not Track and Global Privacy Control signals disable collection.
               </li>
               <li>
                 Reading streak/goal data is kept only on your own device (browser local storage) —
@@ -139,7 +150,12 @@ export function LegalPage() {
               Seeparah uses essential session storage (cookies and/or browser local storage,
               depending on how you sign in) to keep you signed in and to remember basic reading
               preferences. This is functional, not advertising or third-party tracking.
+              The optional anonymous usage statistics create first-party random browser/session
+              IDs in local and session storage only after you consent; refusing analytics leaves
+              those tracking IDs unset. You can withdraw consent below at any time.
             </p>
+
+            <AnalyticsPrivacyChoice />
 
             <p className="font-semibold text-foreground">How long we keep it</p>
             <p>
