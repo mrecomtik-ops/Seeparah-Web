@@ -23,11 +23,15 @@ export function verifyStagedCoverProvenance(
   }
 }
 
-/** Supabase Storage file-info returns technical fields in `metadata` and
- * custom upload rights fields in `user_metadata`. We must verify the latter.
- * Do not fall back to technical metadata or to client-submitted declarations:
- * doing so can either reject all valid covers or bypass the original rights
- * snapshot if a future API response shape changes.
+/** The Supabase Storage `.info(path)` SDK recursively camelCases the REST
+ * file-info JSON: `user_metadata` becomes `userMetadata` and even its
+ * CUSTOM keys (`source_edition_id` -> `sourceEditionId`).
+ *
+ * Verify that original immutable user-metadata namespace only. Do NOT use
+ * `metadata`, which contains untrusted-for-provenance system MIME/ETag fields;
+ * never use any caller-submitted rights data as the source of truth.
+ * Raw REST snake_case is also supported for compatibility, but conflicting
+ * declarations fail closed.
  */
 export function verifyStagedCoverObjectProvenance(
   fileInfo: unknown,
@@ -36,11 +40,34 @@ export function verifyStagedCoverObjectProvenance(
   const object = fileInfo && typeof fileInfo === "object" && !Array.isArray(fileInfo)
     ? fileInfo as Record<string, unknown>
     : null;
-  const userMetadata = object?.["user_metadata"];
-  const stored = userMetadata && typeof userMetadata === "object" && !Array.isArray(userMetadata)
-    ? userMetadata as Record<string, unknown>
-    : null;
-  verifyStagedCoverProvenance(stored, expected);
+  const namespaces = [object?.["userMetadata"], object?.["user_metadata"]]
+    .filter((value) => value !== undefined);
+  if (namespaces.length === 0) {
+    verifyStagedCoverProvenance(null, expected);
+    return;
+  }
+  for (const value of namespaces) {
+    const record = value && typeof value === "object" && !Array.isArray(value)
+      ? value as Record<string, unknown>
+      : null;
+    if (!record) {
+      verifyStagedCoverProvenance(null, expected);
+      return;
+    }
+    const field = (camel: string, snake: string): unknown => {
+      const a = record[camel], b = record[snake];
+      if (a !== undefined && b !== undefined && a !== b) {
+        throw new Error("Staged cover rights or source edition changed. Review and stage the correct edition artwork again.");
+      }
+      return a ?? b;
+    };
+    verifyStagedCoverProvenance({
+      edition_language: field("editionLanguage", "edition_language"),
+      source_edition_id: field("sourceEditionId", "source_edition_id"),
+      attribution: record["attribution"],
+      shared_artwork: field("sharedArtwork", "shared_artwork"),
+    }, expected);
+  }
 }
 
 /** Never stage or assign an edition-specific cover to an unidentified source.
