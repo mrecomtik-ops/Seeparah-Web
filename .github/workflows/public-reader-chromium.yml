@@ -5,6 +5,7 @@ on:
       - "scripts/qa/public-reader-chromium.mjs"
       - "scripts/qa/public-reader-native-zoom.mjs"
       - "scripts/qa/public-reader-language-parts.mjs"
+      - "scripts/qa/public-reader-theme-highlights-translation.mjs"
       - "scripts/qa/public-reader-webkit.mjs"
       - ".github/workflows/public-reader-chromium.yml"
   workflow_dispatch:
@@ -29,6 +30,10 @@ jobs:
           SEE_PARAH_QA_URL: https://seeparah.com
       - name: Verify SP-01 multilingual Study controls at mobile widths
         run: node scripts/qa/public-reader-language-parts.mjs
+        env:
+          SEE_PARAH_QA_URL: https://seeparah.com
+      - name: Verify live reader themes, saved highlights and request UI
+        run: node scripts/qa/public-reader-theme-highlights-translation.mjs
         env:
           SEE_PARAH_QA_URL: https://seeparah.com
       - name: Verify real browser-tab 200% zoom (headed Chromium)
