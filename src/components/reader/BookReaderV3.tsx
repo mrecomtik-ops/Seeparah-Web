@@ -46,8 +46,8 @@ import {
   type Book,
   type Highlight,
 } from "@/lib/data";
-import { listMyTranslationRequests, requestBookTranslationAccess } from "@/lib/admin/translation-access.functions";
-import { supabase } from "@/integrations/supabase/client";
+import { useReaderTranslationRequest } from "@/components/reader/useReaderTranslationRequest";
+import { positionForSavedHighlight } from "@/lib/reader-saved-highlight-position";
 
 const CONTENTS_PER_PAGE = 14;
 const PHYSICAL_PAGE_GUTTER = 10;
@@ -87,8 +87,10 @@ export function BookReaderV3({
   );
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [savedHighlightsOpen, setSavedHighlightsOpen] = useState(false);
-  const [requestLanguage, setRequestLanguage] = useState("");
-  const [requestingTranslation, setRequestingTranslation] = useState(false);
+  const {
+    requestLanguage, setRequestLanguage, requestingTranslation,
+    activeRequestStatus, handleTranslationRequest,
+  } = useReaderTranslationRequest(book, userId);
   const [frontIndex, setFrontIndex] = useState<number | null>(0);
   const [bodyPage, setBodyPage] = useState(0);
   const [rawPageCount, setRawPageCount] = useState(1);
@@ -138,17 +140,6 @@ export function BookReaderV3({
     queryKey: ["highlights", userId],
     queryFn: () => listHighlights(userId),
   });
-  const translationRequestsQuery = useQuery({
-    queryKey: ["my-translation-requests", userId, book.id],
-    queryFn: async () => {
-      const { data } = await supabase.auth.getSession();
-      const accessToken = data.session?.access_token;
-      if (!accessToken) return [];
-      return listMyTranslationRequests({ data: { accessToken } });
-    },
-    staleTime: 60_000,
-  });
-
   const chapters = useMemo(
     () =>
       buildReaderChapters(
@@ -164,11 +155,6 @@ export function BookReaderV3({
       ),
     [book.id, highlightsQuery.data, language],
   );
-  const activeRequest = (translationRequestsQuery.data ?? []).find(
-    (item) => item.book_id === book.id && item.language === requestLanguage,
-  );
-  const activeRequestStatus = activeRequest?.status ?? null;
-
   const requestableLanguages = useMemo(
     () =>
       book.content_classification === "religious" ||
@@ -909,47 +895,6 @@ export function BookReaderV3({
     setPrefs({ language: next });
   };
 
-  async function handleTranslationRequest() {
-    if (
-      !requestLanguage ||
-      requestingTranslation ||
-      book.content_classification === "religious" ||
-      book.translation_generation_policy === "source_only"
-    ) {
-      return;
-    }
-    setRequestingTranslation(true);
-    try {
-      const { data } = await supabase.auth.getSession();
-      const token = data.session?.access_token;
-      if (!token) {
-        toast.info("Sign in to submit a translation request.", {
-          action: { label: "Sign in", onClick: () => window.location.assign("/auth") },
-        });
-        return;
-      }
-      const outcome = await requestBookTranslationAccess({
-        data: {
-          accessToken: token,
-          bookId: book.id,
-          language: requestLanguage,
-        },
-      });
-      await queryClient.invalidateQueries({
-        queryKey: ["my-translation-requests", userId, book.id],
-      });
-      if (outcome.status === "requested") {
-        toast.success(`${requestLanguage} request received. Rights and editorial approval are required before a translation can be made available.`);
-      } else {
-        toast.info(`${requestLanguage}: request status is ${outcome.status.replaceAll("_", " ")}.`);
-      }
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not submit translation request");
-    } finally {
-      setRequestingTranslation(false);
-    }
-  }
-
   async function handleHighlight() {
     const currentSelection = rememberSelectedText();
     const cached = pendingHighlightRef.current;
@@ -996,26 +941,7 @@ export function BookReaderV3({
     setContentsReturnPosition(null);
     lastTypographySourceAnchorRef.current = null;
     fontChangeAnchorRef.current = null;
-    const chapterIndex = findReaderChapterByChunk(chapters, highlight.chunk_index);
-    const anchors = Array.from(
-      flowRef.current?.querySelectorAll<HTMLElement>(
-        '[data-reader-chapter-index="' + String(chapterIndex) +
-        '"][data-reader-chunk-index="' + String(highlight.chunk_index) + '"]',
-      ) ?? [],
-    );
-    const desiredOffset = highlight.start_offset ?? 0;
-    const matched = anchors.find((item) => {
-      const start = Number(item.dataset["readerTextStart"] ?? 0);
-      return desiredOffset >= start &&
-        desiredOffset <= start + (item.textContent?.length ?? 0);
-    }) ?? anchors[0];
-    const sourceStart = Number(matched?.dataset["readerTextStart"] ?? 0);
-    const chapterStart = Number(matched?.dataset["chapterOffset"] ?? 0);
-    const position: ReaderPosition = {
-      chapterIndex,
-      chunkIndex: highlight.chunk_index,
-      charOffset: chapterStart + Math.max(0, desiredOffset - sourceStart),
-    };
+    const position = positionForSavedHighlight(chapters, flowRef.current, highlight);
     setFrontIndex(null);
     positionRef.current = position;
     pendingRestoreRef.current = position;
