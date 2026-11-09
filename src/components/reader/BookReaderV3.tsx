@@ -76,6 +76,16 @@ export function BookReaderV3({
   const [fontSize, setFontSize] = useState(initialFontSize);
   const [fontSizeDraft, setFontSizeDraft] = useState(initialFontSize);
   const [theme, setTheme] = useState<ReaderTheme>(prefs.theme);
+  // Server-rendered readers start from safe defaults. After hydration, read
+  // the actual device-local preference to reconcile SSR and the first client
+  // render; don't rely solely on useMemo's initial theme snapshot. This makes Light/Sepia/Dark survive full navigation and
+  // reload without modifying the website's global appearance.
+  useEffect(() => {
+    const stored = getPrefs().theme;
+    if (stored === "light" || stored === "sepia" || stored === "dark") {
+      setTheme(stored);
+    }
+  }, []);
   const [typeface, setTypeface] = useState<ReaderFontFamily>(
     ["literary", "serif", "sans"].includes(prefs.fontFamily) ? prefs.fontFamily : "literary",
   );
