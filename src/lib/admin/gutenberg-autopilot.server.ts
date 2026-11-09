@@ -75,7 +75,7 @@ function parseAuthor(authorsRaw:string):{author:string;death:number}|null{
  * The main importer verifies dates and the actual source independently.
  */
 export function selectGutenbergCandidates(
-  csv:string, maximum=4800,
+  csv:string, maximum=4800, offset=0,
 ):GutenbergCatalogCandidate[]{
   const iter=csvRows(csv);
   const first=iter.next();
@@ -111,11 +111,12 @@ export function selectGutenbergCandidates(
     });
     // Keep the memory/network batch bounded. The feed is ID ordered, with
     // ample early classics; a future refresh can extend beyond this window.
-    if(records.length>=maximum*2)break;
+    // Catalog is large but finite. Keep scanning past previously loaded
+    // segments so unattended refill never repeats only the first 4,800 works.
   }
   const selected=records.sort((a,b)=>
-    a.priority-b.priority || a.gutenberg_id-b.gutenberg_id).slice(0,maximum);
-  if(selected.length<500)throw new Error("Not enough safe Gutenberg candidate metadata");
+    a.priority-b.priority || a.gutenberg_id-b.gutenberg_id).slice(offset,offset+maximum);
+  if(selected.length<1)throw new Error("Official Gutenberg candidate catalog has been exhausted");
   return selected;
 }
 
@@ -166,7 +167,7 @@ function db():SupabaseAdminDb{
 export async function runGutenbergAutopilotOnce():Promise<void>{
   const client=db();
   const {data:settings,error:settingsError}=await client.from("gutenberg_autopilot_settings")
-    .select("enabled,target_published,batch_size,catalog_checked_at,catalog_loaded_at")
+    .select("enabled,target_published,batch_size,catalog_checked_at,catalog_loaded_at,catalog_offset")
     .eq("id",1).maybeSingle();
   if(settingsError){
     console.error("[gutenberg-autopilot] settings error",settingsError.message);return;
@@ -192,7 +193,8 @@ export async function runGutenbergAutopilotOnce():Promise<void>{
     .update({catalog_checked_at:new Date().toISOString(),updated_at:new Date().toISOString()})
     .eq("id",1);
   try {
-    const candidates=selectGutenbergCandidates(await downloadCatalog());
+    const offset=Number(settings.catalog_offset||0);
+    const candidates=selectGutenbergCandidates(await downloadCatalog(),4800,offset);
     for(let i=0;i<candidates.length;i+=250){
       const chunk=candidates.slice(i,i+250);
       const {error}=await client.from("gutenberg_catalog_candidates")
@@ -201,7 +203,8 @@ export async function runGutenbergAutopilotOnce():Promise<void>{
     }
     const {error:doneError}=await client.from("gutenberg_autopilot_settings")
       .update({
-        catalog_loaded_at:new Date().toISOString(),last_error:null,
+        catalog_loaded_at:new Date().toISOString(),catalog_offset:offset+candidates.length,
+        last_error:null,
         updated_at:new Date().toISOString(),
       }).eq("id",1);
     if(doneError)throw new Error(doneError.message);
