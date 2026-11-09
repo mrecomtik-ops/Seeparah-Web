@@ -7,6 +7,7 @@ create table if not exists public.gutenberg_autopilot_settings (
   target_published integer not null default 1000 check (target_published between 100 and 10000),
   batch_size integer not null default 100 check (batch_size between 1 and 100),
   last_batch_number integer not null default 0,
+  catalog_offset integer not null default 0 check (catalog_offset >= 0),
   catalog_checked_at timestamptz,
   catalog_loaded_at timestamptz,
   last_error text,
