@@ -61,31 +61,38 @@ type Job = {
  * This is only metadata provenance, not approval to skip source/rights checks.
  */
 export function vettedBatchMetadata(job: Job): Catalog {
-  const m=job.metadata;
-  const batch=typeof m?.batchId==="string" ? m.batchId : "";
-  if(!/^PG-20\d\d-\d\d-\d\d-B50-\d\d$/.test(batch) ||
-     m?.metadataSource!=="Gutenberg catalogue page reviewed" ||
-     m?.originalPublicationYear!==job.original_publication_year ||
-     !Number.isSafeInteger(job.gutenberg_id) ||
-     job.gutenberg_id<1 || job.gutenberg_id>9_999_999 ||
-     typeof m?.title!=="string" || m.title.trim().length<3 ||
-     m.title.length>200 || typeof m.author!=="string" ||
-     m.author.trim().length<3 || m.author.length>120 ||
-     typeof m.authorDeathYear!=="number" ||
-     !Number.isInteger(m.authorDeathYear) || m.authorDeathYear<1400 ||
-     m.authorDeathYear>1925 || job.original_publication_year<1400 ||
-     job.original_publication_year>1900) {
+  const meta = job.metadata;
+  const batch = meta?.["batchId"];
+  const title = meta?.["title"];
+  const author = meta?.["author"];
+  const deathYear = meta?.["authorDeathYear"];
+  const source = meta?.["metadataSource"];
+  const firstPublication = meta?.["originalPublicationYear"];
+  if (typeof batch !== "string" ||
+      !/^PG-20\d\d-\d\d-\d\d-B50-\d\d$/.test(batch) ||
+      source !== "Gutenberg catalogue page reviewed" ||
+      firstPublication !== job.original_publication_year ||
+      !Number.isSafeInteger(job.gutenberg_id) ||
+      job.gutenberg_id < 1 || job.gutenberg_id > 9_999_999 ||
+      typeof title !== "string" || title.trim().length < 3 ||
+      title.length > 200 || typeof author !== "string" ||
+      author.trim().length < 3 || author.length > 120 ||
+      typeof deathYear !== "number" ||
+      !Number.isInteger(deathYear) || deathYear < 1400 ||
+      deathYear > 1925 || job.original_publication_year < 1400 ||
+      job.original_publication_year > 1900) {
     throw new Error("No separately reviewed Gutenberg batch identity for this source");
   }
-  const id=job.gutenberg_id;
+  const id = job.gutenberg_id;
   return {
-    id,title:m.title.trim(),media_type:"Text",copyright:false,
-    languages:["en"],authors:[{name:m.author.trim(),death_year:m.authorDeathYear}],
-    translators:[],editors:[],
-    formats:{
-      "text/plain; charset=utf-8":MIRROR+"/cache/epub/"+id+"/pg"+id+".txt",
-      "image/jpeg":MIRROR+"/cache/epub/"+id+"/pg"+id+".cover.medium.jpg",
-    }, subjects:["English literature"],summaries:[],
+    id, title: title.trim(), media_type: "Text", copyright: false,
+    languages: ["en"], authors: [{ name: author.trim(), death_year: deathYear }],
+    translators: [], editors: [],
+    formats: {
+      "text/plain; charset=utf-8": MIRROR + "/cache/epub/" + id + "/pg" + id + ".txt",
+      "image/jpeg": MIRROR + "/cache/epub/" + id + "/pg" + id + ".cover.medium.jpg",
+    },
+    subjects: ["English literature"], summaries: [],
   };
 }
 
