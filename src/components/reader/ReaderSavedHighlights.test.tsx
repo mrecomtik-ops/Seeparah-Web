@@ -34,6 +34,7 @@ describe("saved highlights visible while reading", () => {
     expect(screen.getByText(record.highlight_text)).toBeTruthy();
     expect(screen.getByText("Note: An important point")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /Go to saved highlight:/ }));
-    expect(jump).toHaveBeenCalledExactlyOnceWith(record);
+    expect(jump).toHaveBeenCalledTimes(1);
+    expect(jump).toHaveBeenCalledWith(record);
   });
 });
