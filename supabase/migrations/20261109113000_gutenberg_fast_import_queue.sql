@@ -34,3 +34,10 @@ values
  (98,1859), (205,1886), (514,1868), (76,1884), (23,1845),
  (41,1820), (158,1888), (174,1899)
 on conflict(gutenberg_id) do nothing;
+
+-- Source files are preserved for audit and exact-content verification.
+-- The original Gutenberg file with its full license is private, while
+-- the source-language reader uses the parsed, licensed body text.
+insert into storage.buckets(id,name,public,file_size_limit,allowed_mime_types)
+values ('gutenberg-sources','gutenberg-sources',false,10485760,array['text/plain'])
+on conflict(id) do nothing;
