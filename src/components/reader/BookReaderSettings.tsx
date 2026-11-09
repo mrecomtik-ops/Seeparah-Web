@@ -12,6 +12,7 @@ export interface BookReaderSettingsProps {
   requestableLanguages: readonly string[];
   requestLanguage: string;
   requestingTranslation: boolean;
+  translationRequestStatus: string | null;
   theme: ReaderTheme;
   onClose: () => void;
   onLanguageChange: (language: string) => void;
@@ -28,7 +29,7 @@ export interface BookReaderSettingsProps {
  * in BookReaderV3. Settings have no independent persisted or privileged state. */
 export function BookReaderSettings({
   book, language, fontSizeDraft, typeface, lineSpacing, textMeasure,
-  requestableLanguages, requestLanguage, requestingTranslation, theme,
+  requestableLanguages, requestLanguage, requestingTranslation, translationRequestStatus, theme,
   onClose, onLanguageChange, onFontSizeChange, onTypefaceChange,
   onLineSpacingChange, onTextMeasureChange, onRequestLanguageChange,
   onTranslationRequest, onThemeChange,
@@ -146,12 +147,24 @@ export function BookReaderSettings({
                   <button
                     type="button"
                     onClick={() => void onTranslationRequest()}
-                    disabled={!requestLanguage || requestingTranslation}
-                    className="rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-40"
+                    disabled={!requestLanguage || requestingTranslation || !!translationRequestStatus}
+                    className="min-h-11 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-40"
                   >
-                    {requestingTranslation ? "Sending…" : "Request"}
+                    {requestingTranslation ? "Sending…" : translationRequestStatus ? "Recorded" : "Request"}
                   </button>
                 </div>
+                <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                  Request a missing language edition. A request records reader interest only;
+                  translation, rights clearance and publication require separate editorial approval.
+                  Sign in to send a request.
+                </p>
+                {translationRequestStatus && (
+                  <p className="mt-2 text-xs font-semibold text-foreground" role="status">
+                    Your {requestLanguage} request: {translationRequestStatus.replaceAll("_", " ")}.
+                    {translationRequestStatus === "declined" || translationRequestStatus === "revoked"
+                      ? " Contact support for clarification." : ""}
+                  </p>
+                )}
               </div>
             )}
 
@@ -163,14 +176,19 @@ export function BookReaderSettings({
                 {(["light", "sepia", "dark"] as const).map((item) => (
                   <button
                     key={item}
-                    onClick={() => {
-                      onThemeChange(item);
-                    }}
+                    type="button"
+                    aria-pressed={theme === item}
+                    aria-label={item + " reading theme"}
+                    onClick={() => onThemeChange(item)}
                     className={
-                      "rounded-lg border px-3 py-2 text-sm font-semibold capitalize " +
-                      (theme === item ? "bg-primary text-primary-foreground" : "bg-card")
+                      "flex min-h-11 items-center justify-center gap-2 rounded-lg border px-2 py-2 text-sm font-semibold capitalize " +
+                      (theme === item ? "border-primary ring-2 ring-primary ring-offset-1 ring-offset-background" : "border-border")
                     }
                   >
+                    <span aria-hidden="true" className={
+                      "h-4 w-4 rounded-full border border-black/20 " +
+                      (item === "light" ? "bg-[#fffdf7]" : item === "sepia" ? "bg-[#e9d8b8]" : "bg-[#20352e]")
+                    } />
                     {item}
                   </button>
                 ))}
