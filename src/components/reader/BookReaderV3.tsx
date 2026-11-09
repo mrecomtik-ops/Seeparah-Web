@@ -28,6 +28,7 @@ import { BookReaderSettings } from "@/components/reader/BookReaderSettings";
 import { BookReaderTopbar } from "@/components/reader/BookReaderTopbar";
 import { BookReaderBottomBar } from "@/components/reader/BookReaderBottomBar";
 import { BookReaderFinishDialog } from "@/components/reader/BookReaderFinishDialog";
+import { ReaderSavedHighlights } from "@/components/reader/ReaderSavedHighlights";
 import { BookReaderPhysicalPage, type PhysicalPageOptions } from "@/components/reader/BookReaderPhysicalPage";
 import { findReaderSourceAnchor } from "@/lib/reader-position-anchor";
 import {
@@ -45,7 +46,7 @@ import {
   type Book,
   type Highlight,
 } from "@/lib/data";
-import { requestBookTranslationAccess } from "@/lib/admin/translation-access.functions";
+import { listMyTranslationRequests, requestBookTranslationAccess } from "@/lib/admin/translation-access.functions";
 import { supabase } from "@/integrations/supabase/client";
 
 const CONTENTS_PER_PAGE = 14;
@@ -85,6 +86,7 @@ export function BookReaderV3({
     [1.4, 1.5, 1.65, 1.8].includes(prefs.v3LineHeight) ? prefs.v3LineHeight : 1.5,
   );
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [savedHighlightsOpen, setSavedHighlightsOpen] = useState(false);
   const [requestLanguage, setRequestLanguage] = useState("");
   const [requestingTranslation, setRequestingTranslation] = useState(false);
   const [frontIndex, setFrontIndex] = useState<number | null>(0);
@@ -136,6 +138,16 @@ export function BookReaderV3({
     queryKey: ["highlights", userId],
     queryFn: () => listHighlights(userId),
   });
+  const translationRequestsQuery = useQuery({
+    queryKey: ["my-translation-requests", userId, book.id],
+    queryFn: async () => {
+      const { data } = await supabase.auth.getSession();
+      const accessToken = data.session?.access_token;
+      if (!accessToken) return [];
+      return listMyTranslationRequests({ data: { accessToken } });
+    },
+    staleTime: 60_000,
+  });
 
   const chapters = useMemo(
     () =>
@@ -152,6 +164,11 @@ export function BookReaderV3({
       ),
     [book.id, highlightsQuery.data, language],
   );
+  const activeRequest = (translationRequestsQuery.data ?? []).find(
+    (item) => item.book_id === book.id && item.language === requestLanguage,
+  );
+  const activeRequestStatus = activeRequest?.status ?? null;
+
   const requestableLanguages = useMemo(
     () =>
       book.content_classification === "religious" ||
@@ -616,12 +633,12 @@ export function BookReaderV3({
     [],
   );
 
+  // Book colors are scoped to the reading surface and must never reset
+  // the site's own dark-mode choice on document.body.
   useEffect(() => {
     document.body.classList.add("reader-v3-body");
-    if (theme === "dark") document.body.classList.add("dark");
-    if (theme === "sepia") document.body.classList.add("reader-sepia");
-    return () => document.body.classList.remove("reader-v3-body", "dark", "reader-sepia");
-  }, [theme]);
+    return () => document.body.classList.remove("reader-v3-body");
+  }, []);
 
   const lastFrontSpreadAnchor =
     frontPages.length <= 1 ? 0 : 1 + 2 * Math.floor((frontPages.length - 2) / 2);
@@ -713,7 +730,10 @@ export function BookReaderV3({
         target instanceof Element &&
         (target.matches("input,textarea,select,[role='textbox']") ||
           (target instanceof HTMLElement && target.isContentEditable));
-      if (editableTarget || settingsOpen) return;
+      if (editableTarget || settingsOpen || savedHighlightsOpen) {
+        if (event.key === "Escape") { setSettingsOpen(false); setSavedHighlightsOpen(false); }
+        return;
+      }
       if (event.key === "ArrowLeft") {
         event.preventDefault();
         goBodyPage(-1);
@@ -724,7 +744,7 @@ export function BookReaderV3({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [goBodyPage, settingsOpen]);
+  }, [goBodyPage, settingsOpen, savedHighlightsOpen]);
 
   useEffect(() => {
     if (!turning) return;
@@ -1037,7 +1057,7 @@ export function BookReaderV3({
     return (
       <div
         className={
-          "reader-v3-root " + (theme === "dark" ? "dark" : theme === "sepia" ? "reader-sepia" : "")
+          "reader-v3-root " + (theme === "dark" ? "dark" : theme === "sepia" ? "reader-sepia" : "reader-light")
         }
       >
         <header className="reader-v3-topbar">
@@ -1103,7 +1123,7 @@ export function BookReaderV3({
   return (
     <div
       className={
-        "reader-v3-root " + (theme === "dark" ? "dark" : theme === "sepia" ? "reader-sepia" : "")
+        "reader-v3-root " + (theme === "dark" ? "dark" : theme === "sepia" ? "reader-sepia" : "reader-light")
       }
     >
       <BookReaderTopbar
