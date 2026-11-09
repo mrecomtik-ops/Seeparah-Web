@@ -8,6 +8,11 @@ on:
       - "scripts/qa/public-reader-theme-highlights-translation.mjs"
       - "scripts/qa/public-reader-webkit.mjs"
       - ".github/workflows/public-reader-chromium.yml"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/qa/public-reader-theme-highlights-translation.mjs"
+      - ".github/workflows/public-reader-chromium.yml"
   workflow_dispatch:
 permissions:
   contents: read
