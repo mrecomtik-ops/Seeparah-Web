@@ -65,10 +65,16 @@ try {
       assert.ok(await page.getByText(/rights clearance and publication require separate editorial approval/i).count());
       // Never actually submit: authenticated and rights review are tested independently.
       await page.getByRole("button",{name:"Done",exact:true}).click();
+      const storedThemeBeforeReload=await page.evaluate(()=>localStorage.getItem("seeparah:prefs"));
+      console.log("SEEPARAH_THEME_STORAGE_BEFORE "+JSON.stringify({width,storedThemeBeforeReload}));
       await page.reload({waitUntil:"domcontentloaded",timeout:60000});
       await page.getByRole("button",{name:"Reader settings"}).waitFor({timeout:60000});
-      assert.equal(await root.evaluate(e=>e.classList.contains("reader-sepia")),true,
-        "Saved sepia choice persists after reload");
+      const storedThemeAfterReload=await page.evaluate(()=>localStorage.getItem("seeparah:prefs"));
+      console.log("SEEPARAH_THEME_STORAGE_AFTER "+JSON.stringify({width,storedThemeAfterReload,rootClass:await root.getAttribute("class")}));
+      await page.waitForFunction(
+        ()=>document.querySelector(".reader-v3-root")?.classList.contains("reader-sepia"),
+        {},{timeout:12000},
+      );
       passed.push({width,reader:"literature",colors:{light,sepia,dark},persisted:true});
       console.log("SEEPARAH_THEME_QA "+JSON.stringify(passed.at(-1)));
 
