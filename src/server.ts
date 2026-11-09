@@ -121,6 +121,14 @@ export default {
 
   scheduled(_event: unknown, env: unknown, ctx: ScheduledContext) {
     ctx.waitUntil(runScheduledTranslationWork());
+    // Keep Gutenberg acquisition bounded to one verified title every 2 minutes.
+    // The private queue is seeded with classic works only; failed imports never
+    // retry or publish automatically without another source review.
+    if (new Date().getUTCMinutes() % 2 === 0) {
+      ctx.waitUntil(import("./lib/admin/gutenberg-fast-import.server")
+        .then(({ processGutenbergImportQueueOnce }) => processGutenbergImportQueueOnce())
+        .catch((error) => console.error("[gutenberg] scheduled import error", error)));
+    }
     const utcNow = new Date();
     // Execute data retention once per UTC day, never every minute.
     if (utcNow.getUTCHours() === 2 && utcNow.getUTCMinutes() === 30) {
