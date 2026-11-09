@@ -17,7 +17,7 @@ const props: BookReaderSettingsProps = {
   language: "English", fontSizeDraft: 18, typeface: "literary",
   lineSpacing: 1.5, textMeasure: "medium",
   requestableLanguages: ["Hindi"], requestLanguage: "Hindi",
-  requestingTranslation: false, theme: "light", ...callbacks,
+  requestingTranslation: false, translationRequestStatus: null, theme: "light", ...callbacks,
 };
 afterEach(() => { cleanup(); vi.clearAllMocks(); });
 
@@ -34,7 +34,7 @@ describe("SP-36 extracted book-reader settings controls", () => {
     expect(callbacks.onTypefaceChange).toHaveBeenCalledWith("serif");
     fireEvent.click(screen.getByRole("button", { name: "Compact" }));
     expect(callbacks.onTextMeasureChange).toHaveBeenCalledWith("wide");
-    fireEvent.click(screen.getByRole("button", { name: "sepia" }));
+    fireEvent.click(screen.getByRole("button", { name: "sepia reading theme" }));
     expect(callbacks.onThemeChange).toHaveBeenCalledWith("sepia");
   });
   it("routes user events without initiating an unapproved translation", () => {
@@ -44,6 +44,13 @@ describe("SP-36 extracted book-reader settings controls", () => {
     expect(callbacks.onTranslationRequest).toHaveBeenCalledTimes(1);
     fireEvent.click(screen.getByRole("button", { name: "Done" }));
     expect(callbacks.onClose).toHaveBeenCalledTimes(1);
+  });
+  it("shows active theme and prevents duplicate requests", () => {
+    render(<BookReaderSettings {...props} theme="dark" translationRequestStatus="approved_awaiting_edition" />);
+    expect(screen.getByRole("button", { name: "dark reading theme" }).getAttribute("aria-pressed")).toBe("true");
+    const button = screen.getByRole("button", { name: "Recorded" }) as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+    expect(screen.getByRole("status").textContent).toContain("approved awaiting edition");
   });
   it("keeps a pending translation request disabled", () => {
     render(<BookReaderSettings {...props} requestingTranslation />);

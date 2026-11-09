@@ -28,6 +28,7 @@ import { BookReaderSettings } from "@/components/reader/BookReaderSettings";
 import { BookReaderTopbar } from "@/components/reader/BookReaderTopbar";
 import { BookReaderBottomBar } from "@/components/reader/BookReaderBottomBar";
 import { BookReaderFinishDialog } from "@/components/reader/BookReaderFinishDialog";
+import { ReaderSavedHighlights } from "@/components/reader/ReaderSavedHighlights";
 import { BookReaderPhysicalPage, type PhysicalPageOptions } from "@/components/reader/BookReaderPhysicalPage";
 import { findReaderSourceAnchor } from "@/lib/reader-position-anchor";
 import {
@@ -45,8 +46,8 @@ import {
   type Book,
   type Highlight,
 } from "@/lib/data";
-import { requestBookTranslationAccess } from "@/lib/admin/translation-access.functions";
-import { supabase } from "@/integrations/supabase/client";
+import { useReaderTranslationRequest } from "@/components/reader/useReaderTranslationRequest";
+import { positionForSavedHighlight } from "@/lib/reader-saved-highlight-position";
 
 const CONTENTS_PER_PAGE = 14;
 const PHYSICAL_PAGE_GUTTER = 10;
@@ -85,8 +86,11 @@ export function BookReaderV3({
     [1.4, 1.5, 1.65, 1.8].includes(prefs.v3LineHeight) ? prefs.v3LineHeight : 1.5,
   );
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [requestLanguage, setRequestLanguage] = useState("");
-  const [requestingTranslation, setRequestingTranslation] = useState(false);
+  const [savedHighlightsOpen, setSavedHighlightsOpen] = useState(false);
+  const {
+    requestLanguage, setRequestLanguage, requestingTranslation,
+    activeRequestStatus, handleTranslationRequest,
+  } = useReaderTranslationRequest(book, userId);
   const [frontIndex, setFrontIndex] = useState<number | null>(0);
   const [bodyPage, setBodyPage] = useState(0);
   const [rawPageCount, setRawPageCount] = useState(1);
@@ -136,7 +140,6 @@ export function BookReaderV3({
     queryKey: ["highlights", userId],
     queryFn: () => listHighlights(userId),
   });
-
   const chapters = useMemo(
     () =>
       buildReaderChapters(
@@ -616,12 +619,12 @@ export function BookReaderV3({
     [],
   );
 
+  // Book colors are scoped to the reading surface and must never reset
+  // the site's own dark-mode choice on document.body.
   useEffect(() => {
     document.body.classList.add("reader-v3-body");
-    if (theme === "dark") document.body.classList.add("dark");
-    if (theme === "sepia") document.body.classList.add("reader-sepia");
-    return () => document.body.classList.remove("reader-v3-body", "dark", "reader-sepia");
-  }, [theme]);
+    return () => document.body.classList.remove("reader-v3-body");
+  }, []);
 
   const lastFrontSpreadAnchor =
     frontPages.length <= 1 ? 0 : 1 + 2 * Math.floor((frontPages.length - 2) / 2);
@@ -713,7 +716,10 @@ export function BookReaderV3({
         target instanceof Element &&
         (target.matches("input,textarea,select,[role='textbox']") ||
           (target instanceof HTMLElement && target.isContentEditable));
-      if (editableTarget || settingsOpen) return;
+      if (editableTarget || settingsOpen || savedHighlightsOpen) {
+        if (event.key === "Escape") { setSettingsOpen(false); setSavedHighlightsOpen(false); }
+        return;
+      }
       if (event.key === "ArrowLeft") {
         event.preventDefault();
         goBodyPage(-1);
@@ -724,7 +730,7 @@ export function BookReaderV3({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [goBodyPage, settingsOpen]);
+  }, [goBodyPage, settingsOpen, savedHighlightsOpen]);
 
   useEffect(() => {
     if (!turning) return;
@@ -889,39 +895,6 @@ export function BookReaderV3({
     setPrefs({ language: next });
   };
 
-  async function handleTranslationRequest() {
-    if (
-      !requestLanguage ||
-      requestingTranslation ||
-      book.content_classification === "religious" ||
-      book.translation_generation_policy === "source_only"
-    ) {
-      return;
-    }
-    setRequestingTranslation(true);
-    try {
-      const { data } = await supabase.auth.getSession();
-      const token = data.session?.access_token;
-      if (!token) {
-        toast.info("Sign in to request a translation.");
-        return;
-      }
-      await requestBookTranslationAccess({
-        data: {
-          accessToken: token,
-          bookId: book.id,
-          language: requestLanguage,
-        },
-      });
-      toast.success(`${requestLanguage} translation requested`);
-      setRequestLanguage("");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not submit translation request");
-    } finally {
-      setRequestingTranslation(false);
-    }
-  }
-
   async function handleHighlight() {
     const currentSelection = rememberSelectedText();
     const cached = pendingHighlightRef.current;
@@ -954,13 +927,32 @@ export function BookReaderV3({
       ]);
       pendingHighlightRef.current = null;
       window.getSelection()?.removeAllRanges();
-      toast.success("Highlighted");
+      toast.success("Highlighted — open Saved highlights to review it.");
     } catch {
       // Don't silently claim that an authenticated highlight was saved if
       // Supabase rejected the write. Keep the source selection for retry.
       toast.error("Could not save the highlight. Please try again.");
     }
   }
+
+  const jumpToSavedHighlight = (highlight: Highlight) => {
+    setSavedHighlightsOpen(false);
+    setSettingsOpen(false);
+    setContentsReturnPosition(null);
+    lastTypographySourceAnchorRef.current = null;
+    fontChangeAnchorRef.current = null;
+    const position = positionForSavedHighlight(chapters, flowRef.current, highlight);
+    setFrontIndex(null);
+    positionRef.current = position;
+    pendingRestoreRef.current = position;
+    if (layoutMeasured) {
+      requestAnimationFrame(() => {
+        if (pendingRestoreRef.current !== position) return;
+        pendingRestoreRef.current = null;
+        restorePosition(position);
+      });
+    }
+  };
 
   const measurePadding = textMeasure === "narrow" ? 0.095 : textMeasure === "wide" ? 0.045 : 0.065;
   const horizontalPadding = Math.round(pageSize.width * (spreadMode ? measurePadding * 0.75 : measurePadding));
@@ -1037,7 +1029,7 @@ export function BookReaderV3({
     return (
       <div
         className={
-          "reader-v3-root " + (theme === "dark" ? "dark" : theme === "sepia" ? "reader-sepia" : "")
+          "reader-v3-root " + (theme === "dark" ? "dark" : theme === "sepia" ? "reader-sepia" : "reader-light")
         }
       >
         <header className="reader-v3-topbar">
@@ -1103,7 +1095,7 @@ export function BookReaderV3({
   return (
     <div
       className={
-        "reader-v3-root " + (theme === "dark" ? "dark" : theme === "sepia" ? "reader-sepia" : "")
+        "reader-v3-root " + (theme === "dark" ? "dark" : theme === "sepia" ? "reader-sepia" : "reader-light")
       }
     >
       <BookReaderTopbar
@@ -1202,7 +1194,18 @@ export function BookReaderV3({
         onPrevious={() => goBodyPage(-1)}
         onNext={() => goBodyPage(1)}
         onFinish={() => setFinishOpen(true)}
+        onOpenHighlights={() => setSavedHighlightsOpen(true)}
+        highlightCount={highlights.length}
       />
+
+      {savedHighlightsOpen && (
+        <ReaderSavedHighlights
+          highlights={highlights}
+          language={language}
+          onClose={() => setSavedHighlightsOpen(false)}
+          onJump={jumpToSavedHighlight}
+        />
+      )}
 
       {finishOpen && <BookReaderFinishDialog title={displayBookTitle} onClose={() => setFinishOpen(false)} />}
 
@@ -1217,6 +1220,7 @@ export function BookReaderV3({
           requestableLanguages={requestableLanguages}
           requestLanguage={requestLanguage}
           requestingTranslation={requestingTranslation}
+          translationRequestStatus={activeRequestStatus}
           theme={theme}
           onClose={() => setSettingsOpen(false)}
           onLanguageChange={changeLanguage}

@@ -437,6 +437,33 @@ body.reader-sepia {
   height: 100dvh;
 }
 
+/* Explicit reader color scopes override the site's inherited dark/sepia mode.
+   Light must set its own tokens: otherwise it inherits the global .dark theme
+   and the Light button appears to do nothing. Never toggle body.dark. */
+.reader-v3-root.reader-light {
+  color-scheme: light;
+  --background: oklch(0.972 0.014 92);
+  --foreground: oklch(0.27 0.035 172);
+  --card: oklch(0.992 0.007 95);
+  --card-foreground: oklch(0.27 0.035 172);
+  --popover: oklch(0.992 0.007 95);
+  --popover-foreground: oklch(0.27 0.035 172);
+  --primary: oklch(0.395 0.075 172);
+  --primary-foreground: oklch(0.96 0.03 155);
+  --secondary: oklch(0.935 0.025 105);
+  --secondary-foreground: oklch(0.33 0.05 160);
+  --muted: oklch(0.94 0.02 100);
+  --muted-foreground: oklch(0.5 0.03 140);
+  --border: oklch(0.895 0.02 110);
+  --input: oklch(0.895 0.02 110);
+  --ring: oklch(0.5 0.07 172);
+  --gold: oklch(0.72 0.1 82);
+  --gold-foreground: oklch(0.28 0.05 80);
+  --paper: oklch(0.965 0.02 96);
+}
+.reader-v3-root.reader-sepia { color-scheme: light; }
+.reader-v3-root.dark { color-scheme: dark; }
+
 .reader-v3-root {
   height: 100dvh;
   min-height: 0;
