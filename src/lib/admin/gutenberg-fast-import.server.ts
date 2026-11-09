@@ -60,7 +60,7 @@ type Job = {
  * Other queue jobs and arbitrary IDs must never be treated as verified.
  * This is only metadata provenance, not approval to skip source/rights checks.
  */
-export function vettedBatchMetadata(job: Job): Catalog {
+export function vettedBatchMetadata(job: Job & {original_publication_year:number}): Catalog {
   const meta = job.metadata;
   const batch = meta?.["batchId"];
   const title = meta?.["title"];
