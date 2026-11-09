@@ -164,7 +164,7 @@ export async function importGutenbergSource(job:Job):Promise<Result>{
     await import("@/lib/admin/catalog.server");
   const uploaded=await adminCreateBook({
     title:catalog.title,author,sourceLanguage:"English",
-    description:desc,genre:"Literature",categories:["Fiction"],
+    description:desc,genre:"Literature",categories:["Literature"],
     coverUrl,sourceUrl:url,sourceEditionId:"gutenberg:"+id,
     rightsBasis:"Original work by "+author+" (died "+deathYear+
       "), first published "+job.original_publication_year+
