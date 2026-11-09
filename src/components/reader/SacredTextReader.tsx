@@ -19,6 +19,7 @@ import { ProgressiveSourcePassage } from "@/components/reader/ProgressiveSourceP
 import { getSacredReaderSection, getSacredTextReferenceIndex, getBibleReferenceMatchedSection, getFullSacredSourceChunk } from "@/lib/scripture.functions";
 import { getPublicBookEditions } from "@/lib/translation.functions";
 import { addHighlight, listHighlights, saveProgress } from "@/lib/library";
+import { ReaderSavedHighlights } from "@/components/reader/ReaderSavedHighlights";
 import { RTL_LANGUAGES, type Book, type Highlight } from "@/lib/data";
 import { captureSacredHighlightSelection, sacredSavedHighlightRanges, type SacredHighlightSelection } from "@/lib/sacred-highlight-selection";
 import { useAuth } from "@/lib/use-auth";
@@ -106,6 +107,7 @@ export function SacredTextReader({
   const [textMeasure, setTextMeasure] = useState<SacredTextMeasure>("comfortable");
   const [useSans, setUseSans] = useState(false);
   const [contentsOpen, setContentsOpen] = useState(false);
+  const [savedHighlightsOpen, setSavedHighlightsOpen] = useState(false);
   const [prefsReady, setPrefsReady] = useState(false);
   const [languageResetNote, setLanguageResetNote] = useState("");
   const [compareLanguage, setCompareLanguage] = useState<string | null>(null);
@@ -152,7 +154,7 @@ export function SacredTextReader({
       ]);
       pendingSacredHighlightRef.current = null;
       window.getSelection()?.removeAllRanges();
-      toast.success("Highlighted");
+      toast.success("Highlighted — open Saved highlights to review it.");
     } catch {
       toast.error("Could not save the highlight. Please try again.");
     }
@@ -626,6 +628,26 @@ export function SacredTextReader({
             >
               <Highlighter className="h-4 w-4" aria-hidden="true" /> Highlight
             </button>
+            <button
+              type="button"
+              onClick={() => setSavedHighlightsOpen(true)}
+              aria-label={`View saved highlights (${sacredHighlights.length})`}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-border bg-card px-3 text-sm font-medium text-foreground hover:bg-secondary"
+            >
+              <Highlighter className="h-4 w-4" aria-hidden="true" />
+              Saved highlights ({sacredHighlights.length})
+            </button>
+            {savedHighlightsOpen && (
+              <ReaderSavedHighlights
+                highlights={sacredHighlights}
+                language={language}
+                onClose={() => setSavedHighlightsOpen(false)}
+                onJump={(item) => {
+                  setSavedHighlightsOpen(false);
+                  updateLocation(language, item.chunk_index);
+                }}
+              />
+            )}
             <button
               type="button"
               onClick={() => setContentsOpen((open) => !open)}
