@@ -51,7 +51,52 @@ type Catalog = {
   translators?: Array<{name:string}>;editors?: Array<{name:string}>;
   formats: Record<string,string>;summaries?:string[];subjects?:string[];
 };
-type Job = {id:number;gutenberg_id:number;original_publication_year:number;attempts:number};
+type Job = {
+  id:number;gutenberg_id:number;original_publication_year:number;attempts:number;
+  metadata?: Record<string,unknown>|null;
+};
+
+/** Strict fallback for the owner's manually selected, source-checked batch.
+ * Other queue jobs and arbitrary IDs must never be treated as verified.
+ * This is only metadata provenance, not approval to skip source/rights checks.
+ */
+export function vettedBatchMetadata(job: Job): Catalog {
+  const m=job.metadata;
+  const batch=typeof m?.batchId==="string" ? m.batchId : "";
+  if(!/^PG-20\d\d-\d\d-\d\d-B50-\d\d$/.test(batch) ||
+     m?.metadataSource!=="Gutenberg catalogue page reviewed" ||
+     m?.originalPublicationYear!==job.original_publication_year ||
+     !Number.isSafeInteger(job.gutenberg_id) ||
+     job.gutenberg_id<1 || job.gutenberg_id>9_999_999 ||
+     typeof m?.title!=="string" || m.title.trim().length<3 ||
+     m.title.length>200 || typeof m.author!=="string" ||
+     m.author.trim().length<3 || m.author.length>120 ||
+     typeof m.authorDeathYear!=="number" ||
+     !Number.isInteger(m.authorDeathYear) || m.authorDeathYear<1400 ||
+     m.authorDeathYear>1925 || job.original_publication_year<1400 ||
+     job.original_publication_year>1900) {
+    throw new Error("No separately reviewed Gutenberg batch identity for this source");
+  }
+  const id=job.gutenberg_id;
+  return {
+    id,title:m.title.trim(),media_type:"Text",copyright:false,
+    languages:["en"],authors:[{name:m.author.trim(),death_year:m.authorDeathYear}],
+    translators:[],editors:[],
+    formats:{
+      "text/plain; charset=utf-8":MIRROR+"/cache/epub/"+id+"/pg"+id+".txt",
+      "image/jpeg":MIRROR+"/cache/epub/"+id+"/pg"+id+".cover.medium.jpg",
+    }, subjects:["English literature"],summaries:[],
+  };
+}
+
+/** Keep persistent batch provenance even after a queue job finishes. */
+export function mergeImportJobMetadata(
+  original: Record<string,unknown>|null|undefined,
+  result: Record<string,unknown>|null|undefined,
+): Record<string,unknown> {
+  return {...(original??{}),...(result??{})};
+}
+
 type Result = {
   status:"published"|"in_review"|"skipped";bookId:string|null;
   sha256?:string;metadata?:Record<string,unknown>;message?:string;
@@ -143,7 +188,7 @@ export async function processGutenbergImportQueueOnce():Promise<void>{
   const {supabaseAdmin}=await import("@/integrations/supabase/client.server");
   const db=supabaseAdmin as any;
   const {data:queued,error:readError}=await db.from("gutenberg_import_jobs")
-    .select("id,gutenberg_id,original_publication_year,attempts")
+    .select("id,gutenberg_id,original_publication_year,attempts,metadata")
     .eq("status","queued").order("id").limit(1).maybeSingle();
   if(readError){console.error("[Gutenberg] queue read error",readError.message);return;}
   if(!queued)return;
@@ -156,7 +201,8 @@ export async function processGutenbergImportQueueOnce():Promise<void>{
     const result=await importGutenbergSource(job);
     const {error:updateError}=await db.from("gutenberg_import_jobs").update({
       status:result.status,book_id:result.bookId,
-      source_sha256:result.sha256??null,metadata:result.metadata??null,
+      source_sha256:result.sha256??null,
+      metadata:mergeImportJobMetadata(job.metadata,result.metadata),
       last_error:result.message??null,updated_at:new Date().toISOString()
     }).eq("id",job.id);
     if(updateError)throw updateError;
@@ -184,22 +230,32 @@ export async function importGutenbergSource(job:Job):Promise<Result>{
   if(urlError)throw new Error(urlError.message);
   if(oldUrl)return {status:"skipped",bookId:oldUrl.id,message:"Existing Gutenberg source URL"};
 
-  // Hosted Gutendex has intermittent prolonged outages. Fail over to the
-  // individually curated *pilot only*, never assume arbitrary Gutenberg IDs
-  // have been rights-cleared when the API is unavailable.
+  // Gutendex outages must not prevent the author's already-reviewed batch
+  // from progressing. Only pre-reviewed metadata may serve as fallback:
+  // no arbitrary IDs, unpublished years, or modern contributors. All source
+  // text, provenance, cover and existing publication gates still apply.
   let catalog: Catalog;
   let catalogOrigin = "Gutendex";
   try {
     const response=await fetch("https://gutendex.com/books/"+id+"/",{
       headers:{Accept:"application/json"},signal:AbortSignal.timeout(6000)
     });
+    if(response.status===404||response.status===400)
+      throw new Error("Permanent Gutenberg catalog mismatch: "+response.status);
     if(!response.ok)throw new Error("Gutendex HTTP "+response.status);
     catalog=await response.json() as Catalog;
   } catch(error) {
-    console.warn("[Gutenberg] catalog API unavailable; use verified pilot identity",
+    if(error instanceof Error && error.message.startsWith("Permanent Gutenberg catalog mismatch"))
+      throw error;
+    console.warn("[Gutenberg] metadata API unavailable; checking independently reviewed source",
       id,error instanceof Error?error.message:String(error));
-    catalog=curatedPilotMetadata(id,job.original_publication_year);
-    catalogOrigin="curated pilot";
+    try {
+      catalog=curatedPilotMetadata(id,job.original_publication_year);
+      catalogOrigin="curated pilot";
+    } catch {
+      catalog=vettedBatchMetadata(job);
+      catalogOrigin="owner-reviewed 50-book batch";
+    }
   }
   const {author,deathYear}=verifyGutenbergCandidate(catalog,id,job.original_publication_year);
 
