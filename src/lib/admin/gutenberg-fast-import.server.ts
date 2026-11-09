@@ -71,8 +71,10 @@ async function getBytes(url:string,max:number) {
   for(const piece of chunks){all.set(piece,offset);offset+=piece.length;}
   return all;
 }
-function duplicate(e:{message?:string;statusCode?:string|number}|null){
-  return Boolean(e&&(/already exists|Duplicate|409/i.test(e.message??"") || String(e.statusCode)==="409"));
+function duplicate(value: unknown){
+  if (!value || typeof value !== "object") return false;
+  const e = value as { message?: string | undefined; statusCode?: string | number | undefined };
+  return /already exists|Duplicate|409/i.test(e.message ?? "") || String(e.statusCode) === "409";
 }
 function description(b:Catalog,author:string,year:number){
   const summary=(b.summaries??[]).find(s=>s.length>=60&&s.length<5000);
@@ -174,7 +176,7 @@ export async function importGutenbergSource(job:Job):Promise<Result>{
     importKey:"gutenberg-fast:"+id+":en",manuscriptText:manuscript
   },"system-fast-import");
   if(!uploaded.created)
-    return {status:"skipped",bookId:uploaded.bookId,sha256,message:uploaded.reason};
+    return {status:"skipped",bookId:uploaded.bookId,sha256,message:uploaded.reason ?? "Identical source already imported"};
 
   const bookId=uploaded.bookId;
   const {error:metadataError}=await db.from("books").update({
