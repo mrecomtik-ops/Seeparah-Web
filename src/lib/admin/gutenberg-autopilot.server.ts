@@ -164,6 +164,39 @@ type SupabaseAdminDb={
 function db():SupabaseAdminDb{
   return supabaseAdmin as unknown as SupabaseAdminDb;
 }
+/** Retry at most twice for clearly transient network problems; permanent
+ * rights, provenance and structural failures never retry without review. */
+export function isTransientGutenbergFailure(message:string):boolean{
+  return /(?:timed? ?out|timeout|operation was aborted|mirror.*unavailable|fetch failed|econnreset|http 50[234]|http 429|temporary network|rate limit)/i.test(message);
+}
+async function recoverInterruptedImports(client:SupabaseAdminDb):Promise<void>{
+  const staleBefore=new Date(Date.now()-30*60_000).toISOString();
+  const {error:staleError}=await client.from("gutenberg_import_jobs").update({
+    status:"failed",last_error:"Import interrupted after 30 minutes; no automatic partial-write retry",
+    updated_at:new Date().toISOString(),
+  }).eq("status","processing")
+    .contains("metadata",{autopilot:true})
+    .lt("updated_at",staleBefore);
+  if(staleError)console.error("[gutenberg-autopilot] stale job recovery",staleError.message);
+
+  const retryBefore=new Date(Date.now()-20*60_000).toISOString();
+  const {data:retryable,error:retryError}=await client.from("gutenberg_import_jobs")
+    .select("id,attempts,last_error")
+    .eq("status","failed").is("book_id",null)
+    .contains("metadata",{autopilot:true})
+    .lt("attempts",3).lt("updated_at",retryBefore)
+    .order("id").limit(10);
+  if(retryError){
+    console.error("[gutenberg-autopilot] retry query unavailable",retryError.message);
+    return;
+  }
+  for(const job of retryable??[]){
+    if(!isTransientGutenbergFailure(job.last_error??""))continue;
+    await client.from("gutenberg_import_jobs").update({
+      status:"queued",last_error:null,updated_at:new Date().toISOString(),
+    }).eq("id",job.id).eq("status","failed");
+  }
+}
 export async function runGutenbergAutopilotOnce():Promise<void>{
   const client=db();
   const {data:settings,error:settingsError}=await client.from("gutenberg_autopilot_settings")
@@ -173,6 +206,7 @@ export async function runGutenbergAutopilotOnce():Promise<void>{
     console.error("[gutenberg-autopilot] settings error",settingsError.message);return;
   }
   if(!settings?.enabled)return;
+  await recoverInterruptedImports(client);
 
   const {data:plan,error:planError}=await client.rpc("gutenberg_autopilot_prepare_batch");
   if(planError){
