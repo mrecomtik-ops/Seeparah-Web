@@ -52,7 +52,7 @@ type Catalog = {
   formats: Record<string,string>;summaries?:string[];subjects?:string[];
 };
 type Job = {
-  id:number;gutenberg_id:number;original_publication_year:number;attempts:number;
+  id:number;gutenberg_id:number;original_publication_year:number|null;attempts:number;
   metadata?: Record<string,unknown>|null;
 };
 
@@ -60,7 +60,7 @@ type Job = {
  * Other queue jobs and arbitrary IDs must never be treated as verified.
  * This is only metadata provenance, not approval to skip source/rights checks.
  */
-export function vettedBatchMetadata(job: Job): Catalog {
+export function vettedBatchMetadata(job: Job & {original_publication_year:number}): Catalog {
   const meta = job.metadata;
   const batch = meta?.["batchId"];
   const title = meta?.["title"];
@@ -96,6 +96,40 @@ export function vettedBatchMetadata(job: Job): Catalog {
   };
 }
 
+/** Pure official weekly CSV fallback, not a fictitious Gutenberg copyright
+ * assertion. Publication additionally requires independent Open Library
+ * first-publication evidence and the actual primary source rights checks.
+ */
+export function officialCatalogMetadata(job:Job):Catalog{
+  const m=job.metadata;
+  const batch=m?.["batchId"];
+  const title=m?.["title"];
+  const author=m?.["author"];
+  const death=m?.["authorDeathYear"];
+  if(m?.["autopilot"]!==true ||typeof batch!=="string" ||
+     !/^PG-AUTO-\d{4,}$/.test(batch) ||
+     m?.["metadataSource"]!=="Project Gutenberg official weekly CSV" ||
+     m?.["catalogUrl"]!=="https://www.gutenberg.org/cache/epub/feeds/pg_catalog.csv" ||
+     typeof title!=="string"||title.length<8||title.length>250||
+     typeof author!=="string"||author.length<3||author.length>200||
+     typeof death!=="number"||!Number.isInteger(death)||death<1400||death>1900||
+     !Number.isSafeInteger(job.gutenberg_id)||job.gutenberg_id<1 ||
+     job.gutenberg_id>9_999_999) {
+    throw new Error("Unverified Gutenberg official CSV batch identity");
+  }
+  const id=job.gutenberg_id;
+  return {
+    id,title,media_type:"Text",copyright:null,
+    languages:["en"],authors:[{name:author,death_year:death}],
+    translators:[],editors:[],
+    formats:{
+      "text/plain; charset=utf-8":MIRROR+"/cache/epub/"+id+"/pg"+id+".txt",
+      "image/jpeg":MIRROR+"/cache/epub/"+id+"/pg"+id+".cover.medium.jpg",
+    },subjects:typeof m?.["subjects"]==="string"?[m["subjects"]]:[],
+    summaries:[],
+  };
+}
+
 /** Keep persistent batch provenance even after a queue job finishes. */
 export function mergeImportJobMetadata(
   original: Record<string,unknown>|null|undefined,
@@ -108,8 +142,14 @@ type Result = {
   status:"published"|"in_review"|"skipped";bookId:string|null;
   sha256?:string;metadata?:Record<string,unknown>;message?:string;
 };
-export function verifyGutenbergCandidate(b: Catalog, id:number, year:number) {
-  if (b.id!==id || b.copyright!==false || b.media_type!=="Text" ||
+export function verifyGutenbergCandidate(
+  b:Catalog,id:number,year:number,origin="Gutendex",
+) {
+  const licenseAccepted=b.copyright===false ||
+    (origin==="official Gutenberg weekly CSV" && b.copyright===null &&
+     b.authors?.length===1 && typeof b.authors[0]?.death_year==="number" &&
+     b.authors[0].death_year<=1900 && year<=1900);
+  if (b.id!==id || !licenseAccepted || b.media_type!=="Text" ||
       !b.title?.trim() || b.languages?.length!==1 || b.languages[0]!=="en")
     throw new Error("Catalog is not an unrestricted English original work");
   if (b.authors?.length!==1 || !b.authors[0]?.name ||
@@ -223,6 +263,8 @@ export async function processGutenbergImportQueueOnce():Promise<void>{
   }
 }
 export async function importGutenbergSource(job:Job):Promise<Result>{
+  const {independentFirstPublicationYear} =
+    await import("@/lib/admin/gutenberg-publication-year.server");
   const {supabaseAdmin}=await import("@/integrations/supabase/client.server");
   const db=supabaseAdmin as any;
   const id=job.gutenberg_id;
@@ -257,15 +299,70 @@ export async function importGutenbergSource(job:Job):Promise<Result>{
     console.warn("[Gutenberg] metadata API unavailable; checking independently reviewed source",
       id,error instanceof Error?error.message:String(error));
     try {
-      catalog=curatedPilotMetadata(id,job.original_publication_year);
+      catalog=curatedPilotMetadata(id,job.original_publication_year as number);
       catalogOrigin="curated pilot";
     } catch {
-      catalog=vettedBatchMetadata(job);
-      catalogOrigin="owner-reviewed 50-book batch";
+      try {
+        catalog=vettedBatchMetadata(job as Job & {original_publication_year:number});
+        catalogOrigin="owner-reviewed 50-book batch";
+      } catch {
+        catalog=officialCatalogMetadata(job);
+        catalogOrigin="official Gutenberg weekly CSV";
+      }
     }
   }
-  const {author,deathYear}=verifyGutenbergCandidate(catalog,id,job.original_publication_year);
+  const expected=job.metadata?.["autopilot"]===true;
+  if(expected){
+    // Match Gutenberg's actual title/author against the independent official
+    // feed whenever the Gutendex API responds.
+    const fromCsv=officialCatalogMetadata(job);
+    const normalized=(v:string)=>v.toLowerCase().replace(/[^a-z0-9]/g,"");
+    if(normalized(catalog.title).slice(0,32)!==
+       normalized(fromCsv.title).slice(0,32))
+      throw new Error("Gutendex / official Gutenberg CSV title mismatch");
+    if(normalized(catalog.authors?.[0]?.name??"").slice(0,20)!==
+       normalized(fromCsv.authors[0]?.name??"").slice(0,20))
+      throw new Error("Gutendex / official Gutenberg CSV author mismatch");
+  }
+  let originalYear=job.original_publication_year;
+  let yearEvidence=typeof job.metadata?.["publicationYearEvidence"]==="string"
+    ?job.metadata["publicationYearEvidence"]:null;
+  if(originalYear===null){
+    const authorDeath=catalog.authors?.[0]?.death_year;
+    if(typeof authorDeath!=="number")
+      throw new Error("Original author death year unavailable");
+    const independently=await independentFirstPublicationYear(
+      catalog.title,catalog.authors[0]!.name,authorDeath);
+    originalYear=independently.year;
+    yearEvidence=independently.evidenceUrl;
+    const {error:yearError}=await db.from("gutenberg_import_jobs").update({
+      original_publication_year:originalYear,
+      metadata:mergeImportJobMetadata(job.metadata,{
+        originalPublicationYear:originalYear,
+        publicationYearEvidence:yearEvidence,
+      }),updated_at:new Date().toISOString(),
+    }).eq("id",job.id);
+    if(yearError)throw new Error("Could not record independent publication date: "+yearError.message);
+    job.original_publication_year=originalYear;
+    job.metadata=mergeImportJobMetadata(job.metadata,{
+      originalPublicationYear:originalYear,publicationYearEvidence:yearEvidence,
+    });
+  }
+  const {author,deathYear}=verifyGutenbergCandidate(
+    catalog,id,originalYear,catalogOrigin);
 
+  // Never start importing new files once the published catalogue reaches its
+  // requested stopping target; the queue is paused, not deleted.
+  if(expected){
+    const {data:cfg}=await db.from("gutenberg_autopilot_settings")
+      .select("enabled,target_published").eq("id",1).maybeSingle();
+    if(!cfg?.enabled)return {status:"skipped",bookId:null,message:"Autopilot paused"};
+    const {count, error:countError}=await db.from("books")
+      .select("id",{count:"exact",head:true}).eq("status","published");
+    if(countError)throw new Error(countError.message);
+    if((count??0)>=cfg.target_published)
+      return {status:"skipped",bookId:null,message:"Target of 1,000 published titles reached"};
+  }
   const original=await getGutenbergAsset(id,"pg"+id+".txt",MAX_TEXT);
   const rawText=new TextDecoder("utf-8",{fatal:true}).decode(original);
   const manuscript=extractGutenbergBody(rawText);
@@ -290,7 +387,7 @@ export async function importGutenbergSource(job:Job):Promise<Result>{
   }catch(error){
     console.warn("[Gutenberg] cover requires review",id,error instanceof Error?error.message:String(error));
   }
-  const desc=description(catalog,author,job.original_publication_year);
+  const desc=description(catalog,author,originalYear);
   const {adminCreateBook,scanBookRightsSignals,evaluatePublishGate}=
     await import("@/lib/admin/catalog.server");
   const uploaded=await adminCreateBook({
@@ -298,8 +395,11 @@ export async function importGutenbergSource(job:Job):Promise<Result>{
     description:desc,genre:"Literature",categories:["Literature"],
     coverUrl,sourceUrl:url,sourceEditionId:"gutenberg:"+id,
     rightsBasis:"Original work by "+author+" (died "+deathYear+
-      "), first published "+job.original_publication_year+
-      ". Gutenberg records no US copyright restriction. Automated checks: single original English-language author, no named editor or translator; original source archived.",
+      "), first published "+originalYear+
+      ". Source metadata "+catalogOrigin+
+      (catalog.copyright===false?" reports no US restriction.":" requires independent territory rights verification.")+
+      " First-print year from "+(yearEvidence??"individually checked batch record")+
+      "; full source archived. No named editor or translator recorded.",
     rightsEvidenceUrl:url,
     attribution:"Original text and cover sourced from Project Gutenberg eBook "+id+
       " for free reading. See the original at "+url+". Seeparah is independent of Project Gutenberg.",
@@ -313,7 +413,7 @@ export async function importGutenbergSource(job:Job):Promise<Result>{
   const {error:metadataError}=await db.from("books").update({
     edition_title:catalog.title+" — Seeparah Reading Edition",
     edition_year:2026,publisher:"Seeparah",
-    original_publication_year:job.original_publication_year,
+    original_publication_year:originalYear,
     source_scan_id:"gutenberg:"+id,
     source_file_sha256:sha256,source_file_path:"gutenberg-sources/"+sourceKey,
     source_revision:"Original Gutenberg mirror SHA-256 "+sha256,
@@ -323,8 +423,8 @@ export async function importGutenbergSource(job:Job):Promise<Result>{
   }).eq("id",bookId);
   if(metadataError)throw new Error(metadataError.message);
   const auditMeta:Record<string,unknown>={
-    title:catalog.title,author,deathYear,year:job.original_publication_year,
-    sourceUrl:url,coverUrl,sha256,review:"automated",catalogOrigin
+    title:catalog.title,author,deathYear,year:originalYear,
+    sourceUrl:url,coverUrl,sha256,review:"automated",catalogOrigin,yearEvidence
   };
   if(!coverUrl||uploaded.warnings.length||uploaded.chapterCount<2||desc.length<60)
     return {status:"in_review",bookId,sha256,metadata:auditMeta,
@@ -341,8 +441,9 @@ export async function importGutenbergSource(job:Job):Promise<Result>{
     structure_review_status:"approved",cleanup_review_status:"approved",
     status:"approved",reviewed_at:new Date().toISOString(),
     review_notes:"AUTOMATED classical-work verification: author died "+deathYear+
-      "; original publication "+job.original_publication_year+
-      "; Gutenberg catalog unrestricted; no modern contributors; UTF-8 source "+
+      "; original publication "+originalYear+
+      "; bibliographic evidence "+(yearEvidence??"curated batch record")+
+      "; source provenance "+catalogOrigin+"; no named modern contributors; UTF-8 source "+
       "SHA-256 "+sha256+"; complete boundaries, source cover and chapter structure."
   }).eq("id",bookId);
   if(reviewError)return {status:"in_review",bookId,sha256,metadata:auditMeta,
