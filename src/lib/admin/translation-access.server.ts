@@ -33,8 +33,12 @@ export async function requestTranslationAccess(params: {
   if (book.status !== "published") {
     throw new Error("Translation requests are only available for published books");
   }
-  if (book.rights_status !== "approved" || !book.translation_permission) {
-    throw new Error("This book is not currently approved for translated editions");
+  // Readers can express demand for a future sourced/rights-cleared edition.
+  // Recording a request NEVER grants translation rights or starts a job.
+  // The admin approval/production path independently enforces approved rights
+  // and translation_permission before generating or publishing any edition.
+  if (book.rights_status !== "approved") {
+    throw new Error("The source book has not passed rights review");
   }
   if (book.source_language === params.language) {
     throw new Error("This is the book's original language — it's already free to read");
