@@ -31,7 +31,10 @@ export async function independentFirstPublicationYear(
 ):Promise<{year:number;evidenceUrl:string}>{
   const url=new URL("https://openlibrary.org/search.json");
   url.searchParams.set("title",title.split(/[:;]/)[0]??title);
-  url.searchParams.set("author",author);
+  const authorParts=author.split(",").map(x=>x.trim());
+  const searchAuthor=authorParts.length>=2
+    ?authorParts.slice(1).join(" ")+" "+authorParts[0]:author;
+  url.searchParams.set("author",searchAuthor);
   url.searchParams.set("fields","title,author_name,first_publish_year");
   url.searchParams.set("limit","7");
   const response=await fetch(url,{
