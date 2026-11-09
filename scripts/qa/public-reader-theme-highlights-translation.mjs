@@ -39,6 +39,12 @@ try {
       assert.notEqual(light,sepia,"Light and sepia backgrounds must differ");
       assert.notEqual(sepia,dark,"Sepia and dark backgrounds must differ");
       assert.notEqual(light,dark,"Light and dark backgrounds must differ");
+      assert.notEqual(lightInfo.pageBackground,sepiaInfo.pageBackground,
+        "The physical book PAGE, not merely its frame, must change from Light to Sepia");
+      assert.notEqual(sepiaInfo.pageBackground,darkInfo.pageBackground,
+        "The physical book PAGE must change from Sepia to Dark");
+      assert.equal(lightInfo.variables.colorBackground,lightInfo.variables.background,
+        "Reader light semantic CSS variables must not inherit the site's dark mode");
       // Persist the choice for this browser and make it readable again.
       await page.getByRole("button",{name:"sepia reading theme"}).click();
       await page.getByRole("button",{name:"Done",exact:true}).click();
