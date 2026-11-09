@@ -1,5 +1,5 @@
 import {describe,expect,it} from "vitest";
-import {csvRows,selectGutenbergCandidates} from "./gutenberg-autopilot.server";
+import {csvRows,isTransientGutenbergFailure,selectGutenbergCandidates} from "./gutenberg-autopilot.server";
 
 describe("Gutenberg unattended catalogue intake",()=>{
   it("parses official RFC4180 CSV including escaped quotes and multiline titles",()=>{
@@ -28,6 +28,13 @@ describe("Gutenberg unattended catalogue intake",()=>{
       author_death_year:1817,priority:0,
     });
     expect(items.every(x=>x.gutenberg_id<9000)).toBe(true);
+  });
+  it("retries only network errors and leaves rights failures in review",()=>{
+    expect(isTransientGutenbergFailure("Both authorized Gutenberg mirrors unavailable: operation was aborted due to timeout")).toBe(true);
+    expect(isTransientGutenbergFailure("HTTP 502 from mirror")).toBe(true);
+    expect(isTransientGutenbergFailure("Manuscript contains rights/revision signals requiring review")).toBe(false);
+    expect(isTransientGutenbergFailure("Unverified original publication date")).toBe(false);
+    expect(isTransientGutenbergFailure("Missing copyright permission")).toBe(false);
   });
   it("rejects truncated or foreign Gutenberg metadata",()=>{
     expect(()=>[...csvRows('"broken')]).toThrow(/truncated/);
