@@ -121,12 +121,16 @@ export default {
 
   scheduled(_event: unknown, env: unknown, ctx: ScheduledContext) {
     ctx.waitUntil(runScheduledTranslationWork());
-    // Fast-track at most one verified Gutenberg title every minute.
-    // Status changes are idempotent; unknown rights, download failures,
-    // and structural discrepancies stay out of the public catalogue.
-    ctx.waitUntil(import("./lib/admin/gutenberg-fast-import.server")
+    // Durable autopilot: refill 100-book batches from Gutenberg's official
+    // weekly metadata feed. Stop at 1,000 genuinely published Seeparah books.
+    // Never count reviews/errors as published and never modify existing titles.
+    // Fetching one queued book is deliberately sequential to avoid overlapping
+    // database writes or unbounded external mirror traffic.
+    ctx.waitUntil(import("./lib/admin/gutenberg-autopilot.server")
+      .then(({ runGutenbergAutopilotOnce }) => runGutenbergAutopilotOnce())
+      .then(() => import("./lib/admin/gutenberg-fast-import.server"))
       .then(({ processGutenbergImportQueueOnce }) => processGutenbergImportQueueOnce())
-      .catch((error) => console.error("[gutenberg] scheduled import error", error)));
+      .catch((error) => console.error("[gutenberg] scheduled acquisition error", error)));
     const utcNow = new Date();
     // Execute data retention once per UTC day, never every minute.
     if (utcNow.getUTCHours() === 2 && utcNow.getUTCMinutes() === 30) {
