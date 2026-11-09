@@ -7,6 +7,44 @@ import { createHash } from "node:crypto";
 
 const MIRROR = "https://gutenberg.pglaf.org";
 const MAX_TEXT = 4 * 1024 * 1024;
+/** One-time pilot identities checked against their individual Gutenberg
+ * catalog pages plus historical publication records. A fallback is allowed
+ * ONLY for these entries when hosted Gutendex metadata times out, and their
+ * exact Gutenberg source is still mandatory before publication. */
+const VETTED_PILOT: Record<number, {
+  title: string; author: string; deathYear: number; year: number;
+}> = {
+  55: { title: "The Wonderful Wizard of Oz", author: "Baum, L. Frank", deathYear: 1919, year: 1900 },
+  74: { title: "The Adventures of Tom Sawyer", author: "Twain, Mark", deathYear: 1910, year: 1876 },
+  15: { title: "Moby Dick; Or, The Whale", author: "Melville, Herman", deathYear: 1891, year: 1851 },
+  345: { title: "Dracula", author: "Stoker, Bram", deathYear: 1912, year: 1897 },
+  1342: { title: "Pride and Prejudice", author: "Austen, Jane", deathYear: 1817, year: 1813 },
+  98: { title: "A Tale of Two Cities", author: "Dickens, Charles", deathYear: 1870, year: 1859 },
+  1400: { title: "Great Expectations", author: "Dickens, Charles", deathYear: 1870, year: 1861 },
+  23: { title: "Narrative of the Life of Frederick Douglass, an American Slave", author: "Douglass, Frederick", deathYear: 1895, year: 1845 },
+  41: { title: "The Legend of Sleepy Hollow", author: "Irving, Washington", deathYear: 1859, year: 1820 },
+  158: { title: "Emma", author: "Austen, Jane", deathYear: 1817, year: 1815 },
+  174: { title: "The Picture of Dorian Gray", author: "Wilde, Oscar", deathYear: 1900, year: 1890 },
+};
+
+export function curatedPilotMetadata(id: number, year: number): Catalog {
+  const selected = VETTED_PILOT[id];
+  if (!selected || year !== selected.year)
+    throw new Error("Catalog API unavailable; no independent rights-cleared pilot identity");
+  return {
+    id, title: selected.title, media_type: "Text",
+    copyright: false, languages: ["en"],
+    authors: [{ name: selected.author, death_year: selected.deathYear }],
+    editors: [], translators: [],
+    // These are *candidate* locations; downloaded bytes still must pass
+    // Gutenberg source signatures, length, UTF-8 and source SHA256 checks.
+    formats: {
+      "text/plain; charset=utf-8": MIRROR + "/cache/epub/" + id + "/pg" + id + ".txt",
+      "image/jpeg": MIRROR + "/cache/epub/" + id + "/pg" + id + ".cover.medium.jpg",
+    },
+    subjects: ["English literature"], summaries: [],
+  };
+}
 type Catalog = {
   id: number; title: string; media_type: string; copyright: boolean | null;
   languages: string[]; authors: Array<{name: string;death_year: number|null}>;
@@ -50,7 +88,7 @@ export function extractGutenbergBody(raw:string):string {
 async function getBytes(url:string,max:number) {
   const r=await fetch(url,{
     headers:{Accept:"*/*","User-Agent":"Seeparah-Catalog/1.0 (+https://seeparah.com)"},
-    signal:AbortSignal.timeout(25000)
+    signal:AbortSignal.timeout(13000)
   });
   if(!r.ok)throw new Error("Gutenberg mirror HTTP "+r.status);
   if(Number(r.headers.get("content-length")||"0")>max)throw new Error("Source exceeds import size");
@@ -70,6 +108,24 @@ async function getBytes(url:string,max:number) {
   const all=new Uint8Array(bytes);let offset=0;
   for(const piece of chunks){all.set(piece,offset);offset+=piece.length;}
   return all;
+}
+/** Prefer the Gutenberg-operated high-speed mirror, then the ODU mirror
+ * listed by Project Gutenberg. This deliberately does not harvest the
+ * www.gutenberg.org human-facing site. */
+async function getGutenbergAsset(id:number,name:string,max:number){
+  const endpoints=[
+    MIRROR+"/cache/epub/"+id+"/"+name,
+    "https://mirror.cs.odu.edu/gutenberg-epub/"+id+"/"+name,
+  ];
+  const failures:string[]=[];
+  for(const address of endpoints){
+    try { return await getBytes(address,max); }
+    catch(error){
+      const cause=error instanceof Error?error.message:String(error);
+      failures.push(new URL(address).hostname+": "+cause);
+    }
+  }
+  throw new Error("Both authorized Gutenberg mirrors unavailable: "+failures.join(" | "));
 }
 function duplicate(value: unknown){
   if (!value || typeof value !== "object") return false;
@@ -128,14 +184,26 @@ export async function importGutenbergSource(job:Job):Promise<Result>{
   if(urlError)throw new Error(urlError.message);
   if(oldUrl)return {status:"skipped",bookId:oldUrl.id,message:"Existing Gutenberg source URL"};
 
-  const response=await fetch("https://gutendex.com/books/"+id+"/",{
-    headers:{Accept:"application/json"},signal:AbortSignal.timeout(20000)
-  });
-  if(!response.ok)throw new Error("Gutendex HTTP "+response.status);
-  const catalog=await response.json() as Catalog;
+  // Hosted Gutendex has intermittent prolonged outages. Fail over to the
+  // individually curated *pilot only*, never assume arbitrary Gutenberg IDs
+  // have been rights-cleared when the API is unavailable.
+  let catalog: Catalog;
+  let catalogOrigin = "Gutendex";
+  try {
+    const response=await fetch("https://gutendex.com/books/"+id+"/",{
+      headers:{Accept:"application/json"},signal:AbortSignal.timeout(6000)
+    });
+    if(!response.ok)throw new Error("Gutendex HTTP "+response.status);
+    catalog=await response.json() as Catalog;
+  } catch(error) {
+    console.warn("[Gutenberg] catalog API unavailable; use verified pilot identity",
+      id,error instanceof Error?error.message:String(error));
+    catalog=curatedPilotMetadata(id,job.original_publication_year);
+    catalogOrigin="curated pilot";
+  }
   const {author,deathYear}=verifyGutenbergCandidate(catalog,id,job.original_publication_year);
 
-  const original=await getBytes(MIRROR+"/cache/epub/"+id+"/pg"+id+".txt",MAX_TEXT);
+  const original=await getGutenbergAsset(id,"pg"+id+".txt",MAX_TEXT);
   const rawText=new TextDecoder("utf-8",{fatal:true}).decode(original);
   const manuscript=extractGutenbergBody(rawText);
   const sha256=createHash("sha256").update(original).digest("hex");
@@ -147,7 +215,7 @@ export async function importGutenbergSource(job:Job):Promise<Result>{
 
   let coverUrl:string|null=null;
   try{
-    const jpeg=await getBytes(MIRROR+"/cache/epub/"+id+"/pg"+id+".cover.medium.jpg",1024*1024);
+    const jpeg=await getGutenbergAsset(id,"pg"+id+".cover.medium.jpg",1024*1024);
     if(jpeg.length>2000 && jpeg[0]===255 && jpeg[1]===216 && jpeg[2]===255 &&
        typeof catalog.formats?.["image/jpeg"]==="string"){
       const path="gutenberg/"+id+"/cover-medium.jpg";
@@ -186,14 +254,14 @@ export async function importGutenbergSource(job:Job):Promise<Result>{
     source_scan_id:"gutenberg:"+id,
     source_file_sha256:sha256,source_file_path:"gutenberg-sources/"+sourceKey,
     source_revision:"Original Gutenberg mirror SHA-256 "+sha256,
-    authenticity_notes:"Gutendex copyright=false. Author death year "+deathYear+
+    authenticity_notes:"Metadata from "+catalogOrigin+". Original English source verified and archived. Author death year "+deathYear+
       "; no translators or editors listed. Full original text retained as "+sourceKey,
     review_notes:"Imported by automated Gutenberg fast-track; subject to source audit."
   }).eq("id",bookId);
   if(metadataError)throw new Error(metadataError.message);
   const auditMeta:Record<string,unknown>={
     title:catalog.title,author,deathYear,year:job.original_publication_year,
-    sourceUrl:url,coverUrl,sha256,review:"automated"
+    sourceUrl:url,coverUrl,sha256,review:"automated",catalogOrigin
   };
   if(!coverUrl||uploaded.warnings.length||uploaded.chapterCount<2||desc.length<60)
     return {status:"in_review",bookId,sha256,metadata:auditMeta,

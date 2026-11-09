@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractGutenbergBody, verifyGutenbergCandidate } from "./gutenberg-fast-import.server";
+import { curatedPilotMetadata, extractGutenbergBody, verifyGutenbergCandidate } from "./gutenberg-fast-import.server";
 
 const sample={
   id:55,title:"The Wonderful Wizard of Oz",media_type:"Text",copyright:false,
@@ -13,6 +13,13 @@ describe("Gutenberg fast track must fail closed",()=>{
     expect(verifyGutenbergCandidate(sample,55,1900)).toEqual({
       author:"Baum, L. Frank",deathYear:1919,
     });
+  });
+  it("falls back to individually curated classics when Gutendex is down, never unknown IDs",()=>{
+    const pilot=curatedPilotMetadata(55,1900);
+    expect(pilot.title).toBe("The Wonderful Wizard of Oz");
+    expect(verifyGutenbergCandidate(pilot,55,1900).deathYear).toBe(1919);
+    expect(()=>curatedPilotMetadata(55,1901)).toThrow(/no independent/);
+    expect(()=>curatedPilotMetadata(999999,1850)).toThrow(/no independent/);
   });
   it("rejects copyright restrictions, translations and modern contributors",()=>{
     expect(()=>verifyGutenbergCandidate({...sample,copyright:true},55,1900)).toThrow();
