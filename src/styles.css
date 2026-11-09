@@ -464,7 +464,33 @@ body.reader-sepia {
 .reader-v3-root.reader-sepia { color-scheme: light; }
 .reader-v3-root.dark { color-scheme: dark; }
 
+/* Tailwind v4 @theme inline resolves --color-* on the site root.
+   Override the palette tokens in the book surface, or html.dark continues
+   to paint DARK pages even while reader-light / reader-sepia is selected.
+   All book UI utilities and physical page backgrounds use these tokens. */
 .reader-v3-root {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-gold: var(--gold);
+  --color-gold-foreground: var(--gold-foreground);
+  --color-paper: var(--paper);
   height: 100dvh;
   min-height: 0;
   overflow: hidden;
