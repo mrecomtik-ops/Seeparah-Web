@@ -88,7 +88,7 @@ export function extractGutenbergBody(raw:string):string {
 async function getBytes(url:string,max:number) {
   const r=await fetch(url,{
     headers:{Accept:"*/*","User-Agent":"Seeparah-Catalog/1.0 (+https://seeparah.com)"},
-    signal:AbortSignal.timeout(25000)
+    signal:AbortSignal.timeout(13000)
   });
   if(!r.ok)throw new Error("Gutenberg mirror HTTP "+r.status);
   if(Number(r.headers.get("content-length")||"0")>max)throw new Error("Source exceeds import size");
@@ -108,6 +108,24 @@ async function getBytes(url:string,max:number) {
   const all=new Uint8Array(bytes);let offset=0;
   for(const piece of chunks){all.set(piece,offset);offset+=piece.length;}
   return all;
+}
+/** Prefer the Gutenberg-operated high-speed mirror, then the ODU mirror
+ * listed by Project Gutenberg. This deliberately does not harvest the
+ * www.gutenberg.org human-facing site. */
+async function getGutenbergAsset(id:number,name:string,max:number){
+  const endpoints=[
+    MIRROR+"/cache/epub/"+id+"/"+name,
+    "https://mirror.cs.odu.edu/gutenberg-epub/"+id+"/"+name,
+  ];
+  const failures:string[]=[];
+  for(const address of endpoints){
+    try { return await getBytes(address,max); }
+    catch(error){
+      const cause=error instanceof Error?error.message:String(error);
+      failures.push(new URL(address).hostname+": "+cause);
+    }
+  }
+  throw new Error("Both authorized Gutenberg mirrors unavailable: "+failures.join(" | "));
 }
 function duplicate(value: unknown){
   if (!value || typeof value !== "object") return false;
@@ -185,7 +203,7 @@ export async function importGutenbergSource(job:Job):Promise<Result>{
   }
   const {author,deathYear}=verifyGutenbergCandidate(catalog,id,job.original_publication_year);
 
-  const original=await getBytes(MIRROR+"/cache/epub/"+id+"/pg"+id+".txt",MAX_TEXT);
+  const original=await getGutenbergAsset(id,"pg"+id+".txt",MAX_TEXT);
   const rawText=new TextDecoder("utf-8",{fatal:true}).decode(original);
   const manuscript=extractGutenbergBody(rawText);
   const sha256=createHash("sha256").update(original).digest("hex");
@@ -197,7 +215,7 @@ export async function importGutenbergSource(job:Job):Promise<Result>{
 
   let coverUrl:string|null=null;
   try{
-    const jpeg=await getBytes(MIRROR+"/cache/epub/"+id+"/pg"+id+".cover.medium.jpg",1024*1024);
+    const jpeg=await getGutenbergAsset(id,"pg"+id+".cover.medium.jpg",1024*1024);
     if(jpeg.length>2000 && jpeg[0]===255 && jpeg[1]===216 && jpeg[2]===255 &&
        typeof catalog.formats?.["image/jpeg"]==="string"){
       const path="gutenberg/"+id+"/cover-medium.jpg";
