@@ -30,9 +30,9 @@ create index if not exists gutenberg_import_jobs_pending
 -- All duplicates are skipped before any writes to book data.
 insert into public.gutenberg_import_jobs(gutenberg_id,original_publication_year)
 values
- (55,1900), (74,1876), (2701,1851), (345,1897), (1342,1813),
- (98,1859), (205,1886), (514,1868), (76,1884), (23,1845),
- (41,1820), (158,1888), (174,1899)
+ (55,1900), (74,1876), (15,1851), (345,1897), (1342,1813),
+ (98,1859), (1400,1861), (23,1845), (41,1820), (158,1815),
+ (174,1890)
 on conflict(gutenberg_id) do nothing;
 
 -- Source files are preserved for audit and exact-content verification.
