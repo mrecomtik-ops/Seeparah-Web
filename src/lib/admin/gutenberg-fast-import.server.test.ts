@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { curatedPilotMetadata, extractGutenbergBody, verifyGutenbergCandidate } from "./gutenberg-fast-import.server";
+import { curatedPilotMetadata, extractGutenbergBody, mergeImportJobMetadata, verifyGutenbergCandidate, vettedBatchMetadata } from "./gutenberg-fast-import.server";
 
 const sample={
   id:55,title:"The Wonderful Wizard of Oz",media_type:"Text",copyright:false,
@@ -20,6 +20,31 @@ describe("Gutenberg fast track must fail closed",()=>{
     expect(verifyGutenbergCandidate(pilot,55,1900).deathYear).toBe(1919);
     expect(()=>curatedPilotMetadata(55,1901)).toThrow(/no independent/);
     expect(()=>curatedPilotMetadata(999999,1850)).toThrow(/no independent/);
+  });
+  it("allows batch-50's individually checked catalog identity during a Gutendex outage",()=>{
+    const job={
+      id:81,gutenberg_id:601,original_publication_year:1796,attempts:2,
+      metadata:{
+        batchId:"PG-2026-11-09-B50-01",batchPosition:11,
+        metadataSource:"Gutenberg catalogue page reviewed",
+        title:"The Monk: A Romance",author:"Matthew Gregory Lewis",
+        authorDeathYear:1818,originalPublicationYear:1796,
+      },
+    };
+    const catalog=vettedBatchMetadata(job);
+    expect(catalog).toMatchObject({
+      id:601,media_type:"Text",copyright:false,languages:["en"],
+      authors:[{name:"Matthew Gregory Lewis",death_year:1818}],
+    });
+    expect(verifyGutenbergCandidate(catalog,601,1796).author).toBe("Matthew Gregory Lewis");
+    expect(mergeImportJobMetadata(job.metadata,{sourceSha256:"abc123"})).toMatchObject({
+      batchId:"PG-2026-11-09-B50-01",sourceSha256:"abc123",
+    });
+    expect(()=>vettedBatchMetadata({...job,metadata:{...job.metadata,authorDeathYear:1970}})).toThrow();
+    expect(()=>vettedBatchMetadata({...job,metadata:{...job.metadata,originalPublicationYear:1900}})).toThrow();
+    expect(()=>vettedBatchMetadata({...job,metadata:{...job.metadata,batchId:"unreviewed"}})).toThrow();
+    expect(()=>vettedBatchMetadata({...job,metadata:{...job.metadata,metadataSource:"reader-submitted"}})).toThrow();
+    expect(()=>vettedBatchMetadata({...job,metadata:null})).toThrow();
   });
   it("rejects copyright restrictions, translations and modern contributors",()=>{
     expect(()=>verifyGutenbergCandidate({...sample,copyright:true},55,1900)).toThrow();
