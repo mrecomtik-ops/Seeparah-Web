@@ -923,18 +923,26 @@ export function BookReaderV3({
       const { data } = await supabase.auth.getSession();
       const token = data.session?.access_token;
       if (!token) {
-        toast.info("Sign in to request a translation.");
+        toast.info("Sign in to submit a translation request.", {
+          action: { label: "Sign in", onClick: () => window.location.assign("/auth") },
+        });
         return;
       }
-      await requestBookTranslationAccess({
+      const outcome = await requestBookTranslationAccess({
         data: {
           accessToken: token,
           bookId: book.id,
           language: requestLanguage,
         },
       });
-      toast.success(`${requestLanguage} translation requested`);
-      setRequestLanguage("");
+      await queryClient.invalidateQueries({
+        queryKey: ["my-translation-requests", userId, book.id],
+      });
+      if (outcome.status === "requested") {
+        toast.success(`${requestLanguage} request received. Rights and editorial approval are required before a translation can be made available.`);
+      } else {
+        toast.info(`${requestLanguage}: request status is ${outcome.status.replaceAll("_", " ")}.`);
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not submit translation request");
     } finally {
@@ -974,13 +982,51 @@ export function BookReaderV3({
       ]);
       pendingHighlightRef.current = null;
       window.getSelection()?.removeAllRanges();
-      toast.success("Highlighted");
+      toast.success("Highlighted — open Saved highlights to review it.");
     } catch {
       // Don't silently claim that an authenticated highlight was saved if
       // Supabase rejected the write. Keep the source selection for retry.
       toast.error("Could not save the highlight. Please try again.");
     }
   }
+
+  const jumpToSavedHighlight = (highlight: Highlight) => {
+    setSavedHighlightsOpen(false);
+    setSettingsOpen(false);
+    setContentsReturnPosition(null);
+    lastTypographySourceAnchorRef.current = null;
+    fontChangeAnchorRef.current = null;
+    const chapterIndex = findReaderChapterByChunk(chapters, highlight.chunk_index);
+    const anchors = Array.from(
+      flowRef.current?.querySelectorAll<HTMLElement>(
+        '[data-reader-chapter-index="' + String(chapterIndex) +
+        '"][data-reader-chunk-index="' + String(highlight.chunk_index) + '"]',
+      ) ?? [],
+    );
+    const desiredOffset = highlight.start_offset ?? 0;
+    const matched = anchors.find((item) => {
+      const start = Number(item.dataset["readerTextStart"] ?? 0);
+      return desiredOffset >= start &&
+        desiredOffset <= start + (item.textContent?.length ?? 0);
+    }) ?? anchors[0];
+    const sourceStart = Number(matched?.dataset["readerTextStart"] ?? 0);
+    const chapterStart = Number(matched?.dataset["chapterOffset"] ?? 0);
+    const position: ReaderPosition = {
+      chapterIndex,
+      chunkIndex: highlight.chunk_index,
+      charOffset: chapterStart + Math.max(0, desiredOffset - sourceStart),
+    };
+    setFrontIndex(null);
+    positionRef.current = position;
+    pendingRestoreRef.current = position;
+    if (layoutMeasured) {
+      requestAnimationFrame(() => {
+        if (pendingRestoreRef.current !== position) return;
+        pendingRestoreRef.current = null;
+        restorePosition(position);
+      });
+    }
+  };
 
   const measurePadding = textMeasure === "narrow" ? 0.095 : textMeasure === "wide" ? 0.045 : 0.065;
   const horizontalPadding = Math.round(pageSize.width * (spreadMode ? measurePadding * 0.75 : measurePadding));
@@ -1222,7 +1268,18 @@ export function BookReaderV3({
         onPrevious={() => goBodyPage(-1)}
         onNext={() => goBodyPage(1)}
         onFinish={() => setFinishOpen(true)}
+        onOpenHighlights={() => setSavedHighlightsOpen(true)}
+        highlightCount={highlights.length}
       />
+
+      {savedHighlightsOpen && (
+        <ReaderSavedHighlights
+          highlights={highlights}
+          language={language}
+          onClose={() => setSavedHighlightsOpen(false)}
+          onJump={jumpToSavedHighlight}
+        />
+      )}
 
       {finishOpen && <BookReaderFinishDialog title={displayBookTitle} onClose={() => setFinishOpen(false)} />}
 
@@ -1237,6 +1294,7 @@ export function BookReaderV3({
           requestableLanguages={requestableLanguages}
           requestLanguage={requestLanguage}
           requestingTranslation={requestingTranslation}
+          translationRequestStatus={activeRequestStatus}
           theme={theme}
           onClose={() => setSettingsOpen(false)}
           onLanguageChange={changeLanguage}
