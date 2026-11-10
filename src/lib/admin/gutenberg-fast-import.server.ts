@@ -388,11 +388,32 @@ export async function importGutenbergSource(job:Job):Promise<Result>{
     console.warn("[Gutenberg] cover requires review",id,error instanceof Error?error.message:String(error));
   }
   const desc=description(catalog,author,originalYear);
+  // Use actual Project Gutenberg catalogue subject headings rather than
+  // labelling every imported book as generic Literature. The same private
+  // classification function backfilled all existing Gutenberg editions.
+  const subjectHeadings=[
+    ...(Array.isArray(catalog.subjects)
+      ?catalog.subjects.filter((subject):subject is string=>typeof subject==="string")
+      :[]),
+    ...(typeof job.metadata?.["subjects"]==="string"
+      ?[job.metadata["subjects"] as string]:[]),
+  ].filter(Boolean).join("; ");
+  const {data:classifiedCategories,error:topicError}=await db.rpc(
+    "seeparah_classify_book_topics",{
+      p_title:catalog.title,
+      p_subjects:subjectHeadings,
+      p_existing:[],
+    });
+  if(topicError)throw new Error("Gutenberg category assignment failed: "+topicError.message);
+  if(!Array.isArray(classifiedCategories) || !classifiedCategories.length ||
+     !classifiedCategories.every((item:unknown)=>typeof item==="string"))
+    throw new Error("Gutenberg category assignment returned an invalid category list");
+  const assignedCategories=classifiedCategories as string[];
   const {adminCreateBook,scanBookRightsSignals,evaluatePublishGate}=
     await import("@/lib/admin/catalog.server");
   const uploaded=await adminCreateBook({
     title:catalog.title,author,sourceLanguage:"English",
-    description:desc,genre:"Literature",categories:["Literature"],
+    description:desc,genre:"Literature",categories:assignedCategories,
     coverUrl,sourceUrl:url,sourceEditionId:"gutenberg:"+id,
     rightsBasis:"Original work by "+author+" (died "+deathYear+
       "), first published "+originalYear+
@@ -424,7 +445,8 @@ export async function importGutenbergSource(job:Job):Promise<Result>{
   if(metadataError)throw new Error(metadataError.message);
   const auditMeta:Record<string,unknown>={
     title:catalog.title,author,deathYear,year:originalYear,
-    sourceUrl:url,coverUrl,sha256,review:"automated",catalogOrigin,yearEvidence
+    sourceUrl:url,coverUrl,sha256,review:"automated",catalogOrigin,yearEvidence,
+    subjects:subjectHeadings.slice(0,1500),assignedCategories
   };
   if(!coverUrl||uploaded.warnings.length||uploaded.chapterCount<2||desc.length<60)
     return {status:"in_review",bookId,sha256,metadata:auditMeta,

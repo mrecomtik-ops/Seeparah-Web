@@ -32,6 +32,7 @@ import { getPublicContentSettings } from "@/lib/admin/settings.functions";
 import { countPagesRead } from "@/lib/reading-stats";
 import { formatAuthorName } from "@/lib/author-name";
 import { publicBookDescription } from "@/lib/book-description";
+import { COLLECTION_TOPICS } from "@/lib/collection-topics";
 import { displayTitleCase } from "@/lib/display-text";
 import { publishedTraditions, matchesPublishedTradition, KNOWN_SACRED_TRADITIONS } from "@/lib/library-traditions";
 
@@ -161,7 +162,9 @@ function LibraryPage() {
     return counts;
   }, [books]);
   const categoriesInUse = useMemo(() => {
-    const names = [...categoryCounts.keys()].filter((name) => (categoryCounts.get(name) ?? 0) > 0);
+    // Present the full editorial taxonomy, even before the first matching
+    // rights-cleared edition arrives. Keep existing admin-assigned labels.
+    const names = [...new Set<string>([...COLLECTION_TOPICS, ...categoryCounts.keys()])];
     return names.sort((a, b) => {
       if (a === "Religious") return -1;
       if (b === "Religious") return 1;
