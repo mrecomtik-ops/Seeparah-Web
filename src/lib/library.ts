@@ -15,6 +15,7 @@ import {
   listPublicBooksByAuthorId as fetchPublicBooksByAuthorId,
 } from "@/lib/public-catalog.functions";
 import { splitManuscript } from "@/lib/manuscript";
+import { formatAuthorName } from "@/lib/author-name";
 import {
   DEMO_CHUNKS,
   demoStore,
@@ -102,6 +103,7 @@ export function matchesBookSearch(book: Pick<Book, "title" | "author">, query: s
   if (!q) return true;
   const title = normalizeCatalogQuery(book.title);
   const author = normalizeCatalogQuery(book.author);
+  const authorDisplay = normalizeCatalogQuery(formatAuthorName(book.author));
   const aliases: Record<string, string[]> = {
     quran: ["quran", "qur'an", "qur’an", "koran"],
     bible: ["bible", "genesis", "matthew", "new testament", "tanakh"],
@@ -111,7 +113,7 @@ export function matchesBookSearch(book: Pick<Book, "title" | "author">, query: s
   const terms = aliases[q] ?? [q];
   return terms.some((term) => {
     const needle = normalizeCatalogQuery(term);
-    return title.includes(needle) || author.includes(needle);
+    return title.includes(needle) || author.includes(needle) || authorDisplay.includes(needle);
   });
 }
 
