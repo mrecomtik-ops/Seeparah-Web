@@ -43,7 +43,13 @@ export async function adminListBooks(filters: AdminBookListFilters) {
   if (filters.structureStatus) q = q.eq("structure_review_status", filters.structureStatus);
   if (filters.editionReviewStatus) q = q.eq("edition_review_status", filters.editionReviewStatus);
   if (filters.sourceLanguage) q = q.eq("source_language", filters.sourceLanguage);
-  if (filters.query) q = q.or(`title.ilike.%${filters.query}%,author.ilike.%${filters.query}%`);
+  if (filters.query) {
+    // PostgREST .or() parses a filter grammar. Only permit ordinary
+    // bibliographic search characters; never interpolate its delimiters.
+    const safe = filters.query.normalize("NFKC")
+      .replace(/[^\p{L}\p{N} .'-]/gu, " ").replace(/\s+/g, " ").trim().slice(0, 120);
+    if (safe) q = q.or(`title.ilike.%${safe}%,author.ilike.%${safe}%`);
+  }
   const from = (filters.page - 1) * filters.perPage;
   const { data, error, count } = await q.range(from, from + filters.perPage - 1);
   if (error) throw new Error(error.message);
