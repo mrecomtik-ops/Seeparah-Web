@@ -104,8 +104,25 @@ export async function getPublicLibraryPage(ids: string[]): Promise<Book[]> {
   return ids.flatMap((id) => rows.has(id) ? [rows.get(id)!] : []);
 }
 
+/** Do not present a guessed first-print date as verified.
+ * The automated Gutenberg importer used one unreliable Open Library field:
+ * internal provenance must be independently re-audited before a date is
+ * restored to the public catalogue. This projection changes no stored data. */
+export function sanitizedPublicBook(row: Book): Book {
+  const description = String(row.description ?? "");
+  if (!/This sourced English-language reading edition presents the full original work\.\s+Source subject classifications:/i.test(description)) {
+    return row;
+  }
+  const author = String(row.author ?? "").replace(/^([^,]+),\s*([^,(]+).*$/, "$2 $1").trim();
+  return {
+    ...row,
+    original_publication_year: null,
+    description: `${row.title} by ${author}. This source-based reading edition preserves the acquired text; the original publication date and edition details require independent bibliographic verification. Source: Project Gutenberg.`,
+  };
+}
+
 function asPublicBook(row: unknown): Book {
-  return row as Book;
+  return sanitizedPublicBook(row as Book);
 }
 
 export async function listPublicBooks(): Promise<Book[]> {
