@@ -458,7 +458,7 @@ function LibraryPage() {
                   onChange={(v) => updateSearch({ author: v ?? undefined })}
                 />
                 <Select
-                  label="Genre / theme"
+                  label="Edition type"
                   value={genre}
                   options={genresInUse.length ? genresInUse : [...GENRES]}
                   onChange={(v) => updateSearch({ genre: v ?? undefined })}
@@ -475,6 +475,8 @@ function LibraryPage() {
                   allLabel="All collections and topics"
                   value={category}
                   options={categoriesInUse.filter((name) => !KNOWN_SACRED_TRADITIONS.includes(name as typeof KNOWN_SACRED_TRADITIONS[number]))}
+                  formatOption={(name) => `${name} (${categoryCounts.get(name) ?? 0})`}
+                  disableOption={(name) => (categoryCounts.get(name) ?? 0) === 0}
                   onChange={(v) => updateSearch({ category: v ?? undefined })}
                 />
               </div>
@@ -533,7 +535,9 @@ function LibraryPage() {
                   key={c}
                   type="button"
                   onClick={() => updateSearch({ category: c })}
-                  className="min-h-11 rounded-full border border-border bg-background px-4 py-2 text-xs font-semibold text-foreground hover:bg-secondary"
+                  disabled={(categoryCounts.get(c) ?? 0) === 0}
+                  title={(categoryCounts.get(c) ?? 0) === 0 ? "No published books in this collection yet" : undefined}
+                  className="min-h-11 rounded-full border border-border bg-background px-4 py-2 text-xs font-semibold text-foreground hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {c} <span className="text-muted-foreground">({categoryCounts.get(c) ?? 0})</span>
                 </button>
@@ -704,6 +708,7 @@ function Select({
   options,
   onChange,
   formatOption,
+  disableOption,
 }: {
   label: string;
   /** Text for the blank/"any value" option, e.g. "All categories". Naive
@@ -715,6 +720,7 @@ function Select({
   options: string[];
   onChange: (v: string | null) => void;
   formatOption?: (value: string) => string;
+  disableOption?: (value: string) => boolean;
 }) {
   return (
     <label className="min-w-0 flex flex-col gap-1">
@@ -726,7 +732,7 @@ function Select({
       >
         <option value="">{allLabel ?? `All ${label.toLowerCase()}s`}</option>
         {options.map((o) => (
-          <option key={o} value={o}>
+          <option key={o} value={o} disabled={disableOption?.(o)}>
             {formatOption ? formatOption(o) : o}
           </option>
         ))}
