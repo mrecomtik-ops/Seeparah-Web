@@ -737,7 +737,7 @@ export function BookReaderV3({
         (target.matches("input,textarea,select,[role='textbox']") ||
           (target instanceof HTMLElement && target.isContentEditable));
       if (editableTarget || settingsOpen || savedHighlightsOpen || inkEnabled) {
-        if (event.key === "Escape") { setSettingsOpen(false); setSavedHighlightsOpen(false); }
+        if (event.key === "Escape") { setSettingsOpen(false); setSavedHighlightsOpen(false); setInkEnabled(false); }
         return;
       }
       if (event.key === "ArrowLeft") {
