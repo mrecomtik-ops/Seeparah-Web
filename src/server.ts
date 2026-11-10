@@ -96,6 +96,13 @@ export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
       const url = new URL(request.url);
+      // Preserve the established PNG favicon for clients requesting the
+      // legacy favicon.ico route; never return a misleading HTML 404.
+      if (url.pathname === "/favicon.ico") {
+        return withSecurityHeaders(new Response(null, {
+          status: 308, headers: { Location: "/favicon.png" },
+        }));
+      }
       if (url.pathname === "/api/platform-usage") {
         const { handlePlatformUsageRequest } = await import("./lib/platform-usage.server");
         return withSecurityHeaders(await handlePlatformUsageRequest(request, env));
@@ -121,8 +128,8 @@ export default {
 
   scheduled(_event: unknown, env: unknown, ctx: ScheduledContext) {
     ctx.waitUntil(runScheduledTranslationWork());
-    // Durable autopilot: refill 100-book batches from Gutenberg's official
-    // weekly metadata feed. Stop at 1,000 genuinely published Seeparah books.
+    // Durable autopilot: refill bounded Gutenberg batches toward the
+    // database-configured target, subject to strict rights and structure gates.
     // Never count reviews/errors as published and never modify existing titles.
     // Fetching one queued book is deliberately sequential to avoid overlapping
     // database writes or unbounded external mirror traffic.
