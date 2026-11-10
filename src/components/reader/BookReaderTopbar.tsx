@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { ArrowLeft, ChevronRight, Highlighter, List, Settings2 } from "lucide-react";
+import { ArrowLeft, ChevronRight, Highlighter, List, PenLine, Settings2 } from "lucide-react";
 import { ShelfButtons } from "@/components/ShelfButtons";
 
 /** Pure reader chrome: position, source selection, accessibility actions.
@@ -8,6 +8,7 @@ import { ShelfButtons } from "@/components/ShelfButtons";
 export function BookReaderTopbar({
   title, pageLabel, language, availableLanguages, bookId, canReturnToReading, progress,
   onLanguageChange, onBackToReading, onContents, onHighlight, onBeforeHighlight, onOpenSettings,
+  inkEnabled, onToggleInk,
 }: {
   title: string;
   pageLabel: string;
@@ -22,6 +23,8 @@ export function BookReaderTopbar({
   onHighlight: () => void | Promise<void>;
   onBeforeHighlight: () => void;
   onOpenSettings: () => void;
+  inkEnabled:boolean;
+  onToggleInk:()=>void;
 }) {
   const displayBookTitle=title;
   return (
@@ -73,6 +76,14 @@ export function BookReaderTopbar({
             aria-label="Highlight selection"
           >
             <Highlighter className="h-4 w-4" />
+          </button>
+          <button type="button" onClick={onToggleInk}
+            className="reader-v3-icon"
+            aria-label={inkEnabled?"Finish freehand drawing":"Draw or write by hand"}
+            aria-pressed={inkEnabled}
+            title={inkEnabled?"Finish freehand drawing":"Handwriting and drawing tools"}
+          >
+            <PenLine className="h-4 w-4" />
           </button>
           <button
             onClick={onOpenSettings}
