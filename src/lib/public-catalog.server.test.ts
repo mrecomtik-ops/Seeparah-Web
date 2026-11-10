@@ -41,3 +41,17 @@ describe("unverified Gutenberg metadata display", () => {
     expect(sanitizedPublicBook(book)).toBe(book);
   });
 });
+
+describe("QA-001 production neutralization", () => {
+  it("redacts the numeric year alongside neutral public metadata", () => {
+    const book = {
+      title: "Unverified Gutenberg novel",
+      original_publication_year: 1800,
+      description: "Its first-publication year has not been independently corroborated. This reading edition is based on archived Project Gutenberg source text.",
+    } as Book;
+    const projected = sanitizedPublicBook(book);
+    expect(projected.original_publication_year).toBeNull();
+    expect(projected.description).toBe(book.description);
+    expect(book.original_publication_year).toBe(1800);
+  });
+});
