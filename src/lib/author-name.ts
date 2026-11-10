@@ -20,3 +20,18 @@ export function formatAuthorName(raw: string): string {
   const given = givenParts.join(" ").trim();
   return given ? `${given} ${surname}`.replace(/\s+/g, " ").trim() : surname;
 }
+
+/** Canonical reader-facing author facet for alternate catalog name strings.
+ * Does not rewrite source attribution or introduce unverified identities.
+ * Honorifics and middle names must not fragment Walter Scott or Gaskell. */
+export function canonicalAuthorKey(raw: string): string {
+  const formatted = formatAuthorName(raw).normalize("NFKD").toLocaleLowerCase()
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\p{L}\p{N}\s]+/gu, " ").replace(/\s+/g, " ").trim();
+  const pieces = formatted.split(" ").filter(Boolean);
+  const withoutTitles = pieces.filter((word) =>
+    !["sir", "lady", "dame", "mrs", "mr", "ms", "dr", "rev", "prof"].includes(word));
+  if (!withoutTitles.length) return formatted;
+  if (withoutTitles.length === 1) return withoutTitles[0]!;
+  return `${withoutTitles[0]} ${withoutTitles.at(-1)}`;
+}
