@@ -64,8 +64,8 @@ export async function getAdminOverviewAnalytics(): Promise<AdminOverviewAnalytic
     throw new Error("Admin catalogue paging safety limit reached");
   }
   const [books, editions] = await Promise.all([
-    collect("books", "id,status,categories,content_classification,cover_url,rights_status,edition_review_status,structure_review_status,cleanup_review_status", "id"),
-    collect("book_editions", "book_id,language,access_type,status", "book_id"),
+    collect("books", "id,status,source_language,categories,content_classification,cover_url,rights_status,edition_review_status,structure_review_status,cleanup_review_status", "id"),
+    collect("book_editions", "book_id,language,access_type", "book_id"),
   ]);
   const [
     { data: progress7 },
@@ -92,7 +92,8 @@ export async function getAdminOverviewAnalytics(): Promise<AdminOverviewAnalytic
   const bookRows = books;
   const editionRows = editions;
   const publishedIds = new Set(bookRows.filter((b) => b.status === "published").map((b) => b.id));
-  const publishedEditionRows = editionRows.filter((e) => publishedIds.has(e.book_id) && e.status === "published");
+  const sourceLanguages = new Map(bookRows.map((b) => [b.id, b.source_language]));
+  const publishedEditionRows = editionRows.filter((e) => publishedIds.has(e.book_id) && e.language !== sourceLanguages.get(e.book_id));
   const religiousIds = new Set(
     bookRows
       .filter(
