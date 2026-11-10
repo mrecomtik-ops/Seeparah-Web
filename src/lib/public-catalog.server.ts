@@ -110,6 +110,12 @@ export async function getPublicLibraryPage(ids: string[]): Promise<Book[]> {
  * restored to the public catalogue. This projection changes no stored data. */
 export function sanitizedPublicBook(row: Book): Book {
   const description = String(row.description ?? "");
+  // QA-001 bulk remediation removed fabricated prose without inventing a
+  // replacement year. The stored numeric year is also uncorroborated and
+  // must not be sent to readers as if it were a verified fact.
+  if (/first-publication year has not been independently corroborated/i.test(description)) {
+    return { ...row, original_publication_year: null };
+  }
   if (!/This sourced English-language reading edition presents the full original work\.\s+Source subject classifications:/i.test(description)) {
     return row;
   }
