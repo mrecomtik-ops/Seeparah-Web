@@ -15,22 +15,46 @@ async function audit(width,height){
     hasTouch:width<600,isMobile:width<600,
   });
   const page=await context.newPage();
-  const fail=(message)=>{throw Error(width+"px: "+message);};
+  const failures=[];
+  page.on("pageerror",e=>failures.push("JS: "+e.message.slice(0,240)));
+  page.on("requestfailed",request=>failures.push("Network: "+new URL(request.url()).hostname+" "+request.failure()?.errorText));
+  page.on("response",response=>{
+    if(response.status()>=400 && /seeparah\.com|supabase\.co/.test(response.url()))
+      failures.push("HTTP "+response.status()+" "+response.url().slice(0,160));
+  });
+  const snapshot=async(attempt)=>({
+    attempt,url:page.url(),title:await page.title(),
+    body:(await page.locator("body").innerText().catch(()=>"(unavailable)")).slice(0,400),
+    buttons:await page.locator("button").evaluateAll(nodes=>nodes.slice(0,12).map(x=>x.getAttribute("aria-label")||x.textContent?.trim().slice(0,50))),
+    readerPages:await page.locator(".reader-v3-page").count(),
+    loading:await page.locator(".reader-v3-loading-title").count(),
+    recentFailures:failures.slice(-10),
+  });
+  const fail=(message)=>{throw Error(width+"px: "+message+" | errors "+JSON.stringify(failures.slice(-10)));};
   try{
-    // GitHub's push workflow may start before Cloudflare finishes deploying.
-    // Reload against production until the new reader version becomes visible.
+    // Do not reload during the substantial remote reader payload request:
+    // doing so aborts the request before the hydrated toolbar can appear.
+    // One genuine load gets a full window, followed by one retry.
     let productionReady=false;
-    for(let attempt=0;attempt<24;attempt++){
+    for(let attempt=0;attempt<2;attempt++){
       await page.goto(BASE+"/read/"+BOOK_ID+"?lang=English&page=1",{
         waitUntil:"domcontentloaded",timeout:60_000,
       });
-      if(await page.getByRole("button",{name:"Draw or write by hand"}).count()){
+      await page.waitForTimeout(8_000);
+      console.log("Reader snapshot before hydration wait",JSON.stringify(await snapshot(attempt)));
+      try{
+        await page.locator('[aria-label="Draw or write by hand"]').first()
+          .waitFor({state:"visible",timeout:65_000});
         productionReady=true;
         break;
+      }catch{
+        console.log("Reader snapshot after hydration wait",JSON.stringify(await snapshot(attempt)));
       }
-      await page.waitForTimeout(6_000);
     }
-    if(!productionReady)fail("Cloudflare release did not show the handwriting toggle");
+    if(!productionReady){
+      console.log("Final reader diagnostic",JSON.stringify(await snapshot("failed")));
+      fail("Reader never left loading state or mounted the handwriting toolbar");
+    }
     await page.locator(".reader-v3-page[data-book-page]").first().waitFor({timeout:50_000});
     await page.waitForFunction(()=>{
       const label=document.querySelector(".reader-v3-topbar")?.textContent||"";
@@ -93,16 +117,21 @@ async function audit(width,height){
     });
     if(!guestSaved)fail("guest handwriting was not persisted");
     await page.getByRole("button",{name:"Undo drawing"}).click();
-    if(await canvas.locator("path").count())fail("undo left drawing visible");
+    try{
+      await canvas.locator("path").first().waitFor({state:"detached",timeout:8_000});
+    }catch{fail("undo left drawing visible");}
     await page.getByRole("button",{name:"Redo drawing"}).click();
-    if(!await canvas.locator("path").count())fail("redo did not restore drawing");
+    try{
+      await canvas.locator("path").first().waitFor({state:"attached",timeout:8_000});
+    }catch{fail("redo did not restore drawing");}
     await page.getByRole("button",{name:"Eraser — remove brush strokes"}).click();
     await page.mouse.move(start.x+15,start.y+7);
     await page.mouse.down();
     await page.mouse.move(start.x+25,start.y+9,{steps:4});
     await page.mouse.up();
-    await page.waitForTimeout(300);
-    if(await canvas.locator("path").count())fail("eraser did not remove stroke");
+    try{
+      await canvas.locator("path").first().waitFor({state:"detached",timeout:8_000});
+    }catch{fail("eraser did not remove stroke");}
     results.push({width,baselinePages:baseline.pageCount,zoomedPages:larger.pageCount,
       pageWidthBefore:baseline.width,pageWidthAfter:larger.width,ink:"pass"});
   }finally{await context.close();}

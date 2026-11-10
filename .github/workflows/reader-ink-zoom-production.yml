@@ -1,5 +1,9 @@
 name: Reader ink and fixed-page zoom production smoke
 on:
+  pull_request:
+    paths:
+      - "scripts/qa/reader-ink-paper-zoom.mjs"
+      - ".github/workflows/reader-ink-zoom-production.yml"
   push:
     branches: [main]
     paths:
