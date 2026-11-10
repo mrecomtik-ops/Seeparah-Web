@@ -1134,11 +1134,11 @@ export function BookReaderV3({
         }
         aria-busy={frontIndex === null && !layoutMeasured}
         onTouchStart={(event) => {
-          if(inkEnabled){touchStartRef.current=null;return;}
+          if(inkEnabled||pageZoom>1){touchStartRef.current=null;return;}
           touchStartRef.current = event.touches[0]?.clientX ?? null;
         }}
         onTouchEnd={(event) => {
-          if(inkEnabled){touchStartRef.current=null;return;}
+          if(inkEnabled||pageZoom>1){touchStartRef.current=null;return;}
           // Dragging a native text-selection handle must never turn the page.
           if (rememberSelectedText()) { touchStartRef.current = null; return; }
           const start = touchStartRef.current;
