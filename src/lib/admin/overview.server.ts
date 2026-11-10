@@ -49,9 +49,25 @@ export async function getAdminOverviewAnalytics(): Promise<AdminOverviewAnalytic
   const since7 = new Date(now - 7 * 86_400_000).toISOString();
   const since30 = new Date(now - 30 * 86_400_000).toISOString();
 
+  // Paginate admin analytics rather than silently reporting only the first
+  // 1,000 rows after the publishing pipeline expands.
+  async function collect(table: "books" | "book_editions", columns: string, order: string) {
+    const rows: Record<string, any>[] = [];
+    for (let offset = 0; offset < 100_000; offset += 500) {
+      const { data, error } = await (db as any).from(table)
+        .select(columns).order(order, { ascending: true })
+        .range(offset, offset + 499);
+      if (error) throw new Error(error.message);
+      rows.push(...(data ?? []));
+      if ((data ?? []).length < 500) return rows;
+    }
+    throw new Error("Admin catalogue paging safety limit reached");
+  }
+  const [books, editions] = await Promise.all([
+    collect("books", "id,status,categories,content_classification,cover_url,rights_status,edition_review_status,structure_review_status,cleanup_review_status", "id"),
+    collect("book_editions", "book_id,language,access_type,status", "book_id"),
+  ]);
   const [
-    { data: books },
-    { data: editions },
     { data: progress7 },
     { data: progress30 },
     { count: highlights },
@@ -60,8 +76,6 @@ export async function getAdminOverviewAnalytics(): Promise<AdminOverviewAnalytic
     { data: jobs },
     { data: subscriptions },
   ] = await Promise.all([
-    db.from("books").select("id,status,categories,content_classification,cover_url,rights_status,edition_review_status,structure_review_status,cleanup_review_status"),
-    db.from("book_editions").select("book_id,language,access_type"),
     db.from("reading_progress").select("user_id").gte("updated_at", since7),
     db.from("reading_progress").select("user_id").gte("updated_at", since30),
     db.from("book_highlights").select("id", { count: "exact", head: true }),
@@ -75,8 +89,10 @@ export async function getAdminOverviewAnalytics(): Promise<AdminOverviewAnalytic
       .limit(5000),
   ]);
 
-  const bookRows = books ?? [];
-  const editionRows = editions ?? [];
+  const bookRows = books;
+  const editionRows = editions;
+  const publishedIds = new Set(bookRows.filter((b) => b.status === "published").map((b) => b.id));
+  const publishedEditionRows = editionRows.filter((e) => publishedIds.has(e.book_id) && e.status === "published");
   const religiousIds = new Set(
     bookRows
       .filter(
@@ -111,11 +127,11 @@ export async function getAdminOverviewAnalytics(): Promise<AdminOverviewAnalytic
     books: {
       total: bookRows.length,
       published: bookRows.filter((b) => b.status === "published").length,
-      religious: religiousIds.size,
-      general: bookRows.length - religiousIds.size,
-      publishedTranslations: editionRows.length,
-      paidTranslations: editionRows.filter((e) => e.access_type === "paid").length,
-      freeTranslations: editionRows.filter((e) => e.access_type === "free").length,
+      religious: [...religiousIds].filter((id) => publishedIds.has(id)).length,
+      general: publishedIds.size - [...religiousIds].filter((id) => publishedIds.has(id)).length,
+      publishedTranslations: publishedEditionRows.length,
+      paidTranslations: publishedEditionRows.filter((e) => e.access_type === "paid").length,
+      freeTranslations: publishedEditionRows.filter((e) => e.access_type === "free").length,
     },
     readers: {
       active7d: new Set((progress7 ?? []).map((r) => r.user_id)).size,
