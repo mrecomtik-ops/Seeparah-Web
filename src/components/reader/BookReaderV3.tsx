@@ -30,6 +30,9 @@ import { BookReaderBottomBar } from "@/components/reader/BookReaderBottomBar";
 import { BookReaderFinishDialog } from "@/components/reader/BookReaderFinishDialog";
 import { ReaderSavedHighlights } from "@/components/reader/ReaderSavedHighlights";
 import { BookReaderPhysicalPage, type PhysicalPageOptions } from "@/components/reader/BookReaderPhysicalPage";
+import { ReaderInkToolbar } from "@/components/reader/ReaderInkToolbar";
+import { type PageInkCommand } from "@/components/reader/ReaderPageInk";
+import { type InkTool } from "@/lib/reader-ink";
 import { findReaderSourceAnchor } from "@/lib/reader-position-anchor";
 import {
   clamp, buildLogicalBookPages, toRoman, scriptureFontFamily, splitSummary,
@@ -97,6 +100,12 @@ export function BookReaderV3({
   );
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [savedHighlightsOpen, setSavedHighlightsOpen] = useState(false);
+  const [inkEnabled,setInkEnabled]=useState(false);
+  const [inkTool,setInkTool]=useState<InkTool>("pen");
+  const [inkColor,setInkColor]=useState("#EF4444");
+  const [inkWidth,setInkWidth]=useState(8);
+  const [inkCommand,setInkCommand]=useState<PageInkCommand|null>(null);
+  const [activeInkPageKey,setActiveInkPageKey]=useState<string|null>(null);
   const {
     requestLanguage, setRequestLanguage, requestingTranslation,
     activeRequestStatus, handleTranslationRequest,
@@ -108,6 +117,9 @@ export function BookReaderV3({
   const [pageSize, setPageSize] = useState({ width: 360, height: 540 });
   const [contentSize, setContentSize] = useState({ width: 280, height: 410 });
   const pageStride = contentSize.width + PHYSICAL_PAGE_GUTTER;
+  // Fixed pagination at the 16px editorial master. Zoom enlarges the
+  // entire paper and glyphs together, without altering page boundaries.
+  const pageZoom=clamp(fontSize/16,1,1.25);
   const [mobileViewport, setMobileViewport] = useState(false);
   const [spreadMode, setSpreadMode] = useState(false);
   const [layoutMeasured, setLayoutMeasured] = useState(false);
@@ -321,8 +333,8 @@ export function BookReaderV3({
       const firstBoundary = textBoundaryAt(anchor, 0);
       const lastBoundary = textBoundaryAt(anchor, Math.max(0, length - 1));
       if (!firstBoundary || !lastBoundary) continue;
-      const firstPage = pageForBoundary(flow, firstBoundary, pageStride);
-      const lastPage = pageForBoundary(flow, lastBoundary, pageStride);
+      const firstPage = pageForBoundary(flow, firstBoundary, pageStride*pageZoom);
+      const lastPage = pageForBoundary(flow, lastBoundary, pageStride*pageZoom);
       if (rawBodyPage < firstPage || rawBodyPage > lastPage) continue;
       let lo = 0,
         hi = Math.max(0, length - 1);
@@ -330,7 +342,7 @@ export function BookReaderV3({
         const mid = Math.floor((lo + hi) / 2);
         const boundary = textBoundaryAt(anchor, mid);
         if (!boundary) break;
-        if (pageForBoundary(flow, boundary, pageStride) < rawBodyPage) lo = mid + 1;
+        if (pageForBoundary(flow, boundary, pageStride*pageZoom) < rawBodyPage) lo = mid + 1;
         else hi = mid;
       }
       const position = {
@@ -355,6 +367,7 @@ export function BookReaderV3({
     currentChapterIndex,
     logicalPages,
     pageStride,
+    pageZoom,
   ]);
 
   useEffect(() => {
@@ -383,11 +396,11 @@ export function BookReaderV3({
       // chunk won and relative was forced to 0, losing the reading place.
       const boundary = textBoundaryAt(located.anchor, located.relative);
       if (!boundary) return;
-      const rawPage = pageForBoundary(flow, boundary, pageStride);
+      const rawPage = pageForBoundary(flow, boundary, pageStride*pageZoom);
       const logicalPage = logicalLayout.rawToLogical[rawPage] ?? 0;
       setBodyPage(spreadMode && logicalPage % 2 === 1 ? logicalPage + 1 : logicalPage);
     },
-    [chapterStartPages, contentSize.width, logicalLayout.rawToLogical, pageStride, spreadMode],
+    [chapterStartPages, contentSize.width, logicalLayout.rawToLogical, pageStride, pageZoom, spreadMode],
   );
 
   useLayoutEffect(() => {
@@ -437,7 +450,7 @@ export function BookReaderV3({
           return opening
             ? Math.max(
                 0,
-                Math.round((opening.getBoundingClientRect().left - flowRect.left) / stride),
+                Math.round((opening.getBoundingClientRect().left - flowRect.left) / (stride*pageZoom)),
               )
             : 0;
         });
@@ -465,7 +478,7 @@ export function BookReaderV3({
       cancelAnimationFrame(settleFrame);
       observer.disconnect();
     };
-  }, [chapters, contentSize.height, contentSize.width, fontSize, pageSize.height, pageSize.width, typeface, lineSpacing, textMeasure, language]);
+  }, [chapters, contentSize.height, contentSize.width, pageSize.height, pageSize.width, typeface, lineSpacing, textMeasure, language, pageZoom]);
 
   useLayoutEffect(() => {
     const pending = pendingRestoreRef.current;
@@ -726,7 +739,7 @@ export function BookReaderV3({
         target instanceof Element &&
         (target.matches("input,textarea,select,[role='textbox']") ||
           (target instanceof HTMLElement && target.isContentEditable));
-      if (editableTarget || settingsOpen || savedHighlightsOpen) {
+      if (editableTarget || settingsOpen || savedHighlightsOpen || inkEnabled) {
         if (event.key === "Escape") { setSettingsOpen(false); setSavedHighlightsOpen(false); }
         return;
       }
@@ -740,7 +753,7 @@ export function BookReaderV3({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [goBodyPage, settingsOpen, savedHighlightsOpen]);
+  }, [goBodyPage, settingsOpen, savedHighlightsOpen, inkEnabled]);
 
   useEffect(() => {
     if (!turning) return;
@@ -808,7 +821,7 @@ export function BookReaderV3({
         const visible = rects.some((rect) => {
           const rawPage = Math.max(
             0,
-            Math.round((rect.left - flowRect.left) / Math.max(1, pageStride)),
+            Math.round((rect.left - flowRect.left) / Math.max(1, pageStride*pageZoom)),
           );
           return rawPage === targetRawPage;
         });
@@ -826,7 +839,7 @@ export function BookReaderV3({
         }
       }
     }
-  }, [bodyPage, frontIndex, layoutMeasured, logicalPages, pageStride, spreadMode]);
+  }, [bodyPage, frontIndex, layoutMeasured, logicalPages, pageStride, pageZoom, spreadMode]);
 
   /** Capture a source position before changing page geometry. Restoring by
    * source chunk offset prevents a font/margin adjustment jumping chapters.
@@ -844,38 +857,13 @@ export function BookReaderV3({
   };
 
   const changeFontSize = (next: number) => {
-    setFontSizeDraft(next);
-
-    if (frontIndex === null) {
-      let anchor = fontChangeAnchorRef.current ?? lastTypographySourceAnchorRef.current;
-      if (!anchor && layoutMeasured) anchor = capturePosition();
-      if (!anchor) anchor = positionRef.current;
-      if (anchor) {
-        fontChangeAnchorRef.current = anchor;
-        lastTypographySourceAnchorRef.current = anchor;
-        positionRef.current = anchor;
-        pendingRestoreRef.current = anchor;
-      }
-    }
-
-    if (fontApplyTimerRef.current != null) window.clearTimeout(fontApplyTimerRef.current);
-    if (fontChangeTimerRef.current != null) {
-      window.clearTimeout(fontChangeTimerRef.current);
-      fontChangeTimerRef.current = null;
-    }
-
-    fontApplyTimerRef.current = window.setTimeout(() => {
-      const anchor = fontChangeAnchorRef.current;
-      if (anchor) {
-        positionRef.current = anchor;
-        pendingRestoreRef.current = anchor;
-      }
-
-      setLayoutMeasured(false);
-      setFontSize(next);
-      setPrefs({ fontSize: next });
-      fontApplyTimerRef.current = null;
-    }, 220);
+    // Page zoom, not text reflow: the page and text become physically bigger
+    // together and chapter/page numbers do not change. At small viewport sizes,
+    // the user may pan the magnified paper without turning to extra pages.
+    const nextSize=clamp(next,16,20);
+    setFontSizeDraft(nextSize);
+    setFontSize(nextSize);
+    setPrefs({fontSize:nextSize});
   };
 
   const changeTypeface = (next: ReaderFontFamily) => {
@@ -974,7 +962,7 @@ export function BookReaderV3({
   const topPadding = Math.round(pageSize.width * 0.035);
   const bottomPadding = Math.round(pageSize.width * 0.03);
   const pagePadding = `${topPadding}px ${horizontalPadding}px ${bottomPadding}px`;
-  const readerFontSize = clamp(fontSize, mobileViewport ? 15 : 16, 20);
+  const readerFontSize = 16; // Stable editorial pagination; paper zoom supplies visual text size.
   const lineHeightPx = Math.round(readerFontSize * lineSpacing * 4) / 4;
   const runningHeadHeight = 12;
   const runningHeadGap = lineHeightPx * 1.5;
@@ -1026,10 +1014,24 @@ export function BookReaderV3({
     physicalPageGutter: PHYSICAL_PAGE_GUTTER, pageStride,
     readerFontSize, lineHeightPx, selectedFontStack,
     runningHeadHeight, runningHeadGap, folioHeight,
+    ink:{
+      userId,enabled:inkEnabled,tool:inkTool,color:inkColor,width:inkWidth,
+      typeface,textMeasure,lineSpacing,command:inkCommand,onActivate:setActiveInkPageKey,
+    },
   };
   const renderPhysicalPage = (options: PhysicalPageOptions) => (
     <BookReaderPhysicalPage options={options} model={physicalPageModel} />
   );
+  const visibleSpread=spreadMode && (frontIndex!==null || !trailingSingleLeaf);
+  const unzoomedPagesWidth=pageSize.width*(visibleSpread?2:1)+(visibleSpread?SPREAD_SPINE_GAP:0);
+  const issueInkCommand=(action:PageInkCommand["action"])=>{
+    if(!activeInkPageKey)return;
+    setInkCommand(previous=>({
+      serial:(previous?.serial??0)+1,
+      pageKey:activeInkPageKey,
+      action,
+    }));
+  };
 
   if (payloadQuery.isLoading) {
     const loadingPageStyle = {
@@ -1122,20 +1124,33 @@ export function BookReaderV3({
         onHighlight={handleHighlight}
         onBeforeHighlight={rememberSelectedText}
         onOpenSettings={() => setSettingsOpen(true)}
+        inkEnabled={inkEnabled}
+        onToggleInk={() => {setInkEnabled(current=>!current);setSettingsOpen(false);}}
       />
+      {inkEnabled && (
+        <ReaderInkToolbar
+          tool={inkTool} color={inkColor} width={inkWidth}
+          hasActivePage={activeInkPageKey!==null}
+          onTool={setInkTool} onColor={setInkColor} onWidth={setInkWidth}
+          onCommand={issueInkCommand} onClose={()=>setInkEnabled(false)}
+        />
+      )}
 
       <main
         ref={stageRef}
         className={
           "reader-v3-stage " +
           (spreadMode ? "reader-v3-stage-spread " : "") +
+          (pageZoom>1 ? "reader-v3-stage-zoomed " : "") +
           (frontIndex === null && !layoutMeasured ? "reader-v3-stage-reflowing" : "")
         }
         aria-busy={frontIndex === null && !layoutMeasured}
         onTouchStart={(event) => {
+          if(inkEnabled){touchStartRef.current=null;return;}
           touchStartRef.current = event.touches[0]?.clientX ?? null;
         }}
         onTouchEnd={(event) => {
+          if(inkEnabled){touchStartRef.current=null;return;}
           // Dragging a native text-selection handle must never turn the page.
           if (rememberSelectedText()) { touchStartRef.current = null; return; }
           const start = touchStartRef.current;
@@ -1152,9 +1167,18 @@ export function BookReaderV3({
             Repaginating…
           </div>
         )}
-        <div
-          className={spreadMode && !trailingSingleLeaf ? "reader-v3-spread" : "reader-v3-single"}
-        >
+        <div className="reader-v3-zoom-frame"
+          style={{
+            width:Math.ceil(unzoomedPagesWidth*pageZoom),
+            height:Math.ceil(pageSize.height*pageZoom),
+          }}>
+          <div className={visibleSpread?"reader-v3-spread":"reader-v3-single"}
+            style={{
+              width:unzoomedPagesWidth,
+              height:pageSize.height,
+              transform:`scale(${pageZoom})`,
+              transformOrigin:"top left",
+            }}>
           {frontIndex !== null ? (
             spreadMode ? (
               <>
@@ -1194,6 +1218,7 @@ export function BookReaderV3({
               master: true,
             })
           )}
+          </div>
         </div>
       </main>
 
