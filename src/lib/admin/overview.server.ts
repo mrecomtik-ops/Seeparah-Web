@@ -51,21 +51,28 @@ export async function getAdminOverviewAnalytics(): Promise<AdminOverviewAnalytic
 
   // Paginate admin analytics rather than silently reporting only the first
   // 1,000 rows after the publishing pipeline expands.
-  async function collect(table: "books" | "book_editions", columns: string, order: string) {
-    const rows: Record<string, any>[] = [];
+  type OverviewBookRow = {
+    id: string; status: string; source_language: string; categories: string[] | null;
+    content_classification: string | null; rights_status: string | null;
+    edition_review_status: string | null; structure_review_status: string | null;
+    cleanup_review_status: string | null;
+  };
+  type OverviewEditionRow = { book_id: string; language: string; access_type: string };
+  async function collect<T extends object>(table: "books" | "book_editions", columns: string, order: string): Promise<T[]> {
+    const rows: T[] = [];
     for (let offset = 0; offset < 100_000; offset += 500) {
       const { data, error } = await (db as any).from(table)
         .select(columns).order(order, { ascending: true })
         .range(offset, offset + 499);
       if (error) throw new Error(error.message);
-      rows.push(...(data ?? []));
+      rows.push(...((data ?? []) as T[]));
       if ((data ?? []).length < 500) return rows;
     }
     throw new Error("Admin catalogue paging safety limit reached");
   }
   const [books, editions] = await Promise.all([
-    collect("books", "id,status,source_language,categories,content_classification,cover_url,rights_status,edition_review_status,structure_review_status,cleanup_review_status", "id"),
-    collect("book_editions", "book_id,language,access_type", "book_id"),
+    collect<OverviewBookRow>("books", "id,status,source_language,categories,content_classification,cover_url,rights_status,edition_review_status,structure_review_status,cleanup_review_status", "id"),
+    collect<OverviewEditionRow>("book_editions", "book_id,language,access_type", "book_id"),
   ]);
   const [
     { data: progress7 },
