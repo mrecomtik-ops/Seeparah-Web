@@ -62,11 +62,11 @@ export function FloatingFeedback({bare}:{bare:boolean}) {
   return <>
     <button type="button" aria-expanded={open} aria-label="Open support tickets and suggestions"
       onClick={()=>open?setOpen(false):choose("issue")}
-      className={"fixed right-3 z-[70] flex min-h-11 items-center gap-2 rounded-full border border-primary/20 bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-xl hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring "+(bare?"bottom-14":"bottom-5")}>
+      className={"seeparah-floating-feedback fixed right-3 z-[70] flex min-h-11 items-center gap-2 rounded-full border border-primary/20 bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-xl hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring "+(bare?"bottom-14":"bottom-5")}>
       <MessageCircleQuestion className="h-5 w-5" aria-hidden="true"/>
       <span>Help & ideas</span>
     </button>
-    {open && <div className="fixed inset-0 z-[80] flex items-end justify-end bg-black/40 p-3 sm:p-5"
+    {open && <div className="seeparah-floating-feedback fixed inset-0 z-[80] flex items-end justify-end bg-black/40 p-3 sm:p-5"
       onMouseDown={(e)=>{if(e.target===e.currentTarget&&!busy)setOpen(false);}}>
       <section role="dialog" aria-modal="true" aria-labelledby={id+"-title"}
         className="w-full max-w-md max-h-[min(85dvh,700px)] overflow-y-auto rounded-2xl border border-border bg-card p-4 shadow-2xl sm:p-5">
