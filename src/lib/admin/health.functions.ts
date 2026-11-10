@@ -76,3 +76,21 @@ export const adminMarkErrorResolved = createServerFn({ method: "POST" })
     });
     return { ok: true as const };
   });
+
+export const adminPauseGutenbergImporter = createServerFn({ method: "POST" })
+  .validator((data) => withToken({}).parse(data))
+  .handler(async ({ data }) => {
+    const { userId, role } = await requireAdmin(data.accessToken, "health.recover");
+    await enforceRateLimit({
+      actorId: userId, action: "gutenberg.pause", targetId: "global",
+      limit: 4, windowMinutes: 60,
+    });
+    const { pauseGutenbergImporter } = await import("@/lib/admin/health.server");
+    const paused = await pauseGutenbergImporter();
+    await recordAudit({
+      actorId: userId, actorRole: role,
+      action: "gutenberg.pause", entityType: "gutenberg_autopilot",
+      entityId: "1",
+    });
+    return { paused };
+  });
