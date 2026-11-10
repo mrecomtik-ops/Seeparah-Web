@@ -38,152 +38,152 @@ begin
   fiction := subjects ~ '(fiction|novels|romances|stories --|tales --|drama -- fiction)';
 
   if subjects ~ '(juvenile|children''s stories|children''s literature|childrens stories|boys --|girls --|school stories)' then
-    inferred := inferred || 'Children & Young Readers';
+    inferred := array_append(inferred, 'Children & Young Readers');
   end if;
-  if subjects ~ '(young adult|teenagers -- fiction|adolescents -- fiction)' then inferred:=inferred||'Young Adult'; end if;
+  if subjects ~ '(young adult|teenagers -- fiction|adolescents -- fiction)' then inferred := array_append(inferred, 'Young Adult'); end if;
   if subjects ~ '(historical fiction|history -- fiction|historical romances|historical novels)' then
-    inferred:=inferred||'Historical Fiction';
+    inferred := array_append(inferred, 'Historical Fiction');
   end if;
   if subjects ~ '(detective|mystery fiction|mystery stories|crime stories|police -- fiction|private investigators)' then
-    inferred:=inferred||'Mystery & Detective';
+    inferred := array_append(inferred, 'Mystery & Detective');
   end if;
   if subjects ~ '(thrillers|suspense fiction|spy stories|espionage -- fiction|political thrillers)' then
-    inferred:=inferred||'Thriller & Suspense';
+    inferred := array_append(inferred, 'Thriller & Suspense');
   end if;
   if subjects ~ '(science fiction|space travel -- fiction|time travel -- fiction|utopias -- fiction|dystopias -- fiction)' then
-    inferred:=inferred||'Science Fiction';
+    inferred := array_append(inferred, 'Science Fiction');
   end if;
   if subjects ~ '(fantasy fiction|fairy tales|fairy stories|fantasy literature|magic -- fiction)' then
-    inferred:=inferred||'Fantasy';
+    inferred := array_append(inferred, 'Fantasy');
   end if;
   if subjects ~ '(gothic fiction|ghost stories|horror tales|horror fiction|vampires -- fiction|supernatural -- fiction)' then
-    inferred:=inferred||'Horror & Gothic';
+    inferred := array_append(inferred, 'Horror & Gothic');
   end if;
   if subjects ~ '(love stories|romance fiction|romantic fiction|courtship -- fiction|marriage -- fiction|romances --)' then
-    inferred:=inferred||'Romance';
+    inferred := array_append(inferred, 'Romance');
   end if;
   if subjects ~ '(adventure stories|adventure and adventurers -- fiction|sea stories|pirates -- fiction|survival -- fiction|western stories)' then
-    inferred:=inferred||'Adventure';
+    inferred := array_append(inferred, 'Adventure');
   end if;
   if subjects ~ '(satire|humorous stories|humor|humour|comic fiction|parodies|wit and humor)' then
-    inferred:=inferred||'Humor & Satire';
+    inferred := array_append(inferred, 'Humor & Satire');
   end if;
   if subjects ~ '(short stories|short story|short fiction|short narrative)' then
-    inferred:=inferred||'Short Stories';
+    inferred := array_append(inferred, 'Short Stories');
   end if;
-  if subjects ~ '(poetry|poems|verse|sonnets|ballads|lyric poetry)' then inferred:=inferred||'Poetry'; end if;
-  if subjects ~ '(drama|plays|theater|theatre|tragedies|comedies)' then inferred:=inferred||'Drama & Plays'; end if;
-  if subjects ~ '(graphic novels|comic books|comics)' then inferred:=inferred||'Comics & Graphic Novels'; end if;
+  if subjects ~ '(poetry|poems|verse|sonnets|ballads|lyric poetry)' then inferred := array_append(inferred, 'Poetry'); end if;
+  if subjects ~ '(drama|plays|theater|theatre|tragedies|comedies)' then inferred := array_append(inferred, 'Drama & Plays'); end if;
+  if subjects ~ '(graphic novels|comic books|comics)' then inferred := array_append(inferred, 'Comics & Graphic Novels'); end if;
 
   -- Do not mistake "Conduct of life -- Juvenile fiction" for a self-help book.
   -- Likewise "United States -- History -- Fiction" is historical fiction,
   -- not a nonfiction historical study.
   if not fiction then
     if subjects ~ '(biography|biographies|autobiograph|memoirs|reminiscences|personal narratives)' then
-      inferred:=inferred||'Biography & Memoir';
+      inferred := array_append(inferred, 'Biography & Memoir');
     end if;
     if subjects ~ '(history|historical accounts|civilization|archaeology)' then
-      inferred:=inferred||'History';
+      inferred := array_append(inferred, 'History');
     end if;
     if subjects ~ '(philosophy|ethics|logic -- early works|metaphysics|epistemology|stoicism)' then
-      inferred:=inferred||'Philosophy';
+      inferred := array_append(inferred, 'Philosophy');
     end if;
     if subjects ~ '(psychology|human behavior|mental processes|unconscious|personality|psychological)' then
-      inferred:=inferred||'Psychology';
+      inferred := array_append(inferred, 'Psychology');
     end if;
     if subjects ~ '(self-help|self help|self-improvement|self improvement|personal development|self-culture|character building|conduct of life|personal success|personal efficiency|self-reliance)' then
-      inferred:=inferred||'Personal Development & Self-Improvement';
+      inferred := array_append(inferred, 'Personal Development & Self-Improvement');
     end if;
     if subjects ~ '(time management|habits|productivity|personal efficiency)' then
-      inferred:=inferred||'Habits & Productivity';
+      inferred := array_append(inferred, 'Habits & Productivity');
     end if;
     if subjects ~ '(leadership|management|business administration|executives|organizational behavior)' then
-      inferred:=inferred||'Leadership & Management';
+      inferred := array_append(inferred, 'Leadership & Management');
     end if;
     if subjects ~ '(business|economics|political economy|commerce|trade|economic history|industries)' then
-      inferred:=inferred||'Business & Economics';
+      inferred := array_append(inferred, 'Business & Economics');
     end if;
     if subjects ~ '(entrepreneurship|entrepreneurs|small business|business startups)' then
-      inferred:=inferred||'Entrepreneurship';
+      inferred := array_append(inferred, 'Entrepreneurship');
     end if;
     if subjects ~ '(personal finance|investments|investing|stock exchange|household finance|thrift|savings)' then
-      inferred:=inferred||'Personal Finance & Investing';
+      inferred := array_append(inferred, 'Personal Finance & Investing');
     end if;
     if subjects ~ '(natural history|physics|chemistry|biology|geology|botany|zoology|astronomy|science)' then
-      inferred:=inferred||'Science & Nature';
+      inferred := array_append(inferred, 'Science & Nature');
     end if;
     if subjects ~ '(mathematics|algebra|geometry|arithmetic|probability|calculus|mathematical logic)' then
-      inferred:=inferred||'Mathematics & Logic';
+      inferred := array_append(inferred, 'Mathematics & Logic');
     end if;
     if subjects ~ '(technology|engineering|inventions|mechanics|electricity|computers|telegraph|manufacturing)' then
-      inferred:=inferred||'Technology & Engineering';
+      inferred := array_append(inferred, 'Technology & Engineering');
     end if;
     if subjects ~ '(medicine|medical|anatomy|diseases|public health|pharmacology|nursing|physiology)' then
-      inferred:=inferred||'Medicine & Health';
+      inferred := array_append(inferred, 'Medicine & Health');
     end if;
     if subjects ~ '(mindfulness|meditation|wellness|mental health|healthy living|hygiene|exercise)' then
-      inferred:=inferred||'Wellness & Mindfulness';
+      inferred := array_append(inferred, 'Wellness & Mindfulness');
     end if;
     if subjects ~ '(religion|theology|spiritual life|devotional literature|christian life|buddhism|hinduism|sufism)' then
-      inferred:=inferred||'Religion & Spirituality';
+      inferred := array_append(inferred, 'Religion & Spirituality');
     end if;
     if subjects ~ '(politics|political science|social conditions|sociology|society|social reform|women -- social conditions)' then
-      inferred:=inferred||'Politics & Society';
+      inferred := array_append(inferred, 'Politics & Society');
     end if;
     if subjects ~ '(law|jurisprudence|justice|jurisdiction|criminology|legal history)' then
-      inferred:=inferred||'Law & Justice';
+      inferred := array_append(inferred, 'Law & Justice');
     end if;
     if subjects ~ '(education|teaching|learning|schools|pedagogy|educational psychology)' then
-      inferred:=inferred||'Education & Learning';
+      inferred := array_append(inferred, 'Education & Learning');
     end if;
     if subjects ~ '(essays|literary criticism|criticism and interpretation|book reviews)' then
-      inferred:=inferred||'Essays & Criticism';
+      inferred := array_append(inferred, 'Essays & Criticism');
     end if;
     if subjects ~ '(travel|voyages|journeys|description and travel|expeditions|exploration)' then
-      inferred:=inferred||'Travel & Exploration';
+      inferred := array_append(inferred, 'Travel & Exploration');
     end if;
     if subjects ~ '(ecology|environment|conservation|wildlife|forests|plants|natural resources)' then
-      inferred:=inferred||'Nature & Environment';
+      inferred := array_append(inferred, 'Nature & Environment');
     end if;
     if subjects ~ '(art|architecture|sculpture|painting|design|drawing)' then
-      inferred:=inferred||'Art & Architecture';
+      inferred := array_append(inferred, 'Art & Architecture');
     end if;
     if subjects ~ '(music|musicians|musical|performing arts|opera)' then
-      inferred:=inferred||'Music & Performing Arts';
+      inferred := array_append(inferred, 'Music & Performing Arts');
     end if;
     if subjects ~ '(cooking|cookery|recipes|food preparation|gastronomy)' then
-      inferred:=inferred||'Food & Cooking';
+      inferred := array_append(inferred, 'Food & Cooking');
     end if;
     if subjects ~ '(gardening|horticulture|home economics|household|homemaking)' then
-      inferred:=inferred||'Home & Gardening';
+      inferred := array_append(inferred, 'Home & Gardening');
     end if;
     if subjects ~ '(sports|athletics|hunting|fishing|mountaineering|camping)' then
-      inferred:=inferred||'Sports & Outdoors';
+      inferred := array_append(inferred, 'Sports & Outdoors');
     end if;
     if subjects ~ '(crafts|needlework|woodwork|handicraft|hobbies)' then
-      inferred:=inferred||'Crafts & Hobbies';
+      inferred := array_append(inferred, 'Crafts & Hobbies');
     end if;
     if subjects ~ '(parenting|child rearing|parenthood|family relationships)' then
-      inferred:=inferred||'Parenting & Family';
+      inferred := array_append(inferred, 'Parenting & Family');
     end if;
     if subjects ~ '(communication|interpersonal relations|marriage|friendship|social skills)' then
-      inferred:=inferred||'Relationships & Communication';
+      inferred := array_append(inferred, 'Relationships & Communication');
     end if;
     if subjects ~ '(dictionaries|grammar|encyclopedias|language and languages|linguistics|reference works)' then
-      inferred:=inferred||'Reference & Language';
+      inferred := array_append(inferred, 'Reference & Language');
     end if;
     if subjects ~ '(ethnology|anthropology|folklore|customs|cultural history|civilization)' then
-      inferred:=inferred||'Cultural Studies';
+      inferred := array_append(inferred, 'Cultural Studies');
     end if;
     if subjects ~ '(true crime|crime -- history|criminals -- biography|criminal trials)' then
-      inferred:=inferred||'True Crime';
+      inferred := array_append(inferred, 'True Crime');
     end if;
   end if;
 
   if fiction then
-    inferred:=inferred||'Fiction';
+    inferred := array_append(inferred, 'Fiction');
     if subjects ~ '(literary fiction|domestic fiction|psychological fiction|social problems -- fiction|bildungsromans)' then
-      inferred:=inferred||'Literary Fiction';
+      inferred := array_append(inferred, 'Literary Fiction');
     end if;
   end if;
   -- Preserve a generic category only for records where no verified subject
