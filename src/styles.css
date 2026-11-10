@@ -1391,3 +1391,14 @@ body.reader-sepia {
   .reader-v3-ink-width input { width: 66px; }
   .reader-v3-ink-hint { font-size: 9px; }
 }
+
+/* Keep the new drawing toggle visible beside the existing reader controls
+   at 320px, without shrinking the keyboard/touch button targets. */
+@media (max-width: 639px) {
+  .reader-v3-topbar { gap: 0; padding-inline: 4px; }
+  .reader-v3-topbar-actions { gap: 2px; }
+  .reader-v3-topbar .reader-v3-language {
+    min-width: 48px;
+    max-width: 50px;
+  }
+}
