@@ -32,21 +32,24 @@ async function audit(width,height){
   });
   const fail=(message)=>{throw Error(width+"px: "+message+" | errors "+JSON.stringify(failures.slice(-10)));};
   try{
-    // GitHub's push workflow may start before Cloudflare finishes deploying.
-    // Reload against production until the new reader version becomes visible.
+    // Do not reload during the substantial remote reader payload request:
+    // doing so aborts the request before the hydrated toolbar can appear.
+    // One genuine load gets a full window, followed by one retry.
     let productionReady=false;
-    for(let attempt=0;attempt<24;attempt++){
+    for(let attempt=0;attempt<2;attempt++){
       await page.goto(BASE+"/read/"+BOOK_ID+"?lang=English&page=1",{
         waitUntil:"domcontentloaded",timeout:60_000,
       });
-      const toggle=await page.locator('[aria-label="Draw or write by hand"]').count();
-      if(toggle){
+      await page.waitForTimeout(8_000);
+      console.log("Reader snapshot before hydration wait",JSON.stringify(await snapshot(attempt)));
+      try{
+        await page.locator('[aria-label="Draw or write by hand"]').first()
+          .waitFor({state:"visible",timeout:65_000});
         productionReady=true;
         break;
+      }catch{
+        console.log("Reader snapshot after hydration wait",JSON.stringify(await snapshot(attempt)));
       }
-      if(attempt===0||attempt===5||attempt===11||attempt===23)
-        console.log("Reader production snapshot",JSON.stringify(await snapshot(attempt)));
-      await page.waitForTimeout(6_000);
     }
     if(!productionReady){
       console.log("Final reader diagnostic",JSON.stringify(await snapshot("failed")));
