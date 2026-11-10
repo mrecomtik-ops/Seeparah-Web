@@ -268,6 +268,37 @@ export async function processGutenbergImportQueueOnce():Promise<void>{
     console.error("[Gutenberg] import error",job.gutenberg_id,msg);
   }
 }
+/** Identical literary works can arrive from different Gutenberg eBook IDs.
+ * Compare normalized title and original-author identity, not exact bytes
+ * or raw punctuation; never collapse distinct editions without review. */
+export function likelyDuplicateGutenbergWork(
+  incomingTitle: string, incomingAuthor: string,
+  known: { title: string; author: string },
+): boolean {
+  const norm = (value: string) => value.normalize("NFKD").toLowerCase()
+    .replace(/[\u0300-\u036f]/g, "").replace(/[^\p{L}\p{N}]+/gu, " ").trim()
+    .replace(/\s+/g, " ");
+  const { formatAuthorName } = requireAuthorNameForComparison();
+  const authorFamily = (name: string) =>
+    norm(formatAuthorName(name)).split(" ").at(-1) ?? "";
+  return norm(incomingTitle).length >= 6 &&
+    norm(incomingTitle) === norm(known.title) &&
+    authorFamily(incomingAuthor).length >= 3 &&
+    authorFamily(incomingAuthor) === authorFamily(known.author);
+}
+
+function requireAuthorNameForComparison() {
+  // This local synchronous implementation mirrors the public display
+  // normalizer for the stable original-creator surname only.
+  const formatAuthorName = (value: string) => {
+    const primary = value.split(";")[0]?.trim() ?? value.trim();
+    const fragments = primary.split(",").map((item) => item.trim());
+    if (fragments.length < 2) return primary;
+    return `${fragments.slice(1).join(" ")} ${fragments[0]}`;
+  };
+  return { formatAuthorName };
+}
+
 export async function importGutenbergSource(job:Job):Promise<Result>{
   const {independentFirstPublicationYear} =
     await import("@/lib/admin/gutenberg-publication-year.server");
@@ -329,6 +360,24 @@ export async function importGutenbergSource(job:Job):Promise<Result>{
     if(normalized(catalog.authors?.[0]?.name??"").slice(0,20)!==
        normalized(fromCsv.authors[0]?.name??"").slice(0,20))
       throw new Error("Gutendex / official Gutenberg CSV author mismatch");
+  }
+  // Avoid republishing one literary work under a second Gutenberg ID.
+  // A possible source-edition conflict remains in review for a librarian,
+  // instead of deleting or silently suppressing an existing approved edition.
+  const baseToken = catalog.title.toLowerCase().replace(/[^a-z0-9]+/g," ")
+    .split(" ").find(t=>t.length>=4 && !["the","with","from","about","volume","book"].includes(t));
+  if(baseToken){
+    const {data:similar,error:similarError}=await db.from("books")
+      .select("id,title,author,status").ilike("title","%"+baseToken+"%")
+      .in("status",["published","approved","in_review"]).limit(250);
+    if(similarError)throw new Error("Duplicate edition lookup failed: "+similarError.message);
+    const duplicateWork=(similar??[]).find((entry:{id:string;title:string;author:string})=>
+      likelyDuplicateGutenbergWork(catalog.title,catalog.authors?.[0]?.name??"",entry));
+    if(duplicateWork){
+      return {status:"in_review",bookId:null,
+        message:"Potential alternate Gutenberg edition of existing book "+duplicateWork.id+
+          "; requires manual source and edition reconciliation"};
+    }
   }
   let originalYear=job.original_publication_year;
   let yearEvidence=typeof job.metadata?.["publicationYearEvidence"]==="string"
