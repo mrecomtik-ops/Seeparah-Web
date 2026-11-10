@@ -305,6 +305,41 @@ export type Database = {
           },
         ]
       }
+      book_page_ink: {
+        Row: {
+          user_id: string
+          book_id: string
+          language: string
+          page_key: string
+          strokes: Json
+          updated_at: string
+        }
+        Insert: {
+          user_id: string
+          book_id: string
+          language: string
+          page_key: string
+          strokes?: Json
+          updated_at?: string
+        }
+        Update: {
+          user_id?: string
+          book_id?: string
+          language?: string
+          page_key?: string
+          strokes?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "book_page_ink_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       book_highlights: {
         Row: {
           book_id: string

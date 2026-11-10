@@ -124,7 +124,9 @@ export function BookReaderSettings({
               </div>
             </fieldset>
             <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
-              These settings reflow fixed-size book pages and retain your source reading position.
+              Text size enlarges the whole paper without increasing its page count.
+              On small screens, drag to pan the magnified page. Changing typeface,
+              margins or line spacing may still repaginate while preserving your reading position.
             </p>
             {requestableLanguages.length > 0 && (
               <div className="mt-5">

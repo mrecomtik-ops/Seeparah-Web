@@ -1,4 +1,7 @@
 import type { RefObject } from "react";
+import { ReaderPageInk, type PageInkCommand } from "@/components/reader/ReaderPageInk";
+import { makeInkPageKey, type InkTool } from "@/lib/reader-ink";
+
 import type { Book, Highlight } from "@/lib/data";
 import { RTL_LANGUAGES } from "@/lib/data";
 import { languageToBcp47 } from "@/lib/languages";
@@ -41,6 +44,12 @@ export interface PhysicalPageModel {
   runningHeadHeight: number;
   runningHeadGap: number;
   folioHeight: number;
+  ink?: {
+    userId:string; enabled:boolean; tool:InkTool; color:string; width:number;
+    typeface:string; textMeasure:string; lineSpacing:number;
+    command:PageInkCommand|null;
+    onActivate:(pageKey:string)=>void;
+  };
 }
 
 /** Read-only page geometry and exact-language markup. The parent owns
@@ -58,7 +67,7 @@ export function BookReaderPhysicalPage({
     turning, pageSize, pagePadding, language, viewportRef, flowRef,
     bodyGridHeight, contentSize, physicalPageGutter, pageStride,
     readerFontSize, lineHeightPx, selectedFontStack, runningHeadHeight,
-    runningHeadGap, folioHeight,
+    runningHeadGap, folioHeight, ink,
   } = model;
     const frontPageIndex = options.frontPageIndex;
     const frontPage =
@@ -179,6 +188,25 @@ export function BookReaderPhysicalPage({
               onChapter={onChapterJump}
             />
           </div>
+        )}
+        {ink && (
+          <ReaderPageInk
+            userId={ink.userId}
+            bookId={book.id}
+            language={language}
+            pageKey={makeInkPageKey(
+              frontPage?"front":"body",
+              frontPage?(frontPageIndex??0):(rawPage??0),
+              pageSize.width,pageSize.height,
+              ink.typeface,ink.textMeasure,ink.lineSpacing,
+            )}
+            enabled={ink.enabled}
+            tool={ink.tool}
+            color={ink.color}
+            width={ink.width}
+            command={ink.command}
+            onActivate={ink.onActivate}
+          />
         )}
       </article>
     );

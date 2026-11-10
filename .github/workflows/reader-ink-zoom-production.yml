@@ -1,0 +1,29 @@
+name: Reader ink and fixed-page zoom production smoke
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/components/reader/ReaderPageInk.tsx"
+      - "src/components/reader/ReaderInkToolbar.tsx"
+      - "src/components/reader/ReaderZoomSheet.tsx"
+      - "src/components/reader/BookReaderV3.tsx"
+      - "scripts/qa/reader-ink-paper-zoom.mjs"
+      - ".github/workflows/reader-ink-zoom-production.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  reader-ink-paper:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npm install --no-save --package-lock=false playwright@1.56.1
+      - run: npx playwright install --with-deps chromium
+      - run: node scripts/qa/reader-ink-paper-zoom.mjs
+        env:
+          SEE_PARAH_QA_URL: https://seeparah.com
