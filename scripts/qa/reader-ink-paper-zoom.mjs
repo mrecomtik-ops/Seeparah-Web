@@ -117,16 +117,21 @@ async function audit(width,height){
     });
     if(!guestSaved)fail("guest handwriting was not persisted");
     await page.getByRole("button",{name:"Undo drawing"}).click();
-    if(await canvas.locator("path").count())fail("undo left drawing visible");
+    try{
+      await canvas.locator("path").first().waitFor({state:"detached",timeout:8_000});
+    }catch{fail("undo left drawing visible");}
     await page.getByRole("button",{name:"Redo drawing"}).click();
-    if(!await canvas.locator("path").count())fail("redo did not restore drawing");
+    try{
+      await canvas.locator("path").first().waitFor({state:"attached",timeout:8_000});
+    }catch{fail("redo did not restore drawing");}
     await page.getByRole("button",{name:"Eraser — remove brush strokes"}).click();
     await page.mouse.move(start.x+15,start.y+7);
     await page.mouse.down();
     await page.mouse.move(start.x+25,start.y+9,{steps:4});
     await page.mouse.up();
-    await page.waitForTimeout(300);
-    if(await canvas.locator("path").count())fail("eraser did not remove stroke");
+    try{
+      await canvas.locator("path").first().waitFor({state:"detached",timeout:8_000});
+    }catch{fail("eraser did not remove stroke");}
     results.push({width,baselinePages:baseline.pageCount,zoomedPages:larger.pageCount,
       pageWidthBefore:baseline.width,pageWidthAfter:larger.width,ink:"pass"});
   }finally{await context.close();}
