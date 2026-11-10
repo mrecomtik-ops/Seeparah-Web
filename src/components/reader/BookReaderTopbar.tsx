@@ -37,7 +37,7 @@ export function BookReaderTopbar({
           <div className="truncate font-display text-sm font-semibold">{displayBookTitle}</div>
           <div className="text-[11px] text-muted-foreground">{pageLabel}</div>
         </div>
-        <div className="flex items-center gap-1.5">
+        <div className="reader-v3-topbar-actions flex items-center gap-1.5">
           <select
             value={language}
             onChange={(event) => onLanguageChange(event.target.value)}
