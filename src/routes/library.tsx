@@ -30,7 +30,7 @@ import { isSharedSacredCollectionCover } from "@/lib/sacred-cover-artwork";
 import { SacredWorkIdentity } from "@/components/SacredWorkIdentity";
 import { getPublicContentSettings } from "@/lib/admin/settings.functions";
 import { countPagesRead } from "@/lib/reading-stats";
-import { formatAuthorName } from "@/lib/author-name";
+import { canonicalAuthorKey, formatAuthorName } from "@/lib/author-name";
 import { publicBookDescription } from "@/lib/book-description";
 import { COLLECTION_TOPICS } from "@/lib/collection-topics";
 import { displayTitleCase } from "@/lib/display-text";
@@ -136,8 +136,11 @@ function LibraryPage() {
   const authors = useMemo(() => {
     const byDisplay = new Map<string, string>();
     for (const book of books) {
-      const display = formatAuthorName(book.author);
-      if (!byDisplay.has(display)) byDisplay.set(display, book.author);
+      const display = canonicalAuthorKey(book.author);
+      const current = byDisplay.get(display);
+      if (!current || formatAuthorName(book.author).length < formatAuthorName(current).length) {
+        byDisplay.set(display, book.author);
+      }
     }
     return [...byDisplay.entries()]
       .sort(([left], [right]) => left.localeCompare(right))
@@ -207,7 +210,8 @@ function LibraryPage() {
     const matchesQuery = matchesBookSearch(b, query);
     const matchesLang = !lang || b.available_languages.includes(lang);
     const matchesGenre = !genre || b.genre === genre;
-    const matchesAuthor = !author || b.author === author;
+    const matchesAuthor = !author ||
+      canonicalAuthorKey(b.author) === canonicalAuthorKey(author);
     const matchesCategory = !category || (b.categories ?? []).includes(category);
     const matchesTradition = matchesPublishedTradition(b, tradition);
     return matchesQuery && matchesLang && matchesGenre && matchesAuthor && matchesCategory && matchesTradition;
@@ -474,6 +478,8 @@ function LibraryPage() {
                   allLabel="All collections and topics"
                   value={category}
                   options={categoriesInUse.filter((name) => !KNOWN_SACRED_TRADITIONS.includes(name as typeof KNOWN_SACRED_TRADITIONS[number]))}
+                  formatOption={(name) => `${name} (${categoryCounts.get(name) ?? 0})`}
+                  disableOption={(name) => (categoryCounts.get(name) ?? 0) === 0}
                   onChange={(v) => updateSearch({ category: v ?? undefined })}
                 />
               </div>
@@ -532,7 +538,9 @@ function LibraryPage() {
                   key={c}
                   type="button"
                   onClick={() => updateSearch({ category: c })}
-                  className="min-h-11 rounded-full border border-border bg-background px-4 py-2 text-xs font-semibold text-foreground hover:bg-secondary"
+                  disabled={(categoryCounts.get(c) ?? 0) === 0}
+                  title={(categoryCounts.get(c) ?? 0) === 0 ? "No published books in this collection yet" : undefined}
+                  className="min-h-11 rounded-full border border-border bg-background px-4 py-2 text-xs font-semibold text-foreground hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {c} <span className="text-muted-foreground">({categoryCounts.get(c) ?? 0})</span>
                 </button>
@@ -703,6 +711,7 @@ function Select({
   options,
   onChange,
   formatOption,
+  disableOption,
 }: {
   label: string;
   /** Text for the blank/"any value" option, e.g. "All categories". Naive
@@ -714,6 +723,7 @@ function Select({
   options: string[];
   onChange: (v: string | null) => void;
   formatOption?: (value: string) => string;
+  disableOption?: (value: string) => boolean;
 }) {
   return (
     <label className="min-w-0 flex flex-col gap-1">
@@ -725,7 +735,7 @@ function Select({
       >
         <option value="">{allLabel ?? `All ${label.toLowerCase()}s`}</option>
         {options.map((o) => (
-          <option key={o} value={o}>
+          <option key={o} value={o} disabled={disableOption?.(o)}>
             {formatOption ? formatOption(o) : o}
           </option>
         ))}

@@ -1402,3 +1402,10 @@ body.reader-sepia {
     max-width: 50px;
   }
 }
+
+/* Reader pages have their own unobstructed controls; global help remains
+ * available in the site's other routes rather than covering text/ayahs. */
+body:has(.reader-v3-root) .seeparah-floating-feedback,
+body:has([data-reader-surface="sacred"]) .seeparah-floating-feedback {
+  display: none;
+}

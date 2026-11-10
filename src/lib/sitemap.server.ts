@@ -21,25 +21,50 @@ export async function buildLiveSitemapResponse(): Promise<Response> {
   try {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const [booksResult, papersResult] = await Promise.all([
-      supabaseAdmin
-        .from("books")
+    // Read every published book in bounded, stable pages. The Data API's
+    // default 1,000-row response cap is not the website's catalogue cap.
+    const bookRows: Array<{
+      id: string; author_id: string | null; content_classification: string | null;
+      created_at: string | null;
+    }> = [];
+    const paperRows: Array<{ paper_id: string; published_at: string | null }> = [];
+    for (let offset = 0; offset < 100_000; offset += 500) {
+      const { data, error } = await supabaseAdmin.from("books")
         .select("id,author_id,content_classification,created_at")
-        .eq("status", "published"),
-      supabaseAdmin
-        .from("research_paper_versions")
-        .select("paper_id,published_at"),
-    ]);
+        .eq("status", "published")
+        .order("id", { ascending: true })
+        .range(offset, offset + 499);
+      if (error) throw new Error(error.message);
+      bookRows.push(...(data ?? []));
+      if ((data ?? []).length < 500) break;
+      if (offset >= 99_500) throw new Error("Sitemap book paging safety limit reached");
+    }
+    for (let offset = 0; offset < 100_000; offset += 500) {
+      const { data, error } = await supabaseAdmin.from("research_paper_versions")
+        .select("paper_id,published_at")
+        .order("id", { ascending: true })
+        .range(offset, offset + 499);
+      if (error) throw new Error(error.message);
+      paperRows.push(...(data ?? []));
+      if ((data ?? []).length < 500) break;
+      if (offset >= 99_500) throw new Error("Sitemap research paging safety limit reached");
+    }
+    const booksResult = { data: bookRows, error: null };
+    const papersResult = { data: paperRows, error: null };
 
     if (!booksResult.error) {
       const authorIds = new Set<string>();
       for (const book of booksResult.data ?? []) {
-        entries.push({
-          loc: `${ORIGIN}/book/${book.id}`,
-          lastmod: book.created_at,
-          changefreq: "weekly",
-          priority: 0.8,
-        });
+        // Religious editions have a canonical Sacred Texts detail route;
+        // do not emit duplicate book-detail URLs for the same work.
+        if (book.content_classification !== "religious") {
+          entries.push({
+            loc: `${ORIGIN}/book/${book.id}`,
+            lastmod: book.created_at,
+            changefreq: "weekly",
+            priority: 0.8,
+          });
+        }
 
         if (book.content_classification === "religious") {
           entries.push({

@@ -55,14 +55,32 @@ const LIBRARY_INDEX_COLUMNS = [
   "content_classification", "created_at",
 ].join(",");
 
-export async function listPublicLibraryIndex(): Promise<Book[]> {
+/** Fetch every page deterministically; never silently truncate at Supabase's 1,000-row limit. */
+async function pagedPublishedBooks(
+  columns: string,
+  options: { authorId?: string; authorSearch?: string; titleSearch?: string; descending?: boolean } = {},
+): Promise<Book[]> {
   const db = await admin();
-  const { data, error } = await db.from("books")
-    .select(LIBRARY_INDEX_COLUMNS)
-    .eq("status", "published")
-    .order("created_at", { ascending: true });
-  if (error) throw new Error(error.message);
-  return (data ?? []).map(asPublicBook);
+  const books: Book[] = [];
+  const pageSize = 500;
+  for (let start = 0; start < 100_000; start += pageSize) {
+    let query = db.from("books").select(columns).eq("status", "published");
+    if (options.authorId) query = query.eq("author_id", options.authorId);
+    if (options.authorSearch) query = query.ilike("author", options.authorSearch);
+    if (options.titleSearch) query = query.ilike("title", options.titleSearch);
+    const { data, error } = await query
+      .order("created_at", { ascending: !options.descending })
+      .order("id", { ascending: true })
+      .range(start, start + pageSize - 1);
+    if (error) throw new Error(error.message);
+    books.push(...(data ?? []).map(asPublicBook));
+    if ((data ?? []).length < pageSize) return books;
+  }
+  throw new Error("Published catalogue exceeds the configured pagination safety limit.");
+}
+
+export async function listPublicLibraryIndex(): Promise<Book[]> {
+  return pagedPublishedBooks(LIBRARY_INDEX_COLUMNS);
 }
 
 /** Exact bounded materialization of one 24-card Library page.
@@ -86,19 +104,29 @@ export async function getPublicLibraryPage(ids: string[]): Promise<Book[]> {
   return ids.flatMap((id) => rows.has(id) ? [rows.get(id)!] : []);
 }
 
+/** Do not present a guessed first-print date as verified.
+ * The automated Gutenberg importer used one unreliable Open Library field:
+ * internal provenance must be independently re-audited before a date is
+ * restored to the public catalogue. This projection changes no stored data. */
+export function sanitizedPublicBook(row: Book): Book {
+  const description = String(row.description ?? "");
+  if (!/This sourced English-language reading edition presents the full original work\.\s+Source subject classifications:/i.test(description)) {
+    return row;
+  }
+  const author = String(row.author ?? "").replace(/^([^,]+),\s*([^,(]+).*$/, "$2 $1").trim();
+  return {
+    ...row,
+    original_publication_year: null,
+    description: `${row.title} by ${author}. This source-based reading edition preserves the acquired text; the original publication date and edition details require independent bibliographic verification. Source: Project Gutenberg.`,
+  };
+}
+
 function asPublicBook(row: unknown): Book {
-  return row as Book;
+  return sanitizedPublicBook(row as Book);
 }
 
 export async function listPublicBooks(): Promise<Book[]> {
-  const db = await admin();
-  const { data, error } = await db
-    .from("books")
-    .select(PUBLIC_BOOK_COLUMNS)
-    .eq("status", "published")
-    .order("created_at", { ascending: true });
-  if (error) throw new Error(error.message);
-  return (data ?? []).map(asPublicBook);
+  return pagedPublishedBooks(PUBLIC_BOOK_COLUMNS);
 }
 
 export async function getPublicBook(bookId: string): Promise<Book | null> {
@@ -128,31 +156,26 @@ export async function searchPublicBooks(query: string): Promise<Book[]> {
   // merge the rows server-side so reader input is always a value, never
   // executable filter syntax.
   const pattern = literalIlikePattern(q);
-  const db = await admin();
-  const [titleResult, authorResult] = await Promise.all([
-    db
-      .from("books")
-      .select(PUBLIC_BOOK_COLUMNS)
-      .eq("status", "published")
-      .ilike("title", pattern)
-      .order("created_at", { ascending: true }),
-    db
-      .from("books")
-      .select(PUBLIC_BOOK_COLUMNS)
-      .eq("status", "published")
-      .ilike("author", pattern)
-      .order("created_at", { ascending: true }),
+  // Use the family-name token for index lookups, then check the complete
+  // normalized display name. "Charles Dickens" must match "Dickens, Charles".
+  const authorToken = (q.includes(",") ? q.split(",")[0] : q.split(/\s+/).at(-1))?.trim() ?? q;
+  const [titleRows, authorRows] = await Promise.all([
+    pagedPublishedBooks(PUBLIC_BOOK_COLUMNS, { titleSearch: pattern }),
+    pagedPublishedBooks(PUBLIC_BOOK_COLUMNS, { authorSearch: literalIlikePattern(authorToken) }),
   ]);
-
-  if (titleResult.error) throw new Error(titleResult.error.message);
-  if (authorResult.error) throw new Error(authorResult.error.message);
-
+  const { formatAuthorName } = await import("@/lib/author-name");
+  const normalized = (value: string) =>
+    value.normalize("NFKD").toLowerCase().replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+  const needle = normalized(q);
   const rows = new Map<string, Book>();
-  for (const row of [...(titleResult.data ?? []), ...(authorResult.data ?? [])]) {
-    const book = asPublicBook(row);
-    rows.set(book.id, book);
+  for (const book of [...titleRows, ...authorRows]) {
+    if (normalized(book.title).includes(needle) ||
+        normalized(book.author).includes(needle) ||
+        normalized(formatAuthorName(book.author)).includes(needle)) {
+      rows.set(book.id, book);
+    }
   }
-
   return [...rows.values()].sort((a, b) =>
     String(a.created_at ?? "").localeCompare(String(b.created_at ?? "")),
   );
@@ -160,13 +183,5 @@ export async function searchPublicBooks(query: string): Promise<Book[]> {
 
 
 export async function listPublicBooksByAuthorId(authorId: string): Promise<Book[]> {
-  const db = await admin();
-  const { data, error } = await db
-    .from("books")
-    .select(PUBLIC_BOOK_COLUMNS)
-    .eq("author_id", authorId)
-    .eq("status", "published")
-    .order("created_at", { ascending: false });
-  if (error) throw new Error(error.message);
-  return (data ?? []).map(asPublicBook);
+  return pagedPublishedBooks(PUBLIC_BOOK_COLUMNS, { authorId, descending: true });
 }

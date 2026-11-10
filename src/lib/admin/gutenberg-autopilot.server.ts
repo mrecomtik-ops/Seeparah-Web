@@ -167,7 +167,7 @@ function db():SupabaseAdminDb{
 /** Retry at most twice for clearly transient network problems; permanent
  * rights, provenance and structural failures never retry without review. */
 export function isTransientGutenbergFailure(message:string):boolean{
-  return /(?:timed? ?out|timeout|operation was aborted|mirror.*unavailable|fetch failed|econnreset|http 50[234]|http 429|temporary network|rate limit)/i.test(message);
+  return /(?:timed? ?out|timeout|operation was aborted|mirror.*unavailable|fetch failed|econnreset|http 50[234]|http 429|lookup returned (?:429|50[234])|temporary network|rate limit)/i.test(message);
 }
 async function recoverInterruptedImports(client:SupabaseAdminDb):Promise<void>{
   const staleBefore=new Date(Date.now()-30*60_000).toISOString();

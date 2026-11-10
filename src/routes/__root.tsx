@@ -19,7 +19,10 @@ import { AdminSessionSync } from "@/lib/admin/use-admin-session";
 
 function NotFoundComponent() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
+    <>
+      <title>Page not found — Seeparah</title>
+      <meta name="robots" content="noindex,follow" />
+      <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
         <p className="font-display text-7xl font-semibold text-primary">404</p>
         <h2 className="mt-4 font-display text-xl font-semibold text-foreground">
@@ -42,7 +45,8 @@ function NotFoundComponent() {
           </Link>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }
 

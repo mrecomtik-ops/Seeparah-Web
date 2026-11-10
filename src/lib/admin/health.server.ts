@@ -38,6 +38,14 @@ export interface HealthSnapshot {
     occurredAt: string;
   }[];
   geminiConfigured: boolean;
+  importer: {
+    enabled: boolean;
+    targetPublished: number;
+    batchSize: number;
+    lastBatchNumber: number;
+    counts: Record<string, number>;
+    lastFailures: { id: number; gutenbergId: number; lastError: string }[];
+  };
 }
 
 export async function getHealthSnapshot(): Promise<HealthSnapshot> {
@@ -90,6 +98,33 @@ export async function getHealthSnapshot(): Promise<HealthSnapshot> {
       .limit(50),
   ]);
 
+  // Gutenberg monitoring is private, serviced only after health.read
+  // authentication in health.functions. Never expose private job metadata.
+  // The newly introduced importer tables are not yet in the generated
+  // client schema. Dynamic service-role queries remain admin-only.
+  const importerDb = db as any;
+  const [settingsResult, ...statusResults] = await Promise.all([
+    importerDb.from("gutenberg_autopilot_settings")
+      .select("enabled,target_published,batch_size,last_batch_number")
+      .eq("id", 1).single(),
+    ...["queued", "processing", "published", "in_review", "failed", "skipped"].map(
+      (status) => importerDb.from("gutenberg_import_jobs")
+        .select("id", { count: "exact", head: true }).eq("status", status),
+    ),
+  ]);
+  if (settingsResult.error) throw new Error("Importer settings unavailable: " + settingsResult.error.message);
+  for (const result of statusResults) {
+    if (result.error) throw new Error("Importer counts unavailable: " + result.error.message);
+  }
+  const { data: importFailures, error: importError } = await importerDb.from("gutenberg_import_jobs")
+    .select("id,gutenberg_id,last_error")
+    .eq("status", "failed")
+    .order("updated_at", { ascending: false }).limit(10);
+  if (importError) throw new Error("Importer failures unavailable: " + importError.message);
+  const counts: Record<string, number> = {};
+  ["queued", "processing", "published", "in_review", "failed", "skipped"]
+    .forEach((status, i) => { counts[status] = statusResults[i]?.count ?? 0; });
+
   const { isGeminiConfigured } = await import("@/lib/gemini.server");
 
   return {
@@ -123,6 +158,16 @@ export async function getHealthSnapshot(): Promise<HealthSnapshot> {
       occurredAt: e.occurred_at,
     })),
     geminiConfigured: isGeminiConfigured(),
+    importer: {
+      enabled: settingsResult.data.enabled,
+      targetPublished: settingsResult.data.target_published,
+      batchSize: settingsResult.data.batch_size,
+      lastBatchNumber: settingsResult.data.last_batch_number,
+      counts,
+      lastFailures: (importFailures ?? []).map((j: { id: number; gutenberg_id: number; last_error: string | null }) => ({
+        id: j.id, gutenbergId: j.gutenberg_id, lastError: j.last_error ?? "Unknown failure",
+      })),
+    },
   };
 }
 
@@ -150,4 +195,16 @@ export async function markErrorResolved(errorId: string, resolvedBy: string) {
     .update({ resolved: true, resolved_by: resolvedBy, resolved_at: new Date().toISOString() })
     .eq("id", errorId);
   if (error) throw new Error(error.message);
+}
+
+/** Safe emergency stop. There is deliberately no automatic resume action
+ * while the independent-year and full-chapter gates remain unresolved. */
+export async function pauseGutenbergImporter(): Promise<boolean> {
+  const db = await admin();
+  const importerDb = db as any;
+  const { data, error } = await importerDb.from("gutenberg_autopilot_settings")
+    .update({ enabled: false, updated_at: new Date().toISOString() })
+    .eq("id", 1).select("enabled").single();
+  if (error) throw new Error(error.message);
+  return data.enabled === false;
 }

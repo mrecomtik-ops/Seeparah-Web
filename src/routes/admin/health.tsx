@@ -9,6 +9,7 @@ import {
   adminRecoverRetryJob,
   adminRecoverResumeJob,
   adminMarkErrorResolved,
+  adminPauseGutenbergImporter,
 } from "@/lib/admin/health.functions";
 import { AdminQueryError } from "@/components/admin/AdminQueryError";
 import { friendlyTranslationError } from "@/lib/translation-error";
@@ -32,6 +33,20 @@ function AdminHealthPage() {
 
   async function refresh() {
     await queryClient.invalidateQueries({ queryKey: ["admin-health-full"] });
+  }
+
+  async function pauseImporter() {
+    if (!window.confirm("Pause all new Gutenberg imports immediately? Already published books and reader data remain untouched.")) return;
+    setBusyId("gutenberg-pause");
+    try {
+      const result = await adminPauseGutenbergImporter({ data: { accessToken: await getAccessToken() } });
+      if (result.paused) toast.success("Gutenberg importer paused.");
+      await refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not pause Gutenberg importer");
+    } finally {
+      setBusyId(null);
+    }
   }
 
   async function retryJob(jobId: string, lastError: string | null) {
@@ -178,6 +193,56 @@ function AdminHealthPage() {
           </div>
         ))}
       </div>
+
+      <section className="mt-6 rounded-2xl border border-border bg-card p-5" aria-label="Gutenberg importer monitoring">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="font-display text-lg font-semibold text-foreground">Gutenberg importer</h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Target: {h.importer.targetPublished.toLocaleString()} published books ·
+              Batch: {h.importer.batchSize} · Last batch #{h.importer.lastBatchNumber}
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="rounded-lg border border-border px-3 py-1.5 text-sm font-semibold">
+              {h.importer.enabled ? "Running" : "Paused"}
+            </span>
+            {canRecover && h.importer.enabled && (
+              <button
+                type="button" disabled={busyId === "gutenberg-pause"} onClick={() => void pauseImporter()}
+                className="rounded-lg border border-destructive/40 px-3 py-2 text-sm font-semibold text-destructive disabled:opacity-50"
+              >
+                Emergency pause
+              </button>
+            )}
+          </div>
+        </div>
+        <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+          {["queued", "processing", "published", "in_review", "failed", "skipped"].map((status) => (
+            <div key={status} className="rounded-lg border border-border bg-background p-3">
+              <p className="text-xs capitalize text-muted-foreground">{status.replace("_", " ")}</p>
+              <p className="mt-1 text-xl font-bold text-foreground">{h.importer.counts[status] ?? 0}</p>
+            </div>
+          ))}
+        </div>
+        <p className="mt-3 text-xs text-muted-foreground">
+          Imports require independent first-publication evidence and complete chapter verification.
+          Restart is intentionally unavailable until those integrity checks pass.
+        </p>
+        <details className="mt-3 rounded-xl border border-border p-3">
+          <summary className="cursor-pointer text-sm font-semibold">Latest import failures</summary>
+          <div className="mt-3 space-y-2">
+            {h.importer.lastFailures.map((j) => (
+              <div key={j.id} className="break-words rounded-lg bg-background px-3 py-2 text-xs">
+                <span className="font-semibold">Gutenberg #{j.gutenbergId}</span> · {j.lastError}
+              </div>
+            ))}
+            {!h.importer.lastFailures.length && (
+              <p className="text-sm text-muted-foreground">No import failures recorded.</p>
+            )}
+          </div>
+        </details>
+      </section>
 
       <section className="mt-6">
         <h2 className="font-display text-base font-semibold text-foreground">

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { curatedPilotMetadata, extractGutenbergBody, mergeImportJobMetadata, verifyGutenbergCandidate, vettedBatchMetadata } from "./gutenberg-fast-import.server";
+import { countSourceChapterHeadings, curatedPilotMetadata, extractGutenbergBody, likelyDuplicateGutenbergWork, mergeImportJobMetadata, verifyGutenbergCandidate, vettedBatchMetadata } from "./gutenberg-fast-import.server";
 
 const sample={
   id:55,title:"The Wonderful Wizard of Oz",media_type:"Text",copyright:false,
@@ -67,5 +67,35 @@ describe("Gutenberg fast track must fail closed",()=>{
     expect(()=>extractGutenbergBody("No Gutenberg markers")).toThrow(/START boundary/);
     expect(()=>extractGutenbergBody("*** START OF THIS PROJECT GUTENBERG EBOOK X ***\nshort")).toThrow(/END boundary/);
     expect(()=>extractGutenbergBody("*** START OF THIS PROJECT GUTENBERG EBOOK X ***\nshort\n*** END OF THIS PROJECT GUTENBERG EBOOK X ***")).toThrow(/too short/);
+  });
+});
+
+describe("Gutenberg work deduplication before publication", () => {
+  it("detects punctuation variants and inverse author names", () => {
+    expect(likelyDuplicateGutenbergWork(
+      "Moby-Dick; or, The Whale", "Melville, Herman",
+      { title: "Moby Dick or The Whale", author: "Herman Melville" },
+    )).toBe(true);
+    expect(likelyDuplicateGutenbergWork(
+      "The Clockmaker", "Haliburton, Thomas Chandler",
+      { title: "The Clockmaker", author: "Thomas Chandler Haliburton" },
+    )).toBe(true);
+  });
+  it("never merges different works even by the same author", () => {
+    expect(likelyDuplicateGutenbergWork("Bleak House", "Dickens, Charles", {
+      title: "Oliver Twist", author: "Charles Dickens",
+    })).toBe(false);
+  });
+});
+
+describe("chapter heading completeness guard", () => {
+  it("counts chapter headings from source bytes, not a corrupted navigation table", () => {
+    const original = [
+      "CONTENTS", "I. One", "II. Two",
+      "CHAPTER I", "Body of chapter one.",
+      "CHAPTER II", "Body of chapter two.",
+      "CHAPTER III", "Body of chapter three.",
+    ].join("\n\n");
+    expect(countSourceChapterHeadings(original)).toBe(3);
   });
 });

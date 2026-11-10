@@ -52,6 +52,23 @@ describe("splitManuscript", () => {
     expect(parsed.estimatedReadingMinutes).toBeGreaterThan(0);
   });
 
+  it("keeps real chapters before a repeated contents label later in the book", () => {
+    const content = [
+      "CONTENTS",
+      "CHAPTER I",
+      "First chapter introduction. " + "Ordinary prose that establishes a long chapter. ".repeat(220),
+      "CHAPTER II",
+      "Second chapter introduction. " + "Ordinary prose in the body of the novel. ".repeat(220),
+      "CHAPTER III",
+      "A third chapter begins with regular narrative paragraphs. ".repeat(220),
+      "CHAPTER I",
+      "The label can repeat in a later volume without deleting the preceding chapters.",
+    ].join("\n\n");
+    const parsed = parseManuscript(content);
+    expect(parsed.structure.filter((n) => n.nodeType === "chapter").map((n) => n.title))
+      .toEqual(["CHAPTER I", "CHAPTER II", "CHAPTER III", "CHAPTER I"]);
+  });
+
   it("never returns an empty array for non-empty input", () => {
     expect(splitManuscript("Just one line, no blank lines at all.")).toHaveLength(1);
   });

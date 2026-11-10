@@ -227,13 +227,19 @@ function duplicate(value: unknown){
 function description(b:Catalog,author:string,year:number){
   const summary=(b.summaries??[]).find(s=>s.length>=60&&s.length<5000);
   if(summary)return summary.trim().slice(0,2400);
-  return b.title+" by "+author+", first published in "+year+
-    ". This sourced English-language reading edition presents the full original work. "+
-    "Source subject classifications: "+(b.subjects??[]).slice(0,3).join(", ")+".";
+  // Never claim a verified first-print year or complete edition in the
+  // public description solely because an unreliable catalog lookup said so.
+  return b.title+" by "+author+". This source-based English-language edition "+
+    "is undergoing bibliographic and structure verification.";
 }
 export async function processGutenbergImportQueueOnce():Promise<void>{
   const {supabaseAdmin}=await import("@/integrations/supabase/client.server");
   const db=supabaseAdmin as any;
+  // One operational pause must halt both auto-discovered and manually queued
+  // Gutenberg imports. Never consume jobs while provenance QA is paused.
+  const {data:settings,error:settingsError}=await db.from("gutenberg_autopilot_settings")
+    .select("enabled").eq("id",1).maybeSingle();
+  if(settingsError || settings?.enabled !== true)return;
   const {data:queued,error:readError}=await db.from("gutenberg_import_jobs")
     .select("id,gutenberg_id,original_publication_year,attempts,metadata")
     .eq("status","queued").order("id").limit(1).maybeSingle();
@@ -262,6 +268,44 @@ export async function processGutenbergImportQueueOnce():Promise<void>{
     console.error("[Gutenberg] import error",job.gutenberg_id,msg);
   }
 }
+/** Identical literary works can arrive from different Gutenberg eBook IDs.
+ * Compare normalized title and original-author identity, not exact bytes
+ * or raw punctuation; never collapse distinct editions without review. */
+/** Recognize physical CHAPTER headings in verified Gutenberg source text.
+ * A chapter existing in raw source but absent from stored structure is a
+ * publication blocker, not a cosmetic navigation bug. */
+export function countSourceChapterHeadings(text: string): number {
+  return [...text.matchAll(/^[ \t]*CHAPTER[ \t]+(?:[IVXLCDM]+|\d+)(?=[ \t.:\n]|$)/gim)].length;
+}
+
+export function likelyDuplicateGutenbergWork(
+  incomingTitle: string, incomingAuthor: string,
+  known: { title: string; author: string },
+): boolean {
+  const norm = (value: string) => value.normalize("NFKD").toLowerCase()
+    .replace(/[\u0300-\u036f]/g, "").replace(/[^\p{L}\p{N}]+/gu, " ").trim()
+    .replace(/\s+/g, " ");
+  const { formatAuthorName } = requireAuthorNameForComparison();
+  const authorFamily = (name: string) =>
+    norm(formatAuthorName(name)).split(" ").at(-1) ?? "";
+  return norm(incomingTitle).length >= 6 &&
+    norm(incomingTitle) === norm(known.title) &&
+    authorFamily(incomingAuthor).length >= 3 &&
+    authorFamily(incomingAuthor) === authorFamily(known.author);
+}
+
+function requireAuthorNameForComparison() {
+  // This local synchronous implementation mirrors the public display
+  // normalizer for the stable original-creator surname only.
+  const formatAuthorName = (value: string) => {
+    const primary = value.split(";")[0]?.trim() ?? value.trim();
+    const fragments = primary.split(",").map((item) => item.trim());
+    if (fragments.length < 2) return primary;
+    return `${fragments.slice(1).join(" ")} ${fragments[0]}`;
+  };
+  return { formatAuthorName };
+}
+
 export async function importGutenbergSource(job:Job):Promise<Result>{
   const {independentFirstPublicationYear} =
     await import("@/lib/admin/gutenberg-publication-year.server");
@@ -324,6 +368,24 @@ export async function importGutenbergSource(job:Job):Promise<Result>{
        normalized(fromCsv.authors[0]?.name??"").slice(0,20))
       throw new Error("Gutendex / official Gutenberg CSV author mismatch");
   }
+  // Avoid republishing one literary work under a second Gutenberg ID.
+  // A possible source-edition conflict remains in review for a librarian,
+  // instead of deleting or silently suppressing an existing approved edition.
+  const baseToken = catalog.title.toLowerCase().replace(/[^a-z0-9]+/g," ")
+    .split(" ").find(t=>t.length>=4 && !["the","with","from","about","volume","book"].includes(t));
+  if(baseToken){
+    const {data:similar,error:similarError}=await db.from("books")
+      .select("id,title,author,status").ilike("title","%"+baseToken+"%")
+      .in("status",["published","approved","in_review"]).limit(250);
+    if(similarError)throw new Error("Duplicate edition lookup failed: "+similarError.message);
+    const duplicateWork=(similar??[]).find((entry:{id:string;title:string;author:string})=>
+      likelyDuplicateGutenbergWork(catalog.title,catalog.authors?.[0]?.name??"",entry));
+    if(duplicateWork){
+      return {status:"in_review",bookId:null,
+        message:"Potential alternate Gutenberg edition of existing book "+duplicateWork.id+
+          "; requires manual source and edition reconciliation"};
+    }
+  }
   let originalYear=job.original_publication_year;
   let yearEvidence=typeof job.metadata?.["publicationYearEvidence"]==="string"
     ?job.metadata["publicationYearEvidence"]:null;
@@ -361,7 +423,7 @@ export async function importGutenbergSource(job:Job):Promise<Result>{
       .select("id",{count:"exact",head:true}).eq("status","published");
     if(countError)throw new Error(countError.message);
     if((count??0)>=cfg.target_published)
-      return {status:"skipped",bookId:null,message:"Target of 1,000 published titles reached"};
+      return {status:"skipped",bookId:null,message:"Target of "+cfg.target_published+" published titles reached"};
   }
   const original=await getGutenbergAsset(id,"pg"+id+".txt",MAX_TEXT);
   const rawText=new TextDecoder("utf-8",{fatal:true}).decode(original);
@@ -387,6 +449,13 @@ export async function importGutenbergSource(job:Job):Promise<Result>{
   }catch(error){
     console.warn("[Gutenberg] cover requires review",id,error instanceof Error?error.message:String(error));
   }
+  const { parseManuscript } = await import("@/lib/manuscript");
+  const sourceChapterCount = countSourceChapterHeadings(manuscript);
+  const parsedChapters = parseManuscript(manuscript).structure
+    .filter((node) => node.nodeType === "chapter").length;
+  const missingChapterNavigation = sourceChapterCount >= 2 &&
+    parsedChapters < sourceChapterCount;
+
   const desc=description(catalog,author,originalYear);
   // Use actual Project Gutenberg catalogue subject headings rather than
   // labelling every imported book as generic Literature. The same private
@@ -448,6 +517,19 @@ export async function importGutenbergSource(job:Job):Promise<Result>{
     sourceUrl:url,coverUrl,sha256,review:"automated",catalogOrigin,yearEvidence,
     subjects:subjectHeadings.slice(0,1500),assignedCategories
   };
+  if (missingChapterNavigation) {
+    return { status: "in_review", bookId, sha256, metadata: auditMeta,
+      message: "Source chapter headings (" + sourceChapterCount +
+        ") exceed imported chapter navigation (" + parsedChapters + "); structural audit required" };
+  }
+  if(job.metadata?.["autopilot"]===true) {
+    // Open Library's first_publish_year can be a placeholder (e.g. 1800).
+    // A single catalog is NOT sufficient evidence to auto-approve a work.
+    // Preserve the archived text and cover as private in_review until
+    // an independent date and complete chapter sequence are verified.
+    return {status:"in_review",bookId,sha256,metadata:auditMeta,
+      message:"Independent first-print year and full chapter sequence require review"};
+  }
   if(!coverUrl||uploaded.warnings.length||uploaded.chapterCount<2||desc.length<60)
     return {status:"in_review",bookId,sha256,metadata:auditMeta,
       message:"Cover, source structure or descriptive metadata needs review"};

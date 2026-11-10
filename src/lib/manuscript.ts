@@ -275,7 +275,16 @@ export function parseManuscript(
       }
       seenContentsHeadings.set(identity, i);
     }
-    if (bodyStart > contentsIndex + 1 && seenContentsHeadings.size >= 2) {
+    // A second Contents list later in a multi-volume source must not cause
+    // entire REAL chapters preceding it to be hidden from the TOC.
+    // A genuine printed TOC is brief; if this span contains book-length
+    // prose, leave the earlier headings intact rather than erasing chapters.
+    const possibleContentsWords = bodyStart > contentsIndex
+      ? blocks.slice(contentsIndex + 1, bodyStart)
+          .reduce((sum, block) => sum + wordCount(block), 0)
+      : 0;
+    if (bodyStart > contentsIndex + 1 && seenContentsHeadings.size >= 2 &&
+        possibleContentsWords < 1500) {
       for (let i = contentsIndex + 1; i < bodyStart; i++) {
         if (headings[i] && headings[i]!.kind !== "front_matter") headings[i] = null;
       }
