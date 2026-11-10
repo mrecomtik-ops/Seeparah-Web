@@ -17,15 +17,26 @@ async function audit(width,height){
   const page=await context.newPage();
   const fail=(message)=>{throw Error(width+"px: "+message);};
   try{
-    await page.goto(BASE+"/read/"+BOOK_ID+"?lang=English&page=1",{
-      waitUntil:"domcontentloaded",timeout:60_000,
-    });
+    // GitHub's push workflow may start before Cloudflare finishes deploying.
+    // Reload against production until the new reader version becomes visible.
+    let productionReady=false;
+    for(let attempt=0;attempt<24;attempt++){
+      await page.goto(BASE+"/read/"+BOOK_ID+"?lang=English&page=1",{
+        waitUntil:"domcontentloaded",timeout:60_000,
+      });
+      if(await page.getByRole("button",{name:"Draw or write by hand"}).count()){
+        productionReady=true;
+        break;
+      }
+      await page.waitForTimeout(6_000);
+    }
+    if(!productionReady)fail("Cloudflare release did not show the handwriting toggle");
     await page.locator(".reader-v3-page[data-book-page]").first().waitFor({timeout:50_000});
     await page.waitForFunction(()=>{
       const label=document.querySelector(".reader-v3-topbar")?.textContent||"";
       return /Page \d+ of \d+/.test(label)&&
         !!document.querySelector(".reader-v3-flow [data-chapter-offset]");
-    },{timeout:50_000});
+    },null,{timeout:50_000});
     const baseline=await page.evaluate(()=>{
       const pageLeaf=document.querySelector(".reader-v3-page[data-book-page]");
       return {
