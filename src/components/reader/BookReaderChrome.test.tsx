@@ -17,6 +17,7 @@ const onLanguageChange = vi.fn();
 const onHighlight = vi.fn();
 const onBeforeHighlight = vi.fn();
 const onOpenSettings = vi.fn();
+const onToggleInk = vi.fn();
 afterEach(() => { cleanup(); vi.clearAllMocks(); });
 
 function drawTopbar(canReturnToReading = false) {
@@ -27,6 +28,7 @@ function drawTopbar(canReturnToReading = false) {
     progress={15} onLanguageChange={onLanguageChange}
     onBackToReading={onBackToReading} onContents={onContents}
     onHighlight={onHighlight} onBeforeHighlight={onBeforeHighlight} onOpenSettings={onOpenSettings}
+    inkEnabled={false} onToggleInk={onToggleInk}
   />);
 }
 describe("SP-36 modular reader chrome preserves source actions and accessible navigation", () => {
@@ -44,6 +46,8 @@ describe("SP-36 modular reader chrome preserves source actions and accessible na
     expect(onBeforeHighlight).toHaveBeenCalledTimes(1);
     fireEvent.click(button);
     expect(onHighlight).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole("button", { name: "Draw or write by hand" }));
+    expect(onToggleInk).toHaveBeenCalledTimes(1);
     fireEvent.click(screen.getByRole("button", { name: "Reader settings" }));
     expect(onOpenSettings).toHaveBeenCalledTimes(1);
   });
