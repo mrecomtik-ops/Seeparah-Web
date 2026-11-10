@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { curatedPilotMetadata, extractGutenbergBody, likelyDuplicateGutenbergWork, mergeImportJobMetadata, verifyGutenbergCandidate, vettedBatchMetadata } from "./gutenberg-fast-import.server";
+import { countSourceChapterHeadings, curatedPilotMetadata, extractGutenbergBody, likelyDuplicateGutenbergWork, mergeImportJobMetadata, verifyGutenbergCandidate, vettedBatchMetadata } from "./gutenberg-fast-import.server";
 
 const sample={
   id:55,title:"The Wonderful Wizard of Oz",media_type:"Text",copyright:false,
@@ -85,5 +85,17 @@ describe("Gutenberg work deduplication before publication", () => {
     expect(likelyDuplicateGutenbergWork("Bleak House", "Dickens, Charles", {
       title: "Oliver Twist", author: "Charles Dickens",
     })).toBe(false);
+  });
+});
+
+describe("chapter heading completeness guard", () => {
+  it("counts chapter headings from source bytes, not a corrupted navigation table", () => {
+    const original = [
+      "CONTENTS", "I. One", "II. Two",
+      "CHAPTER I", "Body of chapter one.",
+      "CHAPTER II", "Body of chapter two.",
+      "CHAPTER III", "Body of chapter three.",
+    ].join("\n\n");
+    expect(countSourceChapterHeadings(original)).toBe(3);
   });
 });
