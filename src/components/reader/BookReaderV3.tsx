@@ -31,9 +31,9 @@ import { BookReaderFinishDialog } from "@/components/reader/BookReaderFinishDial
 import { ReaderSavedHighlights } from "@/components/reader/ReaderSavedHighlights";
 import { BookReaderPhysicalPage, type PhysicalPageOptions } from "@/components/reader/BookReaderPhysicalPage";
 import { ReaderInkToolbar } from "@/components/reader/ReaderInkToolbar";
-import { type PageInkCommand } from "@/components/reader/ReaderPageInk";
-import { type InkTool } from "@/lib/reader-ink";
-import { CANONICAL_BOOK_FONT_SIZE, paperZoomForFontSize, paperSheetBounds } from "@/lib/reader-page-zoom";
+import { ReaderZoomSheet } from "@/components/reader/ReaderZoomSheet";
+import { useReaderInkTools } from "@/components/reader/useReaderInkTools";
+import { CANONICAL_BOOK_FONT_SIZE, paperZoomForFontSize } from "@/lib/reader-page-zoom";
 import { findReaderSourceAnchor } from "@/lib/reader-position-anchor";
 import {
   clamp, buildLogicalBookPages, toRoman, scriptureFontFamily, splitSummary,
@@ -101,12 +101,6 @@ export function BookReaderV3({
   );
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [savedHighlightsOpen, setSavedHighlightsOpen] = useState(false);
-  const [inkEnabled,setInkEnabled]=useState(false);
-  const [inkTool,setInkTool]=useState<InkTool>("pen");
-  const [inkColor,setInkColor]=useState("#EF4444");
-  const [inkWidth,setInkWidth]=useState(8);
-  const [inkCommand,setInkCommand]=useState<PageInkCommand|null>(null);
-  const [activeInkPageKey,setActiveInkPageKey]=useState<string|null>(null);
   const {
     requestLanguage, setRequestLanguage, requestingTranslation,
     activeRequestStatus, handleTranslationRequest,
@@ -121,6 +115,14 @@ export function BookReaderV3({
   // Fixed pagination at the 16px editorial master. Zoom enlarges the
   // entire paper and glyphs together, without altering page boundaries.
   const pageZoom=paperZoomForFontSize(fontSize);
+  const {
+    inkEnabled,setInkEnabled,inkTool,setInkTool,inkColor,setInkColor,
+    inkWidth,setInkWidth,inkCommand,activeInkPageKey,
+    setActiveInkPageKey,issueInkCommand,
+  }=useReaderInkTools([
+    bodyPage,frontIndex,language,typeface,textMeasure,lineSpacing,
+    pageSize.width,pageSize.height,
+  ].join(":"));
   const [spreadMode, setSpreadMode] = useState(false);
   const [layoutMeasured, setLayoutMeasured] = useState(false);
   const [turning, setTurning] = useState<"next" | "prev" | null>(null);
@@ -1022,19 +1024,6 @@ export function BookReaderV3({
     <BookReaderPhysicalPage options={options} model={physicalPageModel} />
   );
   const visibleSpread=spreadMode && (frontIndex!==null || !trailingSingleLeaf);
-  const zoomBounds=paperSheetBounds(pageSize.width,pageSize.height,visibleSpread,pageZoom,SPREAD_SPINE_GAP);
-  const unzoomedPagesWidth=zoomBounds.originalWidth;
-  useEffect(()=>setActiveInkPageKey(null),[
-    bodyPage,frontIndex,language,typeface,textMeasure,lineSpacing,pageSize.width,pageSize.height,
-  ]);
-  const issueInkCommand=(action:PageInkCommand["action"])=>{
-    if(!activeInkPageKey)return;
-    setInkCommand(previous=>({
-      serial:(previous?.serial??0)+1,
-      pageKey:activeInkPageKey,
-      action,
-    }));
-  };
 
   if (payloadQuery.isLoading) {
     const loadingPageStyle = {
@@ -1170,18 +1159,7 @@ export function BookReaderV3({
             Repaginating…
           </div>
         )}
-        <div className="reader-v3-zoom-frame"
-          style={{
-            width:zoomBounds.scaledWidth,
-            height:zoomBounds.scaledHeight,
-          }}>
-          <div className={visibleSpread?"reader-v3-spread":"reader-v3-single"}
-            style={{
-              width:unzoomedPagesWidth,
-              height:pageSize.height,
-              transform:`scale(${pageZoom})`,
-              transformOrigin:"top left",
-            }}>
+        <ReaderZoomSheet spread={visibleSpread} zoom={pageZoom} pageSize={pageSize}>
           {frontIndex !== null ? (
             spreadMode ? (
               <>
@@ -1221,8 +1199,7 @@ export function BookReaderV3({
               master: true,
             })
           )}
-          </div>
-        </div>
+        </ReaderZoomSheet>
       </main>
 
       <BookReaderBottomBar
