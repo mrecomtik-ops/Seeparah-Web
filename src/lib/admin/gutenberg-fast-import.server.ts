@@ -271,6 +271,13 @@ export async function processGutenbergImportQueueOnce():Promise<void>{
 /** Identical literary works can arrive from different Gutenberg eBook IDs.
  * Compare normalized title and original-author identity, not exact bytes
  * or raw punctuation; never collapse distinct editions without review. */
+/** Recognize physical CHAPTER headings in verified Gutenberg source text.
+ * A chapter existing in raw source but absent from stored structure is a
+ * publication blocker, not a cosmetic navigation bug. */
+export function countSourceChapterHeadings(text: string): number {
+  return [...text.matchAll(/^[ \t]*CHAPTER[ \t]+(?:[IVXLCDM]+|\d+)(?=[ \t.:\n]|$)/gim)].length;
+}
+
 export function likelyDuplicateGutenbergWork(
   incomingTitle: string, incomingAuthor: string,
   known: { title: string; author: string },
@@ -442,6 +449,13 @@ export async function importGutenbergSource(job:Job):Promise<Result>{
   }catch(error){
     console.warn("[Gutenberg] cover requires review",id,error instanceof Error?error.message:String(error));
   }
+  const { parseManuscript } = await import("@/lib/manuscript");
+  const sourceChapterCount = countSourceChapterHeadings(manuscript);
+  const parsedChapters = parseManuscript(manuscript).structure
+    .filter((node) => node.nodeType === "chapter").length;
+  const missingChapterNavigation = sourceChapterCount >= 2 &&
+    parsedChapters < sourceChapterCount;
+
   const desc=description(catalog,author,originalYear);
   // Use actual Project Gutenberg catalogue subject headings rather than
   // labelling every imported book as generic Literature. The same private
@@ -503,6 +517,11 @@ export async function importGutenbergSource(job:Job):Promise<Result>{
     sourceUrl:url,coverUrl,sha256,review:"automated",catalogOrigin,yearEvidence,
     subjects:subjectHeadings.slice(0,1500),assignedCategories
   };
+  if (missingChapterNavigation) {
+    return { status: "in_review", bookId, sha256, metadata: auditMeta,
+      message: "Source chapter headings (" + sourceChapterCount +
+        ") exceed imported chapter navigation (" + parsedChapters + "); structural audit required" };
+  }
   if(job.metadata?.["autopilot"]===true) {
     // Open Library's first_publish_year can be a placeholder (e.g. 1800).
     // A single catalog is NOT sufficient evidence to auto-approve a work.
