@@ -458,7 +458,7 @@ function LibraryPage() {
                   onChange={(v) => updateSearch({ author: v ?? undefined })}
                 />
                 <Select
-                  label="Edition type"
+                  label="Genre / theme"
                   value={genre}
                   options={genresInUse.length ? genresInUse : [...GENRES]}
                   onChange={(v) => updateSearch({ genre: v ?? undefined })}
