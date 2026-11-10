@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatAuthorName } from "@/lib/author-name";
+import { canonicalAuthorKey, formatAuthorName } from "@/lib/author-name";
 
 describe("formatAuthorName", () => {
   it("turns catalogue surname-first names into natural display names", () => {
@@ -14,5 +14,16 @@ describe("formatAuthorName", () => {
     expect(formatAuthorName("Seeparah")).toBe("Seeparah");
     expect(formatAuthorName("H. G. (Herbert George) Wells")).toBe("H. G. Wells");
     expect(formatAuthorName("L. M. (Lucy Maud) Montgomery")).toBe("L. M. Montgomery");
+  });
+});
+
+describe("canonical author facets", () => {
+  it("combines catalog honorifics and middle-name aliases", () => {
+    expect(canonicalAuthorKey("Scott, Sir Walter")).toBe(canonicalAuthorKey("Walter Scott"));
+    expect(canonicalAuthorKey("Gaskell, Elizabeth Cleghorn")).toBe(canonicalAuthorKey("Elizabeth Gaskell"));
+    expect(canonicalAuthorKey("Dickens, Charles")).toBe(canonicalAuthorKey("Charles Dickens"));
+  });
+  it("does not combine authors with different first or family names", () => {
+    expect(canonicalAuthorKey("Henry James")).not.toBe(canonicalAuthorKey("William James"));
   });
 });
