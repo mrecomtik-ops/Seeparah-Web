@@ -139,7 +139,6 @@ export async function searchPublicBooks(query: string): Promise<Book[]> {
   // merge the rows server-side so reader input is always a value, never
   // executable filter syntax.
   const pattern = literalIlikePattern(q);
-  const db = await admin();
   // Use the family-name token for index lookups, then check the complete
   // normalized display name. "Charles Dickens" must match "Dickens, Charles".
   const authorToken = (q.includes(",") ? q.split(",")[0] : q.split(/\s+/).at(-1))?.trim() ?? q;
