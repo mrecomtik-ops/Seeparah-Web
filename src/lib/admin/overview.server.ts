@@ -63,6 +63,7 @@ export async function getAdminOverviewAnalytics(): Promise<AdminOverviewAnalytic
     for (let offset = 0; offset < 100_000; offset += 500) {
       const { data, error } = await (db as any).from(table)
         .select(columns).order(order, { ascending: true })
+        .order(table === "books" ? "id" : "language", { ascending: true })
         .range(offset, offset + 499);
       if (error) throw new Error(error.message);
       rows.push(...((data ?? []) as T[]));
