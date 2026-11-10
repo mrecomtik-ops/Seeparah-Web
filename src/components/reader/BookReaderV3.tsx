@@ -33,6 +33,7 @@ import { BookReaderPhysicalPage, type PhysicalPageOptions } from "@/components/r
 import { ReaderInkToolbar } from "@/components/reader/ReaderInkToolbar";
 import { type PageInkCommand } from "@/components/reader/ReaderPageInk";
 import { type InkTool } from "@/lib/reader-ink";
+import { CANONICAL_BOOK_FONT_SIZE, paperZoomForFontSize, paperSheetBounds } from "@/lib/reader-page-zoom";
 import { findReaderSourceAnchor } from "@/lib/reader-position-anchor";
 import {
   clamp, buildLogicalBookPages, toRoman, scriptureFontFamily, splitSummary,
@@ -119,8 +120,7 @@ export function BookReaderV3({
   const pageStride = contentSize.width + PHYSICAL_PAGE_GUTTER;
   // Fixed pagination at the 16px editorial master. Zoom enlarges the
   // entire paper and glyphs together, without altering page boundaries.
-  const pageZoom=clamp(fontSize/16,1,1.25);
-  const [mobileViewport, setMobileViewport] = useState(false);
+  const pageZoom=paperZoomForFontSize(fontSize);
   const [spreadMode, setSpreadMode] = useState(false);
   const [layoutMeasured, setLayoutMeasured] = useState(false);
   const [turning, setTurning] = useState<"next" | "prev" | null>(null);
@@ -284,7 +284,6 @@ export function BookReaderV3({
       const availableHeight = Math.max(330, stage.clientHeight - 4);
       const nextSpread = stage.clientWidth >= 900 && window.innerWidth > window.innerHeight;
       setSpreadMode(nextSpread);
-      setMobileViewport(stage.clientWidth < 640);
       const widthByLayout = nextSpread
         ? Math.max(220, (availableWidth - SPREAD_SPINE_GAP) / 2)
         : availableWidth;
@@ -962,7 +961,7 @@ export function BookReaderV3({
   const topPadding = Math.round(pageSize.width * 0.035);
   const bottomPadding = Math.round(pageSize.width * 0.03);
   const pagePadding = `${topPadding}px ${horizontalPadding}px ${bottomPadding}px`;
-  const readerFontSize = 16; // Stable editorial pagination; paper zoom supplies visual text size.
+  const readerFontSize = CANONICAL_BOOK_FONT_SIZE; // Paper zoom supplies visual text size.
   const lineHeightPx = Math.round(readerFontSize * lineSpacing * 4) / 4;
   const runningHeadHeight = 12;
   const runningHeadGap = lineHeightPx * 1.5;
@@ -1023,7 +1022,11 @@ export function BookReaderV3({
     <BookReaderPhysicalPage options={options} model={physicalPageModel} />
   );
   const visibleSpread=spreadMode && (frontIndex!==null || !trailingSingleLeaf);
-  const unzoomedPagesWidth=pageSize.width*(visibleSpread?2:1)+(visibleSpread?SPREAD_SPINE_GAP:0);
+  const zoomBounds=paperSheetBounds(pageSize.width,pageSize.height,visibleSpread,pageZoom,SPREAD_SPINE_GAP);
+  const unzoomedPagesWidth=zoomBounds.originalWidth;
+  useEffect(()=>setActiveInkPageKey(null),[
+    bodyPage,frontIndex,language,typeface,textMeasure,lineSpacing,pageSize.width,pageSize.height,
+  ]);
   const issueInkCommand=(action:PageInkCommand["action"])=>{
     if(!activeInkPageKey)return;
     setInkCommand(previous=>({
@@ -1169,8 +1172,8 @@ export function BookReaderV3({
         )}
         <div className="reader-v3-zoom-frame"
           style={{
-            width:Math.ceil(unzoomedPagesWidth*pageZoom),
-            height:Math.ceil(pageSize.height*pageZoom),
+            width:zoomBounds.scaledWidth,
+            height:zoomBounds.scaledHeight,
           }}>
           <div className={visibleSpread?"reader-v3-spread":"reader-v3-single"}
             style={{
