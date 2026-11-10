@@ -115,14 +115,10 @@ export function BookReaderV3({
   // Fixed pagination at the 16px editorial master. Zoom enlarges the
   // entire paper and glyphs together, without altering page boundaries.
   const pageZoom=paperZoomForFontSize(fontSize);
-  const {
-    inkEnabled,setInkEnabled,inkTool,setInkTool,inkColor,setInkColor,
-    inkWidth,setInkWidth,inkCommand,activeInkPageKey,
-    setActiveInkPageKey,issueInkCommand,
-  }=useReaderInkTools([
-    bodyPage,frontIndex,language,typeface,textMeasure,lineSpacing,
-    pageSize.width,pageSize.height,
-  ].join(":"));
+  const { inkEnabled,setInkEnabled,inkTool,setInkTool,inkColor,setInkColor,
+    inkWidth,setInkWidth,inkCommand,activeInkPageKey,setActiveInkPageKey,issueInkCommand,
+  }=useReaderInkTools([bodyPage,frontIndex,language,typeface,textMeasure,
+    lineSpacing,pageSize.width,pageSize.height].join(":"));
   const [spreadMode, setSpreadMode] = useState(false);
   const [layoutMeasured, setLayoutMeasured] = useState(false);
   const [turning, setTurning] = useState<"next" | "prev" | null>(null);
