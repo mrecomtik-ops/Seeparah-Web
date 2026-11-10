@@ -495,7 +495,7 @@ export function SacredTextReader({
   const lastVisibleReference = visibleSourceChunks[visibleSourceChunks.length - 1];
 
   return (
-    <div className="min-h-screen bg-background">
+    <div data-reader-surface="sacred" className="min-h-screen bg-background">
       <header className="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur">
         <div className="mx-auto flex max-w-5xl items-center gap-3 px-3 py-3 sm:px-6">
           <Link
