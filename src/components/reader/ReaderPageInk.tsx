@@ -45,6 +45,7 @@ export function ReaderPageInk({
   const [draft,setDraft]=useState<Draft|null>(null);
   const [drawing,setDrawing]=useState<InkStroke|null>(null);
   const originalRef=useRef<InkStroke[]>([]);
+  const drawingRef=useRef<InkStroke|null>(null);
   const erasingRef=useRef<InkStroke[]|null>(null);
   const historyRef=useRef<InkStroke[][]>([]);
   const redoRef=useRef<InkStroke[][]>([]);
@@ -63,6 +64,7 @@ export function ReaderPageInk({
     redoRef.current=[];
     setDraft(null);
     setDrawing(null);
+    drawingRef.current=null;
     erasingRef.current=null;
   },[pageKey]);
 
@@ -131,6 +133,7 @@ export function ReaderPageInk({
         width:tool==="marker"?Math.max(20,width*2.5):width,
         points:[point],
       };
+      drawingRef.current=next;
       setDrawing(next);
     }
   };
@@ -145,12 +148,13 @@ export function ReaderPageInk({
       setDraft({pageKey,strokes:next});
       return;
     }
-    setDrawing(previous=>{
-      if(!previous||previous.points.length>=800)return previous;
-      const last=previous.points[previous.points.length-1]!;
-      if(Math.hypot(point[0]-last[0],point[1]-last[1])<1.3)return previous;
-      return {...previous,points:[...previous.points,point]};
-    });
+    const previous=drawingRef.current;
+    if(!previous||previous.points.length>=800)return;
+    const last=previous.points[previous.points.length-1]!;
+    if(Math.hypot(point[0]-last[0],point[1]-last[1])<1.3)return;
+    const next={...previous,points:[...previous.points,point]};
+    drawingRef.current=next;
+    setDrawing(next);
   };
   const finish=(event:React.PointerEvent<SVGSVGElement>)=>{
     if(!event.currentTarget.hasPointerCapture(event.pointerId))return;
@@ -162,8 +166,11 @@ export function ReaderPageInk({
       erasingRef.current=null;
       if(next&&next.length!==originalRef.current.length)commit(next,true);
       else setDraft({pageKey,strokes:originalRef.current});
-    }else if(drawing){
-      commit([...originalRef.current,drawing],true);
+    }else if(drawingRef.current){
+      // The pointer-up event can precede React's batched move render:
+      // always commit the most recent synchronous stroke geometry.
+      commit([...originalRef.current,drawingRef.current],true);
+      drawingRef.current=null;
       setDrawing(null);
     }
   };
