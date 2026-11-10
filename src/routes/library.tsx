@@ -207,7 +207,8 @@ function LibraryPage() {
     const matchesQuery = matchesBookSearch(b, query);
     const matchesLang = !lang || b.available_languages.includes(lang);
     const matchesGenre = !genre || b.genre === genre;
-    const matchesAuthor = !author || b.author === author;
+    const matchesAuthor = !author ||
+      formatAuthorName(b.author).toLocaleLowerCase() === formatAuthorName(author).toLocaleLowerCase();
     const matchesCategory = !category || (b.categories ?? []).includes(category);
     const matchesTradition = matchesPublishedTradition(b, tradition);
     return matchesQuery && matchesLang && matchesGenre && matchesAuthor && matchesCategory && matchesTradition;
