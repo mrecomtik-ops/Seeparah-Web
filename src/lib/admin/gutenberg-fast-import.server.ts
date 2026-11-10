@@ -227,13 +227,19 @@ function duplicate(value: unknown){
 function description(b:Catalog,author:string,year:number){
   const summary=(b.summaries??[]).find(s=>s.length>=60&&s.length<5000);
   if(summary)return summary.trim().slice(0,2400);
-  return b.title+" by "+author+", first published in "+year+
-    ". This sourced English-language reading edition presents the full original work. "+
-    "Source subject classifications: "+(b.subjects??[]).slice(0,3).join(", ")+".";
+  // Never claim a verified first-print year or complete edition in the
+  // public description solely because an unreliable catalog lookup said so.
+  return b.title+" by "+author+". This source-based English-language edition "+
+    "is undergoing bibliographic and structure verification.";
 }
 export async function processGutenbergImportQueueOnce():Promise<void>{
   const {supabaseAdmin}=await import("@/integrations/supabase/client.server");
   const db=supabaseAdmin as any;
+  // One operational pause must halt both auto-discovered and manually queued
+  // Gutenberg imports. Never consume jobs while provenance QA is paused.
+  const {data:settings,error:settingsError}=await db.from("gutenberg_autopilot_settings")
+    .select("enabled").eq("id",1).maybeSingle();
+  if(settingsError || settings?.enabled !== true)return;
   const {data:queued,error:readError}=await db.from("gutenberg_import_jobs")
     .select("id,gutenberg_id,original_publication_year,attempts,metadata")
     .eq("status","queued").order("id").limit(1).maybeSingle();
@@ -361,7 +367,7 @@ export async function importGutenbergSource(job:Job):Promise<Result>{
       .select("id",{count:"exact",head:true}).eq("status","published");
     if(countError)throw new Error(countError.message);
     if((count??0)>=cfg.target_published)
-      return {status:"skipped",bookId:null,message:"Target of 1,000 published titles reached"};
+      return {status:"skipped",bookId:null,message:"Target of "+cfg.target_published+" published titles reached"};
   }
   const original=await getGutenbergAsset(id,"pg"+id+".txt",MAX_TEXT);
   const rawText=new TextDecoder("utf-8",{fatal:true}).decode(original);
@@ -448,6 +454,14 @@ export async function importGutenbergSource(job:Job):Promise<Result>{
     sourceUrl:url,coverUrl,sha256,review:"automated",catalogOrigin,yearEvidence,
     subjects:subjectHeadings.slice(0,1500),assignedCategories
   };
+  if(job.metadata?.["autopilot"]===true) {
+    // Open Library's first_publish_year can be a placeholder (e.g. 1800).
+    // A single catalog is NOT sufficient evidence to auto-approve a work.
+    // Preserve the archived text and cover as private in_review until
+    // an independent date and complete chapter sequence are verified.
+    return {status:"in_review",bookId,sha256,metadata:auditMeta,
+      message:"Independent first-print year and full chapter sequence require review"};
+  }
   if(!coverUrl||uploaded.warnings.length||uploaded.chapterCount<2||desc.length<60)
     return {status:"in_review",bookId,sha256,metadata:auditMeta,
       message:"Cover, source structure or descriptive metadata needs review"};
