@@ -30,7 +30,7 @@ import { isSharedSacredCollectionCover } from "@/lib/sacred-cover-artwork";
 import { SacredWorkIdentity } from "@/components/SacredWorkIdentity";
 import { getPublicContentSettings } from "@/lib/admin/settings.functions";
 import { countPagesRead } from "@/lib/reading-stats";
-import { formatAuthorName } from "@/lib/author-name";
+import { canonicalAuthorKey, formatAuthorName } from "@/lib/author-name";
 import { publicBookDescription } from "@/lib/book-description";
 import { COLLECTION_TOPICS } from "@/lib/collection-topics";
 import { displayTitleCase } from "@/lib/display-text";
@@ -136,8 +136,11 @@ function LibraryPage() {
   const authors = useMemo(() => {
     const byDisplay = new Map<string, string>();
     for (const book of books) {
-      const display = formatAuthorName(book.author);
-      if (!byDisplay.has(display)) byDisplay.set(display, book.author);
+      const display = canonicalAuthorKey(book.author);
+      const current = byDisplay.get(display);
+      if (!current || formatAuthorName(book.author).length < formatAuthorName(current).length) {
+        byDisplay.set(display, book.author);
+      }
     }
     return [...byDisplay.entries()]
       .sort(([left], [right]) => left.localeCompare(right))
@@ -208,7 +211,7 @@ function LibraryPage() {
     const matchesLang = !lang || b.available_languages.includes(lang);
     const matchesGenre = !genre || b.genre === genre;
     const matchesAuthor = !author ||
-      formatAuthorName(b.author).toLocaleLowerCase() === formatAuthorName(author).toLocaleLowerCase();
+      canonicalAuthorKey(b.author) === canonicalAuthorKey(author);
     const matchesCategory = !category || (b.categories ?? []).includes(category);
     const matchesTradition = matchesPublishedTradition(b, tradition);
     return matchesQuery && matchesLang && matchesGenre && matchesAuthor && matchesCategory && matchesTradition;
