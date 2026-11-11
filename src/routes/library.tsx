@@ -375,7 +375,7 @@ function LibraryPage() {
                     title: featured.title,
                     author: formatAuthorName(featured.author),
                     sourceLanguage: featured.source_language,
-                    description: featuredFull?.description,
+                    description: featuredFull?.description ?? null,
                   })}
                 </p>
                 {featuredIsSample && (
