@@ -1,5 +1,6 @@
 ﻿import { Link } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
 import { BookOpen, Crown, FlaskConical } from "lucide-react";
 import type { Book } from "@/lib/data";
 import { SAMPLE_EXCERPT_BOOK_IDS, DEMO_MANUSCRIPT_BOOK_IDS } from "@/lib/data";
@@ -44,6 +45,8 @@ export function BookCard({
   monetizationEnabled?: boolean;
 }) {
   const queryClient = useQueryClient();
+  const prefetchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (prefetchTimer.current) clearTimeout(prefetchTimer.current); }, []);
   const displayAuthor = formatAuthorName(book.author);
   const displayTitle = displayTitleCase(book.title);
   const displayDescription = publicBookDescription({
@@ -76,12 +79,22 @@ export function BookCard({
   // Warm the book payload on a deliberate hover/focus, never during a long
   // library-list render. Query keys exactly match BookReaderV3's cache.
   const prefetchReader = () => {
-    if (book.content_classification === "religious") return;
+    // The payload request is permission-sensitive; prefetch only public
+    // free editions, never paid, sacred or unreleased translated editions.
+    if (book.content_classification === "religious" || book.access_type !== "free") return;
     void queryClient.prefetchQuery({
       queryKey: ["reader-book-payload", book.id, openLanguage],
       queryFn: () => getReaderBookPayload(book.id, openLanguage),
       staleTime: 15 * 60 * 1000,
     });
+  };
+  const cancelPrefetch = () => {
+    if (prefetchTimer.current) clearTimeout(prefetchTimer.current);
+    prefetchTimer.current = null;
+  };
+  const prefetchOnIntent = () => {
+    cancelPrefetch();
+    prefetchTimer.current = setTimeout(prefetchReader, 250);
   };
 
   return (
@@ -95,7 +108,8 @@ export function BookCard({
         to="/read/$bookId"
         params={{ bookId: book.id }}
         search={{ lang: openLanguage }}
-        onMouseEnter={prefetchReader}
+        onMouseEnter={prefetchOnIntent}
+        onMouseLeave={cancelPrefetch}
         onFocusCapture={prefetchReader}
         className="flex flex-1 flex-col"
       >
