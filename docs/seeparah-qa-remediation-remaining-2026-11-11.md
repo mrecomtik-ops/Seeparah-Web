@@ -28,7 +28,7 @@ The printed TOC/Introduction node ranges were clipped to the original opening ma
 - All 663 historical publication years need at least two reliable bibliographic sources; do not infer them from Gutenberg upload timestamps or one Open Library field, or restore the false 1800/1656 values.
 - 69 chapter-structure candidates need source inspection. 31 already restored still need browser/device navigation verification. Never automatically assume printed TOC references are real in-body chapter headings.
 - 676 Gutenberg 200x300 source JPEG covers need genuinely higher-quality authorized artwork. UI image scaling alone cannot create resolution.
-- 3 confirmed duplicate work-title clusters require work/edition reconciliation without silently deleting distinct sources.
+- 3 confirmed duplicate work-title clusters now show explicit alternate Gutenberg source-edition badges in Library, with no deletions or hidden published records. Final edition equivalence/rights reconciliation remains an editorial review item.
 - Full 10k scaling load test, true paged server-side Library search/filter, reader cold-load performance, source-level description summaries, nonce-based CSP, author-profile IDs/privacy migration, end-to-end account/device tests, historical bibliographic provenance and remaining lint remediation are not silently considered complete.
 - Importer stays paused until historical accuracy, rights eligibility, complete text and chapter integrity permit safe publication.
 
