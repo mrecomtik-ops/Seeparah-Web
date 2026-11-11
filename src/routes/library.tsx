@@ -233,6 +233,15 @@ function LibraryPage() {
   const isNoSearchMatch = filtered.length === 0 && !isEmptyShelf;
 
   const featured: Book | undefined = books.find((b) => b.id === FEATURED_BOOK_ID) ?? books[0];
+  // Only the featured book needs its long description; never ship every
+  // published book's entire blurb in the global search/facet index.
+  const featuredDetailQuery = useQuery({
+    queryKey: ["library-featured-detail", featured?.id],
+    queryFn: () => getLibraryPageBooks([featured!.id]),
+    enabled: Boolean(featured && tab === "all" && !hasActiveFilters),
+    staleTime: 10 * 60 * 1000,
+  });
+  const featuredFull = featuredDetailQuery.data?.[0] ?? featured;
   const featuredIsSample = featured ? SAMPLE_EXCERPT_BOOK_IDS.has(featured.id) : false;
   const featuredIsDemo = featured ? DEMO_MANUSCRIPT_BOOK_IDS.has(featured.id) : false;
   const pagesRead = countPagesRead(progressQuery.data);
@@ -337,11 +346,11 @@ function LibraryPage() {
           <section className="mt-8 overflow-hidden rounded-3xl border border-border bg-primary text-primary-foreground card-shadow-lg">
             <div className="grid md:grid-cols-[240px_1fr]">
               <div className="relative hidden min-h-64 md:block">
-                {isSharedSacredCollectionCover(featured) ? (
-                  <SacredWorkIdentity book={featured} language={lang} />
-                ) : coverFor(featured.id, featured.cover_url) ? (
+                {isSharedSacredCollectionCover(featuredFull!) ? (
+                  <SacredWorkIdentity book={featuredFull!} language={lang} />
+                ) : coverFor(featured.id, featuredFull?.cover_url) ? (
                   <img
-                    src={coverFor(featured.id, featured.cover_url)!}
+                    src={coverFor(featured.id, featuredFull?.cover_url)!}
                     alt={`Cover of ${displayTitleCase(featured.title)}`}
                     loading="lazy"
                     className={`absolute inset-0 h-full w-full ${featured.genre === "Sacred Text" ? "bg-card object-contain" : "object-cover"}`}
@@ -366,7 +375,7 @@ function LibraryPage() {
                     title: featured.title,
                     author: formatAuthorName(featured.author),
                     sourceLanguage: featured.source_language,
-                    description: featured.description,
+                    description: featuredFull?.description,
                   })}
                 </p>
                 {featuredIsSample && (
