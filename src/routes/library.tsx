@@ -277,7 +277,7 @@ function LibraryPage() {
             </h1>
           </div>
           <div className="rounded-xl border border-border bg-card px-4 py-2.5 card-shadow">
-            <p className="text-xs text-muted-foreground">Pages read</p>
+            <p className="text-xs text-muted-foreground" title="Furthest source section reached in each book, not screen pages">Source sections reached</p>
             <p className="font-display text-lg font-semibold text-foreground">{pagesRead}</p>
           </div>
         </div>
