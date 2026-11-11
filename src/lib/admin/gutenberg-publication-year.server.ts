@@ -26,6 +26,28 @@ export function matchesHistoricalBibliography(
     return p.split(" ").includes(surname) || p.startsWith(surname+" ");
   });
 }
+/**
+ * Open Library's first_publish_year is only a candidate, not verified proof.
+ * Reject implausible dates and conflicting exact-title records rather than
+ * accepting their minimum (which caused the live 1800/1656 errors).
+ */
+export function chooseUnambiguousPublicationYear(
+  title: string, author: string, authorDeathYear: number,
+  records: Array<{title?: string; author_name?: string[]; first_publish_year?: number}>,
+): number {
+  const years = records
+    .filter((row) => matchesHistoricalBibliography(title, author, row))
+    .map((row) => row.first_publish_year)
+    .filter((year): year is number => typeof year === "number" &&
+      Number.isInteger(year) && year >= 1400 && year <= 1930 &&
+      year >= authorDeathYear - 85 && year <= authorDeathYear + 10);
+  if (!years.length) throw new Error("Independent historical first publication year unavailable");
+  const unique = [...new Set(years)].sort((a,b) => a-b);
+  if (unique.at(-1)! - unique[0]! > 2)
+    throw new Error("Conflicting historical publication years require independent review");
+  return unique[0]!;
+}
+
 export async function independentFirstPublicationYear(
   title:string,author:string,authorDeathYear:number,
 ):Promise<{year:number;evidenceUrl:string}>{
@@ -45,13 +67,6 @@ export async function independentFirstPublicationYear(
   const data=await response.json() as {
     docs?:Array<{title?:string;author_name?:string[];first_publish_year?:number}>;
   };
-  const candidates=(data.docs??[]).filter(row=>
-    matchesHistoricalBibliography(title,author,row) &&
-    Number.isInteger(row.first_publish_year) &&
-    (row.first_publish_year??0)>=1400 &&
-    (row.first_publish_year??9999)<=1900 &&
-    (row.first_publish_year??9999)<=authorDeathYear+10,
-  );
-  if(!candidates.length)throw new Error("Independent historical first publication year unavailable");
-  return {year:Math.min(...candidates.map(x=>x.first_publish_year!)),evidenceUrl:url.toString()};
+  const year=chooseUnambiguousPublicationYear(title,author,authorDeathYear,data.docs??[]);
+  return {year,evidenceUrl:url.toString()};
 }
