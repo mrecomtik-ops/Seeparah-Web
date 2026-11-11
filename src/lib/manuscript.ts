@@ -283,8 +283,15 @@ export function parseManuscript(
       ? blocks.slice(contentsIndex + 1, bodyStart)
           .reduce((sum, block) => sum + wordCount(block), 0)
       : 0;
+    // Short early chapters can have a combined body under 1,500 words,
+    // especially children's stories and multi-volume fiction. The old
+    // total-only heuristic wrongly classified those REAL chapters as a
+    // printed TOC. A genuine table's prose-per-heading is concise; when it
+    // has substantial narrative between chapter headings, fail safe and
+    // preserve all original headings for editorial source review.
+    const wordsPerHeading = possibleContentsWords / Math.max(1, seenContentsHeadings.size);
     if (bodyStart > contentsIndex + 1 && seenContentsHeadings.size >= 2 &&
-        possibleContentsWords < 1500) {
+        possibleContentsWords < 1500 && wordsPerHeading <= 40) {
       for (let i = contentsIndex + 1; i < bodyStart; i++) {
         if (headings[i] && headings[i]!.kind !== "front_matter") headings[i] = null;
       }
