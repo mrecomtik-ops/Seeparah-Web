@@ -26,13 +26,26 @@ describe("SP-HL literature reader selection anchoring", () => {
     range.setEnd(markedText, 5);
     expect(captureReaderHighlightSelection(fakeSelection(range), reader)).toEqual({
       chunkIndex: 3,
-      startOffset: 107,
+      startOffset: 106,
       endOffset: 111,
-      text: "orld",
+      text: "world",
     });
     // The persisted source tuple, rather than the DOM Range, survives a
     // later native selection collapse or a toolbar focus change.
     expect(captureReaderHighlightSelection(null, reader)).toBeNull();
+  });
+
+  it("rounds a mid-word source selection to complete words", () => {
+    const reader = document.createElement("main");
+    reader.innerHTML = '<span data-reader-text-start="20" data-reader-chunk-index="4">There were only two readers.</span>';
+    document.body.append(reader);
+    const source = reader.querySelector("span")!.firstChild!;
+    const range = document.createRange();
+    range.setStart(source, 7); // "ere" in were
+    range.setEnd(source, 13); // "o" in only
+    expect(captureReaderHighlightSelection(fakeSelection(range), reader)).toEqual({
+      chunkIndex: 4, startOffset: 26, endOffset: 35, text: "were only",
+    });
   });
 
   it("rejects selection that originates outside the actual book page", () => {
