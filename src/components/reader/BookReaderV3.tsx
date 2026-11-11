@@ -1211,6 +1211,7 @@ export function BookReaderV3({
         <ReaderSavedHighlights
           highlights={highlights}
           language={language}
+          chapters={chapters}
           onClose={() => setSavedHighlightsOpen(false)}
           onJump={jumpToSavedHighlight}
         />
