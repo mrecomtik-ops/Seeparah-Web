@@ -93,7 +93,7 @@ export function BookCard({
               loading="lazy"
               width={600}
               height={900}
-              className={`h-full w-full ${book.genre === "Sacred Text" ? "bg-card object-contain" : "object-cover"} transition-transform duration-300 group-hover:scale-[1.03]`}
+              className={`h-full w-full ${book.genre === "Sacred Text" || /gutenberg/i.test(book.source_edition_id ?? "") ? "bg-card object-contain" : "object-cover"} transition-transform duration-300 group-hover:scale-[1.03]`}
             />
           ) : (
             <div className="flex h-full flex-col items-center justify-center gap-2 paper-texture p-4 text-center">
