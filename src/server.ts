@@ -142,8 +142,18 @@ export default {
         return withSecurityHeaders(await handlePlatformUsageRequest(request, env));
       }
       if (url.pathname === "/sitemap.xml") {
-        const { buildLiveSitemapResponse } = await import("./lib/sitemap.server");
-        return withSecurityHeaders(await buildLiveSitemapResponse());
+        const { getSitemapIndex } = await import("./lib/sitemap-partitions.server");
+        return withSecurityHeaders(await getSitemapIndex());
+      }
+      if (url.pathname === "/sitemaps/static.xml") {
+        const { getStaticSitemap } = await import("./lib/sitemap-partitions.server");
+        return withSecurityHeaders(getStaticSitemap());
+      }
+      const partition = /^\/sitemaps\/(books|research)-([1-9]\d{0,2})\.xml$/.exec(url.pathname);
+      if (partition) {
+        const { getSitemapPartition } = await import("./lib/sitemap-partitions.server");
+        const kind = partition[1] === "books" ? "books" : "research";
+        return withSecurityHeaders(await getSitemapPartition(kind, Number(partition[2])));
       }
 
       const handler = await getServerEntry();
