@@ -166,7 +166,7 @@ describe("QA-016 and QA-017 library presentation", () => {
     renderLibrary();
     await screen.findAllByText(book.title);
     const empty = Array.from(document.querySelectorAll("option"))
-      .find((option) => option.textContent === "Personal Development (0)");
+      .find((option) => option.textContent === "Personal Development & Self-Improvement (0)");
     expect(empty).toBeDefined();
     expect(empty?.disabled).toBe(true);
   });
