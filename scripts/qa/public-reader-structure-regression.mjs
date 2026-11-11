@@ -16,19 +16,24 @@ if (!Array.isArray(fixture.books) || fixture.books.length !== 44 ||
     shard < 0 || shard >= shards) {
   throw new Error("Invalid structure QA fixture or shard parameters");
 }
-const books = fixture.books.filter((_, i) => i % shards === shard);
+const DIAGNOSTIC = process.env.QA_DIAGNOSTIC === "1";
+const books = fixture.books.filter((_, i) => i % shards === shard).slice(0, DIAGNOSTIC ? 1 : undefined);
 const viewports = [
   { name: "desktop", context: { viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 } },
   { name: "touch-mobile", context: { viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true } },
 ];
 const normalize = (v) => String(v || "").replace(/\s+/gu, " ").trim();
+if (DIAGNOSTIC) console.log("SEEPARAH_DIAGNOSTIC_MODE: one book per shard, first viewport");
 const passed = [];
 const failed = [];
 const browser = await chromium.launch({ headless: true });
 try {
-  for (const device of viewports) {
+  for (const device of (DIAGNOSTIC ? viewports.slice(0, 1) : viewports)) {
     const context = await browser.newContext(device.context);
     const page = await context.newPage();
+    const pageErrors = [];
+    page.on("pageerror", (err) => pageErrors.push(String(err).slice(0, 350)));
+    page.on("console", (event) => { if (event.type() === "error") pageErrors.push(event.text().slice(0, 350)); });
     page.setDefaultTimeout(25_000);
     for (const book of books) {
       const ref = { id: book.id, title: book.title, device: device.name, expectedNodes: book.nodes.length };
@@ -40,7 +45,7 @@ try {
         const response = await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60_000 });
         if (!response || !response.ok()) throw new Error("Reader HTTP " + (response?.status() || "unknown"));
         const tocButton = page.getByRole("button", { name: "Table of contents", exact: true });
-        await tocButton.waitFor({ state: "visible", timeout: 40_000 });
+        await tocButton.waitFor({ state: "visible", timeout: DIAGNOSTIC ? 12_000 : 40_000 });
         await tocButton.click();
         const sheet = page.locator("div.fixed.inset-0").filter({
           has: page.getByRole("heading", { name: "Table of contents", exact: true })
@@ -75,6 +80,18 @@ try {
         passed.push(success);
         console.log("SEEPARAH_STRUCTURE_QA " + JSON.stringify(success));
       } catch (error) {
+        let pageState = null;
+        try {
+          pageState = await page.evaluate(() => ({
+            url: location.href, title: document.title, readyState: document.readyState,
+            path: location.pathname,
+            body: document.body?.innerText?.slice(0, 950) || "",
+            buttons: Array.from(document.querySelectorAll("button")).slice(0, 16)
+              .map((el) => ({ label: el.getAttribute("aria-label"), text: el.textContent?.slice(0, 50) })),
+            scripts: document.scripts.length,
+          }));
+        } catch (captureError) { pageState = { captureError: String(captureError) }; }
+        if (DIAGNOSTIC) console.error("SEEPARAH_DIAGNOSTIC " + JSON.stringify({ ...ref, pageState, pageErrors: pageErrors.slice(-8) }));
         const failure = { ...ref, status: "failed", error: String(error) };
         failed.push(failure);
         console.error("SEEPARAH_STRUCTURE_QA " + JSON.stringify(failure));
@@ -87,7 +104,7 @@ try {
 }
 console.log("SEEPARAH_STRUCTURE_SUMMARY " + JSON.stringify({
   shard, shards, books: books.length, attempted: passed.length + failed.length,
-  passed: passed.length, failed: failed.length, failures: failed,
+  passed: passed.length, failed: failed.length, failures: failed, diagnostic: DIAGNOSTIC,
   caveat: "Headless browser emulation, not physical mobile/assistive technology acceptance"
 }));
-if (passed.length + failed.length !== books.length * viewports.length || failed.length) process.exitCode = 1;
+if (passed.length + failed.length !== books.length * (DIAGNOSTIC ? 1 : viewports.length) || failed.length) process.exitCode = 1;
