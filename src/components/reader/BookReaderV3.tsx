@@ -66,7 +66,7 @@ export function BookReaderV3({
   initialLanguage?: string | undefined;
   initialChunkIndex?: number | undefined;
 }) {
-  const { userId } = useAuth();
+  const { userId, isDemo } = useAuth();
   const queryClient = useQueryClient();
   const prefs = useMemo(() => getPrefs(), []);
   const [language, setLanguage] = useState(
@@ -1231,6 +1231,7 @@ export function BookReaderV3({
           requestableLanguages={requestableLanguages}
           requestLanguage={requestLanguage}
           requestingTranslation={requestingTranslation}
+          signedIn={!isDemo && !!userId}
           translationRequestStatus={activeRequestStatus}
           theme={theme}
           onClose={() => setSettingsOpen(false)}
