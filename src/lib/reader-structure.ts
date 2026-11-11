@@ -100,13 +100,38 @@ function looksLikeDramaSpeakerCue(value: string): boolean {
   return withoutPeriod.split(/\s+/u).length <= 4;
 }
 
+/** A narrow guard for English structural part labels, preserving other scripts.
+ * null = not an English label (defer to existing multilingual matcher).
+ */
+function classifyEnglishPartLabel(line: string): boolean | null {
+  const candidate = /^(part|book|volume)(.*)$/iu.exec(line);
+  if (!candidate || /^part(?:ie|e)(?=$|[\s:.\-—–])/iu.test(line)) return null;
+  const remainder = candidate[2] ?? "";
+  if (!remainder || /^[:.\-—–]/u.test(remainder)) return true;
+  // Allow historically attested compact headings like "PartIV".
+  if (/^[IVXLCDM]+(?=$|[\s:.\-—–])/u.test(remainder)) return true;
+  if (!/^\s/u.test(remainder)) return false;
+  const label = remainder.trimStart();
+  if (!/^(?:(?:[ivxlcdm]+|\d+|[A-Z])(?=$|[\s:.\-—–])|(?:the\s+)?(?:first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|one|two|three|four|five)\b)/iu.test(label)) {
+    return false;
+  }
+  // A prose sentence about a printed volume isn't itself a division.
+  return !/^(?:[ivxlcdm]+|\d+)\s+(?:contains|includes|has|is|was|were)\b/iu.test(label);
+}
+
 export function classifyHeading(value: string): {
   kind: ReaderNavigationItem["kind"];
   level: 1 | 2 | 3;
 } | null {
   const line = cleanLine(value);
   if (!line || line.length > 140 || hasPrintedContentsPageSignal(value)) return null;
-  if (PART_HEADING.test(line) || CJK_PART_HEADING.test(line)) {
+  // Gutenberg narrative often begins "Part of", "Partly", "Parting", or
+  // "Volume 1 contains". These are prose, not book/volume divisions.
+  // A Roman-numeral-aware boundary alone accepts "Partly" (L = 50), so
+  // require a genuine ordinal/number for English part headings.
+  const englishPart = classifyEnglishPartLabel(line);
+  if (englishPart === true || (englishPart === null &&
+      (PART_HEADING.test(line) || CJK_PART_HEADING.test(line)))) {
     return { kind: "part", level: 1 };
   }
   if (
