@@ -87,7 +87,18 @@ function locateBoundary(
 
   for (let i = Math.max(0, after + 1); i < blocks.length; i++) {
     const block = blocks[i]!;
-    if (block.kind !== "heading" || normalizeTitle(block.text) !== title) continue;
+    if (block.kind !== "heading") continue;
+    const actualTitle = normalizeTitle(block.text);
+    // Gutenberg frequently prints a bare chapter label followed by an
+    // all-caps subtitle on its own line. parseReadableBlocks preserves both
+    // together as `CHAPTER I — SUBTITLE`, but the canonical structure row
+    // still says `CHAPTER I`. Match that exact prefix with the em dash
+    // separator; never accept arbitrary text prefixes (I vs II, etc).
+    const titleMatches =
+      actualTitle === title ||
+      (["chapter", "part", "book", "act"].includes(item.kind) &&
+        actualTitle.startsWith(title + " — "));
+    if (!titleMatches) continue;
     candidates.push({
       blockIndex: i,
       distance: Math.abs(block.sourceChunkIndex - item.index),
