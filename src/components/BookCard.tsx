@@ -21,6 +21,7 @@ export function BookCard({
   preferredLanguage,
   progressLanguage,
   monetizationEnabled = false,
+  alternateEditionCount = 1,
 }: {
   book: Book;
   progress?: number | null;
@@ -43,6 +44,8 @@ export function BookCard({
    * monetization is actually on (see content_settings.monetization_enabled).
    * Never infer this from `book.access_type` alone. */
   monetizationEnabled?: boolean;
+  /** >1 only for sourced alternate editions of the same published work. */
+  alternateEditionCount?: number;
 }) {
   const queryClient = useQueryClient();
   const prefetchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -151,6 +154,11 @@ export function BookCard({
               {displayTitle}
             </h3>
             <p className="text-sm text-muted-foreground">{displayAuthor}</p>
+            {alternateEditionCount > 1 && (
+              <p className="mt-1 text-xs font-medium text-primary">
+                {alternateEditionCount} source editions · {book.source_edition_id ?? "Seeparah edition"}
+              </p>
+            )}
           </div>
           {book.genre && (
             <span className="w-fit rounded-full bg-secondary px-2 py-0.5 text-[11px] font-semibold text-secondary-foreground">
