@@ -156,9 +156,9 @@ export function verifyGutenbergCandidate(
     throw new Error("Catalog is not an unrestricted English original work");
   if (b.authors?.length!==1 || !b.authors[0]?.name ||
       typeof b.authors[0].death_year!=="number" ||
-      b.authors[0].death_year>1925 ||
+      b.authors[0].death_year>1930 ||
       b.authors[0].death_year<1400 ||
-      year>1900 || year<1400)
+      year>1930 || year<1400)
     throw new Error("Author lifespan or original publication date needs separate rights review");
   if ((b.translators?.length??0)>0 || (b.editors?.length??0)>0)
     throw new Error("Named editor or translator needs separate rights clearance");
