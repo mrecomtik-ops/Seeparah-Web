@@ -15,12 +15,12 @@ on:
     branches: [main]
     paths:
       - 'scripts/qa/production-catalog-audit.mjs'
-      - 'scripts/qa/production-catalog-audit.test.mjs'
+      - 'scripts/qa/production-catalog-audit.selftest.mjs'
       - '.github/workflows/catalog-qa-autopilot.yml'
   pull_request:
     paths:
       - 'scripts/qa/production-catalog-audit.mjs'
-      - 'scripts/qa/production-catalog-audit.test.mjs'
+      - 'scripts/qa/production-catalog-audit.selftest.mjs'
       - '.github/workflows/catalog-qa-autopilot.yml'
 
 concurrency:
@@ -45,7 +45,7 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Catalogue pipeline unit tests
-        run: node --test scripts/qa/production-catalog-audit.test.mjs
+        run: node --test scripts/qa/production-catalog-audit.selftest.mjs
       - name: Existing source-vs-text validator regression suite
         run: node scripts/catalog-integrity/selftest.mjs
 
