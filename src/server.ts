@@ -137,6 +137,10 @@ export default {
           status: 308, headers: { Location: "/favicon.png" },
         }));
       }
+      if (url.pathname === "/api/catalog-qa-public.json") {
+        const { servePublicCatalogQa } = await import("./lib/catalog-qa-public.server");
+        return withSecurityHeaders(await servePublicCatalogQa(request));
+      }
       if (url.pathname === "/api/platform-usage") {
         const { handlePlatformUsageRequest } = await import("./lib/platform-usage.server");
         return withSecurityHeaders(await handlePlatformUsageRequest(request, env));
