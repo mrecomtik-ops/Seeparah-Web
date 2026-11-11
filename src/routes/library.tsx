@@ -30,6 +30,7 @@ import { SacredWorkIdentity } from "@/components/SacredWorkIdentity";
 import { getPublicContentSettings } from "@/lib/admin/settings.functions";
 import { countPagesRead } from "@/lib/reading-stats";
 import { canonicalAuthorKey, formatAuthorName } from "@/lib/author-name";
+import { matchesLibraryGenre, publishedGenreFacetCounts } from "@/lib/library-genres";
 import { publicBookDescription } from "@/lib/book-description";
 import { COLLECTION_TOPICS } from "@/lib/collection-topics";
 import { displayTitleCase } from "@/lib/display-text";
@@ -150,6 +151,8 @@ function LibraryPage() {
     [books],
   );
   const traditionsInUse = useMemo(() => publishedTraditions(books), [books]);
+  const genreCounts = useMemo(() => publishedGenreFacetCounts(books), [books]);
+  const genresInUse = useMemo(() => [...genreCounts.keys()].sort((a, b) => a.localeCompare(b)), [genreCounts]);
   const categoryCounts = useMemo(() => {
     const counts = new Map<string, number>();
     for (const b of books) {
@@ -204,7 +207,7 @@ function LibraryPage() {
     // separate, explicit filter facets, not folded into free-text search.
     const matchesQuery = matchesBookSearch(b, query);
     const matchesLang = !lang || b.available_languages.includes(lang);
-    const matchesGenre = !genre || b.genre === genre;
+    const matchesGenre = matchesLibraryGenre(b, genre);
     const matchesAuthor = !author ||
       canonicalAuthorKey(b.author) === canonicalAuthorKey(author);
     const matchesCategory = !category || (b.categories ?? []).includes(category);
@@ -450,7 +453,7 @@ function LibraryPage() {
           </div>
           {books.length > 0 && (
             <>
-              <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
                 <Select
                   label="Language"
                   value={lang}
@@ -470,6 +473,14 @@ function LibraryPage() {
                   value={tradition}
                   options={traditionsInUse}
                   onChange={(v) => updateSearch({ tradition: v ?? undefined })}
+                />
+                <Select
+                  label="Genre / subject"
+                  allLabel="All genres and subjects"
+                  value={genre}
+                  options={genresInUse}
+                  formatOption={(name) => `${name} (${genreCounts.get(name) ?? 0})`}
+                  onChange={(v) => updateSearch({ genre: v ?? undefined })}
                 />
                 <Select
                   label="Collection / topic"
