@@ -61,6 +61,9 @@ const CONTENT_SECURITY_POLICY = [
   "frame-ancestors 'none'",
   "form-action 'self' https://accounts.google.com",
   "script-src 'self' 'unsafe-inline'",
+  // CSP3: never permit HTML event-handler attributes even while the
+  // TanStack SSR hydration stream still needs its inline bootstrapping.
+  "script-src-attr 'none'",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
