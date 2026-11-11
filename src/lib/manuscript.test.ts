@@ -69,6 +69,27 @@ describe("splitManuscript", () => {
       .toEqual(["CHAPTER I", "CHAPTER II", "CHAPTER III", "CHAPTER I"]);
   });
 
+  it("clips illustrations front matter before the first actual chapter", () => {
+    const input=[
+      "TABLE OF CONTENTS",
+      "CHAPTER I. The beginning of a book",
+      "CHAPTER II. The second chapter",
+      "LIST OF ILLUSTRATIONS",
+      "1. Cover image",
+      "2. Title-page illustration",
+      "CHAPTER I.",
+      "A narrative passage that begins the actual first chapter.",
+      "CHAPTER II.",
+      "Another narrative passage from the next chapter.",
+    ].join("\\n\\n");
+    const parsed=parseManuscript(input);
+    const front=parsed.structure.find((n) => n.title==="LIST OF ILLUSTRATIONS");
+    const chapters=parsed.structure.filter((n) => n.nodeType==="chapter");
+    expect(front).toBeDefined();
+    expect(chapters.length).toBeGreaterThanOrEqual(2);
+    expect(front!.endChunkIndex).toBeLessThanOrEqual(chapters.at(-2)!.startChunkIndex);
+  });
+
   it("never returns an empty array for non-empty input", () => {
     expect(splitManuscript("Just one line, no blank lines at all.")).toHaveLength(1);
   });
