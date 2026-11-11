@@ -12,18 +12,35 @@ import {
  * Reader translation requests register demand only. Approval, translation
  * rights, job creation, and publication remain separate privileged actions.
  */
-export function useReaderTranslationRequest(book: Book, userId: string) {
+export function useReaderTranslationRequest(book: Book, userId: string, signedIn: boolean) {
   const queryClient = useQueryClient();
   const [requestLanguage, setRequestLanguage] = useState("");
   const [requestingTranslation, setRequestingTranslation] = useState(false);
+  // A hydrated, signed-in account can briefly have no readable local JWT
+  // while Supabase rotates its access token. Retry its refresh once instead
+  // of incorrectly telling that user to sign in as a guest. The protected
+  // server endpoint still independently verifies the actual session token.
+  async function currentAccountToken(): Promise<string | null> {
+    const { data, error } = await supabase.auth.getSession();
+    if (error) throw error;
+    if (data.session?.user.id === userId && data.session.access_token) {
+      return data.session.access_token;
+    }
+    if (!signedIn) return null;
+    const renewed = await supabase.auth.refreshSession();
+    if (renewed.error) return null;
+    return renewed.data.session?.user.id === userId
+      ? renewed.data.session?.access_token ?? null
+      : null;
+  }
   const requests = useQuery({
     queryKey: ["my-translation-requests", userId, book.id],
     queryFn: async () => {
-      const { data } = await supabase.auth.getSession();
-      const token = data.session?.access_token;
+      const token = await currentAccountToken();
       if (!token) return [];
       return listMyTranslationRequests({ data: { accessToken: token } });
     },
+    enabled: signedIn,
     staleTime: 60_000,
   });
   const activeRequestStatus = (requests.data ?? []).find(
@@ -36,10 +53,11 @@ export function useReaderTranslationRequest(book: Book, userId: string) {
         book.translation_generation_policy === "source_only") return;
     setRequestingTranslation(true);
     try {
-      const { data } = await supabase.auth.getSession();
-      const token = data.session?.access_token;
+      const token = await currentAccountToken();
       if (!token) {
-        toast.info("Sign in to submit a translation request.", {
+        toast.info(signedIn
+          ? "Your session could not be refreshed. Sign in again to send this request."
+          : "Sign in to submit a translation request.", {
           action: { label: "Sign in", onClick: () => window.location.assign("/auth") },
         });
         return;
