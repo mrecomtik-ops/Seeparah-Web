@@ -3,6 +3,7 @@
 // reader-safe bibliographic fields and deliberately excludes rights/review,
 // operator notes, reviewer ids, rejection reasons and other internal columns.
 import type { Book } from "@/lib/data";
+import { formatAuthorName } from "@/lib/author-name";
 
 async function admin() {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -116,7 +117,22 @@ export function sanitizedPublicBook(row: Book): Book {
   // replacement year. The stored numeric year is also uncorroborated and
   // must not be sent to readers as if it were a verified fact.
   if (/first-publication year has not been independently corroborated/i.test(description)) {
-    return { ...row, original_publication_year: null };
+    // Source audit preserved the archival creator field, but the old
+    // Gutenberg template copied inverted MARC-style names directly into
+    // public prose ("by Holt, Emily Sarah"). Fix presentation only.
+    // Do not invent a synopsis, change attribution, or restore a guessed year.
+    const archivalPrefix = `${row.title} by ${row.author}.`;
+    let readerDescription = description;
+    if (row.title && row.author && description.startsWith(archivalPrefix)) {
+      const authorParts = row.author.split(",").map((x) => x.trim());
+      const readerAuthor = authorParts.length === 3 &&
+        /^(?:jr\.?|sr\.?|ii|iii|iv)$/iu.test(authorParts[2] ?? "")
+        ? `${authorParts[1]} ${authorParts[0]}, ${authorParts[2]}`
+        : formatAuthorName(row.author);
+      const punctuation = /[.!?]$/u.test(readerAuthor) ? "" : ".";
+      readerDescription = `${row.title} by ${readerAuthor}${punctuation}${description.slice(archivalPrefix.length)}`;
+    }
+    return { ...row, description: readerDescription, original_publication_year: null };
   }
   if (!/This sourced English-language reading edition presents the full original work\.\s+Source subject classifications:/i.test(description)) {
     return row;
