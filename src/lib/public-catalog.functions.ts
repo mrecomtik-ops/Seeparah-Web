@@ -36,6 +36,14 @@ export const searchPublicBooks = createServerFn({ method: "GET" })
     return run(data.query);
   });
 
+/** Public author pages cannot query raw author_profiles/account IDs. */
+export const getPublicAuthorProfile = createServerFn({ method: "GET" })
+  .validator((data) => z.object({ authorId: z.string().uuid() }).parse(data))
+  .handler(async ({ data }) => {
+    const { getPublicAuthorProfile: run } = await import("@/lib/public-catalog.server");
+    return run(data.authorId);
+  });
+
 export const listPublicBooksByAuthorId = createServerFn({ method: "GET" })
   .validator((data) => z.object({ authorId: z.string().uuid() }).parse(data))
   .handler(async ({ data }) => {

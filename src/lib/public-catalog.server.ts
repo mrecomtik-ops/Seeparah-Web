@@ -3,6 +3,7 @@
 // reader-safe bibliographic fields and deliberately excludes rights/review,
 // operator notes, reviewer ids, rejection reasons and other internal columns.
 import type { Book } from "@/lib/data";
+import { formatAuthorName } from "@/lib/author-name";
 
 async function admin() {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -116,7 +117,22 @@ export function sanitizedPublicBook(row: Book): Book {
   // replacement year. The stored numeric year is also uncorroborated and
   // must not be sent to readers as if it were a verified fact.
   if (/first-publication year has not been independently corroborated/i.test(description)) {
-    return { ...row, original_publication_year: null };
+    // Source audit preserved the archival creator field, but the old
+    // Gutenberg template copied inverted MARC-style names directly into
+    // public prose ("by Holt, Emily Sarah"). Fix presentation only.
+    // Do not invent a synopsis, change attribution, or restore a guessed year.
+    const archivalPrefix = `${row.title} by ${row.author}.`;
+    let readerDescription = description;
+    if (row.title && row.author && description.startsWith(archivalPrefix)) {
+      const authorParts = row.author.split(",").map((x) => x.trim());
+      const readerAuthor = authorParts.length === 3 &&
+        /^(?:jr\.?|sr\.?|ii|iii|iv)$/iu.test(authorParts[2] ?? "")
+        ? `${authorParts[1]} ${authorParts[0]}, ${authorParts[2]}`
+        : formatAuthorName(row.author);
+      const punctuation = /[.!?]$/u.test(readerAuthor) ? "" : ".";
+      readerDescription = `${row.title} by ${readerAuthor}${punctuation}${description.slice(archivalPrefix.length)}`;
+    }
+    return { ...row, description: readerDescription, original_publication_year: null };
   }
   if (!/This sourced English-language reading edition presents the full original work\.\s+Source subject classifications:/i.test(description)) {
     return row;
@@ -189,6 +205,41 @@ export async function searchPublicBooks(query: string): Promise<Book[]> {
   );
 }
 
+
+/** Only opt-in public author presentation, not the underlying account UUID.
+ * Anonymous users must not access author_profiles directly; public profile
+ * projection is available only after a published book references this author.
+ * The separate owner editing workflow continues to use its own RLS account. */
+export type PublicAuthorProfile = {
+  pen_name: string | null;
+  bio: string | null;
+  avatar_url: string | null;
+};
+
+/** Never project authentication IDs or unpublished account metadata. */
+export function asPublicAuthorProfile(value: Record<string, unknown>): PublicAuthorProfile {
+  return {
+    pen_name: typeof value["pen_name"] === "string" ? value["pen_name"] : null,
+    bio: typeof value["bio"] === "string" ? value["bio"] : null,
+    avatar_url: typeof value["avatar_url"] === "string" ? value["avatar_url"] : null,
+  };
+}
+
+export async function getPublicAuthorProfile(authorId: string): Promise<PublicAuthorProfile | null> {
+  const db = await admin();
+  const { data: published, error: publicationError } = await db.from("books")
+    .select("id")
+    .eq("author_id", authorId)
+    .eq("status", "published")
+    .limit(1).maybeSingle();
+  if (publicationError) throw new Error(publicationError.message);
+  if (!published) return null;
+  const { data, error } = await db.from("author_profiles")
+    .select("pen_name,bio,avatar_url")
+    .eq("user_id", authorId).maybeSingle();
+  if (error) throw new Error(error.message);
+  return data ? asPublicAuthorProfile(data) : null;
+}
 
 export async function listPublicBooksByAuthorId(authorId: string): Promise<Book[]> {
   return pagedPublishedBooks(PUBLIC_BOOK_COLUMNS, { authorId, descending: true });

@@ -42,6 +42,36 @@ describe("unverified Gutenberg metadata display", () => {
   });
 });
 
+describe("QA-013 source-aware bibliographic author presentation", () => {
+  it("displays archival inverted author names naturally, without editing the book or claiming a year", () => {
+    const item = {
+      title: "A Danish Parsonage",
+      author: "Vicary, John Fulford",
+      original_publication_year: null,
+      description: "A Danish Parsonage by Vicary, John Fulford. Its first-publication year has not been independently corroborated. This reading edition is based on archived Project Gutenberg source text.",
+    } as Book;
+    const shown = sanitizedPublicBook(item);
+    expect(shown.description).toContain("by John Fulford Vicary.");
+    expect(shown.description).not.toContain("by Vicary, John Fulford");
+    expect(shown.original_publication_year).toBeNull();
+    expect(item.description).toContain("by Vicary, John Fulford");
+  });
+  it("keeps suffix and non-inverted author names readable", () => {
+    const item = {
+      title: "A Cousin's Conspiracy",
+      author: "Alger, Horatio, Jr.",
+      original_publication_year: null,
+      description: "A Cousin's Conspiracy by Alger, Horatio, Jr.. Its first-publication year has not been independently corroborated.",
+    } as Book;
+    const shown = sanitizedPublicBook(item);
+    expect(shown.description).toContain("by Horatio Alger, Jr.");
+    expect(shown.description).not.toContain("Jr..");
+    const natural = { ...item, author: "Mark Twain",
+      description: "A Cousin's Conspiracy by Mark Twain. Its first-publication year has not been independently corroborated." };
+    expect(sanitizedPublicBook(natural).description).toContain("by Mark Twain.");
+  });
+});
+
 describe("QA-001 production neutralization", () => {
   it("redacts the numeric year alongside neutral public metadata", () => {
     const book = {
