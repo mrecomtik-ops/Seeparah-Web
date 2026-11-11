@@ -4,7 +4,7 @@
 
 ## What happens automatically
 
-GitHub Actions workflow [`.github/workflows/catalog-qa-autopilot.yml`](../../.github/workflows/catalog-qa-autopilot.yml) runs every day at **03:15 UTC / 07:15 Dubai**, after relevant changes to `main`, or when triggered manually. It:
+GitHub Actions workflow [`.github/workflows/catalog-qa-autopilot.yml`](../../../.github/workflows/catalog-qa-autopilot.yml) runs every day at **03:15 UTC / 07:15 Dubai**, after relevant changes to `main`, or when triggered manually. It:
 
 1. Runs the existing source-versus-reader **synthetic integrity self-tests** and the new six read-only audit tests. Note that the complete corpus-vs-production validator requires the actual original EPUB/TXT packages, which are **not** bundled in GitHub Actions. Self-tests do not prove all books complete.
 2. Reads only the existing published book metadata, private QA status register, backed-up unverified publication-year IDs, and Gutenberg importer settings from Supabase. Uses **HTTP GET only**; no RPC, INSERT, UPDATE, DELETE, or publication actions.
@@ -39,7 +39,7 @@ If secrets are absent, the workflow still runs its offline QA checks and writes 
 ## Offline tests / local read-only audit
 
 ```bash
-node --test scripts/qa/production-catalog-audit.test.mjs
+node --test scripts/qa/production-catalog-audit.selftest.mjs
 node scripts/catalog-integrity/selftest.mjs  # after npm ci
 
 # Optional manual read-only production audit (do not commit .env credentials)
