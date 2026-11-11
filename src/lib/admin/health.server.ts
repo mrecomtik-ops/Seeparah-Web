@@ -137,7 +137,8 @@ export async function getHealthSnapshot(): Promise<HealthSnapshot> {
   // can reach these service-role queries.
   const [yearReview, chapterReview, readerAcceptance, covers] = await Promise.all([
     importerDb.from("qa_20261111_unverified_publication_year_backups")
-      .select("book_id", { count: "exact", head: true }),
+      .select("book_id", { count: "exact", head: true })
+      .is("verified_at", null),
     importerDb.from("qa_20261110_gutenberg_structure_candidates")
       .select("book_id", { count: "exact", head: true })
       .eq("status", "requires_manual_source_review"),
