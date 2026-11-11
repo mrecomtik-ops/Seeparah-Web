@@ -66,7 +66,9 @@ function parseAuthor(authorsRaw:string):{author:string;death:number}|null{
   if(!m)return null;
   const death=Number(m[2]);
   const author=normalize(raw.replace(/,\s*\d{4}-\d{4}$/,""));
-  if(!Number.isInteger(death)||death<1450||death>1900||
+  // Intake candidates who died after 1900 for editorial RIGHTS review only.
+  // The fast importer must never auto-publish them on an inferred US-only licence.
+  if(!Number.isInteger(death)||death<1450||death>1930||
      author.length<5||author.length>180)return null;
   return {author,death};
 }
