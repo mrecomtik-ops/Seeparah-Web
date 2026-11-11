@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   analyzeCatalogue, createReadOnlySupabase, csvField, detectEditionVariants,
-  main, makeCsv, renderMarkdown, smokeSitemap,
+  fetchPublicQaSnapshot, main, makeCsv, renderMarkdown, smokeSitemap,
 } from './production-catalog-audit.mjs';
 
 const data = {
@@ -101,6 +101,27 @@ test('offline fixture creates the four exact review-queue CSVs with no credentia
   assert.equal(rc, 0);
   const md = await readFile(join(dir, 'report', 'summary.md'), 'utf8');
   const queue = await readFile(join(dir, 'report', 'source-review.csv'), 'utf8');
-  assert(md.includes('Production data: **verified by private read-only query**'));
+  assert(md.includes('Production data: **verified from the published-only production snapshot**'));
   assert(queue.includes('SOURCE_VERIFICATION_REQUIRED'));
+});
+test('trusted secretless QA source accepts only official published-only Seeparah data', async () => {
+  const fetchFn = async (url, options) => {
+    assert.equal(url.href, 'https://seeparah.com/api/catalog-qa-public.json');
+    assert.equal(options.method, 'GET');
+    assert(!('apikey' in (options.headers ?? {})));
+    return { ok:true, json: async () => ({
+      version:1, scope:'published-catalogue-only',
+      books:[{id:'x',title:'Public',status:'published'}],reviews:[],oldYears:[],
+      importer:{enabled:false,target_published:10000,batch_size:100}
+    }) };
+  };
+  const d = await fetchPublicQaSnapshot('https://seeparah.com/api/catalog-qa-public.json', fetchFn);
+  assert.equal(d.books.length,1);
+  await assert.rejects(()=>fetchPublicQaSnapshot('https://malicious.example/api/catalog-qa-public.json',fetchFn), /Only the official/);
+  await assert.rejects(()=>fetchPublicQaSnapshot('https://seeparah.com/api/catalog-qa-public.json?leak=1',fetchFn), /Only the official/);
+  const invalid = async () => ({ok:true,json:async()=>({
+    version:1,scope:'published-catalogue-only', books:[{status:'draft'}],reviews:[],oldYears:[],
+    importer:{enabled:false}
+  })});
+  await assert.rejects(()=>fetchPublicQaSnapshot('https://seeparah.com/api/catalog-qa-public.json', invalid), /unpublished/);
 });

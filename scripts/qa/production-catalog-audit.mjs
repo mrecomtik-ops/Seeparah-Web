@@ -100,12 +100,39 @@ export async function fetchData(client) {
   const [books, reviews, oldYears, importer] = await Promise.all([
     client.getAll('books', { select: COLUMN_BOOK, status: 'eq.published', order: 'id.asc' }),
     client.getAll('qa_20261110_gutenberg_structure_candidates', { select: COLUMN_REVIEW, order: 'priority.asc,book_title.asc' }),
-    client.getAll('qa_20261111_unverified_publication_year_backups', { select: COLUMN_BACKUP, order: 'book_id.asc' }),
+    client.getAll('qa_20261111_unverified_publication_year_backups', { select: COLUMN_BACKUP, verified_at: 'is.null', order: 'book_id.asc' }),
     client.get('gutenberg_autopilot_settings', { select: 'id,enabled,target_published,batch_size', id: 'eq.1', limit: '1' }),
   ]);
   if (importer.length !== 1) throw Error('Importer settings absent or duplicated');
   if (books.length === 0) throw Error('Published catalogue unexpectedly empty');
   return { books, reviews, oldYears, importer: importer[0] };
+}
+
+/** Secretless QA: fetch published-only metadata from Seeparah's own
+ * allowlisted Cloudflare projection, never from private PostgREST tables.
+ * The server's Supabase key remains exclusively in the existing Worker env.
+ */
+export async function fetchPublicQaSnapshot(url = 'https://seeparah.com/api/catalog-qa-public.json', fetchFn = fetch) {
+  const target = new URL(url);
+  if (target.origin !== 'https://seeparah.com' ||
+      target.pathname !== '/api/catalog-qa-public.json' ||
+      target.search || target.hash) {
+    throw Error('Only the official Seeparah published-only QA projection is supported');
+  }
+  const response = await fetchFn(target, {
+    method: 'GET', redirect: 'error', signal: AbortSignal.timeout(URL_TIMEOUT_MS),
+    headers: { Accept: 'application/json' },
+  });
+  if (!response.ok) throw Error('Public Seeparah QA projection unavailable: HTTP ' + response.status);
+  const payload = await response.json();
+  if (payload?.version !== 1 || payload?.scope !== 'published-catalogue-only' ||
+      !Array.isArray(payload.books) || !Array.isArray(payload.reviews) ||
+      !Array.isArray(payload.oldYears) || !payload.importer) {
+    throw Error('Invalid or outdated public QA projection response');
+  }
+  if (payload.books.some(b => b?.status !== 'published'))
+    throw Error('Public QA projection unexpectedly includes unpublished records');
+  return payload;
 }
 
 export function analyzeCatalogue(data, batchSize = 25) {
@@ -136,6 +163,8 @@ export function analyzeCatalogue(data, batchSize = 25) {
     critical.push(`${suspectYears.length} published Gutenberg records still expose suspect 1800/1656 publication years.`);
   if (yearIds.size > years.length)
     critical.push(`${yearIds.size - years.length} year backup records have no matching published-book row; reconcile publication state before re-enabling imports.`);
+  if (Number(data.safety?.unpublishedYearBackupCount ?? 0) > 0)
+    critical.push(`${data.safety.unpublishedYearBackupCount} private year-backup records lack a published book. Human review required.`);
   const chapterRows = sourceReview.slice(0, batchSize).map(r => ({
     book_id: String(r.book_id), title: String(r.book_title ?? ''), priority: String(r.priority ?? ''),
     stored_chapters: r.stored_chapter_nodes, source_heading_hits: r.source_chapter_pattern_chunks,
@@ -210,7 +239,7 @@ export function renderMarkdown(report) {
   const lines = [
     '# Seeparah production QA — read-only report', '',
     `Generated: ${report.auditedAt}`, '',
-    `Production data: **${c ? 'verified by private read-only query' : 'NOT VERIFIED (secrets not configured)'}**`,
+    `Production data: **${c ? 'verified from the published-only production snapshot' : 'NOT VERIFIED (production snapshot unavailable)'}**`,
     `Public sitemap: **${report.sitemap?.status ?? 'NOT CHECKED'}**`, '',
   ];
   if (c) {
@@ -230,7 +259,7 @@ export function renderMarkdown(report) {
     lines.push('## Safety alerts', '', ...report.critical.map(s => `- **BLOCK:** ${sanitizeMarkdown(s)}`), '');
   }
   if (!c) lines.push('## Setup needed', '',
-    'Configure GitHub Actions secrets `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` for complete private read-only QA. No production changes are made.', '');
+    'Ensure https://seeparah.com/api/catalog-qa-public.json is deployed and reachable. No Supabase credentials are required in GitHub Actions.', '');
   for (const [title, rows] of [
     ['Next source-review batch', q?.chapterRows], ['Next reader/device acceptance batch', q?.visualRows],
     ['Next historical-year evidence batch', q?.yearRows], ['Next high-resolution cover source batch', q?.coverRows],
@@ -271,13 +300,15 @@ export async function main(argv = process.argv.slice(2)) {
   const out = resolve(val('--out') ?? 'audit-out/catalog-qa');
   const batchSize = Number(val('--batch-size') ?? 25);
   const fixtureFile = val('--fixture');
-  const requireDb = argv.includes('--require-db');
+  const requireDb = argv.includes('--require-db') || argv.includes('--require-data');
   const report = { auditedAt: new Date().toISOString(), counts: null, critical: [], queues: {}, sitemap: null };
   let setupMissing = false;
   try {
     let data;
     if (fixtureFile) {
       data = JSON.parse(await readFile(resolve(fixtureFile), 'utf8'));
+    } else if (val('--public-url')) {
+      data = await fetchPublicQaSnapshot(val('--public-url'));
     } else if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
       data = await fetchData(createReadOnlySupabase({
         url: process.env.SUPABASE_URL, key: process.env.SUPABASE_SERVICE_ROLE_KEY,
@@ -295,7 +326,7 @@ export async function main(argv = process.argv.slice(2)) {
   for (const alert of report.critical) console.error(`QA BLOCK: ${alert}`);
   if (report.critical.length > 0) return 1;
   if (setupMissing && requireDb) {
-    console.error('Required GitHub Actions secrets missing: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY');
+    console.error('No trusted QA data source configured (use --public-url or private Supabase credentials)');
     return 2;
   }
   return 0;

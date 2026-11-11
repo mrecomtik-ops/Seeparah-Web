@@ -66,12 +66,12 @@ jobs:
       - name: Scan current catalogue and sitemap; never write to Supabase
         id: audit
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          QA_PUBLIC_URL: https://seeparah.com/api/catalog-qa-public.json
           BATCH_SIZE: ${{ inputs.batch_size || 25 }}
         run: |
           node scripts/qa/production-catalog-audit.mjs \
-            --require-db \
+            --public-url "$QA_PUBLIC_URL" \
+            --require-data \
             --batch-size "$BATCH_SIZE" \
             --out audit-out/catalog-qa
       - name: Store prioritized review queues and structured evidence
