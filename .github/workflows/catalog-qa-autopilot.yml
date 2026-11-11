@@ -1,0 +1,99 @@
+name: Seeparah catalogue QA autopilot (read-only)
+
+on:
+  schedule:
+    # Daily at 07:15 Dubai time; cron runs UTC, and GitHub may delay starts.
+    - cron: '15 3 * * *'
+  workflow_dispatch:
+    inputs:
+      batch_size:
+        description: 'Number of items to triage per queue (1–100)'
+        required: false
+        type: number
+        default: 25
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/qa/production-catalog-audit.mjs'
+      - 'scripts/qa/production-catalog-audit.selftest.mjs'
+      - '.github/workflows/catalog-qa-autopilot.yml'
+  pull_request:
+    paths:
+      - 'scripts/qa/production-catalog-audit.mjs'
+      - 'scripts/qa/production-catalog-audit.selftest.mjs'
+      - '.github/workflows/catalog-qa-autopilot.yml'
+
+concurrency:
+  group: seeparah-catalog-qa-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  offline-validator:
+    name: Verify source-integrity QA tools
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Catalogue pipeline unit tests
+        run: node --test scripts/qa/production-catalog-audit.selftest.mjs
+      - name: Existing source-vs-text validator regression suite
+        run: node scripts/catalog-integrity/selftest.mjs
+
+  production-report:
+    name: Read-only production audit and review queues
+    needs: offline-validator
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Scan current catalogue and sitemap; never write to Supabase
+        id: audit
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          BATCH_SIZE: ${{ inputs.batch_size || 25 }}
+        run: |
+          node scripts/qa/production-catalog-audit.mjs \
+            --require-db \
+            --batch-size "$BATCH_SIZE" \
+            --out audit-out/catalog-qa
+      - name: Store prioritized review queues and structured evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: seeparah-catalog-qa-${{ github.run_id }}
+          path: audit-out/catalog-qa/
+          if-no-files-found: warn
+          retention-days: 30
+      - name: Maintain one rolling backlog issue (no DB changes)
+        if: steps.audit.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          title='Seeparah catalogue QA — rolling review backlog'
+          issue_number="$(gh issue list --state open --limit 100 --json number,title \
+            --jq '.[] | select(.title == "Seeparah catalogue QA — rolling review backlog") | .number' | head -n 1)"
+          if [[ -n "$issue_number" ]]; then
+            gh issue edit "$issue_number" --body-file audit-out/catalog-qa/summary.md
+          else
+            gh issue create --title "$title" --body-file audit-out/catalog-qa/summary.md
+          fi
