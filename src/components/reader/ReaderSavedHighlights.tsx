@@ -1,14 +1,17 @@
 import { X, Highlighter, BookOpen, ArrowUpRight } from "lucide-react";
 import type { Highlight } from "@/lib/data";
+import type { ReaderChapter } from "@/lib/reader-book-layout";
 
 export function ReaderSavedHighlights({
   highlights,
   language,
+  chapters = [],
   onClose,
   onJump,
 }: {
   highlights: Highlight[];
   language: string;
+  chapters?: readonly Pick<ReaderChapter, "title" | "startChunkIndex">[];
   onClose: () => void;
   onJump: (highlight: Highlight) => void;
 }) {
@@ -73,7 +76,9 @@ export function ReaderSavedHighlights({
                         </span>
                       )}
                       <span className="mt-2 block text-xs text-muted-foreground">
-                        {new Date(highlight.created_at).toLocaleDateString()} · Source section {highlight.chunk_index + 1}
+                        {new Date(highlight.created_at).toLocaleDateString()} · {chapters.reduce<string>((title, chapter) =>
+                          chapter.startChunkIndex <= highlight.chunk_index ? chapter.title : title,
+                        "") || "Source section " + (highlight.chunk_index + 1)}
                       </span>
                     </span>
                     <ArrowUpRight className="mt-1 h-4 w-4 shrink-0 text-muted-foreground group-hover:text-primary" aria-hidden="true"/>
