@@ -30,7 +30,18 @@ async function runScheduledTranslationWork() {
 async function runScheduledGutenbergWork(): Promise<void> {
   try {
     const { supabaseAdmin } = await import("./integrations/supabase/client.server");
-    const { data, error } = await supabaseAdmin.from("gutenberg_autopilot_settings")
+    // The importer settings table was added after the generated public
+    // Supabase client types, so narrow this read explicitly (fail closed).
+    type SettingsClient = { from(table: "gutenberg_autopilot_settings"): {
+      select(columns: "enabled"): { eq(column: "id", value: number): {
+        maybeSingle(): Promise<{
+          data: { enabled: boolean } | null;
+          error: { message: string } | null;
+        }>;
+      } };
+    } };
+    const settingsDb = supabaseAdmin as unknown as SettingsClient;
+    const { data, error } = await settingsDb.from("gutenberg_autopilot_settings")
       .select("enabled").eq("id", 1).maybeSingle();
     if (error) throw new Error(error.message);
     if (data?.enabled !== true) return;
