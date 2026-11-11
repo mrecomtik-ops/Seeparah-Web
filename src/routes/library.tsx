@@ -30,6 +30,7 @@ import { SacredWorkIdentity } from "@/components/SacredWorkIdentity";
 import { getPublicContentSettings } from "@/lib/admin/settings.functions";
 import { countPagesRead } from "@/lib/reading-stats";
 import { canonicalAuthorKey, formatAuthorName } from "@/lib/author-name";
+import { publishedEditionVariantCounts } from "@/lib/edition-variants";
 import { matchesLibraryGenre, publishedGenreFacetCounts } from "@/lib/library-genres";
 import { publicBookDescription } from "@/lib/book-description";
 import { COLLECTION_TOPICS } from "@/lib/collection-topics";
@@ -132,6 +133,8 @@ function LibraryPage() {
     }
     return map;
   }, [progressQuery.data]);
+
+  const editionVariantCounts = useMemo(() => publishedEditionVariantCounts(books), [books]);
 
   const authors = useMemo(() => {
     const byDisplay = new Map<string, string>();
@@ -694,6 +697,7 @@ function LibraryPage() {
                       preferredLanguage={lang}
                       progressLanguage={progressByBook.get(b.id)?.language ?? null}
                       monetizationEnabled={monetizationEnabled}
+                      alternateEditionCount={editionVariantCounts.get(b.id) ?? 1}
                     />
                   ))}
                 </div>

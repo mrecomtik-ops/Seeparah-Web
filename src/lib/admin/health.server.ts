@@ -38,6 +38,12 @@ export interface HealthSnapshot {
     occurredAt: string;
   }[];
   geminiConfigured: boolean;
+  catalogIntegrity: {
+    pendingHistoricalYearReview: number;
+    pendingChapterSourceReview: number;
+    pendingReaderAcceptance: number;
+    lowResolutionSourceCovers: number;
+  };
   importer: {
     enabled: boolean;
     targetPublished: number;
@@ -125,6 +131,26 @@ export async function getHealthSnapshot(): Promise<HealthSnapshot> {
   ["queued", "processing", "published", "in_review", "failed", "skipped"]
     .forEach((status, i) => { counts[status] = statusResults[i]?.count ?? 0; });
 
+  // Exact read-only quality counts from the existing private QA register.
+  // This surfaces incomplete remediation instead of falsely calling the
+  // 10k-import pipeline launch-ready. Only authenticated health.read staff
+  // can reach these service-role queries.
+  const [yearReview, chapterReview, readerAcceptance, covers] = await Promise.all([
+    importerDb.from("qa_20261111_unverified_publication_year_backups")
+      .select("book_id", { count: "exact", head: true }),
+    importerDb.from("qa_20261110_gutenberg_structure_candidates")
+      .select("book_id", { count: "exact", head: true })
+      .eq("status", "requires_manual_source_review"),
+    importerDb.from("qa_20261110_gutenberg_structure_candidates")
+      .select("book_id", { count: "exact", head: true })
+      .eq("status", "navigation_repaired_pending_visual_qa"),
+    db.from("books").select("id", { count: "exact", head: true })
+      .eq("status", "published").ilike("cover_url", "%cover-medium.jpg"),
+  ]);
+  for (const result of [yearReview, chapterReview, readerAcceptance, covers]) {
+    if (result.error) throw new Error("Catalogue QA metrics unavailable: " + result.error.message);
+  }
+
   const { isGeminiConfigured } = await import("@/lib/gemini.server");
 
   return {
@@ -158,6 +184,12 @@ export async function getHealthSnapshot(): Promise<HealthSnapshot> {
       occurredAt: e.occurred_at,
     })),
     geminiConfigured: isGeminiConfigured(),
+    catalogIntegrity: {
+      pendingHistoricalYearReview: yearReview.count ?? 0,
+      pendingChapterSourceReview: chapterReview.count ?? 0,
+      pendingReaderAcceptance: readerAcceptance.count ?? 0,
+      lowResolutionSourceCovers: covers.count ?? 0,
+    },
     importer: {
       enabled: settingsResult.data.enabled,
       targetPublished: settingsResult.data.target_published,
