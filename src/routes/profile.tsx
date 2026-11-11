@@ -213,7 +213,7 @@ function ProfilePage() {
 
         <div className="mt-6 grid gap-4 sm:grid-cols-3">
           {[
-            { label: "Pages read", value: pagesRead, icon: BookOpen },
+            { label: "Source sections reached", value: pagesRead, icon: BookOpen },
             {
               label: "Highlights saved",
               value: highlightsQuery.data?.length ?? 0,
@@ -378,7 +378,7 @@ function ProfilePage() {
             </label>
             <label className="flex flex-col gap-1">
               <span className="text-xs font-medium text-muted-foreground">
-                Weekly reading goal (pages)
+                Weekly page goal (tracking pending)
               </span>
               <input
                 type="number"

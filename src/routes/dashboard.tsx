@@ -11,7 +11,6 @@ import { coverFor } from "@/lib/covers";
 import { isSharedSacredCollectionCover } from "@/lib/sacred-cover-artwork";
 import { SacredWorkIdentity } from "@/components/SacredWorkIdentity";
 import { currentStreak, readingDays } from "@/lib/shelves";
-import { getPrefs } from "@/lib/prefs";
 import { getPublicContentSettings } from "@/lib/admin/settings.functions";
 import { countPagesRead } from "@/lib/reading-stats";
 import { formatAuthorName } from "@/lib/author-name";
@@ -40,7 +39,6 @@ function DashboardPage() {
   const { userId, displayName, isDemo, loading: authLoading } = useAuth();
   const [streak, setStreak] = useState(0);
   const [daysThisWeek, setDaysThisWeek] = useState(0);
-  const [goal, setGoal] = useState(40);
 
   useEffect(() => {
     setStreak(currentStreak());
@@ -48,7 +46,6 @@ function DashboardPage() {
     week.setDate(week.getDate() - 6);
     const cutoff = week.toISOString().slice(0, 10);
     setDaysThisWeek(readingDays().filter((d) => d >= cutoff).length);
-    setGoal(getPrefs().weeklyGoalPages);
   }, []);
 
   const booksQuery = useQuery({ queryKey: ["books"], queryFn: listBooks });
@@ -73,8 +70,9 @@ function DashboardPage() {
   );
   const currentBook = books.find((b) => b.id === latest?.book_id);
   const pagesRead = countPagesRead(progress);
-  const goalPct = Math.min(100, Math.round((pagesRead / Math.max(1, goal)) * 100));
-  const goalReached = pagesRead >= goal;
+  // Source chunks are not physical paper pages. Device-local reading days
+  // are the only verified weekly activity metric available today.
+  const activityPct = Math.min(100, Math.round((daysThisWeek / 7) * 100));
   const hasReadingHistory = progress.length > 0;
 
   const wanted = new Set(
@@ -136,7 +134,7 @@ function DashboardPage() {
                   </p>
                   <h2 className="mt-2 font-display text-2xl font-semibold">{currentBook.title}</h2>
                   <p className="mt-1 text-sm opacity-80">
-                    {formatAuthorName(currentBook.author)} · {latest?.language} · page{" "}
+                    {formatAuthorName(currentBook.author)} · {latest?.language} · source section{" "}
                     {(latest?.last_chunk_index ?? 0) + 1} of {currentBook.total_chunks}
                   </p>
                   <div className="mt-4 h-1.5 w-full overflow-hidden rounded-full bg-primary-foreground/20">
@@ -191,28 +189,22 @@ function DashboardPage() {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
             <div className="rounded-2xl border border-border bg-card p-5 card-shadow">
               <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                <Target className="h-3.5 w-3.5 text-primary" /> Weekly reading goal
+                <Target className="h-3.5 w-3.5 text-primary" /> Reading activity · last 7 days
               </p>
               <p className="mt-1 font-display text-2xl font-semibold text-foreground">
-                {pagesRead} / {goal} pages
+                {daysThisWeek} / 7 days with reading
               </p>
               <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-secondary">
                 <div
                   className="h-full rounded-full bg-primary transition-all"
-                  style={{ width: `${goalPct}%` }}
+                  style={{ width: `${activityPct}%` }}
                 />
               </div>
               <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs">
-                <span
-                  className={goalReached ? "font-semibold text-primary" : "text-muted-foreground"}
-                >
-                  {goalReached
-                    ? `Goal reached · +${Math.max(0, pagesRead - goal)} pages`
-                    : `${Math.max(0, goal - pagesRead)} pages to go`}
+                <span className="text-muted-foreground">
+                  {pagesRead.toLocaleString()} source sections reached across books (all time).
+                  Weekly physical-page totals are not yet tracked.
                 </span>
-                <Link to="/profile" className="font-semibold text-primary hover:underline">
-                  Adjust goal
-                </Link>
               </div>
             </div>
             <div className="rounded-2xl border border-border bg-card p-5 card-shadow">

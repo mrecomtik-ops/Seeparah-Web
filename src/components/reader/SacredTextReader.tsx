@@ -25,6 +25,7 @@ import { RTL_LANGUAGES, type Book, type Highlight } from "@/lib/data";
 import { captureSacredHighlightSelection, sacredSavedHighlightRanges, type SacredHighlightSelection } from "@/lib/sacred-highlight-selection";
 import { useAuth } from "@/lib/use-auth";
 import { renderSacredInline } from "@/lib/sacred-inline-markup";
+import { separateUnnumberedQuranBasmala, displayAyahTextForCopy } from "@/lib/quran-basmala";
 import {
   readSacredPrefs,
   persistSacredPrefs,
@@ -847,6 +848,19 @@ export function SacredTextReader({
                 ? bilingualAnalectsKind(chunk.content)
                 : null;
             const sourceVerseNumber = editionLayout === "dhammapada" ? chunk.chunkIndex + 1 : 0;
+            const quranSource = separateUnnumberedQuranBasmala({
+              layout: editionLayout, language, canonicalRef: chunk.canonicalRef,
+              content: chunk.content,
+            });
+            const sourcedText = quranSource.basmala ? (
+              <>
+                <span className="my-3 block text-center font-medium" dir="rtl" lang="ar">
+                  {quranSource.basmala}
+                </span>
+                {"\n"}
+                {renderSacredInline(quranSource.ayah)}
+              </>
+            ) : renderSacredInline(chunk.content);
             return (
               <article
                 key={chunk.chunkIndex}
@@ -878,14 +892,16 @@ export function SacredTextReader({
                       <span className="text-xs text-muted-foreground">{chunk.kind}</span>
                       <button
                         type="button"
-                        title="Copy exact original source text"
+                        title={quranSource.basmala ? "Copy ayah text without the unnumbered Basmala" : "Copy exact original source text"}
                         onClick={() => void (async () => {
                           try {
                             const text = chunk.fullContentLength
                               ? await loadExactFullSource(chunk.chunkIndex)
                               : chunk.content;
                             if (!text) throw new Error("Source unavailable");
-                            await navigator.clipboard?.writeText(text);
+                            await navigator.clipboard?.writeText(displayAyahTextForCopy({
+                              layout: editionLayout, language, canonicalRef: chunk.canonicalRef, content: text,
+                            }));
                           } catch {
                             window.alert("The full published source could not be verified. Please retry.");
                           }
@@ -905,7 +921,7 @@ export function SacredTextReader({
                         </p>
                       )}>
                       <p data-sacred-source-text="true" className="whitespace-pre-wrap break-words text-foreground" dir={direction} style={contentStyle}>
-                        {renderSacredInline(chunk.content)}
+                        {sourcedText}
                       </p>
                     </ProgressiveSourcePassage>
                   </>
@@ -924,7 +940,7 @@ export function SacredTextReader({
                         {chunk.label}
                       </sup>
                     )}
-                    <span data-sacred-source-text="true">{renderSacredInline(chunk.content)}</span>
+                    <span data-sacred-source-text="true">{sourcedText}</span>
                     {editionLayout === "quran" && (
                       <sup
                         dir="ltr"
