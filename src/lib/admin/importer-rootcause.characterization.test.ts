@@ -186,7 +186,7 @@ describe("English part-label classification does not turn narrative prose into v
       "Partly moved by remorse, she returned to the house.",
       "CHAPTER II",
       "The second chapter resumed the plot.",
-    ].join("\\n\\n");
+    ].join("\n\n");
     const structure = parseManuscript(manuscript, { preserveLineation: true }).structure;
     expect(structure.filter((node) => node.nodeType === "part").map((node) => node.title)).toEqual(["VOLUME I"]);
   });
