@@ -23,6 +23,26 @@ async function runScheduledTranslationWork() {
   }
 }
 
+/** Cloudflare cron must avoid loading both large Gutenberg import modules
+ * when editorial operations have paused the importer. This is a cheap,
+ * fail-closed DB gate: it never re-enables acquisition or skips any content,
+ * provenance or rights validation when the importer is later resumed. */
+async function runScheduledGutenbergWork(): Promise<void> {
+  try {
+    const { supabaseAdmin } = await import("./integrations/supabase/client.server");
+    const { data, error } = await supabaseAdmin.from("gutenberg_autopilot_settings")
+      .select("enabled").eq("id", 1).maybeSingle();
+    if (error) throw new Error(error.message);
+    if (data?.enabled !== true) return;
+    const { runGutenbergAutopilotOnce } = await import("./lib/admin/gutenberg-autopilot.server");
+    await runGutenbergAutopilotOnce();
+    const { processGutenbergImportQueueOnce } = await import("./lib/admin/gutenberg-fast-import.server");
+    await processGutenbergImportQueueOnce();
+  } catch (error) {
+    console.error("[gutenberg] scheduled acquisition error", error);
+  }
+}
+
 let serverEntryPromise: Promise<ServerEntry> | undefined;
 
 async function getServerEntry(): Promise<ServerEntry> {
@@ -133,11 +153,7 @@ export default {
     // Never count reviews/errors as published and never modify existing titles.
     // Fetching one queued book is deliberately sequential to avoid overlapping
     // database writes or unbounded external mirror traffic.
-    ctx.waitUntil(import("./lib/admin/gutenberg-autopilot.server")
-      .then(({ runGutenbergAutopilotOnce }) => runGutenbergAutopilotOnce())
-      .then(() => import("./lib/admin/gutenberg-fast-import.server"))
-      .then(({ processGutenbergImportQueueOnce }) => processGutenbergImportQueueOnce())
-      .catch((error) => console.error("[gutenberg] scheduled acquisition error", error)));
+    ctx.waitUntil(runScheduledGutenbergWork());
     const utcNow = new Date();
     // Execute data retention once per UTC day, never every minute.
     if (utcNow.getUTCHours() === 2 && utcNow.getUTCMinutes() === 30) {
