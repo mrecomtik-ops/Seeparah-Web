@@ -378,7 +378,7 @@ function ProfilePage() {
             </label>
             <label className="flex flex-col gap-1">
               <span className="text-xs font-medium text-muted-foreground">
-                Weekly reading goal (pages)
+                Weekly page goal (tracking pending)
               </span>
               <input
                 type="number"
