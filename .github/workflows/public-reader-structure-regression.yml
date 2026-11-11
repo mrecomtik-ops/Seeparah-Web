@@ -34,3 +34,4 @@ jobs:
           SEEPARAH_QA_URL: https://seeparah.com
           QA_SHARD_INDEX: ${{ matrix.shard }}
           QA_SHARD_COUNT: "4"
+          QA_DIAGNOSTIC: "1"
