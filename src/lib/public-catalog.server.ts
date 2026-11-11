@@ -200,6 +200,15 @@ export type PublicAuthorProfile = {
   avatar_url: string | null;
 };
 
+/** Never project authentication IDs or unpublished account metadata. */
+export function asPublicAuthorProfile(value: Record<string, unknown>): PublicAuthorProfile {
+  return {
+    pen_name: typeof value["pen_name"] === "string" ? value["pen_name"] : null,
+    bio: typeof value["bio"] === "string" ? value["bio"] : null,
+    avatar_url: typeof value["avatar_url"] === "string" ? value["avatar_url"] : null,
+  };
+}
+
 export async function getPublicAuthorProfile(authorId: string): Promise<PublicAuthorProfile | null> {
   const db = await admin();
   const { data: published, error: publicationError } = await db.from("books")
@@ -213,11 +222,7 @@ export async function getPublicAuthorProfile(authorId: string): Promise<PublicAu
     .select("pen_name,bio,avatar_url")
     .eq("user_id", authorId).maybeSingle();
   if (error) throw new Error(error.message);
-  return data ? {
-    pen_name: data.pen_name,
-    bio: data.bio,
-    avatar_url: data.avatar_url,
-  } : null;
+  return data ? asPublicAuthorProfile(data) : null;
 }
 
 export async function listPublicBooksByAuthorId(authorId: string): Promise<Book[]> {
