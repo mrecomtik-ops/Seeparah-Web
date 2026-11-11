@@ -160,3 +160,25 @@ describe("Library filter selects — 'All ...' option text", () => {
     expect(firstOptionTexts).not.toContain("All genre / themes");
   });
 });
+
+describe("QA-016 and QA-017 library presentation", () => {
+  it("disables empty named topics and shows their actual book count", async () => {
+    renderLibrary();
+    await screen.findAllByText(book.title);
+    const empty = Array.from(document.querySelectorAll("option"))
+      .find((option) => option.textContent === "Personal Development (0)");
+    expect(empty).toBeDefined();
+    expect(empty?.disabled).toBe(true);
+  });
+  it("shows the correct UTF-8 em dash in the saved reading progress badge", async () => {
+    progressRows = [{
+      user_id: "reader-1", book_id: book.id, language: "English",
+      last_chunk_index: 4, updated_at: "2026-11-11T00:00:00.000Z",
+    }];
+    renderLibrary();
+    await screen.findAllByText(book.title);
+    // Visible card is loaded asynchronously on the current library page.
+    expect((await screen.findAllByText(/50% read — continue/)).length).toBeGreaterThan(0);
+    expect(document.body.textContent).not.toContain("â€”");
+  });
+});
