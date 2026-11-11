@@ -360,6 +360,22 @@ export function parseManuscript(
       : Math.max(node.startChunkIndex, chunks.length - 1);
   }
 
+  // Printed tables of contents / illustration lists must never swallow
+  // the real body of the book. Older Gutenberg imports assigned a front-
+  // matter list's range through most of the novel, making Chapter I onward
+  // disappear from the reader navigation. Clip only when a later semantic
+  // chapter has been independently recognized; do not invent a chapter.
+  for (let i = 0; i < structure.length; i++) {
+    const node = structure[i]!;
+    if (node.nodeType !== "front_matter") continue;
+    const bodyChapter = structure.slice(i + 1).find((next) =>
+      next.nodeType === "chapter" && next.startChunkIndex > node.startChunkIndex);
+    if (bodyChapter) {
+      node.endChunkIndex = Math.max(node.startChunkIndex,
+        Math.min(node.endChunkIndex, bodyChapter.startChunkIndex - 1));
+    }
+  }
+
   const count = wordCount(normalized);
   return {
     chunks: chunks.length ? chunks : [normalized],

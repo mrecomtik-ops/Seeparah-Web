@@ -4,6 +4,7 @@
  * source checks and publish gate. No mass scraping of Gutenberg's main site.
  */
 import { createHash } from "node:crypto";
+import { formatAuthorName } from "@/lib/author-name";
 
 const MIRROR = "https://gutenberg.pglaf.org";
 const MAX_TEXT = 4 * 1024 * 1024;
@@ -112,7 +113,7 @@ export function officialCatalogMetadata(job:Job):Catalog{
      m?.["catalogUrl"]!=="https://www.gutenberg.org/cache/epub/feeds/pg_catalog.csv" ||
      typeof title!=="string"||title.length<8||title.length>250||
      typeof author!=="string"||author.length<3||author.length>200||
-     typeof death!=="number"||!Number.isInteger(death)||death<1400||death>1900||
+     typeof death!=="number"||!Number.isInteger(death)||death<1400||death>1930||
      !Number.isSafeInteger(job.gutenberg_id)||job.gutenberg_id<1 ||
      job.gutenberg_id>9_999_999) {
     throw new Error("Unverified Gutenberg official CSV batch identity");
@@ -145,18 +146,20 @@ type Result = {
 export function verifyGutenbergCandidate(
   b:Catalog,id:number,year:number,origin="Gutendex",
 ) {
-  const licenseAccepted=b.copyright===false ||
+  // Metadata eligibility is NOT a publication licence. Review all rights
+  // and territories before approving a newer work.
+  const candidateEligible=b.copyright===false ||
     (origin==="official Gutenberg weekly CSV" && b.copyright===null &&
      b.authors?.length===1 && typeof b.authors[0]?.death_year==="number" &&
-     b.authors[0].death_year<=1900 && year<=1900);
-  if (b.id!==id || !licenseAccepted || b.media_type!=="Text" ||
+     b.authors[0].death_year<=1930 && year<=1930);
+  if (b.id!==id || !candidateEligible || b.media_type!=="Text" ||
       !b.title?.trim() || b.languages?.length!==1 || b.languages[0]!=="en")
     throw new Error("Catalog is not an unrestricted English original work");
   if (b.authors?.length!==1 || !b.authors[0]?.name ||
       typeof b.authors[0].death_year!=="number" ||
-      b.authors[0].death_year>1925 ||
+      b.authors[0].death_year>1930 ||
       b.authors[0].death_year<1400 ||
-      year>1900 || year<1400)
+      year>1930 || year<1400)
     throw new Error("Author lifespan or original publication date needs separate rights review");
   if ((b.translators?.length??0)>0 || (b.editors?.length??0)>0)
     throw new Error("Named editor or translator needs separate rights clearance");
@@ -229,7 +232,7 @@ function description(b:Catalog,author:string,year:number){
   if(summary)return summary.trim().slice(0,2400);
   // Never claim a verified first-print year or complete edition in the
   // public description solely because an unreliable catalog lookup said so.
-  return b.title+" by "+author+". This source-based English-language edition "+
+  return b.title+" by "+formatAuthorName(author)+". This source-based English-language edition "+
     "is undergoing bibliographic and structure verification.";
 }
 export async function processGutenbergImportQueueOnce():Promise<void>{
@@ -522,7 +525,9 @@ export async function importGutenbergSource(job:Job):Promise<Result>{
       message: "Source chapter headings (" + sourceChapterCount +
         ") exceed imported chapter navigation (" + parsedChapters + "); structural audit required" };
   }
-  if(job.metadata?.["autopilot"]===true) {
+  if(job.metadata?.["autopilot"]===true || deathYear>1900 || originalYear>1900) {
+    // Post-1900 originals, even when Gutenberg flags them US-unrestricted,
+    // always require a separate territory-by-territory rights review.
     // Open Library's first_publish_year can be a placeholder (e.g. 1800).
     // A single catalog is NOT sufficient evidence to auto-approve a work.
     // Preserve the archived text and cover as private in_review until

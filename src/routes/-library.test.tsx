@@ -144,7 +144,7 @@ describe("Library featured-book 'Continue reading' link carries the saved-progre
 
 // Regression coverage for the browser QA finding: the filter selects' blank
 // "any value" option was generated as `All ${label.toLowerCase()}s`, which
-// reads fine for "Language"/"Author"/"Genre / theme" but produced "All categorys"
+// reads fine for "Language"/"Author" but produced "All categorys"
 // for "Category". Assert every filter's blank option reads naturally.
 describe("Library filter selects — 'All ...' option text", () => {
   it("reads naturally for every filter, including the irregular 'Category' plural", async () => {
@@ -154,8 +154,9 @@ describe("Library filter selects — 'All ...' option text", () => {
       (select) => select.querySelector("option")?.textContent,
     );
     expect(firstOptionTexts).toEqual(
-      expect.arrayContaining(["All languages", "All authors", "All genre / themes", "All traditions", "All collections and topics"]),
+      expect.arrayContaining(["All languages", "All authors", "All traditions", "All collections and topics"]),
     );
     expect(firstOptionTexts).not.toContain("All categorys");
+    expect(firstOptionTexts).not.toContain("All genre / themes");
   });
 });
