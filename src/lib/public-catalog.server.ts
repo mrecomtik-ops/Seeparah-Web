@@ -190,6 +190,36 @@ export async function searchPublicBooks(query: string): Promise<Book[]> {
 }
 
 
+/** Only opt-in public author presentation, not the underlying account UUID.
+ * Anonymous users must not access author_profiles directly; public profile
+ * projection is available only after a published book references this author.
+ * The separate owner editing workflow continues to use its own RLS account. */
+export type PublicAuthorProfile = {
+  pen_name: string | null;
+  bio: string | null;
+  avatar_url: string | null;
+};
+
+export async function getPublicAuthorProfile(authorId: string): Promise<PublicAuthorProfile | null> {
+  const db = await admin();
+  const { data: published, error: publicationError } = await db.from("books")
+    .select("id")
+    .eq("author_id", authorId)
+    .eq("status", "published")
+    .limit(1).maybeSingle();
+  if (publicationError) throw new Error(publicationError.message);
+  if (!published) return null;
+  const { data, error } = await db.from("author_profiles")
+    .select("pen_name,bio,avatar_url")
+    .eq("user_id", authorId).maybeSingle();
+  if (error) throw new Error(error.message);
+  return data ? {
+    pen_name: data.pen_name,
+    bio: data.bio,
+    avatar_url: data.avatar_url,
+  } : null;
+}
+
 export async function listPublicBooksByAuthorId(authorId: string): Promise<Book[]> {
   return pagedPublishedBooks(PUBLIC_BOOK_COLUMNS, { authorId, descending: true });
 }
