@@ -298,7 +298,7 @@ export async function main(argv = process.argv.slice(2)) {
   const out = resolve(val('--out') ?? 'audit-out/catalog-qa');
   const batchSize = Number(val('--batch-size') ?? 25);
   const fixtureFile = val('--fixture');
-  const requireDb = argv.includes('--require-db');
+  const requireDb = argv.includes('--require-db') || argv.includes('--require-data');
   const report = { auditedAt: new Date().toISOString(), counts: null, critical: [], queues: {}, sitemap: null };
   let setupMissing = false;
   try {
@@ -324,7 +324,7 @@ export async function main(argv = process.argv.slice(2)) {
   for (const alert of report.critical) console.error(`QA BLOCK: ${alert}`);
   if (report.critical.length > 0) return 1;
   if (setupMissing && requireDb) {
-    console.error('Required GitHub Actions secrets missing: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY');
+    console.error('No trusted QA data source configured (use --public-url or private Supabase credentials)');
     return 2;
   }
   return 0;
