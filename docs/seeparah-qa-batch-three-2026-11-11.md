@@ -27,3 +27,11 @@
 For the 663 date records, restore each `books.original_publication_year` from `qa_20261111_unverified_publication_year_backups.old_original_publication_year` only if that title has not subsequently received an approved independently reviewed date.
 
 For *Hard Times*, the original 28 node JSON rows are stored in `qa_20261111_structure_repair_backups.original_nodes` with the exact 18 inserted node keys in `repaired_node_keys`. Restore within a transaction only after checking the book's `source_version=1`, then delete the added QA nodes; never remove newer legitimate editorial edits.
+
+## Critical post-deployment reconciliation — 2026-11-11 11:02 UTC
+
+The existing `books_auto_unpublish_invalid_gate` trigger required a non-NULL `original_publication_year` on ANY published book UPDATE. Neutralizing the 663 incorrect years unexpectedly changed all 663 from `published` to `unpublished`. The metadata values stayed truthful but the live catalogue temporarily lost those books. This was detected by an independent recount and remediated immediately rather than masking the loss.
+
+Production migration `20261111110219_qa_20261111_scoped_legacy_publication_year_exemption` changes only the two year-null branches in `auto_unpublish_invalid_published_book` and `check_book_publish_gate`: for a book already in the private QA-001 backup cohort, with the EXACT original Gutenberg `source_scan_id` and explicit unverified-year notice, an unknown first-publication year is accepted. ALL other publication/rights/structure/cleanup checks continue to apply. No new book can use that grandfathered exemption. After a strict 663-row preflight confirmed all original four reviews approved, a single transaction restored the 663 books to `published` without reintroducing erroneous years.
+
+Verified after: 663 grandfathered source IDs published with NULL years, 663 private backups retained, no spurious year 1800, Gutenberg importer still paused. Overall live published count had risen to 869 due to other catalogue activity. A true year-by-year independent provenance review remains open. Future metadata schema cleanups must account for trigger-side publication transitions and validate before/after published counts in the SAME transaction.
