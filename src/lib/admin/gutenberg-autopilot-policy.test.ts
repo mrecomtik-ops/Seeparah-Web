@@ -21,7 +21,10 @@ describe("Gutenberg rights safeguards on automatic batches",()=>{
     expect(()=>verifyGutenbergCandidate(b,1023,1853)).toThrow();
     expect(verifyGutenbergCandidate(b,1023,1853,"official Gutenberg weekly CSV").author)
       .toBe("Dickens, Charles");
-    expect(()=>verifyGutenbergCandidate(b,1023,1901,"official Gutenberg weekly CSV")).toThrow();
+    // Dates beyond 1900 are eligible to be acquired but must stay in
+    // editorial review, never auto-publish on uncertain territory rights.
+    expect(verifyGutenbergCandidate(b,1023,1901,"official Gutenberg weekly CSV").author)
+      .toBe("Dickens, Charles");
   });
   it("disallows fake batch author and unreviewed catalog source",()=>{
     expect(()=>officialCatalogMetadata({...job,metadata:{...job.metadata,authorDeathYear:1970}})).toThrow();
