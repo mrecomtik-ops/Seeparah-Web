@@ -8,7 +8,7 @@ A read-only production inspection found `anon` could select `public.author_profi
 
 * 881 published books; 1,028 catalogue records. Importer disabled; 10,000 target and 100-book batch size already configured.
 * 663 unverified historical first-publication years retained as NULL with backups. Do not substitute Gutenberg issue dates or single Open Library values.
-* 66 manuscripts in source-structure review, plus 34 repaired navigation records still needing reader/browser acceptance.
+* 65 manuscripts in source-structure review, plus 35 repaired navigation records still needing reader/browser acceptance.
 * 676 medium-resolution Gutenberg cover JPEGs: native-resolution rendering fixed; real higher-resolution source art remains unverified.
 
 ### Continuing safeguards
@@ -32,3 +32,11 @@ The current audited nav register totals **34 books with 681 recovered navigation
 ### Public description display
 
 For the 663 uncertainty-labelled Gutenberg records, public prose presents known catalogue-author names in reader order (including correctly positioned Jr./Sr. suffixes) without changing stored catalogue attribution or reintroducing unverified historical publication years. Independent editorial summaries of the source work remain outstanding.
+
+### The Virginians — 30 missing chapters and one spurious chapter
+
+A separate guarded transaction restored **Chapters I–XXX** from 30 sequential, directly inspected source-chunk headings in verified Project Gutenberg `gutenberg:8123`, preceding existing Chapter XXXI at source chunk 142. The original front-matter TOC had erroneously swallowed the first 30 chapters, despite full manuscript text being present. Book UUID `d4b18ce9-8521-42f8-99d9-0ae186589026`; source version 1; original 71 structure records backed up in `qa_20261111_structure_repair_backups`. The exact source chunks for I–XXX are `0,5,10,13,17,23,26,31,36,42,49,52,56,60,63,70,76,82,87,90,97,101,108,111,115,120,129,132,136,138`. Source chunk zero includes the *real* Chapter I after its printed contents, with the opening prose verified; it is not a fictional chapter inserted from TOC.
+
+A follow-up inspection detected an older false-positive chapter, `Act III. is passed at Prague` in original chunk 336: the source text explicitly describes an *embedded fictional play* in Chapter LXIII, not a numbered chapter of the novel. That node was reclassified as a source section of Chapter LXIII, retaining its prose and extending its parent range to chunk 340. Source chapter count is now **92** as directly confirmed; a full browser visual check remains pending. Only navigation structure changed, not original text, rights, reader highlights or progress.
+
+**Updated review status after this change:** 65 titles need original-source structural review; 35 repaired titles await visual acceptance; 711 recovered chapter navigation nodes across the verified rollback register. Gutenberg autopilot remains paused.
