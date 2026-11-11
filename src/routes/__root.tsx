@@ -163,7 +163,7 @@ function RootComponent() {
       <span id="main-content" tabIndex={-1} className="sr-only" />
       <Outlet />
       <PlatformUsageTracker pathname={pathname} />
-      {!pathname.startsWith("/admin") && <FloatingFeedback bare={bare} />}
+      {!pathname.startsWith("/admin") && !pathname.startsWith("/read/") && !pathname.startsWith("/sacred-texts/") && <FloatingFeedback bare={bare} />}
       {!bare && !home && (
         <footer className="border-t border-border py-5 pb-20 text-center text-xs text-muted-foreground sm:pb-5">
           <nav
