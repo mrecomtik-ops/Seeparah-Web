@@ -62,6 +62,10 @@ vi.mock("@/components/ShelfButtons", () => ({ ShelfButtons: () => null }));
 
 vi.mock("@/lib/prefs", () => ({
   getPrefs: () => ({ language: "English", fontSize: 18, theme: "light" }),
+  getDefaultPrefs: () => ({
+    language: "English", fontSize: 16, theme: "light", fontFamily: "literary",
+    contentWidth: "medium", v3LineHeight: 1.5,
+  }),
   setPrefs: vi.fn(),
 }));
 
