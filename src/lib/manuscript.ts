@@ -379,6 +379,7 @@ export function parseManuscript(
   const count = wordCount(normalized);
   return {
     chunks: chunks.length ? chunks : [normalized],
+    structure,
     wordCount: count,
     estimatedReadingMinutes: Math.max(1, Math.ceil(count / 225)),
   };
