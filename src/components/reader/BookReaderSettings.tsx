@@ -13,6 +13,7 @@ export interface BookReaderSettingsProps {
   requestLanguage: string;
   requestingTranslation: boolean;
   translationRequestStatus: string | null;
+  signedIn?: boolean;
   theme: ReaderTheme;
   onClose: () => void;
   onLanguageChange: (language: string) => void;
@@ -29,7 +30,7 @@ export interface BookReaderSettingsProps {
  * in BookReaderV3. Settings have no independent persisted or privileged state. */
 export function BookReaderSettings({
   book, language, fontSizeDraft, typeface, lineSpacing, textMeasure,
-  requestableLanguages, requestLanguage, requestingTranslation, translationRequestStatus, theme,
+  requestableLanguages, requestLanguage, requestingTranslation, translationRequestStatus, signedIn = false, theme,
   onClose, onLanguageChange, onFontSizeChange, onTypefaceChange,
   onLineSpacingChange, onTextMeasureChange, onRequestLanguageChange,
   onTranslationRequest, onThemeChange,
@@ -158,7 +159,7 @@ export function BookReaderSettings({
                 <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
                   Request a missing language edition. A request records reader interest only;
                   translation, rights clearance and publication require separate editorial approval.
-                  Sign in to send a request.
+                  {!signedIn && " Sign in to send a request."}
                 </p>
                 {translationRequestStatus && (
                   <p className="mt-2 text-xs font-semibold text-foreground" role="status">
