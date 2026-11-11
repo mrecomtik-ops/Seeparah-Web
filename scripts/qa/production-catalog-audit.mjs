@@ -100,7 +100,7 @@ export async function fetchData(client) {
   const [books, reviews, oldYears, importer] = await Promise.all([
     client.getAll('books', { select: COLUMN_BOOK, status: 'eq.published', order: 'id.asc' }),
     client.getAll('qa_20261110_gutenberg_structure_candidates', { select: COLUMN_REVIEW, order: 'priority.asc,book_title.asc' }),
-    client.getAll('qa_20261111_unverified_publication_year_backups', { select: COLUMN_BACKUP, order: 'book_id.asc' }),
+    client.getAll('qa_20261111_unverified_publication_year_backups', { select: COLUMN_BACKUP, verified_at: 'is.null', order: 'book_id.asc' }),
     client.get('gutenberg_autopilot_settings', { select: 'id,enabled,target_published,batch_size', id: 'eq.1', limit: '1' }),
   ]);
   if (importer.length !== 1) throw Error('Importer settings absent or duplicated');
