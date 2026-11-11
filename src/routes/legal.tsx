@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import { SupportRequestForm } from "@/components/legal/SupportRequestForm";
+import { PublicSupportContact } from "@/components/legal/PublicSupportContact";
 import { CopyrightRequestForm } from "@/components/legal/CopyrightRequestForm";
 import { AnalyticsPrivacyChoice } from "@/components/AnalyticsPrivacyChoice";
 
@@ -9,7 +10,7 @@ export const Route = createFileRoute("/legal")({
   component: LegalPage,
 });
 
-const LAST_UPDATED = "2026-11-05";
+const LAST_UPDATED = "2026-11-11";
 
 // Exported (in addition to being wired as the route's component below) so
 // it can be rendered directly in tests without a full router harness.
@@ -175,8 +176,8 @@ export function LegalPage() {
               <a href="#support" className="font-semibold text-foreground underline">
                 support form
               </a>{" "}
-              below and select "Privacy request" — we don't publish a direct contact address, so
-              this form is the way to reach us for any of these requests.
+              below and select "Privacy request". The form issues a reference number;
+              any published support email is listed in the Support section.
             </p>
             <p>
               Deleting your account removes your profile and sign-in access; content you
@@ -407,6 +408,7 @@ export function LegalPage() {
               can't promise a fixed response time.
             </p>
           </div>
+          <PublicSupportContact />
           <div className="mt-4">
             <SupportRequestForm />
           </div>
