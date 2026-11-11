@@ -23,7 +23,7 @@ describe("Read-only public QA projection prevents privilege escalation",()=>{
   expect(actual.books).toHaveLength(1);
   expect(actual.reviews).toHaveLength(1);
   expect(actual.oldYears).toEqual([{book_id:"pub1"}]);
-  expect(actual.reviews[0].book_title).toBe("Published Work");
+  expect(actual.reviews[0]!.book_title).toBe("Published Work");
   expect(actual.importer).toEqual({enabled:false,target_published:10000,batch_size:100});
   for(const excluded of ["secret-master","private-user","private","Sensitive QA note",
   "UNPUBLISHED PRIVATE MANUSCRIPT","DO NOT EXPOSE","1656"]){
