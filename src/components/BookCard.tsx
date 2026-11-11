@@ -1,8 +1,11 @@
 ﻿import { Link } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
 import { BookOpen, Crown, FlaskConical } from "lucide-react";
 import type { Book } from "@/lib/data";
 import { SAMPLE_EXCERPT_BOOK_IDS, DEMO_MANUSCRIPT_BOOK_IDS } from "@/lib/data";
-import { coverFor } from "@/lib/covers";
+import { coverFor, isLowResolutionGutenbergCover } from "@/lib/covers";
+import { getReaderBookPayload } from "@/lib/library";
 import { sacredCoverSrc, sacredCoverAlt, isSharedSacredCollectionCover } from "@/lib/sacred-cover-artwork";
 import { SacredWorkIdentity } from "@/components/SacredWorkIdentity";
 import { ShelfButtons } from "@/components/ShelfButtons";
@@ -41,6 +44,9 @@ export function BookCard({
    * Never infer this from `book.access_type` alone. */
   monetizationEnabled?: boolean;
 }) {
+  const queryClient = useQueryClient();
+  const prefetchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (prefetchTimer.current) clearTimeout(prefetchTimer.current); }, []);
   const displayAuthor = formatAuthorName(book.author);
   const displayTitle = displayTitleCase(book.title);
   const displayDescription = publicBookDescription({
@@ -69,6 +75,27 @@ export function BookCard({
     book.source_language;
   const sharedCollectionArtwork = book.genre === "Sacred Text" && isSharedSacredCollectionCover(book);
   const imageForCard = book.genre === "Sacred Text" ? sacredCoverSrc(book, openLanguage) : listCover;
+  const lowResGutenbergCover = isLowResolutionGutenbergCover(imageForCard);
+  // Warm the book payload on a deliberate hover/focus, never during a long
+  // library-list render. Query keys exactly match BookReaderV3's cache.
+  const prefetchReader = () => {
+    // The payload request is permission-sensitive; prefetch only public
+    // free editions, never paid, sacred or unreleased translated editions.
+    if (book.content_classification === "religious" || book.access_type !== "free") return;
+    void queryClient.prefetchQuery({
+      queryKey: ["reader-book-payload", book.id, openLanguage],
+      queryFn: () => getReaderBookPayload(book.id, openLanguage),
+      staleTime: 15 * 60 * 1000,
+    });
+  };
+  const cancelPrefetch = () => {
+    if (prefetchTimer.current) clearTimeout(prefetchTimer.current);
+    prefetchTimer.current = null;
+  };
+  const prefetchOnIntent = () => {
+    cancelPrefetch();
+    prefetchTimer.current = setTimeout(prefetchReader, 250);
+  };
 
   return (
     <div className="group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-card card-shadow transition-transform duration-200 hover:-translate-y-1 hover:card-shadow-lg">
@@ -81,6 +108,9 @@ export function BookCard({
         to="/read/$bookId"
         params={{ bookId: book.id }}
         search={{ lang: openLanguage }}
+        onMouseEnter={prefetchOnIntent}
+        onMouseLeave={cancelPrefetch}
+        onFocusCapture={prefetchReader}
         className="flex flex-1 flex-col"
       >
         <div className="relative aspect-[2/3] w-full overflow-hidden bg-secondary">
@@ -93,7 +123,7 @@ export function BookCard({
               loading="lazy"
               width={600}
               height={900}
-              className={`h-full w-full ${book.genre === "Sacred Text" || /gutenberg/i.test(book.source_edition_id ?? "") ? "bg-card object-contain" : "object-cover"} transition-transform duration-300 group-hover:scale-[1.03]`}
+              className={`absolute inset-0 m-auto h-full w-full ${lowResGutenbergCover ? "max-h-[300px] max-w-[200px] bg-card object-contain" : book.genre === "Sacred Text" || /gutenberg/i.test(book.source_edition_id ?? "") ? "bg-card object-contain" : "object-cover"} transition-transform duration-300 ${lowResGutenbergCover ? "" : "group-hover:scale-[1.03]"}`}
             />
           ) : (
             <div className="flex h-full flex-col items-center justify-center gap-2 paper-texture p-4 text-center">

@@ -23,6 +23,37 @@ async function runScheduledTranslationWork() {
   }
 }
 
+/** Cloudflare cron must avoid loading both large Gutenberg import modules
+ * when editorial operations have paused the importer. This is a cheap,
+ * fail-closed DB gate: it never re-enables acquisition or skips any content,
+ * provenance or rights validation when the importer is later resumed. */
+async function runScheduledGutenbergWork(): Promise<void> {
+  try {
+    const { supabaseAdmin } = await import("./integrations/supabase/client.server");
+    // The importer settings table was added after the generated public
+    // Supabase client types, so narrow this read explicitly (fail closed).
+    type SettingsClient = { from(table: "gutenberg_autopilot_settings"): {
+      select(columns: "enabled"): { eq(column: "id", value: number): {
+        maybeSingle(): Promise<{
+          data: { enabled: boolean } | null;
+          error: { message: string } | null;
+        }>;
+      } };
+    } };
+    const settingsDb = supabaseAdmin as unknown as SettingsClient;
+    const { data, error } = await settingsDb.from("gutenberg_autopilot_settings")
+      .select("enabled").eq("id", 1).maybeSingle();
+    if (error) throw new Error(error.message);
+    if (data?.enabled !== true) return;
+    const { runGutenbergAutopilotOnce } = await import("./lib/admin/gutenberg-autopilot.server");
+    await runGutenbergAutopilotOnce();
+    const { processGutenbergImportQueueOnce } = await import("./lib/admin/gutenberg-fast-import.server");
+    await processGutenbergImportQueueOnce();
+  } catch (error) {
+    console.error("[gutenberg] scheduled acquisition error", error);
+  }
+}
+
 let serverEntryPromise: Promise<ServerEntry> | undefined;
 
 async function getServerEntry(): Promise<ServerEntry> {
@@ -41,6 +72,9 @@ const CONTENT_SECURITY_POLICY = [
   "frame-ancestors 'none'",
   "form-action 'self' https://accounts.google.com",
   "script-src 'self' 'unsafe-inline'",
+  // CSP3: never permit HTML event-handler attributes even while the
+  // TanStack SSR hydration stream still needs its inline bootstrapping.
+  "script-src-attr 'none'",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
@@ -133,11 +167,7 @@ export default {
     // Never count reviews/errors as published and never modify existing titles.
     // Fetching one queued book is deliberately sequential to avoid overlapping
     // database writes or unbounded external mirror traffic.
-    ctx.waitUntil(import("./lib/admin/gutenberg-autopilot.server")
-      .then(({ runGutenbergAutopilotOnce }) => runGutenbergAutopilotOnce())
-      .then(() => import("./lib/admin/gutenberg-fast-import.server"))
-      .then(({ processGutenbergImportQueueOnce }) => processGutenbergImportQueueOnce())
-      .catch((error) => console.error("[gutenberg] scheduled acquisition error", error)));
+    ctx.waitUntil(runScheduledGutenbergWork());
     const utcNow = new Date();
     // Execute data retention once per UTC day, never every minute.
     if (utcNow.getUTCHours() === 2 && utcNow.getUTCMinutes() === 30) {

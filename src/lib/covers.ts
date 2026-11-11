@@ -20,3 +20,17 @@ export const FEATURED_BOOK_ID = "11111111-1111-1111-1111-111111111111";
 export function coverFor(bookId: string, coverUrl?: string | null): string | null {
   return BOOK_COVERS[bookId] ?? coverUrl ?? null;
 }
+
+/** Gutenberg's archived "medium" eBook cover is typically 200x300px.
+ * Display it at no more than its native pixel dimensions rather than
+ * stretching it to 600px on a wide card. Premium source artwork is never
+ * downscaled by this rule; its own proportions and crop remain unchanged. */
+export function isLowResolutionGutenbergCover(url: string | null | undefined): boolean {
+  if (!url) return false;
+  try {
+    const pathname = new URL(url, "https://seeparah.com").pathname;
+    return /(?:\/cover-medium\.jpg|\/pg\d+\.cover\.medium\.jpg)$/i.test(pathname);
+  } catch {
+    return false;
+  }
+}

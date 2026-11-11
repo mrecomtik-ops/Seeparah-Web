@@ -63,7 +63,7 @@ export function BookReaderV3({
   initialLanguage?: string | undefined;
   initialChunkIndex?: number | undefined;
 }) {
-  const { userId, isDemo } = useAuth();
+  const { userId, isDemo, loading: authLoading } = useAuth();
   const queryClient = useQueryClient();
   const prefs = useMemo(getDefaultPrefs, []);
   const [language, setLanguage] = useState(
@@ -102,7 +102,7 @@ export function BookReaderV3({
   const {
     requestLanguage, setRequestLanguage, requestingTranslation,
     activeRequestStatus, handleTranslationRequest,
-  } = useReaderTranslationRequest(book, userId);
+  } = useReaderTranslationRequest(book, userId, !isDemo && !authLoading);
   const [frontIndex, setFrontIndex] = useState<number | null>(0);
   const [bodyPage, setBodyPage] = useState(0);
   const [rawPageCount, setRawPageCount] = useState(1);
@@ -1230,7 +1230,7 @@ export function BookReaderV3({
           requestableLanguages={requestableLanguages}
           requestLanguage={requestLanguage}
           requestingTranslation={requestingTranslation}
-          signedIn={!isDemo && !!userId}
+          signedIn={authLoading || (!isDemo && !!userId)}
           translationRequestStatus={activeRequestStatus}
           theme={theme}
           onClose={() => setSettingsOpen(false)}

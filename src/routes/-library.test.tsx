@@ -58,6 +58,7 @@ vi.mock("@/lib/admin/settings.functions", () => ({
 
 vi.mock("@/lib/covers", () => ({
   coverFor: () => null,
+  isLowResolutionGutenbergCover: () => false,
   FEATURED_BOOK_ID: "book-1",
 }));
 
