@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Feather, Loader2, User as UserIcon } from "lucide-react";
-import { getAuthorProfile, listBooksByAuthorId } from "@/lib/library";
+import { listBooksByAuthorId } from "@/lib/library";
+import { getPublicAuthorProfile } from "@/lib/public-catalog.functions";
 import { BookCard } from "@/components/BookCard";
 
 export const Route = createFileRoute("/author/$authorId")({
@@ -18,7 +19,7 @@ function PublicAuthorPage() {
   const { authorId } = Route.useParams();
   const profileQuery = useQuery({
     queryKey: ["author-profile", authorId],
-    queryFn: () => getAuthorProfile(authorId),
+    queryFn: () => getPublicAuthorProfile({ data: { authorId } }),
   });
   const booksQuery = useQuery({
     queryKey: ["author-books", authorId],
