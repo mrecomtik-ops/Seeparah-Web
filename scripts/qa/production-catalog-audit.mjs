@@ -108,6 +108,33 @@ export async function fetchData(client) {
   return { books, reviews, oldYears, importer: importer[0] };
 }
 
+/** Secretless QA: fetch published-only metadata from Seeparah's own
+ * allowlisted Cloudflare projection, never from private PostgREST tables.
+ * The server's Supabase key remains exclusively in the existing Worker env.
+ */
+export async function fetchPublicQaSnapshot(url = 'https://seeparah.com/api/catalog-qa-public.json', fetchFn = fetch) {
+  const target = new URL(url);
+  if (target.origin !== 'https://seeparah.com' ||
+      target.pathname !== '/api/catalog-qa-public.json' ||
+      target.search || target.hash) {
+    throw Error('Only the official Seeparah published-only QA projection is supported');
+  }
+  const response = await fetchFn(target, {
+    method: 'GET', redirect: 'error', signal: AbortSignal.timeout(URL_TIMEOUT_MS),
+    headers: { Accept: 'application/json' },
+  });
+  if (!response.ok) throw Error('Public Seeparah QA projection unavailable: HTTP ' + response.status);
+  const payload = await response.json();
+  if (payload?.version !== 1 || payload?.scope !== 'published-catalogue-only' ||
+      !Array.isArray(payload.books) || !Array.isArray(payload.reviews) ||
+      !Array.isArray(payload.oldYears) || !payload.importer) {
+    throw Error('Invalid or outdated public QA projection response');
+  }
+  if (payload.books.some(b => b?.status !== 'published'))
+    throw Error('Public QA projection unexpectedly includes unpublished records');
+  return payload;
+}
+
 export function analyzeCatalogue(data, batchSize = 25) {
   if (!Number.isSafeInteger(batchSize) || batchSize < 1 || batchSize > 100)
     throw Error('Batch size must be 1 to 100');
@@ -278,6 +305,8 @@ export async function main(argv = process.argv.slice(2)) {
     let data;
     if (fixtureFile) {
       data = JSON.parse(await readFile(resolve(fixtureFile), 'utf8'));
+    } else if (val('--public-url')) {
+      data = await fetchPublicQaSnapshot(val('--public-url'));
     } else if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
       data = await fetchData(createReadOnlySupabase({
         url: process.env.SUPABASE_URL, key: process.env.SUPABASE_SERVICE_ROLE_KEY,
