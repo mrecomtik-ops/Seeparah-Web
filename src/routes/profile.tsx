@@ -213,7 +213,7 @@ function ProfilePage() {
 
         <div className="mt-6 grid gap-4 sm:grid-cols-3">
           {[
-            { label: "Pages read", value: pagesRead, icon: BookOpen },
+            { label: "Source sections reached", value: pagesRead, icon: BookOpen },
             {
               label: "Highlights saved",
               value: highlightsQuery.data?.length ?? 0,
