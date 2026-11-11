@@ -1,4 +1,5 @@
 import { languageToBcp47 } from "@/lib/languages";
+import { sourcedSurahLabel } from "@/lib/sacred-surah-label";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -512,7 +513,7 @@ export function SacredTextReader({
               {book.title}
             </p>
             <p className="truncate text-xs text-muted-foreground" dir={direction}>
-              {section.title}
+              {editionLayout === "quran" ? sourcedSurahLabel(section.title) : section.title}
             </p>
           </div>
 
@@ -550,7 +551,7 @@ export function SacredTextReader({
                 className="mt-1 font-display text-xl font-semibold text-foreground sm:text-2xl"
                 dir={direction}
               >
-                {section.title}
+                {editionLayout === "quran" ? sourcedSurahLabel(section.title) : section.title}
               </h1>
               <p className="mt-1 text-xs text-muted-foreground">
                 {sacredReferenceGroupLabel(editionLayout, section.kind)} {firstVisibleReference?.label}
@@ -801,7 +802,7 @@ export function SacredTextReader({
                   <option value="">Select a source chapter</option>
                   {referenceChapters.map((entry) => (
                     <option key={entry.nodeKey} value={entry.startChunkIndex}>
-                      {entry.label}
+                      {editionLayout === "quran" ? sourcedSurahLabel(entry.label) : entry.label}
                     </option>
                   ))}
                 </select>
