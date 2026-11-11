@@ -4,6 +4,7 @@
  * source checks and publish gate. No mass scraping of Gutenberg's main site.
  */
 import { createHash } from "node:crypto";
+import { formatAuthorName } from "@/lib/author-name";
 
 const MIRROR = "https://gutenberg.pglaf.org";
 const MAX_TEXT = 4 * 1024 * 1024;
@@ -231,7 +232,7 @@ function description(b:Catalog,author:string,year:number){
   if(summary)return summary.trim().slice(0,2400);
   // Never claim a verified first-print year or complete edition in the
   // public description solely because an unreliable catalog lookup said so.
-  return b.title+" by "+author+". This source-based English-language edition "+
+  return b.title+" by "+formatAuthorName(author)+". This source-based English-language edition "+
     "is undergoing bibliographic and structure verification.";
 }
 export async function processGutenbergImportQueueOnce():Promise<void>{
