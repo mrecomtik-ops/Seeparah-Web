@@ -145,10 +145,12 @@ type Result = {
 export function verifyGutenbergCandidate(
   b:Catalog,id:number,year:number,origin="Gutendex",
 ) {
-  const licenseAccepted=b.copyright===false ||
+  // Metadata eligibility is NOT a publication licence. Review all rights
+  // and territories before approving a newer work.
+  const candidateEligible=b.copyright===false ||
     (origin==="official Gutenberg weekly CSV" && b.copyright===null &&
      b.authors?.length===1 && typeof b.authors[0]?.death_year==="number" &&
-     b.authors[0].death_year<=1900 && year<=1900);
+     b.authors[0].death_year<=1930 && year<=1930);
   if (b.id!==id || !licenseAccepted || b.media_type!=="Text" ||
       !b.title?.trim() || b.languages?.length!==1 || b.languages[0]!=="en")
     throw new Error("Catalog is not an unrestricted English original work");
