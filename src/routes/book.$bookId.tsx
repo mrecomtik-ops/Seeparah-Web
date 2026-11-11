@@ -17,7 +17,7 @@ import { SacredWorkIdentity } from "@/components/SacredWorkIdentity";
 import { getPrefs } from "@/lib/prefs";
 import { formatAuthorName } from "@/lib/author-name";
 import { publicBookDescription } from "@/lib/book-description";
-import { safeJsonLd } from "@/lib/seo";
+import { canonicalBookUrl, safeJsonLd } from "@/lib/seo";
 import { ShelfButtons } from "@/components/ShelfButtons";
 import {
   SAMPLE_EXCERPT_BOOK_IDS,
@@ -59,7 +59,7 @@ export const Route = createFileRoute("/book/$bookId")({
       description: book.description,
     });
     const title = `${book.title} by ${author} — Seeparah`;
-    const canonical = `https://seeparah.com/book/${book.id}`;
+    const canonical = canonicalBookUrl(book);
     const cover = isSharedSacredCollectionCover(book) ? null : coverFor(book.id, book.cover_url);
     return {
       meta: [
@@ -176,7 +176,7 @@ function BookDetailPage() {
     name: book.title,
     author: { "@type": "Person", name: displayAuthor },
     inLanguage: book.source_language,
-    url: `https://seeparah.com/book/${book.id}`,
+    url: canonicalBookUrl(book),
     description: displayDescription,
     ...(cover ? { image: cover } : {}),
     ...(book.isbn ? { isbn: book.isbn } : {}),

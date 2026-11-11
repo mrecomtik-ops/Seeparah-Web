@@ -41,13 +41,30 @@ export function captureReaderHighlightSelection(
     !Number.isFinite(endBase)
   ) return null;
 
-  const startOffset =
+  let startOffset =
     startBase + textOffsetWithinAnchor(startAnchor, range.startContainer, range.startOffset);
-  const endOffset =
+  let endOffset =
     endBase + textOffsetWithinAnchor(endAnchor, range.endContainer, range.endOffset);
-  const text = range.toString().replace(/\s+/gu, " ").trim();
+  let text = range.toString().replace(/\s+/gu, " ").trim();
   if (!text || !Number.isFinite(startOffset) || !Number.isFinite(endOffset) ||
       endOffset <= startOffset) return null;
 
+  // A selection within a single source paragraph often starts and ends in
+  // the middle of words on mobile. Expand only its persisted offsets; never
+  // modify the archived source text or fabricate cross-paragraph offsets.
+  if (startAnchor === endAnchor) {
+    const source = startAnchor.textContent ?? "";
+    let left = startOffset - startBase;
+    let right = endOffset - endBase;
+    const isWord = (char: string) => /[\p{L}\p{M}\p{N}]/u.test(char);
+    if (left >= 0 && right <= source.length && right > left) {
+      while (left > 0 && isWord(source[left - 1] ?? "")) left--;
+      while (right < source.length && isWord(source[right] ?? "")) right++;
+      startOffset = startBase + left;
+      endOffset = endBase + right;
+      text = source.slice(left, right).replace(/\s+/gu, " ").trim();
+    }
+  }
+  if (!text) return null;
   return { chunkIndex, startOffset, endOffset, text };
 }

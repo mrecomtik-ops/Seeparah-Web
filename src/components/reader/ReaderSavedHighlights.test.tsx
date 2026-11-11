@@ -37,4 +37,14 @@ describe("saved highlights visible while reading", () => {
     expect(jump).toHaveBeenCalledTimes(1);
     expect(jump).toHaveBeenCalledWith(record);
   });
+  it("shows source-linked chapter titles instead of raw section numbers", () => {
+    const inChapter = { ...record, chunk_index: 24 };
+    render(<ReaderSavedHighlights
+      highlights={[inChapter]} language="English" onClose={vi.fn()} onJump={vi.fn()}
+      chapters={[{ title: "CHAPTER I", startChunkIndex: 0 },
+        { title: "CHAPTER III", startChunkIndex: 20 }]}
+    />);
+    expect(screen.getByText(/CHAPTER III/)).toBeTruthy();
+    expect(screen.queryByText(/Source section 25/)).toBeNull();
+  });
 });

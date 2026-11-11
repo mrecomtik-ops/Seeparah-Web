@@ -5,20 +5,32 @@ export function formatAuthorName(raw: string): string {
     .replace(/\b((?:[A-Z]\.\s*){1,4})\([^)]*\)\s*/gu, "$1")
     .replace(/\s+/gu, " ")
     .trim();
-  if (!primary.includes(",")) return primary;
-
-  const parts = primary
-    .split(",")
-    .map((part) => part.trim())
-    .filter(Boolean);
-  if (parts.length < 2) return primary;
-
+  const parts = primary.split(",").map((part) => part.trim()).filter(Boolean);
   const surname = parts[0] ?? "";
-  const givenParts = parts
-    .slice(1)
-    .filter((part) => !/^\d{3,4}\s*-\s*\d{0,4}$/u.test(part) && !/^\d{3,4}-$/u.test(part));
+  const givenParts = parts.slice(1).filter((part) =>
+    !/^\d{3,4}\s*-\s*\d{0,4}$/u.test(part) && !/^\d{3,4}-$/u.test(part));
   const given = givenParts.join(" ").trim();
-  return given ? `${given} ${surname}`.replace(/\s+/g, " ").trim() : surname;
+  const original = parts.length < 2 ? primary :
+    given ? `${given} ${surname}`.replace(/\s+/g, " ").trim() : surname;
+  // Only normalize entirely uppercase Western catalogue labels. Never
+  // case-fold Arabic, Hebrew, Urdu, or mixed-case source attributions.
+  const letters = original.replace(/[^\p{L}]/gu, "");
+  const display = letters && letters === letters.toLocaleUpperCase() &&
+    letters !== letters.toLocaleLowerCase()
+    ? original.replace(/\p{L}+/gu, (word) =>
+        word[0]!.toLocaleUpperCase() + word.slice(1).toLocaleLowerCase())
+    : original;
+  // Curated display aliases, not changes to bibliographic identity.
+  const aliases: Record<string, string> = {
+    "henry mrs. wood": "Mrs. Henry Wood",
+    "mrs. henry wood": "Mrs. Henry Wood",
+    "sir walter scott": "Walter Scott",
+    "walter scott": "Walter Scott",
+    "elizabeth cleghorn gaskell": "Elizabeth Gaskell",
+    "elizabeth gaskell": "Elizabeth Gaskell",
+    "sacred text": "Sacred Text",
+  };
+  return aliases[display.toLocaleLowerCase()] ?? display;
 }
 
 /** Canonical reader-facing author facet for alternate catalog name strings.

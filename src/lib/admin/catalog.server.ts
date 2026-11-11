@@ -8,6 +8,7 @@
 // translation is informational only and never blocks publishing — see
 // computePublishGate below).
 import { createHash } from "node:crypto";
+import { sanitizeAdminCatalogSearch } from "@/lib/admin/catalog-search";
 import { parseManuscript } from "@/lib/manuscript";
 import { parseEpub, EpubValidationError } from "@/lib/admin/epub.server";
 import { isRequestableTranslationLanguage } from "@/lib/data";
@@ -46,8 +47,7 @@ export async function adminListBooks(filters: AdminBookListFilters) {
   if (filters.query) {
     // PostgREST .or() parses a filter grammar. Only permit ordinary
     // bibliographic search characters; never interpolate its delimiters.
-    const safe = filters.query.normalize("NFKC")
-      .replace(/[^\p{L}\p{N} .'-]/gu, " ").replace(/\s+/g, " ").trim().slice(0, 120);
+    const safe = sanitizeAdminCatalogSearch(filters.query);
     if (safe) q = q.or(`title.ilike.%${safe}%,author.ilike.%${safe}%`);
   }
   const from = (filters.page - 1) * filters.perPage;
