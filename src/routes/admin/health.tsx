@@ -194,6 +194,27 @@ function AdminHealthPage() {
         ))}
       </div>
 
+      <section className="mt-6 rounded-2xl border border-border bg-card p-5" aria-label="Catalogue integrity QA">
+        <h2 className="font-display text-lg font-semibold text-foreground">Catalogue integrity</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Outstanding evidence and reader-acceptance work. These are review queues, not repaired books.
+          Do not restart the importer while historical dates or chapter sources are unverified.
+        </p>
+        <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {[
+            { label: "Years needing historical verification", value: h.catalogIntegrity?.pendingHistoricalYearReview ?? 0 },
+            { label: "Book structures needing source review", value: h.catalogIntegrity?.pendingChapterSourceReview ?? 0 },
+            { label: "Navigation fixes awaiting visual QA", value: h.catalogIntegrity?.pendingReaderAcceptance ?? 0 },
+            { label: "Source covers needing higher resolution", value: h.catalogIntegrity?.lowResolutionSourceCovers ?? 0 },
+          ].map((item) => (
+            <div key={item.label} className="rounded-xl border border-border bg-background p-3">
+              <p className="text-xs text-muted-foreground">{item.label}</p>
+              <p className="mt-2 font-display text-2xl font-semibold text-foreground">{item.value.toLocaleString()}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
       <section className="mt-6 rounded-2xl border border-border bg-card p-5" aria-label="Gutenberg importer monitoring">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
