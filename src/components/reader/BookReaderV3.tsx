@@ -40,7 +40,7 @@ import {
 import { captureReaderHighlightSelection, type ReaderHighlightSelection } from "@/lib/reader-highlight-selection";
 import { formatAuthorName } from "@/lib/author-name";
 import { displayTitleCase } from "@/lib/display-text";
-import { getPrefs, setPrefs, type ReaderTheme, type ReaderFontFamily, type ReaderContentWidth } from "@/lib/prefs";
+import { getPrefs, getDefaultPrefs, setPrefs, type ReaderTheme, type ReaderFontFamily, type ReaderContentWidth } from "@/lib/prefs";
 import { useAuth } from "@/lib/use-auth";
 import {
   REQUESTABLE_TRANSLATION_LANGUAGES,
@@ -65,7 +65,7 @@ export function BookReaderV3({
 }) {
   const { userId, isDemo } = useAuth();
   const queryClient = useQueryClient();
-  const prefs = useMemo(() => getPrefs(), []);
+  const prefs = useMemo(getDefaultPrefs, []);
   const [language, setLanguage] = useState(
     initialLanguage && book.available_languages.includes(initialLanguage)
       ? initialLanguage
@@ -77,16 +77,17 @@ export function BookReaderV3({
   const [fontSize, setFontSize] = useState(initialFontSize);
   const [fontSizeDraft, setFontSizeDraft] = useState(initialFontSize);
   const [theme, setTheme] = useState<ReaderTheme>(prefs.theme);
-  // Server-rendered readers start from safe defaults. After hydration, read
-  // the actual device-local preference to reconcile SSR and the first client
-  // render; don't rely solely on useMemo's initial theme snapshot. This makes Light/Sepia/Dark survive full navigation and
-  // reload without modifying the website's global appearance.
+  // Restore all device preferences *after* deterministic SSR hydration.
   useEffect(() => {
-    const stored = getPrefs().theme;
-    if (stored === "light" || stored === "sepia" || stored === "dark") {
-      setTheme(stored);
-    }
-  }, []);
+    const stored = getPrefs();
+    if (["light","sepia","dark"].includes(stored.theme)) setTheme(stored.theme);
+    if (["literary","serif","sans"].includes(stored.fontFamily)) setTypeface(stored.fontFamily);
+    if (["narrow","medium","wide"].includes(stored.contentWidth)) setTextMeasure(stored.contentWidth);
+    if ([1.4,1.5,1.65,1.8].includes(stored.v3LineHeight)) setLineSpacing(stored.v3LineHeight);
+    const size=Math.min(20,Math.max(16,stored.fontSize||16));
+    setFontSize(size);setFontSizeDraft(size);
+    if (!initialLanguage && book.available_languages.includes(stored.language)) setLanguage(stored.language);
+  }, [book.available_languages,initialLanguage]);
   const [typeface, setTypeface] = useState<ReaderFontFamily>(
     ["literary", "serif", "sans"].includes(prefs.fontFamily) ? prefs.fontFamily : "literary",
   );
