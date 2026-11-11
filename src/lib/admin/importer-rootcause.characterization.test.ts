@@ -153,3 +153,41 @@ describe("reader-structure.ts render-time heading rules", () => {
     expect(nav.map((n) => n.title)).toEqual(["CHAPTER I", "CHAPTER II", "CHAPTER III"]);
   });
 });
+
+
+describe("English part-label classification does not turn narrative prose into volumes", () => {
+  it("rejects prose that starts with Part, Partly, Parting, or Volume", () => {
+    for (const line of [
+      "Part of her meaning was to conceal some favourite thoughts of her own",
+      "Partly moved by a faint sense of remorse, she entered the room.",
+      "Parting from his companions, he returned alone.",
+      "Volume 1 contains Pickwick Papers and Curiosity Shop.",
+    ]) {
+      expect(classifyHeading(line)?.kind).not.toBe("part");
+    }
+  });
+
+  it("retains real English and international part and volume headings", () => {
+    for (const line of [
+      "VOLUME I", "VOLUME II", "Part III. A Voyage to Laputa",
+      "PartIV", "BOOK THE FIRST--RECALLED TO LIFE", "Book 2",
+      "Partie I", "Parte II",
+    ]) {
+      expect(classifyHeading(line)?.kind).toBe("part");
+    }
+  });
+
+  it("keeps narrative Part paragraphs out of parsed manuscript navigation", () => {
+    const manuscript = [
+      "VOLUME I",
+      "CHAPTER I",
+      "The opening chapter had an introduction and its own narrative.",
+      "Part of her meaning was to conceal her thoughts from her neighbour.",
+      "Partly moved by remorse, she returned to the house.",
+      "CHAPTER II",
+      "The second chapter resumed the plot.",
+    ].join("\\n\\n");
+    const structure = parseManuscript(manuscript, { preserveLineation: true }).structure;
+    expect(structure.filter((node) => node.nodeType === "part").map((node) => node.title)).toEqual(["VOLUME I"]);
+  });
+});
