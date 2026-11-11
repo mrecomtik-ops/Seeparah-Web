@@ -22,6 +22,7 @@ export async function servePublicCatalogQa(request: Request): Promise<Response> 
         let q = db.from(table).select(columns).order(orderBy, { ascending: true })
           .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
         if (status === "published") q = q.eq("status", "published");
+        if (table === "qa_20261111_unverified_publication_year_backups") q = q.is("verified_at", null);
         if (status === "reviewed") q = q.in("status",
           ["requires_manual_source_review", "navigation_repaired_pending_visual_qa"]);
         const result = await q;
