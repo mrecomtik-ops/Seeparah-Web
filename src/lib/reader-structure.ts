@@ -105,18 +105,18 @@ function looksLikeDramaSpeakerCue(value: string): boolean {
  */
 function classifyEnglishPartLabel(line: string): boolean | null {
   const candidate = /^(part|book|volume)(.*)$/iu.exec(line);
-  if (!candidate || /^part(?:ie|e)(?=$|[\\s:.\\-—–])/iu.test(line)) return null;
+  if (!candidate || /^part(?:ie|e)(?=$|[\s:.\-—–])/iu.test(line)) return null;
   const remainder = candidate[2] ?? "";
-  if (!remainder || /^[:.\\-—–]/u.test(remainder)) return true;
+  if (!remainder || /^[:.\-—–]/u.test(remainder)) return true;
   // Allow historically attested compact headings like "PartIV".
-  if (/^[IVXLCDM]+(?=$|[\\s:.\\-—–])/u.test(remainder)) return true;
-  if (!/^\\s/u.test(remainder)) return false;
+  if (/^[IVXLCDM]+(?=$|[\s:.\-—–])/u.test(remainder)) return true;
+  if (!/^\s/u.test(remainder)) return false;
   const label = remainder.trimStart();
-  if (!/^(?:(?:[ivxlcdm]+|\\d+|[A-Z])(?=$|[\\s:.\\-—–])|(?:the\\s+)?(?:first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|one|two|three|four|five)\\b)/iu.test(label)) {
+  if (!/^(?:(?:[ivxlcdm]+|\d+|[A-Z])(?=$|[\s:.\-—–])|(?:the\s+)?(?:first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|one|two|three|four|five)\b)/iu.test(label)) {
     return false;
   }
   // A prose sentence about a printed volume isn't itself a division.
-  return !/^(?:[ivxlcdm]+|\\d+)\\s+(?:contains|includes|has|is|was|were)\\b/iu.test(label);
+  return !/^(?:[ivxlcdm]+|\d+)\s+(?:contains|includes|has|is|was|were)\b/iu.test(label);
 }
 
 export function classifyHeading(value: string): {
