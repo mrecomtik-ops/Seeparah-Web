@@ -163,6 +163,8 @@ export function analyzeCatalogue(data, batchSize = 25) {
     critical.push(`${suspectYears.length} published Gutenberg records still expose suspect 1800/1656 publication years.`);
   if (yearIds.size > years.length)
     critical.push(`${yearIds.size - years.length} year backup records have no matching published-book row; reconcile publication state before re-enabling imports.`);
+  if (Number(data.safety?.unpublishedYearBackupCount ?? 0) > 0)
+    critical.push(`${data.safety.unpublishedYearBackupCount} private year-backup records lack a published book. Human review required.`);
   const chapterRows = sourceReview.slice(0, batchSize).map(r => ({
     book_id: String(r.book_id), title: String(r.book_title ?? ''), priority: String(r.priority ?? ''),
     stored_chapters: r.stored_chapter_nodes, source_heading_hits: r.source_chapter_pattern_chunks,
