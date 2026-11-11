@@ -29,6 +29,18 @@ describe("Gutenberg unattended catalogue intake",()=>{
     });
     expect(items.every(x=>x.gutenberg_id<9000)).toBe(true);
   });
+  it("discovers Twain, Hardy and Conrad as review-only source candidates, never modern editions", () => {
+    const csv=[
+      "Text#,Type,Issued,Title,Language,Authors,Subjects",
+      '1001,Text,2000-01-01,Adventures of Huckleberry Finn,en,"Twain, Mark, 1835-1910",Fiction',
+      '1002,Text,2000-01-01,The Mayor of Casterbridge,en,"Hardy, Thomas, 1840-1928",Fiction',
+      '1003,Text,2000-01-01,Lord Jim,en,"Conrad, Joseph, 1857-1924",Fiction',
+      '1004,Text,2000-01-01,Modern Work,en,"Author, Modern, 1950-2025",Fiction',
+    ].join("\\n");
+    const matches=selectGutenbergCandidates(csv,50);
+    expect(matches.map(x=>x.author_death_year)).toEqual([1910,1928,1924]);
+    expect(matches.every(x=>x.original_publication_year===null)).toBe(true);
+  });
   it("retries only network errors and leaves rights failures in review",()=>{
     expect(isTransientGutenbergFailure("Both authorized Gutenberg mirrors unavailable: operation was aborted due to timeout")).toBe(true);
     expect(isTransientGutenbergFailure("HTTP 502 from mirror")).toBe(true);
