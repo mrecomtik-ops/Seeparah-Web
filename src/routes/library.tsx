@@ -15,7 +15,6 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import {
-  GENRES,
   SAMPLE_EXCERPT_BOOK_IDS,
   DEMO_MANUSCRIPT_BOOK_IDS,
   isReligiousBook,
@@ -148,10 +147,6 @@ function LibraryPage() {
   }, [books]);
   const languagesInUse = useMemo(
     () => [...new Set(books.flatMap((book) => book.available_languages))].filter((name) => name !== "Bilingual").sort(),
-    [books],
-  );
-  const genresInUse = useMemo(
-    () => [...new Set(books.map((b) => b.genre).filter(Boolean) as string[])],
     [books],
   );
   const traditionsInUse = useMemo(() => publishedTraditions(books), [books]);
@@ -446,7 +441,7 @@ function LibraryPage() {
           </div>
           {books.length > 0 && (
             <>
-              <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+              <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <Select
                   label="Language"
                   value={lang}
@@ -459,12 +454,6 @@ function LibraryPage() {
                   options={authors}
                   formatOption={formatAuthorName}
                   onChange={(v) => updateSearch({ author: v ?? undefined })}
-                />
-                <Select
-                  label="Genre / theme"
-                  value={genre}
-                  options={genresInUse.length ? genresInUse : [...GENRES]}
-                  onChange={(v) => updateSearch({ genre: v ?? undefined })}
                 />
                 <Select
                   label="Tradition"
