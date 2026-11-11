@@ -81,7 +81,7 @@ describe("splitManuscript", () => {
       "A narrative passage that begins the actual first chapter.",
       "CHAPTER II.",
       "Another narrative passage from the next chapter.",
-    ].join("\\n\\n");
+    ].join("\n\n");
     const parsed=parseManuscript(input);
     const front=parsed.structure.find((n) => n.title==="LIST OF ILLUSTRATIONS");
     const chapters=parsed.structure.filter((n) => n.nodeType==="chapter");
