@@ -24,7 +24,7 @@ import { listLibraryIndex, getLibraryPageBooks, listProgress, matchesBookSearch 
 import { useAuth } from "@/lib/use-auth";
 import { BookCard } from "@/components/BookCard";
 import { useShelves } from "@/components/ShelfButtons";
-import { coverFor, FEATURED_BOOK_ID } from "@/lib/covers";
+import { coverFor, FEATURED_BOOK_ID, isLowResolutionGutenbergCover } from "@/lib/covers";
 import { isSharedSacredCollectionCover } from "@/lib/sacred-cover-artwork";
 import { SacredWorkIdentity } from "@/components/SacredWorkIdentity";
 import { getPublicContentSettings } from "@/lib/admin/settings.functions";
@@ -356,7 +356,7 @@ function LibraryPage() {
                     src={coverFor(featured.id, featuredFull?.cover_url)!}
                     alt={`Cover of ${displayTitleCase(featured.title)}`}
                     loading="lazy"
-                    className={`absolute inset-0 h-full w-full ${featured.genre === "Sacred Text" ? "bg-card object-contain" : "object-cover"}`}
+                    className={`absolute inset-0 m-auto h-full w-full ${isLowResolutionGutenbergCover(featuredFull?.cover_url) ? "max-h-[300px] max-w-[200px] bg-card object-contain" : featured.genre === "Sacred Text" || /gutenberg/i.test(featured.source_edition_id ?? "") ? "bg-card object-contain" : "object-cover"}`}
                   />
                 ) : (
                   <div className="flex h-full items-center justify-center">
