@@ -14,6 +14,15 @@ describe("QA-021 Quran authentic Basmala presentation only", () => {
     expect(result.basmala+"\n"+result.ayah).toBe(raw);
     expect(displayAyahTextForCopy(input("Quran 2:1",raw))).toBe(ALIF_LAM_MIM);
   });
+  it("preserves the distinctive, sourced Basmala marks in Surahs 95 and 97",()=>{
+    const variant="بِّسْمِ ٱللَّهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ";
+    for (const n of [95,97]) {
+      const original=variant+"\n"+"وَٱلتِّينِ";
+      const separated=separateUnnumberedQuranBasmala(input("Quran "+n+":1",original));
+      expect(separated.basmala).toBe(variant);
+      expect(separated.basmala+"\n"+separated.ayah).toBe(original);
+    }
+  });
   it("preserves Al-Fatiha 1:1 and Surah 9 unmodified and without a false heading",()=>{
     expect(separateUnnumberedQuranBasmala(input("Quran 1:1",BASMALA)))
       .toEqual({basmala:null,ayah:BASMALA});
