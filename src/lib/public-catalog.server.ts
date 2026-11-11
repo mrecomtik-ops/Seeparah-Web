@@ -51,7 +51,9 @@ const PUBLIC_BOOK_COLUMNS = [
 const LIBRARY_INDEX_COLUMNS = [
   "id", "title", "author", "cover_url", "source_edition_id",
   "available_languages", "total_chunks", "source_language",
-  "description", "genre", "categories", "status", "access_type",
+  // Summaries are often the largest bibliographic field and do not affect
+  // filtering; fetch them only for a visible 24-card page or featured title.
+  "genre", "categories", "status", "access_type",
   "content_classification", "created_at",
 ].join(",");
 
