@@ -237,7 +237,7 @@ export function renderMarkdown(report) {
   const lines = [
     '# Seeparah production QA — read-only report', '',
     `Generated: ${report.auditedAt}`, '',
-    `Production data: **${c ? 'verified by private read-only query' : 'NOT VERIFIED (secrets not configured)'}**`,
+    `Production data: **${c ? 'verified from the published-only production snapshot' : 'NOT VERIFIED (production snapshot unavailable)'}**`,
     `Public sitemap: **${report.sitemap?.status ?? 'NOT CHECKED'}**`, '',
   ];
   if (c) {
@@ -257,7 +257,7 @@ export function renderMarkdown(report) {
     lines.push('## Safety alerts', '', ...report.critical.map(s => `- **BLOCK:** ${sanitizeMarkdown(s)}`), '');
   }
   if (!c) lines.push('## Setup needed', '',
-    'Configure GitHub Actions secrets `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` for complete private read-only QA. No production changes are made.', '');
+    'Ensure https://seeparah.com/api/catalog-qa-public.json is deployed and reachable. No Supabase credentials are required in GitHub Actions.', '');
   for (const [title, rows] of [
     ['Next source-review batch', q?.chapterRows], ['Next reader/device acceptance batch', q?.visualRows],
     ['Next historical-year evidence batch', q?.yearRows], ['Next high-resolution cover source batch', q?.coverRows],
