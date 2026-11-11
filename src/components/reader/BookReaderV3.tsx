@@ -1,9 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  ArrowLeft,
-  Loader2,
-} from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import {
   useCallback,
   useEffect,
