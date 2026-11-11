@@ -18,7 +18,8 @@ export function separateUnnumberedQuranBasmala(input: {
   const line = content.slice(0, newline);
   // The exact first line is already present in the immutable Arabic source.
   // A different source encoding must never trigger speculative splitting.
-  if (!line.startsWith("بِسْمِ ٱللَّهِ")) return { basmala: null, ayah: content };
+  if (!line.startsWith("بِسْمِ ٱللَّهِ") &&
+      !line.startsWith("بِّسْمِ ٱللَّهِ")) return { basmala: null, ayah: content };
   return { basmala: line, ayah: content.slice(newline + 1) };
 }
 
