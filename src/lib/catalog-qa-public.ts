@@ -26,10 +26,11 @@ export function publicCatalogQaProjection(source: {
     }));
   if (!books.length) throw new Error("No published catalogue rows");
   const visibleIds = new Set(books.map(b => b['id']));
+  const publicTitleById = new Map(books.map(b => [b['id'],b['title']]));
   const reviews = source.reviews.filter(r => visibleIds.has(asString(r['book_id'])) &&
     reviewStates.has(asString(r['status']))).map(r => ({
     book_id: asString(r['book_id']),
-    book_title: books.find(b => b['id'] === r['book_id'])?.title ?? "",
+    book_title: publicTitleById.get(asString(r['book_id'])) ?? "",
     priority: asString(r['priority']), status: asString(r['status']),
     source_chapter_pattern_chunks: asInt(r['source_chapter_pattern_chunks']),
     stored_chapter_nodes: asInt(r['stored_chapter_nodes']),
@@ -40,6 +41,8 @@ export function publicCatalogQaProjection(source: {
     .map(y => ({ book_id: asString(y['book_id']) }));
   const i = source.importer;
   return { version: 1, scope: "published-catalogue-only" as const,
+    // Aggregate count only; no hidden record IDs or internal evidence is exported.
+    safety: { unpublishedYearBackupCount: source.oldYears.length - oldYears.length },
     books, reviews, oldYears, importer: {
       enabled: i['enabled'] === true,
       target_published: asInt(i['target_published']) ?? 0,
