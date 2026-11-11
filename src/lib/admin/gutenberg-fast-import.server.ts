@@ -524,7 +524,9 @@ export async function importGutenbergSource(job:Job):Promise<Result>{
       message: "Source chapter headings (" + sourceChapterCount +
         ") exceed imported chapter navigation (" + parsedChapters + "); structural audit required" };
   }
-  if(job.metadata?.["autopilot"]===true) {
+  if(job.metadata?.["autopilot"]===true || deathYear>1900 || originalYear>1900) {
+    // Post-1900 originals, even when Gutenberg flags them US-unrestricted,
+    // always require a separate territory-by-territory rights review.
     // Open Library's first_publish_year can be a placeholder (e.g. 1800).
     // A single catalog is NOT sufficient evidence to auto-approve a work.
     // Preserve the archived text and cover as private in_review until
