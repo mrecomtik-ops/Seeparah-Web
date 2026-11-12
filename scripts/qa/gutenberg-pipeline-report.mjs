@@ -28,6 +28,7 @@ const summary = {
   publicationImporterEnabled: data.importer.enabled,
   publicationTarget: data.importer.target_published,
   discovery: data.discovery || { status: "not deployed yet" },
+  importQueue: data.queue || {},
   policy: "No complete claim without source SHA256, exact reader read-back, rights and visual acceptance",
 };
 console.log(JSON.stringify(summary, null, 2));
