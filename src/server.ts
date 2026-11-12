@@ -54,6 +54,24 @@ async function runScheduledGutenbergWork(): Promise<void> {
   }
 }
 
+/** Independent 75k+ Gutenberg metadata discovery. This NEVER changes a
+ * book's publication, rights, edition, or reader source, and does not require
+ * enabling the provenance-gated publication importer. */
+async function runScheduledGutenbergDiscovery(): Promise<void> {
+  try {
+    const { supabaseAdmin } = await import("./integrations/supabase/client.server");
+    const client = supabaseAdmin as any;
+    const { data, error } = await client.from("gutenberg_discovery_state")
+      .select("enabled").eq("id", 1).maybeSingle();
+    if (error || data?.enabled !== true) return;
+    const { runGutenbergFullDiscoveryOnce } =
+      await import("./lib/admin/gutenberg-full-catalog.server");
+    await runGutenbergFullDiscoveryOnce();
+  } catch (error) {
+    console.error("[gutenberg-discovery] scheduled metadata inventory error", error);
+  }
+}
+
 let serverEntryPromise: Promise<ServerEntry> | undefined;
 
 async function getServerEntry(): Promise<ServerEntry> {
@@ -182,6 +200,7 @@ export default {
     // Fetching one queued book is deliberately sequential to avoid overlapping
     // database writes or unbounded external mirror traffic.
     ctx.waitUntil(runScheduledGutenbergWork());
+    ctx.waitUntil(runScheduledGutenbergDiscovery());
     const utcNow = new Date();
     // Execute data retention once per UTC day, never every minute.
     if (utcNow.getUTCHours() === 2 && utcNow.getUTCMinutes() === 30) {

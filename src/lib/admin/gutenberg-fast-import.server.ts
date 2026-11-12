@@ -453,8 +453,21 @@ export async function importGutenbergSource(job:Job):Promise<Result>{
     console.warn("[Gutenberg] cover requires review",id,error instanceof Error?error.message:String(error));
   }
   const { parseManuscript } = await import("@/lib/manuscript");
+  const { auditGutenbergSource, auditGutenbergStoredChunks } =
+    await import("@/lib/admin/gutenberg-integrity-gate");
+  const parsedManuscript = parseManuscript(manuscript);
+  const originalTextAudit = auditGutenbergSource(manuscript, parsedManuscript);
+  if (!originalTextAudit.ok) {
+    // Keep the exact mirrored bytes in the immutable source archive, but do
+    // NOT create a book whose text parser has lost or altered characters.
+    return {
+      status: "in_review", bookId: null, sha256,
+      metadata: { contentIntegrity: originalTextAudit, sourceArchive: sourceKey },
+      message: "Source parsing is not lossless: " + originalTextAudit.errors.join("; ").slice(0,700),
+    };
+  }
   const sourceChapterCount = countSourceChapterHeadings(manuscript);
-  const parsedChapters = parseManuscript(manuscript).structure
+  const parsedChapters = parsedManuscript.structure
     .filter((node) => node.nodeType === "chapter").length;
   const missingChapterNavigation = sourceChapterCount >= 2 &&
     parsedChapters < sourceChapterCount;
@@ -503,6 +516,35 @@ export async function importGutenbergSource(job:Job):Promise<Result>{
     return {status:"skipped",bookId:uploaded.bookId,sha256,message:uploaded.reason ?? "Identical source already imported"};
 
   const bookId=uploaded.bookId;
+  // Verify actual persistent reader chunks. Successful createBook calls are
+  // not sufficient evidence that the whole original text made it into DB.
+  const {data:versionRow,error:versionError}=await db.from("books")
+    .select("source_version").eq("id",bookId).single();
+  if(versionError)throw new Error("Book source-version verification failed: "+versionError.message);
+  const storedChunks:Array<{chunk_index:number;content:string}>=[];
+  let storedReadError:string|null=null;
+  for(let offset=0;offset<8000;offset+=250){
+    const {data:page,error}=await db.from("book_chunks")
+      .select("chunk_index,content").eq("book_id",bookId)
+      .eq("language","English")
+      .eq("source_version",versionRow.source_version)
+      .order("chunk_index",{ascending:true}).range(offset,offset+249);
+    if(error){storedReadError=error.message;break;}
+    storedChunks.push(...(page??[]));
+    if((page??[]).length<250)break;
+    if(offset===7750)storedReadError="Reader chunk count exceeded the guarded 8000-chunk maximum";
+  }
+  const storedAudit=storedReadError ? {
+    ok:false,errors:["Source stored-chunk read-back failed: "+storedReadError],
+    canonicalSha256:"",
+  } : auditGutenbergStoredChunks(manuscript,parsedManuscript,storedChunks);
+  if(!storedAudit.ok) {
+    return {
+      status:"in_review",bookId,sha256,
+      metadata:{contentIntegrity:originalTextAudit,readBack:storedAudit,sourceArchive:sourceKey},
+      message:"Stored source is incomplete or changed: "+storedAudit.errors.join("; ").slice(0,700),
+    };
+  }
   const {error:metadataError}=await db.from("books").update({
     edition_title:catalog.title+" — Seeparah Reading Edition",
     edition_year:2026,publisher:"Seeparah",
@@ -518,7 +560,12 @@ export async function importGutenbergSource(job:Job):Promise<Result>{
   const auditMeta:Record<string,unknown>={
     title:catalog.title,author,deathYear,year:originalYear,
     sourceUrl:url,coverUrl,sha256,review:"automated",catalogOrigin,yearEvidence,
-    subjects:subjectHeadings.slice(0,1500),assignedCategories
+    subjects:subjectHeadings.slice(0,1500),assignedCategories,
+    sourceIntegrity:originalTextAudit,
+    storedChunkIntegrity:storedAudit,
+    originalSourceArchive:sourceKey,
+    sourceChapterMarkers:sourceChapterCount,
+    sourceStructureChapterCount:parsedChapters,
   };
   if (missingChapterNavigation) {
     return { status: "in_review", bookId, sha256, metadata: auditMeta,
@@ -535,9 +582,32 @@ export async function importGutenbergSource(job:Job):Promise<Result>{
     return {status:"in_review",bookId,sha256,metadata:auditMeta,
       message:"Independent first-print year and full chapter sequence require review"};
   }
-  if(!coverUrl||uploaded.warnings.length||uploaded.chapterCount<2||desc.length<60)
+  // Provenance is not equivalent to approval: title-page imprint and
+  // Open Library guesses have produced historically false 1800/1656 dates.
+  // At least two independent references must be attached before even a
+  // manually queued historical edition can enter automatic publication.
+  const sources=Array.isArray(job.metadata?.["independentPublicationSources"])
+    ?job.metadata!["independentPublicationSources"] as unknown[]:[];
+  const independentHosts=new Set(sources.flatMap((value)=>{
+    if(typeof value!=="string")return [];
+    try{
+      const url=new URL(value);
+      return url.protocol==="https:" && !/^(?:www\.)?gutenberg\.org$/iu.test(url.hostname)
+        ?[url.hostname.replace(/^www\./u,"").toLowerCase()]:[];
+    }catch{return [];}
+  }));
+  if(independentHosts.size<2){
     return {status:"in_review",bookId,sha256,metadata:auditMeta,
-      message:"Cover, source structure or descriptive metadata needs review"};
+      message:"Historical first-print year needs two independently documented source references"};
+  }
+  // Gutenberg's generated medium thumbnail is authentic to its source
+  // listing but is not evidence of a high-resolution, edition-matched cover.
+  const coverNeedsQualityReview=!!coverUrl && /\/cover-medium\.jpg(?:\?|$)/iu.test(coverUrl);
+  if(!coverUrl||coverNeedsQualityReview||uploaded.warnings.length||
+     uploaded.chapterCount<2||desc.length<60){
+    return {status:"in_review",bookId,sha256,metadata:auditMeta,
+      message:"Source-matched high-resolution cover, chapter structure or description requires review"};
+  }
   const rightsSignals=await scanBookRightsSignals(bookId);
   if(rightsSignals.length)
     return {status:"in_review",bookId,sha256,metadata:auditMeta,

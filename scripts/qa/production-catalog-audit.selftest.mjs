@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   analyzeCatalogue, createReadOnlySupabase, csvField, detectEditionVariants,
-  fetchPublicQaSnapshot, main, makeCsv, renderMarkdown, smokeSitemap,
+  fetchPublicQaSnapshot, fetchScalablePublicQaSnapshot, main, makeCsv, renderMarkdown, smokeSitemap,
 } from './production-catalog-audit.mjs';
 
 const data = {
@@ -124,4 +124,44 @@ test('trusted secretless QA source accepts only official published-only Seeparah
     importer:{enabled:false}
   })});
   await assert.rejects(()=>fetchPublicQaSnapshot('https://seeparah.com/api/catalog-qa-public.json', invalid), /unpublished/);
+});
+
+
+test('75k-ready public QA pages retrieve all books in bounded GET requests without secrets', async () => {
+  const books = Array.from({ length: 1201 }, (_, n) => ({
+    id: String(n + 1), status: 'published', title: 'Book ' + n,
+    author: 'Public', original_publication_year: null,
+  }));
+  const calls = [];
+  const fixture = async (url, options) => {
+    assert.equal(url.origin, 'https://seeparah.com');
+    assert.equal(url.pathname, '/api/catalog-qa-public.json');
+    assert.equal(options.method, 'GET');
+    assert(!('Authorization' in (options.headers || {})));
+    assert(!('apikey' in (options.headers || {})));
+    calls.push(url.searchParams.toString());
+    const kind = url.searchParams.get('kind');
+    const page = Number(url.searchParams.get('page'));
+    let rows = [];
+    if (kind === 'books') rows = books.slice((page - 1) * 500, page * 500);
+    if (kind === 'reviews' && page === 1)
+      rows = [{ book_id: '1', book_title: 'Book 0', status: 'requires_manual_source_review' }];
+    if (kind === 'years' && page === 1) rows = [{ book_id: '1' }];
+    return { ok: true, status: 200, json: async () => ({
+      version: 2, scope: 'published-catalogue-page',
+      kind, page, rows, hasMore: rows.length === 500,
+      ...(kind === 'inventory' ? {
+        importer: { enabled: false, target_published: 10000, batch_size: 100 },
+        discovery: { enabled: true, inventoryRecords: 76000 },
+      } : {}),
+    }) };
+  };
+  const result = await fetchScalablePublicQaSnapshot(
+    'https://seeparah.com/api/catalog-qa-public.json', fixture);
+  assert.equal(result.books.length, 1201);
+  assert.equal(result.reviews.length, 1);
+  assert.equal(result.oldYears.length, 1);
+  assert.equal(result.discovery.inventoryRecords, 76000);
+  assert.equal(calls.filter(s => s.startsWith('kind=books')).length, 3);
+  assert(calls.length < 10);
 });

@@ -1,0 +1,61 @@
+name: Gutenberg 75k+ catalogue — completeness and safety gate
+
+on:
+  schedule:
+    - cron: '25 4 * * *'
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'src/lib/admin/gutenberg-*'
+      - 'src/server.ts'
+      - 'scripts/qa/gutenberg-pipeline-report.mjs'
+      - '.github/workflows/gutenberg-full-catalog-integrity.yml'
+      - 'supabase/migrations/*gutenberg*'
+  push:
+    branches: [main]
+    paths:
+      - 'src/lib/admin/gutenberg-*'
+      - 'src/server.ts'
+      - 'scripts/qa/gutenberg-pipeline-report.mjs'
+      - '.github/workflows/gutenberg-full-catalog-integrity.yml'
+      - 'supabase/migrations/*gutenberg*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gutenberg-integrity-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  offline-integrity-gates:
+    name: Gutenberg lossless and 75k catalog regression
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Source and full-catalog unit tests
+        run: npx vitest run src/lib/admin/gutenberg-integrity-gate.test.ts src/lib/admin/gutenberg-full-catalog.server.test.ts src/lib/admin/gutenberg-autopilot.server.test.ts src/lib/admin/gutenberg-fast-import.server.test.ts src/lib/admin/importer-rootcause.characterization.test.ts
+      - name: Import-source regression corpus
+        run: node scripts/catalog-integrity/selftest.mjs
+      - name: Typecheck Cloudflare scheduler and all import modules
+        run: npx tsc --noEmit
+
+  live-catalogue-audit:
+    name: Published Gutenberg QA - read only
+    if: github.event_name != 'pull_request'
+    needs: offline-integrity-gates
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check publication safety and review queues
+        run: node scripts/qa/gutenberg-pipeline-report.mjs
