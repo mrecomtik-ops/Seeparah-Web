@@ -176,7 +176,7 @@ export async function fetchScalablePublicQaSnapshot(
   const result = {
     version: 1, scope: 'published-catalogue-only',
     books: [], reviews: [], oldYears: [],
-    importer: first.importer, discovery: first.discovery,
+    importer: first.importer, discovery: first.discovery, queue: first.queue ?? {},
     safety: { unpublishedYearBackupCount: 0 },
   };
   if (!result.importer || !result.discovery) throw Error('Missing importer/discovery state');
