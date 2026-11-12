@@ -582,9 +582,32 @@ export async function importGutenbergSource(job:Job):Promise<Result>{
     return {status:"in_review",bookId,sha256,metadata:auditMeta,
       message:"Independent first-print year and full chapter sequence require review"};
   }
-  if(!coverUrl||uploaded.warnings.length||uploaded.chapterCount<2||desc.length<60)
+  // Provenance is not equivalent to approval: title-page imprint and
+  // Open Library guesses have produced historically false 1800/1656 dates.
+  // At least two independent references must be attached before even a
+  // manually queued historical edition can enter automatic publication.
+  const sources=Array.isArray(job.metadata?.["independentPublicationSources"])
+    ?job.metadata!["independentPublicationSources"] as unknown[]:[];
+  const independentHosts=new Set(sources.flatMap((value)=>{
+    if(typeof value!=="string")return [];
+    try{
+      const url=new URL(value);
+      return url.protocol==="https:" && !/^(?:www\\.)?gutenberg\\.org$/iu.test(url.hostname)
+        ?[url.hostname.replace(/^www\\./u,"").toLowerCase()]:[];
+    }catch{return [];}
+  }));
+  if(independentHosts.size<2){
     return {status:"in_review",bookId,sha256,metadata:auditMeta,
-      message:"Cover, source structure or descriptive metadata needs review"};
+      message:"Historical first-print year needs two independently documented source references"};
+  }
+  // Gutenberg's generated medium thumbnail is authentic to its source
+  // listing but is not evidence of a high-resolution, edition-matched cover.
+  const coverNeedsQualityReview=!!coverUrl && /\/cover-medium\\.jpg(?:\\?|$)/iu.test(coverUrl);
+  if(!coverUrl||coverNeedsQualityReview||uploaded.warnings.length||
+     uploaded.chapterCount<2||desc.length<60){
+    return {status:"in_review",bookId,sha256,metadata:auditMeta,
+      message:"Source-matched high-resolution cover, chapter structure or description requires review"};
+  }
   const rightsSignals=await scanBookRightsSignals(bookId);
   if(rightsSignals.length)
     return {status:"in_review",bookId,sha256,metadata:auditMeta,
