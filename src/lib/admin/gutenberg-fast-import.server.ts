@@ -592,8 +592,8 @@ export async function importGutenbergSource(job:Job):Promise<Result>{
     if(typeof value!=="string")return [];
     try{
       const url=new URL(value);
-      return url.protocol==="https:" && !/^(?:www\\.)?gutenberg\\.org$/iu.test(url.hostname)
-        ?[url.hostname.replace(/^www\\./u,"").toLowerCase()]:[];
+      return url.protocol==="https:" && !/^(?:www\.)?gutenberg\.org$/iu.test(url.hostname)
+        ?[url.hostname.replace(/^www\./u,"").toLowerCase()]:[];
     }catch{return [];}
   }));
   if(independentHosts.size<2){
@@ -602,7 +602,7 @@ export async function importGutenbergSource(job:Job):Promise<Result>{
   }
   // Gutenberg's generated medium thumbnail is authentic to its source
   // listing but is not evidence of a high-resolution, edition-matched cover.
-  const coverNeedsQualityReview=!!coverUrl && /\/cover-medium\\.jpg(?:\\?|$)/iu.test(coverUrl);
+  const coverNeedsQualityReview=!!coverUrl && /\/cover-medium\.jpg(?:\?|$)/iu.test(coverUrl);
   if(!coverUrl||coverNeedsQualityReview||uploaded.warnings.length||
      uploaded.chapterCount<2||desc.length<60){
     return {status:"in_review",bookId,sha256,metadata:auditMeta,
