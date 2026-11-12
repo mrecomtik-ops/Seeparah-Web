@@ -453,8 +453,21 @@ export async function importGutenbergSource(job:Job):Promise<Result>{
     console.warn("[Gutenberg] cover requires review",id,error instanceof Error?error.message:String(error));
   }
   const { parseManuscript } = await import("@/lib/manuscript");
+  const { auditGutenbergSource, auditGutenbergStoredChunks } =
+    await import("@/lib/admin/gutenberg-integrity-gate");
+  const parsedManuscript = parseManuscript(manuscript);
+  const originalTextAudit = auditGutenbergSource(manuscript, parsedManuscript);
+  if (!originalTextAudit.ok) {
+    // Keep the exact mirrored bytes in the immutable source archive, but do
+    // NOT create a book whose text parser has lost or altered characters.
+    return {
+      status: "in_review", bookId: null, sha256,
+      metadata: { contentIntegrity: originalTextAudit, sourceArchive: sourceKey },
+      message: "Source parsing is not lossless: " + originalTextAudit.errors.join("; ").slice(0,700),
+    };
+  }
   const sourceChapterCount = countSourceChapterHeadings(manuscript);
-  const parsedChapters = parseManuscript(manuscript).structure
+  const parsedChapters = parsedManuscript.structure
     .filter((node) => node.nodeType === "chapter").length;
   const missingChapterNavigation = sourceChapterCount >= 2 &&
     parsedChapters < sourceChapterCount;
@@ -503,6 +516,35 @@ export async function importGutenbergSource(job:Job):Promise<Result>{
     return {status:"skipped",bookId:uploaded.bookId,sha256,message:uploaded.reason ?? "Identical source already imported"};
 
   const bookId=uploaded.bookId;
+  // Verify actual persistent reader chunks. Successful createBook calls are
+  // not sufficient evidence that the whole original text made it into DB.
+  const {data:versionRow,error:versionError}=await db.from("books")
+    .select("source_version").eq("id",bookId).single();
+  if(versionError)throw new Error("Book source-version verification failed: "+versionError.message);
+  const storedChunks:Array<{chunk_index:number;content:string}>=[];
+  let storedReadError:string|null=null;
+  for(let offset=0;offset<8000;offset+=250){
+    const {data:page,error}=await db.from("book_chunks")
+      .select("chunk_index,content").eq("book_id",bookId)
+      .eq("language","English")
+      .eq("source_version",versionRow.source_version)
+      .order("chunk_index",{ascending:true}).range(offset,offset+249);
+    if(error){storedReadError=error.message;break;}
+    storedChunks.push(...(page??[]));
+    if((page??[]).length<250)break;
+    if(offset===7750)storedReadError="Reader chunk count exceeded the guarded 8000-chunk maximum";
+  }
+  const storedAudit=storedReadError ? {
+    ok:false,errors:["Source stored-chunk read-back failed: "+storedReadError],
+    canonicalSha256:"",
+  } : auditGutenbergStoredChunks(manuscript,parsedManuscript,storedChunks);
+  if(!storedAudit.ok) {
+    return {
+      status:"in_review",bookId,sha256,
+      metadata:{contentIntegrity:originalTextAudit,readBack:storedAudit,sourceArchive:sourceKey},
+      message:"Stored source is incomplete or changed: "+storedAudit.errors.join("; ").slice(0,700),
+    };
+  }
   const {error:metadataError}=await db.from("books").update({
     edition_title:catalog.title+" — Seeparah Reading Edition",
     edition_year:2026,publisher:"Seeparah",
@@ -518,7 +560,12 @@ export async function importGutenbergSource(job:Job):Promise<Result>{
   const auditMeta:Record<string,unknown>={
     title:catalog.title,author,deathYear,year:originalYear,
     sourceUrl:url,coverUrl,sha256,review:"automated",catalogOrigin,yearEvidence,
-    subjects:subjectHeadings.slice(0,1500),assignedCategories
+    subjects:subjectHeadings.slice(0,1500),assignedCategories,
+    sourceIntegrity:originalTextAudit,
+    storedChunkIntegrity:storedAudit,
+    originalSourceArchive:sourceKey,
+    sourceChapterMarkers:sourceChapterCount,
+    sourceStructureChapterCount:parsedChapters,
   };
   if (missingChapterNavigation) {
     return { status: "in_review", bookId, sha256, metadata: auditMeta,
