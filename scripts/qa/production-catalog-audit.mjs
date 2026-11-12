@@ -188,6 +188,9 @@ export async function fetchScalablePublicQaSnapshot(
       const response = await requestKind(kind, page);
       if (!response) throw Error('QA pagination disabled after metadata handshake');
       result[key].push(...response.rows);
+      if (kind === 'years') {
+        result.safety.unpublishedYearBackupCount += Number(response.hiddenUnpublishedYearRows ?? 0);
+      }
       if (!response.hasMore) { exhausted = true; break; }
     }
     if (!exhausted) throw Error('QA ' + kind + ' exceeded 125,000 pagination rows');
