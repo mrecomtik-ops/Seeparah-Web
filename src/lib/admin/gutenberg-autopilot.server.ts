@@ -122,7 +122,7 @@ export function selectGutenbergCandidates(
   return selected;
 }
 
-async function downloadCatalog():Promise<string>{
+export async function downloadCatalog():Promise<string>{
   const failures:string[]=[];
   for(const url of FEED_MIRRORS){
     try {
