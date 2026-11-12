@@ -27,14 +27,19 @@ async function servePagedCatalogQa(request: Request): Promise<Response> {
   if (stateError || !importer) throw new Error("Publication pause state unavailable");
 
   if (kind === "inventory") {
-    const [count, progress] = await Promise.all([
+    const statuses = ["queued", "processing", "in_review", "failed", "published", "skipped"];
+    const [count, progress, ...jobResults] = await Promise.all([
       db.from("gutenberg_catalog_inventory").select("gutenberg_id", { count: "exact", head: true }),
       db.from("gutenberg_discovery_state").select(
         "enabled,catalog_offset,processed_rows,completed_at,last_success_at,last_error,batch_size"
       ).eq("id", 1).maybeSingle(),
+      ...statuses.map((status) => db.from("gutenberg_import_jobs")
+        .select("id", { count: "exact", head: true }).eq("status", status)),
     ]);
-    if (count.error || progress.error || !progress.data)
-      throw new Error("Gutenberg inventory checkpoint unavailable");
+    if (count.error || progress.error || !progress.data || jobResults.some((r) => r.error))
+      throw new Error("Gutenberg inventory checkpoint / queue metrics unavailable");
+    const queue = Object.fromEntries(statuses.map((name, i) =>
+      [name, Number(jobResults[i]?.count ?? 0)]));
     return jsonQa({
       version: 2, scope: "published-catalogue-page", kind, page, hasMore: false,
       rows: [], importer: {
@@ -51,6 +56,7 @@ async function servePagedCatalogQa(request: Request): Promise<Response> {
         batchSize: Number(progress.data.batch_size ?? 0),
         hasError: Boolean(progress.data.last_error),
       },
+      queue,
     });
   }
 
