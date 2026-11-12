@@ -135,6 +135,67 @@ export async function fetchPublicQaSnapshot(url = 'https://seeparah.com/api/cata
   return payload;
 }
 
+/** Read 75k+ published records in bounded, public-only pages. The older
+ * unpaged projection is still supported during deployment transitions.
+ * Every request is GET-only to Seeparah's fixed public endpoint.
+ */
+export async function fetchScalablePublicQaSnapshot(
+  url = 'https://seeparah.com/api/catalog-qa-public.json',
+  fetchFn = fetch,
+) {
+  const root = new URL(url);
+  if (root.origin !== 'https://seeparah.com' ||
+      root.pathname !== '/api/catalog-qa-public.json' ||
+      root.search || root.hash) {
+    throw Error('Only the official Seeparah published-only QA projection is supported');
+  }
+  async function requestKind(kind, page) {
+    const target = new URL(root);
+    target.searchParams.set('kind', kind);
+    target.searchParams.set('page', String(page));
+    const response = await fetchFn(target, {
+      method: 'GET', redirect: 'error', signal: AbortSignal.timeout(URL_TIMEOUT_MS),
+      headers: { Accept: 'application/json' },
+    });
+    if ((response.status === 404 || response.status === 400) && page === 1) {
+      return null; // Older production Worker: use the original v1 endpoint.
+    }
+    if (!response.ok) throw Error('Published QA page ' + kind + ' HTTP ' + response.status);
+    const value = await response.json();
+    if (value.version !== 2 || value.scope !== 'published-catalogue-page' ||
+        value.kind !== kind || value.page !== page ||
+        !Array.isArray(value.rows) || typeof value.hasMore !== 'boolean') {
+      throw Error('Invalid paginated QA response for ' + kind + ' page ' + page);
+    }
+    if (kind === 'books' && value.rows.some(b => b.status !== 'published'))
+      throw Error('Private unpublished book leaked into public QA');
+    return value;
+  }
+  const first = await requestKind('inventory', 1);
+  if (!first) return fetchPublicQaSnapshot(url, fetchFn);
+  const result = {
+    version: 1, scope: 'published-catalogue-only',
+    books: [], reviews: [], oldYears: [],
+    importer: first.importer, discovery: first.discovery,
+    safety: { unpublishedYearBackupCount: 0 },
+  };
+  if (!result.importer || !result.discovery) throw Error('Missing importer/discovery state');
+  for (const [kind, key] of [
+    ['books', 'books'], ['reviews', 'reviews'], ['years', 'oldYears'],
+  ]) {
+    let exhausted = false;
+    for (let page = 1; page <= 250; page++) {
+      const response = await requestKind(kind, page);
+      if (!response) throw Error('QA pagination disabled after metadata handshake');
+      result[key].push(...response.rows);
+      if (!response.hasMore) { exhausted = true; break; }
+    }
+    if (!exhausted) throw Error('QA ' + kind + ' exceeded 125,000 pagination rows');
+  }
+  if (!result.books.length) throw Error('QA published catalogue unexpectedly empty');
+  return result;
+}
+
 export function analyzeCatalogue(data, batchSize = 25) {
   if (!Number.isSafeInteger(batchSize) || batchSize < 1 || batchSize > 100)
     throw Error('Batch size must be 1 to 100');
@@ -308,7 +369,7 @@ export async function main(argv = process.argv.slice(2)) {
     if (fixtureFile) {
       data = JSON.parse(await readFile(resolve(fixtureFile), 'utf8'));
     } else if (val('--public-url')) {
-      data = await fetchPublicQaSnapshot(val('--public-url'));
+      data = await fetchScalablePublicQaSnapshot(val('--public-url'));
     } else if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
       data = await fetchData(createReadOnlySupabase({
         url: process.env.SUPABASE_URL, key: process.env.SUPABASE_SERVICE_ROLE_KEY,
