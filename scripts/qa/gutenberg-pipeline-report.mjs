@@ -44,6 +44,7 @@ if (process.env.GITHUB_STEP_SUMMARY) {
     ["Suspect 1800/1656 years", summary.suspectHistoricYearRegressions],
     ["Publication importer enabled", summary.publicationImporterEnabled],
     ["Discovery", JSON.stringify(summary.discovery)],
+    ["Import queue (review/fail/queued)", JSON.stringify(summary.importQueue)],
   ];
   await appendFile(process.env.GITHUB_STEP_SUMMARY,
     "## Seeparah Gutenberg safety checks\n\n| Check | Result |\n|---|---|\n" +
