@@ -1,12 +1,9 @@
 #!/usr/bin/env node
 /* Secretless, read-only published Gutenberg catalogue QA. */
-const URL = "https://seeparah.com/api/catalog-qa-public.json";
-const response = await fetch(URL, {
-  headers: { Accept: "application/json" }, redirect: "error",
-  signal: AbortSignal.timeout(30_000),
-});
-if (!response.ok) throw new Error("Public QA health HTTP " + response.status);
-const data = await response.json();
+import { fetchScalablePublicQaSnapshot } from "./production-catalog-audit.mjs";
+const data = await fetchScalablePublicQaSnapshot(
+  "https://seeparah.com/api/catalog-qa-public.json",
+);
 if (data.version !== 1 || data.scope !== "published-catalogue-only" ||
     !Array.isArray(data.books) || !Array.isArray(data.reviews) ||
     !Array.isArray(data.oldYears) || !data.importer) {
