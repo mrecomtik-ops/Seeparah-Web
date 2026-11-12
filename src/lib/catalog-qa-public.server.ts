@@ -94,7 +94,7 @@ async function servePagedCatalogQa(request: Request): Promise<Response> {
   return jsonQa({
     version: 2, scope: "published-catalogue-page",
     kind, page, hasMore: candidates.length === PAGE_SIZE,
-    rows,
+    rows, hiddenUnpublishedYearRows: kind === "years" ? candidates.length - rows.length : 0,
   });
 }
 
