@@ -97,8 +97,10 @@ export function selectGutenbergCandidates(
     const author=parseAuthor(authorRaw!);
     if(!author)continue;
     const title=normalize(titleRaw!);
-    if(title.length<8||title.length>225||
-       /(?:\bvol(?:ume)?s?\.?\s*[ivx\d]|\bpart\s+[ivx\d]+\s+of\s+\d|complete works|selections from|collection of letters)/i.test(title))continue;
+    // A short name ("Emma") or a source volume is still a legitimate
+    // Project Gutenberg eBook. Let source rights and integrity checks
+    // decide publication, never arbitrary title wording.
+    if(title.length<2||title.length>300)continue;
     const subject=normalize(subjectsRaw??"").slice(0,1200);
     // Strongly prefer complete narrative works and established literary fiction.
     const priority=/fiction|novel|adventure|stories/i.test(subject)?0:
@@ -137,9 +139,7 @@ export function candidateFromFullInventory(row:{
   const author=parseAuthor(row.author_raw);
   if(!author || author.death>1900)return null;
   const title=normalize(row.title);
-  if(title.length<8 || title.length>225 ||
-     /(?:\bvol(?:ume)?s?\.?\s*[ivx\d]|\bpart\s+[ivx\d]+\s+of\s+\d|complete works|selections from)/i.test(title))
-    return null;
+  if(title.length<2 || title.length>300)return null;
   const subject=normalize(row.subjects??"").slice(0,1200);
   const priority=/fiction|novel|adventure|stories/i.test(subject)?0:
     /history|biograph|essay|literature/i.test(subject)?1:2;
