@@ -204,6 +204,62 @@ export function isTransientGutenbergFailure(message:string):boolean{
     return false;
   return /(?:timed? ?out|timeout|operation was aborted|fetch failed|econnreset|HTTP (?:429|5\d\d)|lookup returned (?:429|5\d\d)|temporary network|rate limit)/i.test(message);
 }
+/** Legacy pre-v4 jobs incorrectly treated a missing first-print year as a
+ * fatal import failure before the manuscript could be checked. The current
+ * importer can safely retain a NULL year and hold the edition for review.
+ * Exactly one old, unimported official-catalog job is eligible per recovery
+ * cycle. No year, rights approval, or published status is inferred. */
+export function canRecheckLegacyHistoricalYearJob(job:{
+  attempts:number;book_id:string|null;original_publication_year:number|null;
+  last_error:string|null;metadata:Record<string,unknown>|null;
+}):boolean{
+  const m=job.metadata;
+  return job.attempts===1 && job.book_id===null &&
+    job.original_publication_year===null &&
+    job.last_error==="Independent historical first publication year unavailable" &&
+    m?.["autopilot"]===true &&
+    m?.["metadataSource"]==="Project Gutenberg official weekly CSV" &&
+    m?.["catalogUrl"]==="https://www.gutenberg.org/cache/epub/feeds/pg_catalog.csv" &&
+    typeof m?.["batchId"]==="string" && /^PG-AUTO-\d{4,}$/.test(m["batchId"] as string) &&
+    typeof m?.["title"]==="string" && (m["title"] as string).length>=8 &&
+    typeof m?.["author"]==="string" && (m["author"] as string).length>=3 &&
+    Number.isInteger(m?.["authorDeathYear"]) &&
+    (m?.["legacyYearRecheckVersion"]===undefined);
+}
+
+async function requeueOneLegacyHistoricalYearJob(client:SupabaseAdminDb):Promise<void>{
+  // Pace recovery to at most one job every five minutes, and never crowd
+  // out the fresh Gutenberg queue or flood the source mirrors.
+  if(new Date().getUTCMinutes()%5!==0)return;
+  const {count,error:countError}=await client.from("gutenberg_import_jobs")
+    .select("id",{count:"exact",head:true}).eq("status","queued");
+  if(countError || (count??0)>1){
+    if(countError)console.error("[gutenberg-autopilot] legacy queue depth",countError.message);
+    return;
+  }
+  const {data:olderJobs,error:readError}=await client.from("gutenberg_import_jobs")
+    .select("id,attempts,book_id,original_publication_year,last_error,metadata")
+    .eq("status","failed")
+    .eq("last_error","Independent historical first publication year unavailable")
+    .eq("attempts",1).is("book_id",null)
+    .contains("metadata",{autopilot:true,metadataSource:"Project Gutenberg official weekly CSV"})
+    .order("id",{ascending:true}).limit(20);
+  if(readError){
+    console.error("[gutenberg-autopilot] legacy date review read",readError.message);
+    return;
+  }
+  const job=(olderJobs??[]).find((candidate:any)=>canRecheckLegacyHistoricalYearJob(candidate));
+  if(!job)return;
+  const {error:updateError}=await client.from("gutenberg_import_jobs").update({
+    status:"queued",last_error:null,
+    metadata:{...job.metadata,legacyYearRecheckVersion:"gutenberg-v4-safe-metadata-review"},
+    updated_at:new Date().toISOString(),
+  }).eq("id",job.id).eq("status","failed")
+    .eq("last_error","Independent historical first publication year unavailable");
+  if(updateError)console.error("[gutenberg-autopilot] legacy job requeue",updateError.message);
+  else console.log("[gutenberg-autopilot] requeued one old date-unverified job for full v4 checks",job.id);
+}
+
 async function recoverInterruptedImports(client:SupabaseAdminDb):Promise<void>{
   const staleBefore=new Date(Date.now()-30*60_000).toISOString();
   const {error:staleError}=await client.from("gutenberg_import_jobs").update({
@@ -245,6 +301,7 @@ export async function runGutenbergAutopilotOnce():Promise<void>{
   }
   if(!settings?.enabled)return;
   await recoverInterruptedImports(client);
+  await requeueOneLegacyHistoricalYearJob(client);
 
   const {data:plan,error:planError}=await client.rpc("gutenberg_autopilot_prepare_batch");
   if(planError){
