@@ -1,0 +1,376 @@
+{
+  "batch": "seeparah-original-113-covers",
+  "checkpoint": "2026-11-13",
+  "scope": "source recovery only; no rights approval or production publication",
+  "source": "Production public.gutenberg_catalog_inventory: 78,518 official Gutenberg identities",
+  "entries": [
+    {
+      "candidateId": "SP-CAND-0012",
+      "gutenbergId": 37106,
+      "language": "en",
+      "action": "already_published_work",
+      "title": "Little Women; Or, Meg, Jo, Beth, and Amy",
+      "notes": "Same work already live as SP-CAND-0024; verify distinct edition before adding"
+    },
+    {
+      "candidateId": "SP-CAND-0049",
+      "gutenbergId": 62215,
+      "language": "fr",
+      "action": "acquire",
+      "title": "Le Fantôme de l'Opéra",
+      "notes": ""
+    },
+    {
+      "candidateId": "SP-CAND-0066",
+      "gutenbergId": 31100,
+      "language": "en",
+      "action": "rights_hold",
+      "title": "The Complete Project Gutenberg Works of Jane Austen A Linked Index of all PG Editions of Jane Austen",
+      "notes": "Modern editorial contribution: David Widger died 2021"
+    },
+    {
+      "candidateId": "SP-CAND-0068",
+      "gutenbergId": 36462,
+      "language": "en",
+      "action": "acquire",
+      "title": "King Arthur and the Knights of the Round Table",
+      "notes": "Verify Rupert Sargent Holland edition"
+    },
+    {
+      "candidateId": "SP-CAND-0078",
+      "gutenbergId": 68411,
+      "language": "en",
+      "action": "acquire",
+      "title": "Bellarion the Fortunate",
+      "notes": ""
+    },
+    {
+      "candidateId": "SP-CAND-0102",
+      "gutenbergId": 20710,
+      "language": "en",
+      "action": "acquire",
+      "title": "Pluck on the Long Trail; Or, Boy Scouts in the Rockies",
+      "notes": ""
+    },
+    {
+      "candidateId": "SP-CAND-0114",
+      "gutenbergId": 59806,
+      "language": "en",
+      "action": "acquire",
+      "title": "The Dragon in Shallow Waters",
+      "notes": ""
+    },
+    {
+      "candidateId": "SP-CAND-0119",
+      "gutenbergId": 17707,
+      "language": "fr",
+      "action": "acquire",
+      "title": "Aline et Valcour, ou Le Roman Philosophique. Tome 2",
+      "notes": "Tome 2, never substitute another volume"
+    },
+    {
+      "candidateId": "SP-CAND-0120",
+      "gutenbergId": 60827,
+      "language": "fr",
+      "action": "acquire",
+      "title": "Aline et Valcour, ou Le Roman Philosophique. Tome 3",
+      "notes": "Tome 3"
+    },
+    {
+      "candidateId": "SP-CAND-0121",
+      "gutenbergId": 61408,
+      "language": "fr",
+      "action": "acquire",
+      "title": "Aline et Valcour, ou Le Roman Philosophique. Tome 4",
+      "notes": "Tome 4"
+    },
+    {
+      "candidateId": "SP-CAND-0123",
+      "gutenbergId": 20817,
+      "language": "en",
+      "action": "rights_hold",
+      "title": "The Mother and Her Child",
+      "notes": "Coauthor Lena Kellogg Sadler has unverified date of death"
+    },
+    {
+      "candidateId": "SP-CAND-0131",
+      "gutenbergId": 62028,
+      "language": "en",
+      "action": "acquire",
+      "title": "The Soul of Ann Rutledge: Abraham Lincoln's Romance",
+      "notes": ""
+    },
+    {
+      "candidateId": "SP-CAND-0133",
+      "gutenbergId": 75533,
+      "language": "en",
+      "action": "acquire",
+      "title": "Greek wayfarers, and other poems",
+      "notes": ""
+    },
+    {
+      "candidateId": "SP-CAND-0136",
+      "gutenbergId": 22657,
+      "language": "en",
+      "action": "rights_hold",
+      "title": "Steam, Its Generation and Use",
+      "notes": "Corporate authorship and publication edition need independent rights evidence"
+    },
+    {
+      "candidateId": "SP-CAND-0155",
+      "gutenbergId": 16491,
+      "language": "en",
+      "action": "acquire",
+      "title": "Vergilius: A Tale of the Coming of Christ",
+      "notes": ""
+    },
+    {
+      "candidateId": "SP-CAND-0160",
+      "gutenbergId": 39032,
+      "language": "en",
+      "action": "acquire",
+      "title": "Songs Ysame",
+      "notes": ""
+    },
+    {
+      "candidateId": "SP-CAND-0162",
+      "gutenbergId": 8207,
+      "language": "en",
+      "action": "acquire",
+      "title": "The Philosophy of the Plays of Shakspere Unfolded",
+      "notes": ""
+    },
+    {
+      "candidateId": "SP-CAND-0173",
+      "gutenbergId": 55161,
+      "language": "en",
+      "action": "acquire",
+      "title": "The Madness of Philip, and Other Tales of Childhood",
+      "notes": ""
+    },
+    {
+      "candidateId": "SP-CAND-0174",
+      "gutenbergId": 26277,
+      "language": "en",
+      "action": "acquire",
+      "title": "Margarita's Soul: The Romantic Recollections of a Man of Fifty",
+      "notes": ""
+    },
+    {
+      "candidateId": "SP-CAND-0179",
+      "gutenbergId": 19869,
+      "language": "en",
+      "action": "acquire",
+      "title": "While Caroline Was Growing",
+      "notes": ""
+    },
+    {
+      "candidateId": "SP-CAND-0181",
+      "gutenbergId": 548,
+      "language": "en",
+      "action": "rights_hold",
+      "title": "Project Trinity, 1945-1946",
+      "notes": "Modern US government technical document; license and contributions unverified"
+    },
+    {
+      "candidateId": "SP-CAND-0184",
+      "gutenbergId": 4265,
+      "language": "en",
+      "action": "acquire",
+      "title": "Heroes Every Child Should Know",
+      "notes": ""
+    },
+    {
+      "candidateId": "SP-CAND-0222",
+      "gutenbergId": 19657,
+      "language": "fr",
+      "action": "acquire",
+      "title": "Notre-Dame de Paris",
+      "notes": "Use French source #19657, not English translation #2610"
+    },
+    {
+      "candidateId": "SP-CAND-0223",
+      "gutenbergId": 14287,
+      "language": "fr",
+      "action": "acquire",
+      "title": "L'île mystérieuse",
+      "notes": ""
+    },
+    {
+      "candidateId": "SP-CAND-0224",
+      "gutenbergId": 54873,
+      "language": "fr",
+      "action": "acquire",
+      "title": "Vingt mille lieues sous les mers",
+      "notes": ""
+    },
+    {
+      "candidateId": "SP-CAND-0236",
+      "gutenbergId": 17989,
+      "language": "fr",
+      "action": "acquire",
+      "title": "Le comte de Monte-Cristo, Tome I",
+      "notes": "Tome I source must be treated as individual volume"
+    },
+    {
+      "candidateId": "SP-CAND-0247",
+      "gutenbergId": 2229,
+      "language": "de",
+      "action": "acquire",
+      "title": "Faust: Der Tragödie erster Teil",
+      "notes": ""
+    },
+    {
+      "candidateId": "SP-CAND-0250",
+      "gutenbergId": 2230,
+      "language": "de",
+      "action": "acquire",
+      "title": "Faust: Der Tragödie zweiter Teil",
+      "notes": ""
+    },
+    {
+      "candidateId": "SP-CAND-0253",
+      "gutenbergId": 21000,
+      "language": "de",
+      "action": "edition_hold",
+      "title": "Faust: Eine Tragödie [erster Teil]",
+      "notes": "Possible alternate edition of Faust Teil I; compare to candidate 0247"
+    },
+    {
+      "candidateId": "SP-CAND-0262",
+      "gutenbergId": 2335,
+      "language": "de",
+      "action": "acquire",
+      "title": "Wilhelm Meisters Lehrjahre — Band 1",
+      "notes": ""
+    },
+    {
+      "candidateId": "SP-CAND-0263",
+      "gutenbergId": 2407,
+      "language": "de",
+      "action": "acquire",
+      "title": "Die Leiden des jungen Werther — Band 1",
+      "notes": ""
+    },
+    {
+      "candidateId": "SP-CAND-0264",
+      "gutenbergId": 2408,
+      "language": "de",
+      "action": "acquire",
+      "title": "Die Leiden des jungen Werther — Band 2",
+      "notes": ""
+    },
+    {
+      "candidateId": "SP-CAND-0275",
+      "gutenbergId": 2000,
+      "language": "es",
+      "action": "acquire",
+      "title": "Don Quijote",
+      "notes": ""
+    },
+    {
+      "candidateId": "SP-CAND-0283",
+      "gutenbergId": 32315,
+      "language": "es",
+      "action": "acquire",
+      "title": "Historia de la vida del Buscón, llamado Don Pablos, ejemplo de vagabundos y espejo de tacaños",
+      "notes": ""
+    },
+    {
+      "candidateId": "SP-CAND-0309",
+      "gutenbergId": 1000,
+      "language": "it",
+      "action": "edition_hold",
+      "title": "La Divina Commedia di Dante: Complete",
+      "notes": "Complete volume overlaps the separately catalogued Inferno and Purgatorio"
+    },
+    {
+      "candidateId": "SP-CAND-0310",
+      "gutenbergId": 1009,
+      "language": "it",
+      "action": "edition_hold",
+      "title": "La Divina Commedia di Dante: Inferno",
+      "notes": "Part of Complete #1000"
+    },
+    {
+      "candidateId": "SP-CAND-0311",
+      "gutenbergId": 1010,
+      "language": "it",
+      "action": "edition_hold",
+      "title": "La Divina Commedia di Dante: Purgatorio",
+      "notes": "Part of Complete #1000"
+    },
+    {
+      "candidateId": "SP-CAND-0326",
+      "gutenbergId": 77,
+      "language": "en",
+      "action": "already_published_work",
+      "title": "The House of the Seven Gables",
+      "notes": "Gutenberg #77 already stored and published under another ID"
+    },
+    {
+      "candidateId": "SP-CAND-0330",
+      "gutenbergId": 1079,
+      "language": "en",
+      "action": "already_published_work",
+      "title": "The life and opinions of Tristram Shandy, gentleman",
+      "notes": "Gutenberg #1079 already live; alternative #39270 requires separate edition comparison"
+    },
+    {
+      "candidateId": "SP-CAND-0332",
+      "gutenbergId": 2160,
+      "language": "en",
+      "action": "already_published_work",
+      "title": "The Expedition of Humphry Clinker",
+      "notes": "Gutenberg #2160 already live"
+    },
+    {
+      "candidateId": "SP-CAND-0342",
+      "gutenbergId": 13944,
+      "language": "en",
+      "action": "already_published_work",
+      "title": "After London; Or, Wild England",
+      "notes": "Gutenberg #13944 already live"
+    },
+    {
+      "candidateId": "SP-CAND-0366",
+      "gutenbergId": null,
+      "language": "en",
+      "action": "edition_hold",
+      "title": "King Lear",
+      "notes": "Ambiguous source: #1128, #1532, #1794, #2266; no exact edition decision"
+    },
+    {
+      "candidateId": "SP-CAND-0367",
+      "gutenbergId": 2270,
+      "language": "en",
+      "action": "acquire",
+      "title": "Shakespeare's First Folio",
+      "notes": ""
+    },
+    {
+      "candidateId": "SP-CAND-0378",
+      "gutenbergId": 1279,
+      "language": "en",
+      "action": "acquire",
+      "title": "Poems and Songs of Robert Burns",
+      "notes": ""
+    },
+    {
+      "candidateId": "SP-CAND-0380",
+      "gutenbergId": 1745,
+      "language": "en",
+      "action": "acquire",
+      "title": "The Poetical Works of John Milton",
+      "notes": ""
+    },
+    {
+      "candidateId": "SP-CAND-0410",
+      "gutenbergId": 1845,
+      "language": "en",
+      "action": "acquire",
+      "title": "Zuleika Dobson; Or, An Oxford Love Story",
+      "notes": ""
+    }
+  ]
+}
