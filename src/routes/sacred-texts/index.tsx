@@ -351,7 +351,7 @@ function SacredTextsPage() {
                 Published source editions and existing reviewed translations only. No AI-generated scripture translations.
               </p>
               <Link to="/insights/$slug" params={{ slug: "why-source-provenance-matters-for-sacred-texts" }}
-                className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-accent hover:underline">
+                className="mt-3 inline-flex min-h-11 items-center gap-1 rounded-lg px-2 text-xs font-semibold text-accent transition-colors hover:bg-primary-foreground/10 hover:underline active:bg-primary-foreground/15">
                 About provenance <ExternalLink className="h-3 w-3" />
               </Link>
             </div>

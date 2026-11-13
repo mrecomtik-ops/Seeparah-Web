@@ -11,6 +11,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 
 let authState: { isDemo: boolean; loading: boolean } = { isDemo: true, loading: true };
+let pathname = "/library";
 let adminSessionState: { data: { role: string | null } | undefined; isError?: boolean } = {
   data: undefined,
 };
@@ -27,9 +28,9 @@ vi.mock("@tanstack/react-router", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@tanstack/react-router")>();
   return {
     ...actual,
-    useRouterState: () => "/library",
-    Link: (props: { to: string; children: React.ReactNode; className?: string }) => (
-      <a href={props.to} className={props.className}>
+    useRouterState: () => pathname,
+    Link: (props: { to: string; children: React.ReactNode; className?: string; "aria-current"?: "page" }) => (
+      <a href={props.to} className={props.className} aria-current={props["aria-current"]}>
         {props.children}
       </a>
     ),
@@ -40,6 +41,7 @@ const { AppHeader } = await import("./AppHeader");
 
 afterEach(() => {
   cleanup();
+  pathname = "/library";
   authState = { isDemo: true, loading: true };
   adminSessionState = { data: undefined };
 });
@@ -127,6 +129,29 @@ describe("AppHeader — Admin nav slot is reserved while the role is unresolved"
 });
 
 describe("AppHeader — mobile bottom nav", () => {
+  it("clearly highlights the current mobile section and exposes aria-current to assistive tech", () => {
+    pathname = "/library";
+    const { container } = render(<AppHeader />);
+    const mobile = container.querySelector('nav[aria-label="Mobile navigation"]')!;
+    const library = mobile.querySelector('a[href="/library"]')!;
+    const insights = mobile.querySelector('a[href="/insights"]')!;
+    expect(library.getAttribute("aria-current")).toBe("page");
+    expect(library.className).toContain("bg-accent");
+    expect(insights.getAttribute("aria-current")).toBeNull();
+    expect(insights.className).toContain("hover:bg-secondary");
+  });
+
+  it("highlights the More entry when a secondary route is selected", () => {
+    pathname = "/profile";
+    const { container } = render(<AppHeader />);
+    const mobile = container.querySelector('nav[aria-label="Mobile navigation"]')!;
+    const more = mobile.querySelector('summary[aria-label="More navigation"]')!;
+    const profile = mobile.querySelector('a[href="/profile"]')!;
+    expect(more.getAttribute("aria-current")).toBe("page");
+    expect(more.className).toContain("bg-accent");
+    expect(profile.getAttribute("aria-current")).toBe("page");
+  });
+
   it("keeps four primary links and puts secondary destinations in More on narrow screens", () => {
     authState = { isDemo: true, loading: false };
     const { container } = render(<AppHeader />);

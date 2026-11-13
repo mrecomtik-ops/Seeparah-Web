@@ -200,7 +200,7 @@ export function LandingPage() {
                   to="/read/$bookId"
                   params={{ bookId: featured.id }}
                   search={{ lang: featured.source_language }}
-                  className="relative block rotate-1 overflow-hidden rounded-2xl border border-border bg-card card-shadow-lg transition-transform hover:-translate-y-0.5"
+                  className="relative block rotate-1 overflow-hidden rounded-2xl border border-border bg-card card-shadow-lg transition-[transform,border-color] hover:-translate-y-0.5 hover:border-primary/60 focus-visible:border-primary active:scale-[0.99] motion-reduce:transform-none"
                 >
                   {isSharedSacredCollectionCover(featured) ? (
                     <div className="aspect-[2/3] w-full">
@@ -259,7 +259,7 @@ export function LandingPage() {
               <div className="mt-6 grid auto-cols-[minmax(145px,1fr)] grid-flow-col gap-4 overflow-x-auto pb-3 sm:auto-cols-auto sm:grid-cols-3 lg:grid-cols-6">
                 {classicShelf.map((book) => (
                   <Link key={book.id} to="/book/$bookId" params={{ bookId: book.id }}
-                    className="group min-w-0 rounded-2xl border border-border bg-card p-2 card-shadow transition hover:-translate-y-0.5 hover:border-primary/50">
+                    className="group min-w-0 rounded-2xl border border-border bg-card p-2 card-shadow transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:border-primary/50 focus-visible:border-primary active:translate-y-0 motion-reduce:transform-none">
                     <img src={coverFor(book.id, book.cover_url) ?? undefined}
                       alt={"Cover of " + displayTitleCase(book.title)} width={320} height={480}
                       loading="lazy" decoding="async" className="aspect-[2/3] w-full rounded-xl bg-secondary object-contain" />
@@ -309,7 +309,7 @@ export function LandingPage() {
                 <div className="mt-6 flex flex-wrap items-center gap-3">
                   <Link
                     to="/sacred-texts"
-                    className="rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-accent-foreground"
+                    className="inline-flex min-h-11 items-center rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-accent-foreground transition-[background-color,transform] hover:bg-accent/85 active:scale-[0.98]"
                   >
                     Explore Sacred Texts
                   </Link>
@@ -360,7 +360,7 @@ export function LandingPage() {
                   key={article.slug}
                   to="/insights/$slug"
                   params={{ slug: article.slug }}
-                  className="group rounded-2xl border border-border bg-card p-5 card-shadow transition hover:-translate-y-0.5"
+                  className="group rounded-2xl border border-border bg-card p-5 card-shadow transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-md focus-visible:border-primary active:translate-y-0 motion-reduce:transform-none"
                 >
                   <p className="text-xs font-semibold text-primary">{article.category}</p>
                   <h3 className="mt-2 font-display text-xl font-semibold text-foreground">

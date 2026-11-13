@@ -70,8 +70,8 @@ function InsightsPage() {
               key={article.slug}
               className={
                 index === 0
-                  ? "rounded-3xl border border-primary/20 bg-primary p-7 text-primary-foreground card-shadow-lg md:col-span-2"
-                  : "rounded-2xl border border-border bg-card p-6 card-shadow"
+                  ? "rounded-3xl border border-primary/20 bg-primary p-7 text-primary-foreground card-shadow-lg transition-[border-color,box-shadow] hover:border-accent focus-within:ring-2 focus-within:ring-accent/70 md:col-span-2"
+                  : "rounded-2xl border border-border bg-card p-6 card-shadow transition-[border-color,box-shadow] hover:border-primary/50 hover:shadow-md focus-within:ring-2 focus-within:ring-ring/40"
               }
             >
               <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -112,8 +112,8 @@ function InsightsPage() {
                 params={{ slug: article.slug }}
                 className={
                   index === 0
-                    ? "mt-6 inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-accent-foreground"
-                    : "mt-6 inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline"
+                    ? "mt-6 inline-flex min-h-11 items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-accent-foreground transition-[background-color,transform] hover:bg-accent/85 active:scale-[0.98]"
+                     : "mt-6 inline-flex min-h-11 items-center gap-1.5 rounded-lg text-sm font-semibold text-primary transition-colors hover:text-primary/80 hover:underline"
                 }
               >
                 Read article <ArrowRight className="h-4 w-4" />
@@ -137,13 +137,13 @@ function InsightsPage() {
               <div className="mt-4 flex flex-wrap gap-3">
                 <Link
                   to="/library"
-                  className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
+                  className="inline-flex min-h-11 items-center rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-[background-color,transform] hover:bg-primary/90 active:scale-[0.98]"
                 >
                   Browse Library
                 </Link>
                 <Link
                   to="/sacred-texts"
-                  className="rounded-xl border border-border px-4 py-2 text-sm font-semibold text-foreground hover:bg-secondary"
+                  className="inline-flex min-h-11 items-center rounded-xl border border-border px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-secondary active:bg-accent"
                 >
                   Explore Sacred Texts
                 </Link>
