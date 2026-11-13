@@ -211,7 +211,7 @@ async function getBytes(url:string,max:number) {
 /** Prefer the Gutenberg-operated high-speed mirror, then the ODU mirror
  * listed by Project Gutenberg. This deliberately does not harvest the
  * www.gutenberg.org human-facing site. */
-async function getGutenbergAsset(id:number,name:string,max:number){
+export async function getGutenbergAsset(id:number,name:string,max:number){
   const endpoints=[
     MIRROR+"/cache/epub/"+id+"/"+name,
     "https://mirror.cs.odu.edu/gutenberg-epub/"+id+"/"+name,
