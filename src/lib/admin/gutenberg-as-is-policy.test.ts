@@ -61,6 +61,6 @@ describe("Whole Gutenberg short-form manuscripts", () => {
   });
   it("rejects truncated works or empty bodies instead of fabricating them", () => {
     expect(() => extractGutenbergBody(poem)).toThrow(/START boundary/);
-    expect(() => extractGutenbergBody("*** START OF THE PROJECT GUTENBERG EBOOK SHORT POEM ***\nHi\n*** END OF THE PROJECT GUTENBERG EBOOK SHORT POEM ***")).toThrow(/empty or too small/);
+    expect(() => extractGutenbergBody("*** START OF THE PROJECT GUTENBERG EBOOK SHORT POEM ***\nHi\n*** END OF THE PROJECT GUTENBERG EBOOK SHORT POEM ***")).toThrow(/empty or too short/);
   });
 });
