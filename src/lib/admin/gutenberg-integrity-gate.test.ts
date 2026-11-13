@@ -58,6 +58,18 @@ describe("Gutenberg lossless source-to-reader integrity gate", () => {
     expect(auditGutenbergSource(body, bad).errors).toContain("Missing chapter/part parent structure node");
   });
 
+  it("preserves hyphenated Gutenberg hard wraps exactly in the source-backed importer", () => {
+    const raw = [
+      "CONTENTS", "CHAPTER I.", ("A line ends with a deliberate hyphen-\nated word.\n").repeat(500),
+      "CHAPTER II.", ("Long-line printings and punctuation, preserved exactly.\n").repeat(500),
+    ].join("\n\n");
+    const reflowed = parseManuscript(raw);
+    const faithful = parseManuscript(raw,{preserveLineation:true});
+    expect(auditGutenbergSource(raw,reflowed).ok).toBe(false);
+    expect(auditGutenbergSource(raw,faithful).ok).toBe(true);
+    const saved = faithful.chunks.map((content,chunk_index)=>({chunk_index,content}));
+    expect(auditGutenbergStoredChunks(raw,faithful,saved).ok).toBe(true);
+  });
   it("allows Gutenberg hard-wrap whitespace changes without accepting missing letters", () => {
     const reflowed = body.replace("A true opening paragraph", "A true opening\nparagraph");
     const rep = parseManuscript(reflowed);
