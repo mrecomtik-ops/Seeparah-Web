@@ -17,6 +17,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { ShelfButtons } from "@/components/ShelfButtons";
 import { ProgressiveSourcePassage } from "@/components/reader/ProgressiveSourcePassage";
+import { QuranVerseTranslation } from "@/components/reader/QuranVerseTranslation";
 import { getSacredReaderSection, getSacredTextReferenceIndex, getBibleReferenceMatchedSection, getFullSacredSourceChunk } from "@/lib/scripture.functions";
 import { getPublicBookEditions } from "@/lib/translation.functions";
 import { addHighlight, listHighlights, saveProgress } from "@/lib/library";
@@ -331,6 +332,20 @@ export function SacredTextReader({
     return () => link.remove();
   }, [language]);
 
+  // Load the comparison edition's script font as well (notably Urdu Nastaliq).
+  // This is presentation-only: it neither modifies nor reflows stored source.
+  useEffect(() => {
+    if (!compareLanguage || compareLanguage === language) return;
+    const href = sacredScriptFontHref(compareLanguage);
+    if (!href) return;
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = href;
+    link.dataset["sacredComparisonFont"] = compareLanguage;
+    document.head.appendChild(link);
+    return () => link.remove();
+  }, [compareLanguage, language]);
+
   const direction = RTL_LANGUAGES.has(language) ? "rtl" : "ltr";
   const profile = sacredReadingProfile(language);
   const hasTranslationCredit = Boolean(selectedEdition?.translator);
@@ -374,6 +389,11 @@ export function SacredTextReader({
       (canRetainCanonicalPosition(book.id, language, candidate, book.total_chunks, chunkIndex) ||
        canCompareByCanonicalReference(book.id, language, candidate)),
   );
+  // Qur'an editions have independently verified source-leaf references.
+  // Show the compared text immediately after each matching ayah, never as an
+  // unrelated side column. All other traditions retain their existing layout.
+  const quranInlineComparison = editionLayout === "quran" &&
+    compareLanguage !== null && verifiedComparisonLanguages.includes(compareLanguage);
 
   const updateLocation = (nextLanguage: string, nextChunkIndex: number, replace = false) => {
     setLanguage(nextLanguage);
@@ -816,20 +836,27 @@ export function SacredTextReader({
           )}
         </section>
 
-        <div className={compareLanguage ? "grid items-start gap-5 lg:grid-cols-2" : ""}>
+        {quranInlineComparison && (
+          <p lang="en" className="mx-auto mb-3 max-w-4xl text-sm text-muted-foreground">
+            Verse-by-verse comparison: each {compareLanguage} edition passage appears directly beneath its matching {language} ayah.
+          </p>
+        )}
+        <div className={compareLanguage && !quranInlineComparison ? "grid items-start gap-5 lg:grid-cols-2" : ""}>
         <section
           className={
-            readingMode === "book"
+            readingMode === "book" && !quranInlineComparison
               ? "mx-auto rounded-xl bg-card px-4 py-7 shadow-sm sm:px-8 sm:py-10"
               : "mx-auto rounded-xl border border-border bg-card p-3 sm:p-6"
           }
           style={{
-            maxWidth: compareLanguage ? "100%" : sacredReaderMeasure(textMeasure, language),
+            maxWidth: quranInlineComparison
+              ? "min(100%, 60rem)"
+              : compareLanguage ? "100%" : sacredReaderMeasure(textMeasure, language),
             fontSize: Math.max(16, profile.size + fontDelta) + "px",
             lineHeight: profile.leading + lineDelta,
           }}
           ref={sacredSourceRef}
-          data-reading-mode={readingMode}
+          data-reading-mode={quranInlineComparison ? "study" : readingMode}
           data-text-size-px={Math.max(16, profile.size + fontDelta)}
           lang={languageToBcp47(language)}
           dir={direction}
@@ -837,7 +864,7 @@ export function SacredTextReader({
         >
           {visibleSourceChunks.map((chunk) => {
             const active = chunk.chunkIndex === chunkIndex;
-            const isStudy = readingMode === "study";
+            const isStudy = readingMode === "study" || quranInlineComparison;
             const compactVerse =
               !isStudy &&
               (editionLayout === "quran" ||
@@ -924,6 +951,20 @@ export function SacredTextReader({
                         {sourcedText}
                       </p>
                     </ProgressiveSourcePassage>
+                    {quranInlineComparison && compareLanguage && (
+                      <QuranVerseTranslation
+                        source={chunk}
+                        candidates={comparisonQuery.data?.chunks}
+                        language={compareLanguage}
+                        loading={comparisonQuery.isPending}
+                        error={comparisonQuery.isError || (comparisonQuery.isSuccess && !comparisonQuery.data)}
+                        textStyle={{
+                          fontFamily: scriptureFontFamily(compareLanguage) ?? "Georgia, serif",
+                          fontSize: Math.max(16, sacredReadingProfile(compareLanguage).size + fontDelta) + "px",
+                          lineHeight: sacredReadingProfile(compareLanguage).leading + lineDelta,
+                        }}
+                      />
+                    )}
                   </>
                 ) : compactVerse ? (
                   <span
@@ -1071,7 +1112,7 @@ export function SacredTextReader({
             );
           })}
         </section>
-        {compareLanguage && (
+        {compareLanguage && !quranInlineComparison && (
           <section
             lang={languageToBcp47(compareLanguage)}
             dir={RTL_LANGUAGES.has(compareLanguage) ? "rtl" : "ltr"}
