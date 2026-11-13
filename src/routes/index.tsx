@@ -177,15 +177,15 @@ export function LandingPage() {
                 </Link>
               </div>
 
-              <div className="mt-10 grid max-w-lg grid-cols-3 gap-4 border-t border-border pt-6">
+              <div className="mt-8 grid max-w-lg grid-cols-1 divide-y divide-border/70 border-y border-border sm:mt-10 sm:grid-cols-3 sm:gap-4 sm:divide-y-0 sm:border-y-0 sm:border-t sm:pt-6" aria-label="Seeparah reading benefits">
                 {[
                   ["Sourced", "edition provenance visible"],
                   ["Reviewed", "before publishing"],
                   ["Saved", "progress & highlights"],
                 ].map(([stat, label]) => (
-                  <div key={label}>
-                    <p className="font-display text-3xl font-semibold text-primary">{stat}</p>
-                    <p className="mt-1 text-xs leading-snug text-muted-foreground">{label}</p>
+                  <div key={label} className="flex min-w-0 items-center justify-between gap-4 py-3 sm:block sm:py-0">
+                    <p className="shrink-0 font-display text-xl font-semibold text-primary sm:text-3xl">{stat}</p>
+                    <p className="max-w-[11rem] text-right text-xs leading-snug text-muted-foreground sm:mt-1 sm:max-w-none sm:text-left">{label}</p>
                   </div>
                 ))}
               </div>
