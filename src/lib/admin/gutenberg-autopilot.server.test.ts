@@ -1,5 +1,5 @@
 import {describe,expect,it} from "vitest";
-import {csvRows,isTransientGutenbergFailure,selectGutenbergCandidates} from "./gutenberg-autopilot.server";
+import {csvRows,isTransientGutenbergFailure,selectGutenbergCandidates,candidateFromFullInventory} from "./gutenberg-autopilot.server";
 
 describe("Gutenberg unattended catalogue intake",()=>{
   it("parses official RFC4180 CSV including escaped quotes and multiline titles",()=>{
@@ -47,9 +47,32 @@ describe("Gutenberg unattended catalogue intake",()=>{
     expect(isTransientGutenbergFailure("Manuscript contains rights/revision signals requiring review")).toBe(false);
     expect(isTransientGutenbergFailure("Unverified original publication date")).toBe(false);
     expect(isTransientGutenbergFailure("Missing copyright permission")).toBe(false);
+    expect(isTransientGutenbergFailure("Independent first publication lookup returned 521")).toBe(true);
+    expect(isTransientGutenbergFailure("Both authorized Gutenberg mirrors unavailable: HTTP 404")).toBe(false);
+    expect(isTransientGutenbergFailure("Source exceeds import size")).toBe(false);
   });
   it("rejects truncated or foreign Gutenberg metadata",()=>{
     expect(()=>[...csvRows('"broken')]).toThrow(/truncated/);
     expect(()=>selectGutenbergCandidates("title,author\nx,y")).toThrow(/headers/);
+  });
+});
+
+describe("Complete private-inventory publication intake",()=>{
+  it("only selects conservative original-English historic works and never invents first-print dates",()=>{
+    const base={
+      gutenberg_id:500,title:"An Original English Classical Novel",
+      source_type:"Text",author_raw:"Dickens, Charles, 1812-1870",
+      language_codes:["en"],catalog_issued:"2001-01-01",subjects:"Fiction",
+    };
+    const eligible=candidateFromFullInventory(base);
+    expect(eligible).toMatchObject({
+      gutenberg_id:500,author:"Dickens, Charles",author_death_year:1870,
+      original_publication_year:null,priority:0,
+    });
+    expect(candidateFromFullInventory({...base,language_codes:["en","fr"]})).toBeNull();
+    expect(candidateFromFullInventory({...base,language_codes:["es"]})).toBeNull();
+    expect(candidateFromFullInventory({...base,author_raw:"Recent, Person, 1900-1950"})).toBeNull();
+    expect(candidateFromFullInventory({...base,author_raw:"Dickens, Charles, 1812-1870; Translator, X, 1920-1990"})).toBeNull();
+    expect(candidateFromFullInventory({...base,source_type:"Sound"})).toBeNull();
   });
 });
