@@ -16,6 +16,7 @@ import { Route as AuthorRouteRouteImport } from './routes/author/route'
 import { Route as CopyrightRouteImport } from './routes/copyright'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as LegalRouteImport } from './routes/legal'
+import { Route as GutenbergRouteImport } from './routes/gutenberg'
 import { Route as LibraryRouteImport } from './routes/library'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ProfileRouteImport } from './routes/profile'
@@ -90,6 +91,11 @@ const DashboardRoute = DashboardRouteImport.update({
 const LegalRoute = LegalRouteImport.update({
   id: '/legal',
   path: '/legal',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GutenbergRoute = GutenbergRouteImport.update({
+  id: '/gutenberg',
+  path: '/gutenberg',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LibraryRoute = LibraryRouteImport.update({
@@ -303,6 +309,7 @@ export interface FileRoutesByFullPath {
   '/copyright': typeof CopyrightRoute
   '/dashboard': typeof DashboardRoute
   '/legal': typeof LegalRoute
+  '/gutenberg': typeof GutenbergRoute
   '/library': typeof LibraryRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
@@ -350,6 +357,7 @@ export interface FileRoutesByTo {
   '/copyright': typeof CopyrightRoute
   '/dashboard': typeof DashboardRoute
   '/legal': typeof LegalRoute
+  '/gutenberg': typeof GutenbergRoute
   '/library': typeof LibraryRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
@@ -400,6 +408,7 @@ export interface FileRoutesById {
   '/copyright': typeof CopyrightRoute
   '/dashboard': typeof DashboardRoute
   '/legal': typeof LegalRoute
+  '/gutenberg': typeof GutenbergRoute
   '/library': typeof LibraryRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
@@ -451,6 +460,7 @@ export interface FileRouteTypes {
     | '/copyright'
     | '/dashboard'
     | '/legal'
+    | '/gutenberg'
     | '/library'
     | '/privacy'
     | '/profile'
@@ -498,6 +508,7 @@ export interface FileRouteTypes {
     | '/copyright'
     | '/dashboard'
     | '/legal'
+    | '/gutenberg'
     | '/library'
     | '/privacy'
     | '/profile'
@@ -547,6 +558,7 @@ export interface FileRouteTypes {
     | '/copyright'
     | '/dashboard'
     | '/legal'
+    | '/gutenberg'
     | '/library'
     | '/privacy'
     | '/profile'
@@ -597,6 +609,7 @@ export interface RootRouteChildren {
   CopyrightRoute: typeof CopyrightRoute
   DashboardRoute: typeof DashboardRoute
   LegalRoute: typeof LegalRoute
+  GutenbergRoute: typeof GutenbergRoute
   LibraryRoute: typeof LibraryRoute
   PrivacyRoute: typeof PrivacyRoute
   ProfileRoute: typeof ProfileRoute
@@ -667,6 +680,13 @@ declare module '@tanstack/react-router' {
       path: '/legal'
       fullPath: '/legal'
       preLoaderRoute: typeof LegalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/gutenberg': {
+      id: '/gutenberg'
+      path: '/gutenberg'
+      fullPath: '/gutenberg'
+      preLoaderRoute: typeof GutenbergRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/library': {
@@ -1030,6 +1050,7 @@ const rootRouteChildren: RootRouteChildren = {
   CopyrightRoute: CopyrightRoute,
   DashboardRoute: DashboardRoute,
   LegalRoute: LegalRoute,
+  GutenbergRoute: GutenbergRoute,
   LibraryRoute: LibraryRoute,
   PrivacyRoute: PrivacyRoute,
   ProfileRoute: ProfileRoute,

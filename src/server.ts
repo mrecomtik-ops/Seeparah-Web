@@ -155,6 +155,10 @@ export default {
           status: 308, headers: { Location: "/favicon.png" },
         }));
       }
+      if (url.pathname === "/api/gutenberg-catalog.json") {
+        const { serveGutenbergCatalog } = await import("./lib/gutenberg-catalog-public.server");
+        return withSecurityHeaders(await serveGutenbergCatalog(request));
+      }
       if (url.pathname === "/api/catalog-qa-public.json") {
         const { servePublicCatalogQa } = await import("./lib/catalog-qa-public.server");
         return withSecurityHeaders(await servePublicCatalogQa(request));
