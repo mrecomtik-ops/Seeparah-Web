@@ -143,7 +143,7 @@ function InsightsPage() {
                 </Link>
                 <Link
                   to="/sacred-texts"
-                  className="rounded-xl border border-border px-4 py-2 text-sm font-semibold text-foreground hover:bg-secondary"
+                  className="inline-flex min-h-11 items-center rounded-xl border border-border px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-secondary active:bg-accent"
                 >
                   Explore Sacred Texts
                 </Link>
