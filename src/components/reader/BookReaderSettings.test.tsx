@@ -22,6 +22,43 @@ const props: BookReaderSettingsProps = {
 afterEach(() => { cleanup(); vi.clearAllMocks(); });
 
 describe("SP-36 extracted book-reader settings controls", () => {
+  it("announces settings as a modal dialog and restores focus to the opener", () => {
+    const opener = document.createElement("button");
+    opener.textContent = "Reader settings";
+    document.body.appendChild(opener);
+    opener.focus();
+    const { unmount } = render(<BookReaderSettings {...props} />);
+    const dialog = screen.getByRole("dialog", { name: "Reading settings" });
+    expect(dialog.getAttribute("aria-modal")).toBe("true");
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Done" }));
+    unmount();
+    expect(document.activeElement).toBe(opener);
+    opener.remove();
+  });
+
+  it("traps Tab at the dialog boundaries and handles Escape", () => {
+    render(<BookReaderSettings {...props} />);
+    const dialog = screen.getByRole("dialog", { name: "Reading settings" });
+    const first = screen.getByRole("button", { name: "Done" });
+    const last = screen.getByRole("button", { name: "dark reading theme" });
+    expect(document.activeElement).toBe(first);
+    fireEvent.keyDown(dialog, { key: "Tab", shiftKey: true });
+    expect(document.activeElement).toBe(last);
+    fireEvent.keyDown(dialog, { key: "Tab" });
+    expect(document.activeElement).toBe(first);
+    fireEvent.keyDown(dialog, { key: "Escape" });
+    expect(callbacks.onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("dismisses with a backdrop tap without closing for inside clicks", () => {
+    render(<BookReaderSettings {...props} />);
+    const dialog = screen.getByRole("dialog", { name: "Reading settings" });
+    fireEvent.click(dialog);
+    expect(callbacks.onClose).not.toHaveBeenCalled();
+    fireEvent.click(dialog.parentElement!);
+    expect(callbacks.onClose).toHaveBeenCalledTimes(1);
+  });
+
   it("delegates layout/position state only through the parent's callbacks", () => {
     render(<BookReaderSettings {...props} />);
     fireEvent.change(screen.getByRole("slider"), { target: { value: "20" } });

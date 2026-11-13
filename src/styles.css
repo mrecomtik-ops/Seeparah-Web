@@ -545,6 +545,22 @@ body.reader-sepia {
   padding-inline: 0.5rem;
   font-size: 0.75rem;
   font-weight: 650;
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+
+/* Reader actions need stronger feedback than the generic button brightness
+   treatment, while remaining readable in light, sepia and dark themes. */
+@media (hover: hover) {
+  .reader-v3-icon:not(:disabled):hover,
+  .reader-v3-icon-label:not(:disabled):hover,
+  .reader-v3-nav-button:not(:disabled):not(.reader-v3-next):hover {
+    border-color: var(--color-primary);
+    background-color: var(--color-secondary);
+  }
+
+  .reader-v3-next:not(:disabled):hover {
+    background-color: color-mix(in oklab, var(--color-primary) 86%, var(--color-background));
+  }
 }
 
 .reader-v3-language {
@@ -598,6 +614,7 @@ body.reader-sepia {
   gap: 0.25rem;
   font-size: 0.8rem;
   font-weight: 700;
+  transition: background-color 150ms ease, border-color 150ms ease;
 }
 
 .reader-v3-next {
