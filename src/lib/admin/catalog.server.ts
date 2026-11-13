@@ -285,6 +285,8 @@ export interface PublishGateBook {
   publisher?: string | null;
   isbn?: string | null;
   source_scan_id?: string | null;
+  source_file_sha256?: string | null;
+  source_file_path?: string | null;
   original_publication_year?: number | null;
   word_count?: number | null;
   estimated_reading_minutes?: number | null;
@@ -295,6 +297,21 @@ export interface PublishGateBook {
   source_url?: string | null;
   source_edition_id?: string | null;
   description?: string | null;
+}
+
+/** Narrowly scoped missing-print-year exception for an actually preserved
+ * Gutenberg edition. Missing date is disclosed, never invented. All rights
+ * and integrity gates still apply. Mirrors the Postgres trigger exception. */
+export function eligibleGutenbergAsIsMissingYear(book: PublishGateBook): boolean {
+  const source = /^gutenberg:([1-9]\d{0,6})$/u.exec(book.source_scan_id??"");
+  const sha=book.source_file_sha256??"";
+  if(!source || !/^[0-9a-f]{64}$/u.test(sha) ||
+     book.content_classification==="religious")return false;
+  const id=source[1]!;
+  return book.source_file_path===
+      "gutenberg-sources/gutenberg/"+id+"/pg"+id+"-"+sha.slice(0,12)+".txt" &&
+    Boolean(book.description?.includes(
+      "Original print-publication year has not been independently corroborated."));
 }
 
 export function computePublishGate(
@@ -331,7 +348,8 @@ export function computePublishGate(
   if (!book.isbn?.trim() && !book.source_scan_id?.trim()) {
     missingEditionMetadata.push("ISBN or source edition ID");
   }
-  if (book.original_publication_year == null) {
+  if (book.original_publication_year == null &&
+      !eligibleGutenbergAsIsMissingYear(book)) {
     missingEditionMetadata.push("original publication year");
   }
   if (!book.word_count || book.word_count <= 0) missingEditionMetadata.push("word count");
