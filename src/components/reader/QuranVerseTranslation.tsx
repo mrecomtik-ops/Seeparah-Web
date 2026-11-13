@@ -17,7 +17,7 @@ export function findVerifiedQuranVerse(
   candidates: readonly QuranComparedVerse[] | undefined,
 ): QuranComparedVerse | null {
   const canonicalRef = source.canonicalRef.trim();
-  if (!/^\d{1,3}:\d{1,3}$/.test(canonicalRef) || !candidates) return null;
+  if (!/^(?:Quran\s+)?\d{1,3}:\d{1,3}$/.test(canonicalRef) || !candidates) return null;
   const matches = candidates.filter((candidate) =>
     candidate.chunkIndex === source.chunkIndex &&
     candidate.canonicalRef.trim() === canonicalRef &&
@@ -49,7 +49,7 @@ export function QuranVerseTranslation({
       className="mt-4 rounded-lg border border-primary/15 bg-secondary/35 px-3 py-4 sm:px-5"
     >
       <p lang="en" dir="ltr" className="mb-3 text-xs font-semibold text-primary">
-        {language === "Arabic" ? "Arabic source" : `${language} translation`} · {source.canonicalRef}
+        {language === "Arabic" ? "Arabic source" : `${language} translation`} · {source.label}
       </p>
       {loading ? (
         <p role="status" lang="en" dir="ltr" className="text-xs text-muted-foreground">Loading matching ayah…</p>
@@ -67,7 +67,7 @@ export function QuranVerseTranslation({
         </p>
       ) : (
         <p lang="en" dir="ltr" role="status" className="text-xs text-muted-foreground">
-          No verified {language} text matches ayah {source.canonicalRef} in this published edition.
+          No verified {language} text matches ayah {source.label} in this published edition.
         </p>
       )}
     </div>
