@@ -481,7 +481,11 @@ export async function importGutenbergSource(job:Job):Promise<Result>{
   const { parseManuscript } = await import("@/lib/manuscript");
   const { auditGutenbergSource, auditGutenbergStoredChunks } =
     await import("@/lib/admin/gutenberg-integrity-gate");
-  const parsedManuscript = parseManuscript(manuscript);
+  // Gutenberg plain-text files contain author-supplied lineation and
+  // intentional end-of-line hyphens. Do not silently strip those characters
+  // in the hard-wrap reflow heuristic: the exact source must survive into
+  // stored reader chunks. Browser book mode may visually wrap these lines.
+  const parsedManuscript = parseManuscript(manuscript,{preserveLineation:true});
   const originalTextAudit = auditGutenbergSource(manuscript, parsedManuscript);
   if (!originalTextAudit.ok) {
     // Keep the exact mirrored bytes in the immutable source archive, but do
@@ -538,7 +542,8 @@ export async function importGutenbergSource(job:Job):Promise<Result>{
     attribution:"Original text and cover sourced from Project Gutenberg eBook "+id+
       " for free reading. See the original at "+url+". Seeparah is independent of Project Gutenberg.",
     permittedTerritories:[],translationPermission:false,
-    importKey:"gutenberg-fast:"+id+":en",manuscriptText:manuscript
+    importKey:"gutenberg-fast:"+id+":en",manuscriptText:manuscript,
+    preserveLineation:true
   },"system-fast-import");
   if(!uploaded.created)
     return {status:"skipped",bookId:uploaded.bookId,sha256,message:uploaded.reason ?? "Identical source already imported"};
