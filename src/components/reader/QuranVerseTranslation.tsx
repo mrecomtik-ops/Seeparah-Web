@@ -17,7 +17,7 @@ export function findVerifiedQuranVerse(
   candidates: readonly QuranComparedVerse[] | undefined,
 ): QuranComparedVerse | null {
   const canonicalRef = source.canonicalRef.trim();
-  if (!/^\\d{1,3}:\\d{1,3}$/.test(canonicalRef) || !candidates) return null;
+  if (!/^\d{1,3}:\d{1,3}$/.test(canonicalRef) || !candidates) return null;
   const matches = candidates.filter((candidate) =>
     candidate.chunkIndex === source.chunkIndex &&
     candidate.canonicalRef.trim() === canonicalRef &&
