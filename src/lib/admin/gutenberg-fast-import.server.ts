@@ -283,6 +283,51 @@ export function countSourceChapterHeadings(text: string): number {
   return [...text.matchAll(/^[ \t]*CHAPTER[ \t]+(?:[IVXLCDM]+|\d+)(?=[ \t.:\n]|$)/gim)].length;
 }
 
+/** The Gutenberg plain text can contain *two* lists of CHAPTER headings:
+ * a printed CONTENTS table and the real body. Previously both lists were
+ * counted, producing false "74 source chapters / 37 reader chapters" holds.
+ *
+ * Exclude a printed contents list only with positive evidence:
+ * - an explicit early CONTENTS heading;
+ * - equal-sized, identically numbered, ordered contents and body headings;
+ * - all physical body chapter markers matched by parsed chapter navigation.
+ * If any of this evidence is missing, return the raw source count and send
+ * the edition to review rather than conceal a missing actual chapter.
+ */
+export function auditGutenbergSourceChapterMarkers(
+  manuscript:string,
+  parsedChapters:readonly {title:string}[],
+):{rawChapterMarkers:number;bodyChapterMarkers:number;printedContentsEntries:number}{
+  const matches=[...manuscript.matchAll(/^[ \t]*CHAPTER[ \t]+(?:[IVXLCDM]+|\d+)(?=[ \t.:\n]|$)/gim)];
+  const rawChapterMarkers=matches.length;
+  const unchanged={rawChapterMarkers,bodyChapterMarkers:rawChapterMarkers,printedContentsEntries:0};
+  const n=parsedChapters.length;
+  if(n<3||rawChapterMarkers!==2*n)return unchanged;
+  const contents=/^[ \t]*(?:TABLE[ \t]+OF[ \t]+)?CONTENTS[ \t]*\.?[ \t]*$/im.exec(manuscript);
+  if(!contents||contents.index>Math.min(20000,Math.floor(manuscript.length/4)))return unchanged;
+  const listed=matches.slice(0,n);
+  const body=matches.slice(n);
+  const firstListed=listed[0];
+  const lastListed=listed[n-1];
+  const firstBody=body[0];
+  if(!firstListed||!lastListed||!firstBody)return unchanged;
+  const firstListOffset=firstListed.index??0;
+  const lastListOffset=lastListed.index??0;
+  const bodyOffset=firstBody.index??0;
+  if(firstListOffset<=contents.index ||
+     lastListOffset-firstListOffset>Math.max(3000,n*140) ||
+     bodyOffset-lastListOffset<150)return unchanged;
+  const marker=(text:string):string|null=>
+    /^\s*CHAPTER\s+([IVXLCDM]+|\d+)(?=[\s.:]|$)/iu.exec(text)?.[1]?.toUpperCase()??null;
+  if(!body.every((entry,i)=>{
+    const identity=marker(entry[0]);
+    return identity!==null &&
+      identity===marker(listed[i]?.[0]??"") &&
+      identity===marker(parsedChapters[i]?.title??"");
+  }))return unchanged;
+  return {rawChapterMarkers,bodyChapterMarkers:n,printedContentsEntries:n};
+}
+
 export function likelyDuplicateGutenbergWork(
   incomingTitle: string, incomingAuthor: string,
   known: { title: string; author: string },
@@ -496,11 +541,13 @@ export async function importGutenbergSource(job:Job):Promise<Result>{
       message: "Source parsing is not lossless: " + originalTextAudit.errors.join("; ").slice(0,700),
     };
   }
-  const sourceChapterCount = countSourceChapterHeadings(manuscript);
-  const parsedChapters = parsedManuscript.structure
-    .filter((node) => node.nodeType === "chapter").length;
-  const missingChapterNavigation = sourceChapterCount >= 2 &&
-    parsedChapters < sourceChapterCount;
+  const parsedChapterNodes = parsedManuscript.structure
+    .filter((node) => node.nodeType === "chapter");
+  const parsedChapters = parsedChapterNodes.length;
+  const sourceHeadingAudit = auditGutenbergSourceChapterMarkers(manuscript,parsedChapterNodes);
+  const sourceChapterCount = sourceHeadingAudit.rawChapterMarkers;
+  const missingChapterNavigation = sourceHeadingAudit.bodyChapterMarkers >= 2 &&
+    parsedChapters < sourceHeadingAudit.bodyChapterMarkers;
 
   const desc=description(catalog,author,originalYear);
   // Use actual Project Gutenberg catalogue subject headings rather than
@@ -623,11 +670,13 @@ export async function importGutenbergSource(job:Job):Promise<Result>{
     storedChunkIntegrity:storedAudit,
     originalSourceArchive:sourceKey,
     sourceChapterMarkers:sourceChapterCount,
+    sourceBodyChapterMarkers:sourceHeadingAudit.bodyChapterMarkers,
+    excludedPrintedContentsEntries:sourceHeadingAudit.printedContentsEntries,
     sourceStructureChapterCount:parsedChapters,
   };
   if (missingChapterNavigation) {
     return { status: "in_review", bookId, sha256, metadata: auditMeta,
-      message: "Source chapter headings (" + sourceChapterCount +
+      message: "Source body chapter headings (" + sourceHeadingAudit.bodyChapterMarkers +
         ") exceed imported chapter navigation (" + parsedChapters + "); structural audit required" };
   }
   const rightsSignals=await scanBookRightsSignals(bookId);
