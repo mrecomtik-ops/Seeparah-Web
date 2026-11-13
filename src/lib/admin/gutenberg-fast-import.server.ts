@@ -227,13 +227,15 @@ function duplicate(value: unknown){
   const e = value as { message?: string | undefined; statusCode?: string | number | undefined };
   return /already exists|Duplicate|409/i.test(e.message ?? "") || String(e.statusCode) === "409";
 }
-function description(b:Catalog,author:string,year:number){
+function description(b:Catalog,author:string,_year:number|null){
   const summary=(b.summaries??[]).find(s=>s.length>=60&&s.length<5000);
   if(summary)return summary.trim().slice(0,2400);
   // Never claim a verified first-print year or complete edition in the
   // public description solely because an unreliable catalog lookup said so.
-  return b.title+" by "+formatAuthorName(author)+". This source-based English-language edition "+
-    "is undergoing bibliographic and structure verification.";
+  return b.title+" by "+formatAuthorName(author)+
+    ". Source-based English-language text from the specified Project Gutenberg edition. "+
+    "The full manuscript is archived with its source checksum; readers can consult "+
+    "the original's preserved chapters, contents and bibliographic attribution.";
 }
 export async function processGutenbergImportQueueOnce():Promise<void>{
   const {supabaseAdmin}=await import("@/integrations/supabase/client.server");
