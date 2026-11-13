@@ -307,10 +307,16 @@ export function auditGutenbergSourceChapterMarkers(
   if(!contents||contents.index>Math.min(20000,Math.floor(manuscript.length/4)))return unchanged;
   const listed=matches.slice(0,n);
   const body=matches.slice(n);
-  if(!listed[0]||!listed[n-1]||!body[0]||
-     (listed[0].index??0)<=contents.index ||
-     (listed[n-1].index??0)-(listed[0].index??0)>Math.max(3000,n*140) ||
-     (body[0].index??0)-(listed[n-1].index??0)<150)return unchanged;
+  const firstListed=listed[0];
+  const lastListed=listed[n-1];
+  const firstBody=body[0];
+  if(!firstListed||!lastListed||!firstBody)return unchanged;
+  const firstListOffset=firstListed.index??0;
+  const lastListOffset=lastListed.index??0;
+  const bodyOffset=firstBody.index??0;
+  if(firstListOffset<=contents.index ||
+     lastListOffset-firstListOffset>Math.max(3000,n*140) ||
+     bodyOffset-lastListOffset<150)return unchanged;
   const marker=(text:string):string|null=>
     /^\s*CHAPTER\s+([IVXLCDM]+|\d+)(?=[\s.:]|$)/iu.exec(text)?.[1]?.toUpperCase()??null;
   if(!body.every((entry,i)=>{
