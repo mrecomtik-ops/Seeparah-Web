@@ -57,6 +57,28 @@ describe("Gutenberg TOC storage audit",()=>{
 });
 describe("Conservative direct publication rule",()=>{
   it("allows a validated classical original",()=>expect(safeClassicAutoPublish(good).allowed).toBe(true));
+  it("publishes unadorned FULL source text when rights are confirmed but optional metadata is incomplete",()=>{
+    const sourceOnly={...good,publishAsIs:true,firstPublishedYear:null,
+      independentBibliographyCount:0,verifiedCover:false,tocIntegrity:false,
+      hasUnrenderedIllustrations:true,warnings:2};
+    const decision=safeClassicAutoPublish(sourceOnly);
+    expect(decision.allowed).toBe(true);
+    expect(decision.qualityWarnings.length).toBeGreaterThanOrEqual(4);
+  });
+  it("never uses the as-is option to bypass rights or source integrity",()=>{
+    const unsafe=[
+      {gutenbergCopyright:null},{gutenbergCopyright:true},
+      {authorDeathYear:1901},{hasModernContributors:true},
+      {hasTextRightsSignals:true},{sourceIntegrity:false},
+      {storedIntegrity:false},
+    ];
+    for(const change of unsafe){
+      const result=safeClassicAutoPublish({...good,publishAsIs:true,
+        firstPublishedYear:null,verifiedCover:false,...change});
+      expect(result.allowed).toBe(false);
+      expect(result.reasons.length).toBeGreaterThan(0);
+    }
+  });
   it("fails closed on each publication blocker",()=>{
     const variants=[
       {gutenbergCopyright:null},{authorDeathYear:1924},{firstPublishedYear:null},
