@@ -1,3 +1,4 @@
+import { useEffect, useId, useRef, type KeyboardEvent } from "react";
 import { ShelfButtons } from "@/components/ShelfButtons";
 import type { Book } from "@/lib/data";
 import type { ReaderTheme, ReaderFontFamily, ReaderContentWidth } from "@/lib/prefs";
@@ -35,14 +36,64 @@ export function BookReaderSettings({
   onLineSpacingChange, onTextMeasureChange, onRequestLanguageChange,
   onTranslationRequest, onThemeChange,
 }: BookReaderSettingsProps) {
+  const headingId = useId();
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    const previouslyFocused = document.activeElement instanceof HTMLElement
+      ? document.activeElement : null;
+    // Give keyboard and screen-reader users a reliable starting point.
+    closeRef.current?.focus();
+    return () => {
+      if (previouslyFocused?.isConnected) previouslyFocused.focus();
+    };
+  }, []);
+
+  function keepFocusInDialog(event: KeyboardEvent<HTMLDivElement>) {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      event.stopPropagation();
+      onClose();
+      return;
+    }
+    if (event.key !== "Tab") return;
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const focusable = Array.from(dialog.querySelectorAll<HTMLElement>(
+      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    )).filter((element) => !element.hasAttribute("hidden") && element.getAttribute("aria-hidden") !== "true");
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (!first || !last) return;
+    if (event.shiftKey && (document.activeElement === first || !dialog.contains(document.activeElement))) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && (document.activeElement === last || !dialog.contains(document.activeElement))) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
+
   return (
-        <div className="reader-v3-settings-backdrop" onMouseDown={() => onClose()}>
-          <div className="reader-v3-settings" onMouseDown={(event) => event.stopPropagation()}>
+        <div className="reader-v3-settings-backdrop" onClick={(event) => {
+          if (event.currentTarget === event.target) onClose();
+        }}>
+          <div
+            ref={dialogRef}
+            className="reader-v3-settings"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={headingId}
+            onKeyDown={keepFocusInDialog}
+          >
             <div className="flex items-center justify-between">
-              <h2 className="font-display text-lg font-semibold">Reading settings</h2>
+              <h2 id={headingId} className="font-display text-lg font-semibold">Reading settings</h2>
               <button
+                ref={closeRef}
+                type="button"
                 onClick={() => onClose()}
-                className="inline-flex min-h-11 items-center rounded-lg px-2 text-sm font-semibold text-primary"
+                className="inline-flex min-h-11 items-center rounded-lg px-2 text-sm font-semibold text-primary transition-colors hover:bg-secondary active:bg-accent"
               >
                 Done
               </button>
@@ -58,7 +109,7 @@ export function BookReaderSettings({
               <select
                 value={language}
                 onChange={(event) => onLanguageChange(event.target.value)}
-                className="mt-2 w-full rounded-lg border bg-card px-3 py-2 text-sm normal-case text-foreground"
+                className="mt-2 min-h-11 w-full rounded-lg border bg-card px-3 py-2 text-sm normal-case text-foreground transition-colors hover:border-primary/60"
               >
                 {book.available_languages.map((item) => (
                   <option key={item}>{item}</option>
@@ -88,7 +139,7 @@ export function BookReaderSettings({
                     <button key={item} type="button" onClick={() => onTypefaceChange(item)}
                       aria-pressed={typeface === item}
                       className={"min-h-11 rounded-lg border px-2 py-2 text-xs font-semibold capitalize " +
-                        (typeface === item ? "bg-primary text-primary-foreground" : "bg-card")}>
+                        (typeface === item ? "bg-primary text-primary-foreground hover:brightness-95" : "bg-card hover:border-primary/60 hover:bg-secondary")}>
                       {item}
                     </button>
                   ))}
@@ -118,7 +169,7 @@ export function BookReaderSettings({
                     onClick={() => onTextMeasureChange(item)}
                     aria-pressed={textMeasure === item}
                     className={"min-h-11 rounded-lg border px-2 py-2 text-xs font-semibold " +
-                      (textMeasure === item ? "bg-primary text-primary-foreground" : "bg-card")}>
+                      (textMeasure === item ? "bg-primary text-primary-foreground hover:brightness-95" : "bg-card hover:border-primary/60 hover:bg-secondary")}>
                     {item === "narrow" ? "Roomy" : item === "wide" ? "Compact" : "Standard"}
                   </button>
                 ))}
@@ -138,7 +189,7 @@ export function BookReaderSettings({
                   <select
                     value={requestLanguage}
                     onChange={(event) => onRequestLanguageChange(event.target.value)}
-                    className="min-w-0 flex-1 rounded-lg border bg-card px-3 py-2 text-sm text-foreground"
+                    className="min-h-11 min-w-0 flex-1 rounded-lg border bg-card px-3 py-2 text-sm text-foreground transition-colors hover:border-primary/60"
                   >
                     <option value="">Choose language…</option>
                     {requestableLanguages.map((item) => (
@@ -151,7 +202,7 @@ export function BookReaderSettings({
                     type="button"
                     onClick={() => void onTranslationRequest()}
                     disabled={!requestLanguage || requestingTranslation || !!translationRequestStatus}
-                    className="min-h-11 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-40"
+                    className="min-h-11 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-40"
                   >
                     {requestingTranslation ? "Sending…" : translationRequestStatus ? "Recorded" : "Request"}
                   </button>
@@ -185,7 +236,7 @@ export function BookReaderSettings({
                     onClick={() => onThemeChange(item)}
                     className={
                       "flex min-h-11 items-center justify-center gap-2 rounded-lg border px-2 py-2 text-sm font-semibold capitalize " +
-                      (theme === item ? "border-primary ring-2 ring-primary ring-offset-1 ring-offset-background" : "border-border")
+                      (theme === item ? "border-primary ring-2 ring-primary ring-offset-1 ring-offset-background" : "border-border hover:border-primary/60 hover:bg-secondary")
                     }
                   >
                     <span aria-hidden="true" className={
