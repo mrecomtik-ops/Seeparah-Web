@@ -33,6 +33,22 @@ describe("Gutenberg TOC storage audit",()=>{
   it("accepts source-backed chapter titles and exact stored ordering",()=>{
     expect(auditPersistedGutenbergToc(parsed,stored).ok).toBe(true);
   });
+  it("accepts a source-verified heading later than 2,000 characters within its target chunk",()=>{
+    const longer={
+      ...parsed,
+      chunks:[
+        parsed.chunks[0]!,
+        "Narrative preceding a section within the same reader chunk. ".repeat(48)+
+          "\\n\\nCHAPTER I\\n\\nOpening words.",
+        parsed.chunks[2]!,
+      ],
+    };
+    expect(longer.chunks[1]!.indexOf("CHAPTER I")).toBeGreaterThan(2000);
+    expect(auditPersistedGutenbergToc(longer,stored).ok).toBe(true);
+    const missing={...longer,chunks:[longer.chunks[0]!,longer.chunks[1]!.replace("CHAPTER I","A MISSING HEADING"),longer.chunks[2]!]};
+    expect(auditPersistedGutenbergToc(missing,stored).errors)
+      .toContain("TOC chapter heading does not occur at target chunk");
+  });
   it("blocks missing chapter, off-by-one targets and fabricated headings",()=>{
     expect(auditPersistedGutenbergToc(parsed,stored.slice(1)).ok).toBe(false);
     expect(auditPersistedGutenbergToc(parsed,stored.map(x=>({...x,start_chunk_index:0}))).ok).toBe(false);
