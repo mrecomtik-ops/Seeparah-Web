@@ -7,7 +7,8 @@ import { createHash } from "node:crypto";
 import { formatAuthorName } from "@/lib/author-name";
 
 const MIRROR = "https://gutenberg.pglaf.org";
-const MAX_TEXT = 4 * 1024 * 1024;
+// Preserve longer complete originals instead of rejecting them at 4 MB.
+const MAX_TEXT = 12 * 1024 * 1024;
 /** One-time pilot identities checked against their individual Gutenberg
  * catalog pages plus historical publication records. A fallback is allowed
  * ONLY for these entries when hosted Gutendex metadata times out, and their
@@ -176,8 +177,11 @@ export function extractGutenbergBody(raw:string):string {
   const b=end.exec(tail);
   if(!b) throw new Error("Explicit Gutenberg END boundary missing");
   const body=tail.slice(0,b.index).replace(/^\s*\r?\n/,"").replace(/\s+$/,"");
-  if(body.length<18000 || body.split(/\s+/u).length<3000)
-    throw new Error("Body is too short for a complete long-form book");
+  // Gutenberg includes poems, short stories, letters and pamphlets. A short
+  // complete source is still a valid work when both Gutenberg boundaries
+  // and its exact bytes are preserved. Reject only empty/placeholder bodies.
+  if(body.length<180 || body.split(/\s+/u).length<20)
+    throw new Error("Source body is empty or too small to be a readable work");
   return body;
 }
 async function getBytes(url:string,max:number) {
