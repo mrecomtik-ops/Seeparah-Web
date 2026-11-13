@@ -626,6 +626,9 @@ export async function importGutenbergSource(job:Job):Promise<Result>{
         ") exceed imported chapter navigation (" + parsedChapters + "); structural audit required" };
   }
   const rightsSignals=await scanBookRightsSignals(bookId);
+  // Check the original PG header as well as stored text: stripping Gutenberg's
+  // wrapper must never conceal a contributor's copyright/permission warning.
+  const sourceRightsRisk=/(?:copyright\s*(?:©|\(c\))?\s*(?:19[3-9]\d|20\d\d)|all rights reserved|used by (?:special )?permission|license granted solely)/iu.test(rawText);
   const mayPublish=safeClassicAutoPublish({
     gutenbergCopyright:catalog.copyright,
     authorDeathYear:deathYear,firstPublishedYear:originalYear,
@@ -634,7 +637,7 @@ export async function importGutenbergSource(job:Job):Promise<Result>{
     // Plain text cannot preserve illustrations that belong to the edition.
     hasUnrenderedIllustrations:/\[(?:illustration|plate|figure)(?:\s*[:\]])/iu.test(manuscript),
     independentBibliographyCount:yearVerified?verifiedBibliography!.sources.length:0,
-    hasTextRightsSignals:rightsSignals.length>0,
+    hasTextRightsSignals:rightsSignals.length>0||sourceRightsRisk,
     verifiedCover,sourceIntegrity:originalTextAudit.ok,
     storedIntegrity:storedAudit.ok,tocIntegrity:tocAudit.ok,
     warnings:uploaded.warnings.length,
