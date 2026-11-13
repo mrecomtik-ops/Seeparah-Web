@@ -108,6 +108,7 @@ export function safeClassicAutoPublish(input:{
   authorDeathYear:number;
   firstPublishedYear:number|null;
   hasModernContributors:boolean;
+  hasUnrenderedIllustrations:boolean;
   independentBibliographyCount:number;
   hasTextRightsSignals:boolean;
   verifiedCover:boolean;
@@ -125,6 +126,8 @@ export function safeClassicAutoPublish(input:{
      input.firstPublishedYear<1400)
     reasons.push("Original publication year is unverified or outside conservative pre-1901 scope");
   if(input.hasModernContributors)reasons.push("Translator/editor rights need review");
+  if(input.hasUnrenderedIllustrations)
+    reasons.push("Illustrations and diagrams require an EPUB/HTML asset-preserving edition");
   if(input.independentBibliographyCount<2)reasons.push("Two concordant bibliographic references required");
   if(input.hasTextRightsSignals)reasons.push("Source has edition-level rights signals");
   if(!input.verifiedCover)reasons.push("Source-matched cover lacks verified resolution/provenance");
