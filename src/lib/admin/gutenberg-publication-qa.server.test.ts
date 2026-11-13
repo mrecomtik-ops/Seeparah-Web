@@ -3,7 +3,7 @@ import { adequateBookCover,auditPersistedGutenbergToc,jpegDimensions,safeClassic
 
 const good={
   gutenbergCopyright:false as const,authorDeathYear:1870,firstPublishedYear:1853,
-  hasModernContributors:false,independentBibliographyCount:2,
+  hasModernContributors:false,hasUnrenderedIllustrations:false,independentBibliographyCount:2,
   hasTextRightsSignals:false,verifiedCover:true,sourceIntegrity:true,
   storedIntegrity:true,tocIntegrity:true,warnings:0,
 };
@@ -44,7 +44,7 @@ describe("Conservative direct publication rule",()=>{
   it("fails closed on each publication blocker",()=>{
     const variants=[
       {gutenbergCopyright:null},{authorDeathYear:1924},{firstPublishedYear:null},
-      {firstPublishedYear:1901},{hasModernContributors:true},
+      {firstPublishedYear:1901},{hasModernContributors:true},{hasUnrenderedIllustrations:true},
       {independentBibliographyCount:1},{hasTextRightsSignals:true},
       {verifiedCover:false},{sourceIntegrity:false},{storedIntegrity:false},
       {tocIntegrity:false},{warnings:1},
