@@ -776,6 +776,15 @@ export async function importGutenbergSource(job:Job):Promise<Result>{
       " physical chapter headings but imported TOC has only "+parsedChapters;
   }
   const rightsSignals=await scanBookRightsSignals(bookId);
+  const {assessHistoricalGutenbergRightsSignals}=await import(
+    "@/lib/admin/gutenberg-historic-rights.server");
+  const historicalRights=assessHistoricalGutenbergRightsSignals({
+    signals:rightsSignals,gutenbergCopyright:catalog.copyright,
+    authorDeathYear:deathYear,
+    hasModernContributors:(catalog.translators?.length??0)>0||
+      (catalog.editors?.length??0)>0,
+  });
+  auditMeta["historicalRightsSignals"]=historicalRights;
   // Check the original PG header as well as stored text: stripping Gutenberg's
   // wrapper must never conceal a contributor's copyright/permission warning.
   // Do not mistake the generic Gutenberg license *after* END OF EBOOK
@@ -791,7 +800,7 @@ export async function importGutenbergSource(job:Job):Promise<Result>{
     // Plain text cannot preserve illustrations that belong to the edition.
     hasUnrenderedIllustrations:/\[(?:illustration|plate|figure)(?:\s*[:\]])/iu.test(manuscript),
     independentBibliographyCount:yearVerified?verifiedBibliography!.sources.length:0,
-    hasTextRightsSignals:rightsSignals.length>0||sourceRightsRisk,
+    hasTextRightsSignals:historicalRights.unresolved||sourceRightsRisk,
     verifiedCover,sourceIntegrity:originalTextAudit.ok,
     storedIntegrity:storedAudit.ok,tocIntegrity:tocAudit.ok,
     warnings:uploaded.warnings.length+(missingChapterNavigation?1:0),
@@ -810,12 +819,20 @@ export async function importGutenbergSource(job:Job):Promise<Result>{
     rights_status:"approved",edition_review_status:"approved",
     structure_review_status:"approved",cleanup_review_status:"approved",
     status:"approved",reviewed_at:new Date().toISOString(),
+    // The existing DB signal trigger still blocks unacknowledged notices.
+    // Only explicitly historic <=1900 printed notices inside a verified
+    // public-domain original get an AUTOMATED source review timestamp.
+    // Modern/undated/renewed permissions never reach this branch.
+    ...(historicalRights.historicalCount>0 &&
+        !historicalRights.unresolved && !sourceRightsRisk
+      ?{rights_risk_acknowledged_at:new Date().toISOString()}:{}),
     review_notes:"AUTOMATED source-only Gutenberg verification (not human-reviewed): author died "+deathYear+
       "; original print year "+(originalYear??"not independently corroborated")+
       "; rights source "+catalogOrigin+
       "; independently preserved UTF-8 source SHA-256 "+sha256+
       "; complete Gutenberg boundaries and source text round-trip. "+
-      "Non-blocking presentation limitations: "+mayPublish.qualityWarnings.join("; ")
+      "Historical rights signal assessment: "+historicalRights.explanation+
+      "; Non-blocking presentation limitations: "+mayPublish.qualityWarnings.join("; ")
   }).eq("id",bookId);
   if(reviewError)return {status:"in_review",bookId,sha256,metadata:auditMeta,
     message:reviewError.message};
