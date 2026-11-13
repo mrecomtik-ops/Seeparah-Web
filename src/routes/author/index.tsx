@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { BookUp2, Feather, Languages, LineChart, Loader2, Users } from "lucide-react";
+import { BookUp2, ChevronDown, Feather, Languages, LineChart, Loader2, Users } from "lucide-react";
 import {
   LANGUAGES,
   TRANSLATION_EXPLAINER,
@@ -169,7 +169,7 @@ function AuthorDashboard() {
             </div>
             <Link
               to="/profile"
-              className="mt-4 inline-block text-xs font-semibold text-primary hover:underline"
+              className="mt-3 inline-flex min-h-11 items-center rounded-lg px-3 text-xs font-semibold text-primary transition-colors hover:bg-accent/70 hover:underline active:bg-accent"
             >
               Edit your account details
             </Link>
@@ -235,14 +235,17 @@ function AuthorDashboard() {
               <button
                 type="button"
                 onClick={() => setShowAllLanguages((value) => !value)}
-                className="text-xs font-semibold text-primary hover:underline"
+                aria-expanded={showAllLanguages}
+                aria-controls={showAllLanguages ? "author-additional-languages" : undefined}
+                className="inline-flex min-h-11 items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-primary transition-colors hover:bg-accent/70 active:bg-accent"
               >
                 {showAllLanguages
                   ? "Hide additional supported languages"
                   : `View ${additionalRequestableLanguages.length} more supported languages`}
+                <ChevronDown aria-hidden="true" className={`h-4 w-4 transition-transform ${showAllLanguages ? "rotate-180" : ""}`} />
               </button>
               {showAllLanguages && (
-                <div className="mt-3 flex flex-wrap gap-2">
+                <div id="author-additional-languages" className="mt-3 flex flex-wrap gap-2">
                   {additionalRequestableLanguages.map((language) => (
                     <span
                       key={language}
