@@ -54,7 +54,7 @@ test('catalog audit separates review, date, cover and visual queues, flags risky
   assert(report.critical.some(s => s.includes('1800/1656')));
   assert.equal(report.critical.some(s => s.includes('Importer is ENABLED')), false);
   const unsafe = analyzeCatalogue({ ...data, importer: { ...data.importer, enabled: true } });
-  assert(unsafe.critical.some(s => s.includes('Importer is ENABLED')));
+  assert(unsafe.warnings.some(s => s.includes('Legacy historical')));
   assert.throws(() => analyzeCatalogue(data, 101));
   assert.equal(detectEditionVariants(data.books).length, 1);
 });
