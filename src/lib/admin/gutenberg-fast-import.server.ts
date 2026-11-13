@@ -630,6 +630,8 @@ export async function importGutenbergSource(job:Job):Promise<Result>{
     authorDeathYear:deathYear,firstPublishedYear:originalYear,
     hasModernContributors:(catalog.translators?.length??0)>0||
       (catalog.editors?.length??0)>0,
+    // Plain text cannot preserve illustrations that belong to the edition.
+    hasUnrenderedIllustrations:/\[(?:illustration|plate|figure)(?:\s*[:\]])/iu.test(manuscript),
     independentBibliographyCount:yearVerified?verifiedBibliography!.sources.length:0,
     hasTextRightsSignals:rightsSignals.length>0,
     verifiedCover,sourceIntegrity:originalTextAudit.ok,
