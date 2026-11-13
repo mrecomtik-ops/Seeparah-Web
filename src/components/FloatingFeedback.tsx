@@ -61,10 +61,11 @@ export function FloatingFeedback({bare}:{bare:boolean}) {
   }
   return <>
     <button type="button" aria-expanded={open} aria-label="Open support tickets and suggestions"
+      title="Help & ideas"
       onClick={()=>open?setOpen(false):choose("issue")}
-      className={"seeparah-floating-feedback fixed right-3 z-[70] flex min-h-11 items-center gap-2 rounded-full border border-primary/20 bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-xl hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring "+(bare?"bottom-14":"bottom-5")}>
-      <MessageCircleQuestion className="h-5 w-5" aria-hidden="true"/>
-      <span>Help & ideas</span>
+      className={"seeparah-floating-feedback fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] right-3 z-[70] inline-flex h-12 w-12 items-center justify-center gap-2 rounded-full border border-primary/20 bg-primary p-0 text-sm font-semibold text-primary-foreground shadow-xl transition-[transform,background-color,box-shadow] duration-150 hover:brightness-110 active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring lg:bottom-5 lg:h-auto lg:w-auto lg:min-h-11 lg:px-4 lg:py-2.5 "+(bare?"lg:bottom-14":"")}>
+      <MessageCircleQuestion className="h-5 w-5 shrink-0" aria-hidden="true"/>
+      <span className="hidden lg:inline">Help & ideas</span>
     </button>
     {open && <div className="seeparah-floating-feedback fixed inset-0 z-[80] flex items-end justify-end bg-black/40 p-3 sm:p-5"
       onMouseDown={(e)=>{if(e.target===e.currentTarget&&!busy)setOpen(false);}}>
