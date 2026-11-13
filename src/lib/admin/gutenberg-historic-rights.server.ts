@@ -39,8 +39,7 @@ export function assessHistoricalGutenbergRightsSignals(input:{
     }
     // Copyright renewal and special permission may describe a distinct
     // protected contributor's edition even if an old date is nearby.
-    if(/(?:renew(?:ed|al)?\s+copyright|used by (?:special )?permission|
-          permission (?:granted|required)|license granted solely)/iu.test(snippet.replace(/\s+/gu," "))){
+    if(/(?:renew(?:ed|al)?\s+copyright|used by (?:special )?permission|permission (?:granted|required)|license granted solely)/iu.test(snippet.replace(/\s+/gu," "))){
       return{unresolved:true,historicalCount:0,
         explanation:"Explicit renewal or permission restriction"};
     }
