@@ -237,18 +237,19 @@ async function requeueOneLegacyHistoricalYearJob(client:SupabaseAdminDb):Promise
     if(countError)console.error("[gutenberg-autopilot] legacy queue depth",countError.message);
     return;
   }
-  const {data:job,error:readError}=await client.from("gutenberg_import_jobs")
+  const {data:olderJobs,error:readError}=await client.from("gutenberg_import_jobs")
     .select("id,attempts,book_id,original_publication_year,last_error,metadata")
     .eq("status","failed")
     .eq("last_error","Independent historical first publication year unavailable")
     .eq("attempts",1).is("book_id",null)
     .contains("metadata",{autopilot:true,metadataSource:"Project Gutenberg official weekly CSV"})
-    .order("id",{ascending:true}).limit(1).maybeSingle();
+    .order("id",{ascending:true}).limit(20);
   if(readError){
     console.error("[gutenberg-autopilot] legacy date review read",readError.message);
     return;
   }
-  if(!job || !canRecheckLegacyHistoricalYearJob(job))return;
+  const job=(olderJobs??[]).find((candidate:any)=>canRecheckLegacyHistoricalYearJob(candidate));
+  if(!job)return;
   const {error:updateError}=await client.from("gutenberg_import_jobs").update({
     status:"queued",last_error:null,
     metadata:{...job.metadata,legacyYearRecheckVersion:"gutenberg-v4-safe-metadata-review"},
