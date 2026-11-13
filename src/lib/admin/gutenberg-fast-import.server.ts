@@ -181,7 +181,7 @@ export function extractGutenbergBody(raw:string):string {
   // complete source is still a valid work when both Gutenberg boundaries
   // and its exact bytes are preserved. Reject only empty/placeholder bodies.
   if(body.length<180 || body.split(/\s+/u).length<20)
-    throw new Error("Source body is empty or too small to be a readable work");
+    throw new Error("Source body is empty or too short to be a readable work");
   return body;
 }
 async function getBytes(url:string,max:number) {
