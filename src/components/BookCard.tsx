@@ -1,7 +1,7 @@
 ﻿import { Link } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
-import { BookOpen, Crown, FlaskConical } from "lucide-react";
+import { ArrowRight, BookOpen, Crown, FlaskConical } from "lucide-react";
 import type { Book } from "@/lib/data";
 import { SAMPLE_EXCERPT_BOOK_IDS, DEMO_MANUSCRIPT_BOOK_IDS } from "@/lib/data";
 import { coverFor, isLowResolutionGutenbergCover } from "@/lib/covers";
@@ -101,7 +101,7 @@ export function BookCard({
   };
 
   return (
-    <div className="group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-card card-shadow transition-transform duration-200 hover:-translate-y-1 hover:card-shadow-lg">
+    <div className="group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-card card-shadow transition-[transform,border-color,box-shadow] duration-200 hover:-translate-y-1 hover:border-primary/50 hover:card-shadow-lg focus-within:border-primary focus-within:ring-2 focus-within:ring-ring/50 active:translate-y-0 motion-reduce:transform-none">
       {withShelves && (
         <div className="absolute right-3 top-3 z-10 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
           <ShelfButtons bookId={book.id} />
@@ -114,7 +114,7 @@ export function BookCard({
         onMouseEnter={prefetchOnIntent}
         onMouseLeave={cancelPrefetch}
         onFocusCapture={prefetchReader}
-        className="flex flex-1 flex-col"
+        className="flex flex-1 flex-col rounded-2xl focus-visible:outline-none"
       >
         <div className="relative aspect-[2/3] w-full overflow-hidden bg-secondary">
           {sharedCollectionArtwork ? (
@@ -193,6 +193,10 @@ export function BookCard({
               </span>
             )}
           </div>
+          <span aria-hidden="true" className="mt-auto inline-flex items-center gap-1.5 pt-2 text-sm font-semibold text-primary transition-[color,gap] group-hover:gap-2.5 group-focus-within:gap-2.5">
+            {pct != null ? "Continue reading" : "Start reading"}
+            <ArrowRight className="h-4 w-4" />
+          </span>
           {pct != null && (
             <div className="pt-1">
               <div className="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
