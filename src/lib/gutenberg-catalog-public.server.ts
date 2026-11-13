@@ -62,7 +62,7 @@ export async function serveGutenbergCatalog(request: Request): Promise<Response>
     return json({ error: "Invalid catalogue search or page" }, 400);
   }
 
-  const { supabaseAdmin } = await import("./integrations/supabase/client.server");
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const db = supabaseAdmin as unknown as { from(table: string): any };
   let query = db.from("gutenberg_catalog_inventory")
     .select("gutenberg_id,title,author_raw,language_codes,catalog_issued,subjects", {
