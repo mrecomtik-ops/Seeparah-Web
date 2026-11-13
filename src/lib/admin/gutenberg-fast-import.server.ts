@@ -456,6 +456,30 @@ export async function importGutenbergSource(job:Job):Promise<Result>{
       }
     }
   }
+  // When Gutendex times out, the official weekly CSV cannot establish
+  // copyright status. Consult the official per-ebook RDF record from the
+  // same ID's Gutenberg content mirror rather than assuming every file is
+  // unrestricted. Missing/malformed RDF keeps rights UNKNOWN.
+  let officialRdfEvidence:Record<string,unknown>|null=null;
+  if(catalog.copyright===null){
+    try{
+      const {parseGutenbergRdfUsRights}=await import("@/lib/admin/gutenberg-rdf-rights.server");
+      const rdfBytes=await getGutenbergAsset(id,"pg"+id+".rdf",768*1024);
+      const rdfText=new TextDecoder("utf-8",{fatal:true}).decode(rdfBytes);
+      const verifiedRights=parseGutenbergRdfUsRights(rdfText,id);
+      if(verifiedRights){
+        catalog={...catalog,copyright:verifiedRights.copyright};
+        catalogOrigin="official Gutenberg weekly CSV + exact-ID RDF";
+        officialRdfEvidence={
+          source:"official Gutenberg per-ebook RDF",gutenbergId:id,
+          rights:verifiedRights.rights,usCopyright:verifiedRights.copyright,
+        };
+      }
+    }catch(error){
+      console.warn("[Gutenberg] exact-ID RDF unavailable",id,
+        error instanceof Error?error.message:String(error));
+    }
+  }
   const expected=job.metadata?.["autopilot"]===true;
   if(expected){
     // Match Gutenberg's actual title/author against the independent official
@@ -713,7 +737,7 @@ export async function importGutenbergSource(job:Job):Promise<Result>{
   const auditMeta:Record<string,unknown>={
     pipelineVersion:"gutenberg-v4-lossless-toc-cover",
     title:catalog.title,author,deathYear,year:originalYear,
-    sourceUrl:url,coverUrl,sha256,review:"automated",catalogOrigin,catalogFetchIssue,yearEvidence,
+    sourceUrl:url,coverUrl,sha256,review:"automated",catalogOrigin,catalogFetchIssue,officialRdfEvidence,yearEvidence,
     verifiedBibliography:yearVerified?verifiedBibliography:null,
     coverProvenance,sourceFile,tocAudit,
     subjects:subjectHeadings.slice(0,1500),assignedCategories,
