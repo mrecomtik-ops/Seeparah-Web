@@ -64,6 +64,11 @@ export function auditPersistedGutenbergToc(
   if(expected.length!==stored.length)
     errors.push("Stored table of contents has missing or duplicated entries");
   const keys=new Set<string>();
+  // A stored chunk may contain several paragraphs before its *verified*
+  // heading. The previous 2,000-character cut-off rejected real sections
+  // that occur later in the same chunk. Cache the complete chunk's
+  // normalized text rather than guessing which prefix contains the heading.
+  const normalizedChunks=new Map<number,string>();
   for(let i=0;i<stored.length;i++){
     const actual=stored[i]!;
     const original=expected[i];
@@ -85,8 +90,13 @@ export function auditPersistedGutenbergToc(
       errors.push("TOC points outside the book");
     if(["chapter","part","section"].includes(actual.node_type)){
       const label=actual.title.split(" — ")[0]??actual.title;
-      const target=parsed.chunks[actual.start_chunk_index]??"";
-      if(label.trim().length>0&&!headingKey(target.slice(0,2000)).includes(headingKey(label)))
+      const index=actual.start_chunk_index;
+      let target=normalizedChunks.get(index);
+      if(target===undefined){
+        target=headingKey(parsed.chunks[index]??"");
+        normalizedChunks.set(index,target);
+      }
+      if(label.trim().length>0&&!target.includes(headingKey(label)))
         errors.push("TOC chapter heading does not occur at target chunk");
     }
   }
