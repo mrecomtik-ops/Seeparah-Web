@@ -3,8 +3,9 @@
  *
  * - Official Project Gutenberg weekly CSV feed (not crawling www.gutenberg.org).
  * - Stable identity and historical author death year for metadata candidates.
- * - 100 at a time; the private PostgreSQL RPC opens a new batch only when the
- *   previous has no queued/processing jobs and published catalogue < 1000.
+ * - Bounded batches, inventory-backed refill, and a PostgreSQL coordinator;
+ *   only eligible original-English historic candidates enter publication QA.
+ * - The full 78k+ multilingual catalogue remains separate for rights review.
  * - Source rights/date verification remains in gutenberg-fast-import.server.
  * - Failures/review records are NOT counted as successful publication.
  */
@@ -122,6 +123,34 @@ export function selectGutenbergCandidates(
   return selected;
 }
 
+/** Select from the already-synchronized official multilingual inventory.
+ * Publishing candidates require one original English-language author who
+ * died by 1900; other works stay discoverable but never auto-licensed.
+ * No first-publication date is inferred from Gutenberg's upload date.
+ */
+export function candidateFromFullInventory(row:{
+  gutenberg_id:number;source_type:string;title:string;author_raw:string;
+  language_codes:string[];catalog_issued:string|null;subjects:string|null;
+}):GutenbergCatalogCandidate|null{
+  if(row.source_type!=="Text" ||
+     row.language_codes.length!==1 || row.language_codes[0]!=="en")return null;
+  const author=parseAuthor(row.author_raw);
+  if(!author || author.death>1900)return null;
+  const title=normalize(row.title);
+  if(title.length<8 || title.length>225 ||
+     /(?:\bvol(?:ume)?s?\.?\s*[ivx\d]|\bpart\s+[ivx\d]+\s+of\s+\d|complete works|selections from)/i.test(title))
+    return null;
+  const subject=normalize(row.subjects??"").slice(0,1200);
+  const priority=/fiction|novel|adventure|stories/i.test(subject)?0:
+    /history|biograph|essay|literature/i.test(subject)?1:2;
+  return {
+    gutenberg_id:row.gutenberg_id,title,author:author.author,
+    author_death_year:author.death,original_publication_year:null,
+    catalog_issued:row.catalog_issued,subjects:subject,priority,
+    catalog_url:OFFICIAL_FEED,
+  };
+}
+
 export async function downloadCatalog():Promise<string>{
   const failures:string[]=[];
   for(const url of FEED_MIRRORS){
@@ -169,7 +198,11 @@ function db():SupabaseAdminDb{
 /** Retry at most twice for clearly transient network problems; permanent
  * rights, provenance and structural failures never retry without review. */
 export function isTransientGutenbergFailure(message:string):boolean{
-  return /(?:timed? ?out|timeout|operation was aborted|mirror.*unavailable|fetch failed|econnreset|http 50[234]|http 429|lookup returned (?:429|50[234])|temporary network|rate limit)/i.test(message);
+  // 404 and format/size errors are permanent, NOT transient. This prevents
+  // repeatedly fetching absent source files and overwhelming Gutenberg.
+  if(/(?:HTTP 404|source exceeds import size|body is too short|copyright|rights|permission)/i.test(message))
+    return false;
+  return /(?:timed? ?out|timeout|operation was aborted|fetch failed|econnreset|HTTP (?:429|5\d\d)|lookup returned (?:429|5\d\d)|temporary network|rate limit)/i.test(message);
 }
 async function recoverInterruptedImports(client:SupabaseAdminDb):Promise<void>{
   const staleBefore=new Date(Date.now()-30*60_000).toISOString();
@@ -187,6 +220,9 @@ async function recoverInterruptedImports(client:SupabaseAdminDb):Promise<void>{
     .eq("status","failed").is("book_id",null)
     .contains("metadata",{autopilot:true})
     .lt("attempts",3).lt("updated_at",retryBefore)
+    // The oldest 650 failed jobs have permanent unverified dates; selecting
+    // the first 10 forever hides actual HTTP 521/timeout transient failures.
+    .or("last_error.ilike.%timeout%,last_error.ilike.%timed out%,last_error.ilike.%aborted%,last_error.ilike.%fetch failed%,last_error.ilike.%HTTP 5%,last_error.ilike.%lookup returned 5%,last_error.ilike.%rate limit%,last_error.ilike.%HTTP 429%")
     .order("id").limit(10);
   if(retryError){
     console.error("[gutenberg-autopilot] retry query unavailable",retryError.message);
@@ -220,39 +256,44 @@ export async function runGutenbergAutopilotOnce():Promise<void>{
     return;
   }
 
-  // Re-query the settings; write "checked" BEFORE the network request.
-  // A temporary feed outage should not hammer the authorized mirrors each tick.
-  const checked=settings.catalog_checked_at
-    ?new Date(settings.catalog_checked_at).getTime():0;
-  if(checked && Date.now()-checked<2*60*60*1000)return;
-  await client.from("gutenberg_autopilot_settings")
-    .update({catalog_checked_at:new Date().toISOString(),updated_at:new Date().toISOString()})
-    .eq("id",1);
-  try {
-    const offset=Number(settings.catalog_offset||0);
-    const candidates=selectGutenbergCandidates(await downloadCatalog(),4800,offset);
-    for(let i=0;i<candidates.length;i+=250){
-      const chunk=candidates.slice(i,i+250);
-      const {error}=await client.from("gutenberg_catalog_candidates")
-        .upsert(chunk,{onConflict:"gutenberg_id",ignoreDuplicates:true});
-      if(error)throw new Error("Catalog insert failed: "+error.message);
-    }
-    const {error:doneError}=await client.from("gutenberg_autopilot_settings")
-      .update({
-        catalog_loaded_at:new Date().toISOString(),catalog_offset:offset+candidates.length,
-        last_error:null,
-        updated_at:new Date().toISOString(),
-      }).eq("id",1);
-    if(doneError)throw new Error(doneError.message);
-    const next=await client.rpc("gutenberg_autopilot_prepare_batch");
-    if(next.error)throw new Error(next.error.message);
-    console.log("[gutenberg-autopilot] official catalog seeded",
-      candidates.length,JSON.stringify(next.data));
-  }catch(e){
-    const reason=e instanceof Error?e.message:String(e);
-    await client.from("gutenberg_autopilot_settings").update({
-      last_error:reason.slice(0,1000),updated_at:new Date().toISOString(),
-    }).eq("id",1);
-    console.error("[gutenberg-autopilot] feed not available",reason);
+  // Full official CSV was synchronized separately into private Supabase
+  // inventory (78k+). Refill the rights-eligible pool from that immutable
+  // checkpoint; never redownload the giant CSV per import batch.
+  const offset=Number(settings.catalog_offset||0);
+  const {data:inventory,error:inventoryError}=await client
+    .from("gutenberg_catalog_inventory")
+    .select("gutenberg_id,source_type,title,author_raw,language_codes,catalog_issued,subjects")
+    .order("gutenberg_id",{ascending:true}).range(offset,offset+999);
+  if(inventoryError){
+    console.error("[gutenberg-autopilot] private inventory unavailable",inventoryError.message);
+    return;
   }
+  if(!inventory?.length){
+    console.log("[gutenberg-autopilot] existing official inventory exhausted",offset,
+      "No automatic publication of unreviewed/translated works.");
+    return;
+  }
+  const candidates=inventory.map((item:any)=>candidateFromFullInventory(item))
+    .filter((item:GutenbergCatalogCandidate|null):item is GutenbergCatalogCandidate=>item!==null);
+  for(let i=0;i<candidates.length;i+=200){
+    const {error}=await client.from("gutenberg_catalog_candidates")
+      .upsert(candidates.slice(i,i+200),{onConflict:"gutenberg_id",ignoreDuplicates:true});
+    if(error){
+      console.error("[gutenberg-autopilot] eligible candidate upsert",error.message);return;
+    }
+  }
+  const {error:cursorError}=await client.from("gutenberg_autopilot_settings")
+    .update({
+      catalog_offset:offset+inventory.length,
+      catalog_checked_at:new Date().toISOString(),
+      catalog_loaded_at:new Date().toISOString(),
+      last_error:null,updated_at:new Date().toISOString(),
+    }).eq("id",1).eq("enabled",true);
+  if(cursorError){console.error("[gutenberg-autopilot] inventory cursor",cursorError.message);return;}
+  const next=await client.rpc("gutenberg_autopilot_prepare_batch");
+  if(next.error)console.error("[gutenberg-autopilot] queue refill",next.error.message);
+  else console.log("[gutenberg-autopilot] inventory",JSON.stringify({
+    examined:inventory.length,rightsCandidates:candidates.length,cursor:offset+inventory.length,
+    plan:next.data,
+  }));
 }
