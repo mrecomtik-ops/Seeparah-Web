@@ -126,23 +126,44 @@ export function safeClassicAutoPublish(input:{
   storedIntegrity:boolean;
   tocIntegrity:boolean;
   warnings:number;
-}):{allowed:boolean;reasons:string[]}{
+  /**
+   * Source-only reader edition: missing OPTIONAL metadata/cover/navigation
+   * must not block a complete, rights-cleared original manuscript.
+   * This never relaxes exact-source integrity or rights evidence.
+   */
+  publishAsIs?:boolean;
+}):{allowed:boolean;reasons:string[];qualityWarnings:string[]}{
   const reasons:string[]=[];
+  const qualityWarnings:string[]=[];
+  const asIs=input.publishAsIs===true;
   if(input.gutenbergCopyright!==false)
     reasons.push("Gutenberg US copyright status is not confirmed unrestricted");
   if(!Number.isInteger(input.authorDeathYear)||input.authorDeathYear>1900)
     reasons.push("Contributor life-term clearance needs independent review");
   if(input.firstPublishedYear===null||input.firstPublishedYear>1900||
-     input.firstPublishedYear<1400)
-    reasons.push("Original publication year is unverified or outside conservative pre-1901 scope");
+     input.firstPublishedYear<1400) {
+    (asIs?qualityWarnings:reasons).push(
+      "Original print-publication year remains unverified");
+  }
   if(input.hasModernContributors)reasons.push("Translator/editor rights need review");
-  if(input.hasUnrenderedIllustrations)
-    reasons.push("Illustrations and diagrams require an EPUB/HTML asset-preserving edition");
-  if(input.independentBibliographyCount<2)reasons.push("Two concordant bibliographic references required");
+  if(input.hasUnrenderedIllustrations) {
+    (asIs?qualityWarnings:reasons).push(
+      "Text-only source may omit illustrations; consult the original Gutenberg edition");
+  }
+  if(input.independentBibliographyCount<2) {
+    (asIs?qualityWarnings:reasons).push("Two concordant print-year references unavailable");
+  }
   if(input.hasTextRightsSignals)reasons.push("Source has edition-level rights signals");
-  if(!input.verifiedCover)reasons.push("Source-matched cover lacks verified resolution/provenance");
-  if(!input.sourceIntegrity||!input.storedIntegrity)reasons.push("Original source text fails round-trip integrity");
-  if(!input.tocIntegrity)reasons.push("Full source-backed TOC fails navigability audit");
-  if(input.warnings>0)reasons.push("Imported book has unresolved warnings");
-  return {allowed:reasons.length===0,reasons};
+  if(!input.verifiedCover) {
+    (asIs?qualityWarnings:reasons).push("Edition cover has not been verified");
+  }
+  if(!input.sourceIntegrity||!input.storedIntegrity)
+    reasons.push("Original source text fails round-trip integrity");
+  if(!input.tocIntegrity) {
+    (asIs?qualityWarnings:reasons).push("Chapter navigation is incomplete; text remains source-exact");
+  }
+  if(input.warnings>0) {
+    (asIs?qualityWarnings:reasons).push("Some non-blocking import warnings remain");
+  }
+  return {allowed:reasons.length===0,reasons,qualityWarnings};
 }

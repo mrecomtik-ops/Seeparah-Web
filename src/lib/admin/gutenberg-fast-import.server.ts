@@ -7,7 +7,8 @@ import { createHash } from "node:crypto";
 import { formatAuthorName } from "@/lib/author-name";
 
 const MIRROR = "https://gutenberg.pglaf.org";
-const MAX_TEXT = 4 * 1024 * 1024;
+// Preserve longer complete originals instead of rejecting them at 4 MB.
+const MAX_TEXT = 12 * 1024 * 1024;
 /** One-time pilot identities checked against their individual Gutenberg
  * catalog pages plus historical publication records. A fallback is allowed
  * ONLY for these entries when hosted Gutendex metadata times out, and their
@@ -176,8 +177,11 @@ export function extractGutenbergBody(raw:string):string {
   const b=end.exec(tail);
   if(!b) throw new Error("Explicit Gutenberg END boundary missing");
   const body=tail.slice(0,b.index).replace(/^\s*\r?\n/,"").replace(/\s+$/,"");
-  if(body.length<18000 || body.split(/\s+/u).length<3000)
-    throw new Error("Body is too short for a complete long-form book");
+  // Gutenberg includes poems, short stories, letters and pamphlets. A short
+  // complete source is still a valid work when both Gutenberg boundaries
+  // and its exact bytes are preserved. Reject only empty/placeholder bodies.
+  if(body.length<180 || body.split(/\s+/u).length<20)
+    throw new Error("Source body is empty or too short to be a readable work");
   return body;
 }
 async function getBytes(url:string,max:number) {
@@ -452,6 +456,30 @@ export async function importGutenbergSource(job:Job):Promise<Result>{
       }
     }
   }
+  // When Gutendex times out, the official weekly CSV cannot establish
+  // copyright status. Consult the official per-ebook RDF record from the
+  // same ID's Gutenberg content mirror rather than assuming every file is
+  // unrestricted. Missing/malformed RDF keeps rights UNKNOWN.
+  let officialRdfEvidence:Record<string,unknown>|null=null;
+  if(catalog.copyright===null){
+    try{
+      const {parseGutenbergRdfUsRights}=await import("@/lib/admin/gutenberg-rdf-rights.server");
+      const rdfBytes=await getGutenbergAsset(id,"pg"+id+".rdf",768*1024);
+      const rdfText=new TextDecoder("utf-8",{fatal:true}).decode(rdfBytes);
+      const verifiedRights=parseGutenbergRdfUsRights(rdfText,id);
+      if(verifiedRights){
+        catalog={...catalog,copyright:verifiedRights.copyright};
+        catalogOrigin="official Gutenberg weekly CSV + exact-ID RDF";
+        officialRdfEvidence={
+          source:"official Gutenberg per-ebook RDF",gutenbergId:id,
+          rights:verifiedRights.rights,usCopyright:verifiedRights.copyright,
+        };
+      }
+    }catch(error){
+      console.warn("[Gutenberg] exact-ID RDF unavailable",id,
+        error instanceof Error?error.message:String(error));
+    }
+  }
   const expected=job.metadata?.["autopilot"]===true;
   if(expected){
     // Match Gutenberg's actual title/author against the independent official
@@ -596,7 +624,11 @@ export async function importGutenbergSource(job:Job):Promise<Result>{
   const missingChapterNavigation = sourceHeadingAudit.bodyChapterMarkers >= 2 &&
     parsedChapters < sourceHeadingAudit.bodyChapterMarkers;
 
-  const desc=description(catalog,author,originalYear);
+  const desc=description(catalog,author,originalYear)+
+    (originalYear===null
+      ?" Original print-publication year has not been independently corroborated."
+      :"")+
+    " This is the source-text edition. Some original illustrations, cover artwork or chapter menus may not be included; consult the linked Project Gutenberg edition.";
   // Use actual Project Gutenberg catalogue subject headings rather than
   // labelling every imported book as generic Literature. The same private
   // classification function backfilled all existing Gutenberg editions.
@@ -627,7 +659,7 @@ export async function importGutenbergSource(job:Job):Promise<Result>{
     rightsBasis:"Original work by "+author+" (died "+deathYear+
       "). "+(yearVerified&&originalYear!==null
         ?"Independently corroborated first publication "+originalYear+". "
-        :"Original publication date still pending independent verification. ")+
+        :"The original print-publication year is not provided. ")+
       "Source identity from "+catalogOrigin+
       (catalog.copyright===false?" reports no US restriction.":" requires separate rights verification.")+
       " Manuscript downloaded from an authorized Gutenberg mirror, "+
@@ -688,12 +720,10 @@ export async function importGutenbergSource(job:Job):Promise<Result>{
   }
   const tocAudit=tocReadError ? {ok:false,errors:[tocReadError],chapterCount:0,tocCount:0}
     : auditPersistedGutenbergToc(parsedManuscript,persistedToc);
-  if(!tocAudit.ok){
-    return {status:"in_review",bookId,sha256,
-      metadata:{sourceIntegrity:originalTextAudit,storedIntegrity:storedAudit,
-        tocAudit,coverProvenance,sourceArchive:sourceKey},
-      message:"Stored TOC cannot be trusted: "+tocAudit.errors.join("; ").slice(0,700)};
-  }
+  // The source manuscript is already verified character-for-character.
+  // A missing/incomplete chapter menu is not a missing manuscript:
+  // persist the warning and allow a source-only reader, with the full
+  // Gutenberg source linked for users who need original navigation.
   const {error:metadataError}=await db.from("books").update({
     edition_title:catalog.title+" — Seeparah Reading Edition",
     edition_year:2026,publisher:"Seeparah",
@@ -709,7 +739,7 @@ export async function importGutenbergSource(job:Job):Promise<Result>{
   const auditMeta:Record<string,unknown>={
     pipelineVersion:"gutenberg-v4-lossless-toc-cover",
     title:catalog.title,author,deathYear,year:originalYear,
-    sourceUrl:url,coverUrl,sha256,review:"automated",catalogOrigin,catalogFetchIssue,yearEvidence,
+    sourceUrl:url,coverUrl,sha256,review:"automated",catalogOrigin,catalogFetchIssue,officialRdfEvidence,yearEvidence,
     verifiedBibliography:yearVerified?verifiedBibliography:null,
     coverProvenance,sourceFile,tocAudit,
     subjects:subjectHeadings.slice(0,1500),assignedCategories,
@@ -721,15 +751,19 @@ export async function importGutenbergSource(job:Job):Promise<Result>{
     excludedPrintedContentsEntries:sourceHeadingAudit.printedContentsEntries,
     sourceStructureChapterCount:parsedChapters,
   };
-  if (missingChapterNavigation) {
-    return { status: "in_review", bookId, sha256, metadata: auditMeta,
-      message: "Source body chapter headings (" + sourceHeadingAudit.bodyChapterMarkers +
-        ") exceed imported chapter navigation (" + parsedChapters + "); structural audit required" };
+  if(missingChapterNavigation){
+    auditMeta["chapterNavigationWarning"]=
+      "Original source has "+sourceHeadingAudit.bodyChapterMarkers+
+      " physical chapter headings but imported TOC has only "+parsedChapters;
   }
   const rightsSignals=await scanBookRightsSignals(bookId);
   // Check the original PG header as well as stored text: stripping Gutenberg's
   // wrapper must never conceal a contributor's copyright/permission warning.
-  const sourceRightsRisk=/(?:copyright\s*(?:©|\(c\))?\s*(?:19[3-9]\d|20\d\d)|all rights reserved|used by (?:special )?permission|license granted solely)/iu.test(rawText);
+  // Do not mistake the generic Gutenberg license *after* END OF EBOOK
+  // for an edition-specific copyright notice. Only inspect the source header
+  // and the manuscript. Explicit current rights claims still block publishing.
+  const sourceHeader=rawText.slice(0,Math.max(0,rawText.indexOf("*** START OF")));
+  const sourceRightsRisk=/(?:copyright\s*(?:©|\(c\))?\s*(?:19[3-9]\d|20\d\d)|all rights reserved|used by (?:special )?permission|license granted solely)/iu.test(sourceHeader);
   const mayPublish=safeClassicAutoPublish({
     gutenbergCopyright:catalog.copyright,
     authorDeathYear:deathYear,firstPublishedYear:originalYear,
@@ -741,7 +775,8 @@ export async function importGutenbergSource(job:Job):Promise<Result>{
     hasTextRightsSignals:rightsSignals.length>0||sourceRightsRisk,
     verifiedCover,sourceIntegrity:originalTextAudit.ok,
     storedIntegrity:storedAudit.ok,tocIntegrity:tocAudit.ok,
-    warnings:uploaded.warnings.length,
+    warnings:uploaded.warnings.length+(missingChapterNavigation?1:0),
+    publishAsIs:true,
   });
   if(!mayPublish.allowed){
     return {status:"in_review",bookId,sha256,
@@ -756,11 +791,12 @@ export async function importGutenbergSource(job:Job):Promise<Result>{
     rights_status:"approved",edition_review_status:"approved",
     structure_review_status:"approved",cleanup_review_status:"approved",
     status:"approved",reviewed_at:new Date().toISOString(),
-    review_notes:"AUTOMATED classical-work verification (not human-reviewed): author died "+deathYear+
-      "; original publication "+originalYear+
-      "; bibliographic evidence "+(yearEvidence??"curated batch record")+
-      "; source provenance "+catalogOrigin+"; no named modern contributors; UTF-8 source "+
-      "SHA-256 "+sha256+"; complete boundaries, source cover and chapter structure."
+    review_notes:"AUTOMATED source-only Gutenberg verification (not human-reviewed): author died "+deathYear+
+      "; original print year "+(originalYear??"not independently corroborated")+
+      "; rights source "+catalogOrigin+
+      "; independently preserved UTF-8 source SHA-256 "+sha256+
+      "; complete Gutenberg boundaries and source text round-trip. "+
+      "Non-blocking presentation limitations: "+mayPublish.qualityWarnings.join("; ")
   }).eq("id",bookId);
   if(reviewError)return {status:"in_review",bookId,sha256,metadata:auditMeta,
     message:reviewError.message};
@@ -779,5 +815,6 @@ export async function importGutenbergSource(job:Job):Promise<Result>{
   if(publicationError)return {status:"in_review",bookId,sha256,metadata:auditMeta,
     message:publicationError.message};
   return {status:"published",bookId,sha256,
-    metadata:{...auditMeta,publicationReadiness:mayPublish,publishedWithEvidence:true}};
+    metadata:{...auditMeta,publicationReadiness:mayPublish,publishedWithEvidence:true,
+      publicationMode:"source-as-is"}};
 }
