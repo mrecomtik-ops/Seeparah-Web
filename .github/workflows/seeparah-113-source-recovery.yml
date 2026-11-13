@@ -1,0 +1,57 @@
+name: Seeparah 113-book exact source recovery (no publication)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - data/seeparah-113-pending-source-manifest.json
+      - scripts/qa/seeparah-113-source-recovery.mjs
+      - .github/workflows/seeparah-113-source-recovery.yml
+  pull_request:
+    paths:
+      - data/seeparah-113-pending-source-manifest.json
+      - scripts/qa/seeparah-113-source-recovery.mjs
+      - .github/workflows/seeparah-113-source-recovery.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: seeparah-113-source-recovery-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  manifest-audit:
+    name: Verify exact 46 pending candidate identities
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate exact candidate identities and release holds
+        run: node scripts/qa/seeparah-113-source-recovery.mjs --check
+
+  source-recovery:
+    name: Recover originals from Gutenberg mirrors, retain hashes
+    needs: manifest-audit
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Fetch originals from Gutenberg mirrors (never publish to Seeparah)
+        run: node scripts/qa/seeparah-113-source-recovery.mjs --recover
+      - name: Preserve source and checksum evidence as time-limited action artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: seeparah-113-original-source-recovery-${{ github.run_id }}
+          path: source-recovery-out/
+          retention-days: 7
+          if-no-files-found: warn
