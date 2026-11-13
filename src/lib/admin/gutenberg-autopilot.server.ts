@@ -227,13 +227,20 @@ export function canRecheckLegacyHistoricalYearJob(job:{
     (m?.["legacyYearRecheckVersion"]===undefined);
 }
 
+/** The regular refill keeps about ten jobs queued, so requiring <=1
+ * would starve the legacy recovery forever. At most one additional older
+ * job every five minutes is permitted alongside the standard ten. */
+export function legacyDateRecoveryDue(utcMinute:number,queued:number):boolean{
+  return Number.isInteger(utcMinute)&&utcMinute>=0&&utcMinute<60&&
+    utcMinute%5===0&&Number.isInteger(queued)&&queued>=0&&queued<=10;
+}
 async function requeueOneLegacyHistoricalYearJob(client:SupabaseAdminDb):Promise<void>{
-  // Pace recovery to at most one job every five minutes, and never crowd
-  // out the fresh Gutenberg queue or flood the source mirrors.
-  if(new Date().getUTCMinutes()%5!==0)return;
+  // At most twelve old jobs per hour. Queue remains bounded (<=11).
+  const utcMinute=new Date().getUTCMinutes();
+  if(utcMinute%5!==0)return;
   const {count,error:countError}=await client.from("gutenberg_import_jobs")
     .select("id",{count:"exact",head:true}).eq("status","queued");
-  if(countError || (count??0)>1){
+  if(countError || !legacyDateRecoveryDue(utcMinute,count??-1)){
     if(countError)console.error("[gutenberg-autopilot] legacy queue depth",countError.message);
     return;
   }
