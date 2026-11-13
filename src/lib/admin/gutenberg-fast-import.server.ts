@@ -608,6 +608,7 @@ export async function importGutenbergSource(job:Job):Promise<Result>{
   }).eq("id",bookId);
   if(metadataError)throw new Error(metadataError.message);
   const auditMeta:Record<string,unknown>={
+    pipelineVersion:"gutenberg-v4-lossless-toc-cover",
     title:catalog.title,author,deathYear,year:originalYear,
     sourceUrl:url,coverUrl,sha256,review:"automated",catalogOrigin,yearEvidence,
     verifiedBibliography:yearVerified?verifiedBibliography:null,
@@ -673,5 +674,6 @@ export async function importGutenbergSource(job:Job):Promise<Result>{
   }).eq("id",bookId).eq("status","approved");
   if(publicationError)return {status:"in_review",bookId,sha256,metadata:auditMeta,
     message:publicationError.message};
-  return {status:"published",bookId,sha256,metadata:auditMeta};
+  return {status:"published",bookId,sha256,
+    metadata:{...auditMeta,publicationReadiness:mayPublish,publishedWithEvidence:true}};
 }
