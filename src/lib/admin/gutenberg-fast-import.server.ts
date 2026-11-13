@@ -112,7 +112,7 @@ export function officialCatalogMetadata(job:Job):Catalog{
      !/^PG-AUTO-\d{4,}$/.test(batch) ||
      m?.["metadataSource"]!=="Project Gutenberg official weekly CSV" ||
      m?.["catalogUrl"]!=="https://www.gutenberg.org/cache/epub/feeds/pg_catalog.csv" ||
-     typeof title!=="string"||title.length<8||title.length>250||
+     typeof title!=="string"||title.trim().length<2||title.length>300||
      typeof author!=="string"||author.length<3||author.length>200||
      typeof death!=="number"||!Number.isInteger(death)||death<1400||death>1930||
      !Number.isSafeInteger(job.gutenberg_id)||job.gutenberg_id<1 ||
