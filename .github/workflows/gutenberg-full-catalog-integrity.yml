@@ -40,7 +40,7 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Source and full-catalog unit tests
-        run: npx vitest run src/lib/admin/gutenberg-integrity-gate.test.ts src/lib/admin/gutenberg-full-catalog.server.test.ts src/lib/admin/gutenberg-autopilot.server.test.ts src/lib/admin/gutenberg-fast-import.server.test.ts src/lib/admin/importer-rootcause.characterization.test.ts
+        run: npx vitest run src/lib/admin/gutenberg-publication-qa.server.test.ts src/lib/admin/gutenberg-two-source-bibliography.server.test.ts src/lib/admin/gutenberg-integrity-gate.test.ts src/lib/admin/gutenberg-full-catalog.server.test.ts src/lib/admin/gutenberg-autopilot.server.test.ts src/lib/admin/gutenberg-fast-import.server.test.ts src/lib/admin/importer-rootcause.characterization.test.ts
       - name: Import-source regression corpus
         run: node scripts/catalog-integrity/selftest.mjs
       - name: Typecheck Cloudflare scheduler and all import modules
