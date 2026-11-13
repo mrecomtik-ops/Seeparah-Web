@@ -356,6 +356,59 @@ function requireAuthorNameForComparison() {
   return { formatAuthorName };
 }
 
+/** Gutendex includes a source-specific US copyright flag that the official
+ * weekly CSV does not. Attempt its exact-item endpoint, then the documented
+ * ids-filter endpoint under a strict network budget. Both responses are
+ * matched to the requested Gutenberg number; no fallback may invent rights. */
+export async function fetchVerifiedGutendexCatalog(
+  id:number,
+  fetchFn:typeof fetch=fetch,
+):Promise<Catalog>{
+  if(!Number.isSafeInteger(id)||id<1||id>9_999_999)
+    throw new Error("Invalid Gutenberg metadata ID");
+  const options=[
+    {url:"https://gutendex.com/books/"+id+"/",list:false,timeout:8500},
+    {url:"https://gutendex.com/books/?ids="+id,list:true,timeout:4500},
+  ];
+  const failures:string[]=[];
+  for(const option of options){
+    try{
+      const response=await fetchFn(option.url,{
+        headers:{
+          Accept:"application/json",
+          "User-Agent":"Seeparah-Edition-Metadata/1.0 (+https://seeparah.com)",
+        },
+        signal:AbortSignal.timeout(option.timeout),
+      });
+      if(!response.ok)throw new Error("HTTP "+response.status);
+      const payload:unknown=await response.json();
+      const candidate=option.list
+        ? (payload && typeof payload==="object" && "results" in payload &&
+            Array.isArray(payload.results) && payload.results.length===1
+            ?payload.results[0]:null)
+        :payload;
+      if(!candidate||typeof candidate!=="object"||
+         (candidate as Catalog).id!==id ||
+         typeof (candidate as Catalog).title!=="string"||
+         !Array.isArray((candidate as Catalog).authors) ||
+         !Array.isArray((candidate as Catalog).languages) ||
+         typeof (candidate as Catalog).formats!=="object" ||
+         (candidate as Catalog).formats===null)
+        throw new Error("Unverified Gutendex ID or malformed metadata");
+      // The only permissible source of a positive copyright flag is the
+      // verified service response itself. UNKNOWN remains unknown.
+      const rights=(candidate as Catalog).copyright;
+      if(rights!==true && rights!==false && rights!==null)
+        throw new Error("Gutendex copyright field is absent or malformed");
+      return candidate as Catalog;
+    }catch(error){
+      failures.push((option.list?"list":"item")+":"+
+        (error instanceof Error?error.message:String(error)).slice(0,130));
+    }
+  }
+  throw new Error("Gutendex catalog unavailable: "+failures.join(" | ").slice(0,310));
+}
+
 export async function importGutenbergSource(job:Job):Promise<Result>{
   const {corroborateGutenbergFirstPublication} =
     await import("@/lib/admin/gutenberg-two-source-bibliography.server");
@@ -379,19 +432,13 @@ export async function importGutenbergSource(job:Job):Promise<Result>{
   // text, provenance, cover and existing publication gates still apply.
   let catalog: Catalog;
   let catalogOrigin = "Gutendex";
+  let catalogFetchIssue:string|null=null;
   try {
-    const response=await fetch("https://gutendex.com/books/"+id+"/",{
-      headers:{Accept:"application/json"},signal:AbortSignal.timeout(6000)
-    });
-    if(response.status===404||response.status===400)
-      throw new Error("Permanent Gutenberg catalog mismatch: "+response.status);
-    if(!response.ok)throw new Error("Gutendex HTTP "+response.status);
-    catalog=await response.json() as Catalog;
+    catalog=await fetchVerifiedGutendexCatalog(id);
   } catch(error) {
-    if(error instanceof Error && error.message.startsWith("Permanent Gutenberg catalog mismatch"))
-      throw error;
+    catalogFetchIssue=(error instanceof Error?error.message:String(error)).slice(0,380);
     console.warn("[Gutenberg] metadata API unavailable; checking independently reviewed source",
-      id,error instanceof Error?error.message:String(error));
+      id,catalogFetchIssue);
     try {
       catalog=curatedPilotMetadata(id,job.original_publication_year as number);
       catalogOrigin="curated pilot";
@@ -662,7 +709,7 @@ export async function importGutenbergSource(job:Job):Promise<Result>{
   const auditMeta:Record<string,unknown>={
     pipelineVersion:"gutenberg-v4-lossless-toc-cover",
     title:catalog.title,author,deathYear,year:originalYear,
-    sourceUrl:url,coverUrl,sha256,review:"automated",catalogOrigin,yearEvidence,
+    sourceUrl:url,coverUrl,sha256,review:"automated",catalogOrigin,catalogFetchIssue,yearEvidence,
     verifiedBibliography:yearVerified?verifiedBibliography:null,
     coverProvenance,sourceFile,tocAudit,
     subjects:subjectHeadings.slice(0,1500),assignedCategories,
