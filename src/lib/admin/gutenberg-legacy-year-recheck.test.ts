@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canRecheckLegacyHistoricalYearJob } from "./gutenberg-autopilot.server";
+import { canRecheckLegacyHistoricalYearJob, legacyDateRecoveryDue } from "./gutenberg-autopilot.server";
 
 const original = {
   attempts: 1,
@@ -32,6 +32,14 @@ describe("Legacy Gutenberg publication-year backlog recovery", () => {
     expect(canRecheckLegacyHistoricalYearJob({...original,metadata:{...original.metadata,catalogUrl:"https://example.net"}})).toBe(false);
     expect(canRecheckLegacyHistoricalYearJob({...original,metadata:{...original.metadata,authorDeathYear:null}})).toBe(false);
     expect(canRecheckLegacyHistoricalYearJob({...original,metadata:{...original.metadata,legacyYearRecheckVersion:"gutenberg-v4-safe-metadata-review"}})).toBe(false);
+  });
+  it("schedules one paced recovery even when the ordinary ten-book queue is full", () => {
+    expect(legacyDateRecoveryDue(0, 10)).toBe(true);
+    expect(legacyDateRecoveryDue(5, 9)).toBe(true);
+    expect(legacyDateRecoveryDue(10, 11)).toBe(false);
+    expect(legacyDateRecoveryDue(12, 1)).toBe(false);
+    expect(legacyDateRecoveryDue(20, -1)).toBe(false);
+    expect(legacyDateRecoveryDue(61, 0)).toBe(false);
   });
   it("does not fabricate an original year or claim publication rights", () => {
     const candidate = structuredClone(original);
