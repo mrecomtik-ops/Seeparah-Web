@@ -297,6 +297,19 @@ function LibraryPage() {
           </div>
         </div>
 
+        <section aria-label="Gutenberg source catalogue" className="mt-6 flex flex-col gap-3 rounded-2xl border border-border bg-secondary/40 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+          <div>
+            <h2 className="font-display text-lg font-semibold text-foreground">Explore the complete Gutenberg catalogue</h2>
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              Browse 78,000+ source records, including books not yet hosted on Seeparah.
+              Open their original Gutenberg editions when a verified reader is unavailable.
+            </p>
+          </div>
+          <Link to="/gutenberg" className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90">
+            Search Gutenberg <ArrowRight className="h-4 w-4" aria-hidden="true" />
+          </Link>
+        </section>
+
         {tab === "all" && !hasActiveFilters && (
           <section className="mt-8 rounded-3xl border border-primary/20 bg-card p-5 card-shadow sm:p-6">
             <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
