@@ -249,11 +249,30 @@ export async function processGutenbergImportQueueOnce():Promise<void>{
   const {data:settings,error:settingsError}=await db.from("gutenberg_autopilot_settings")
     .select("enabled").eq("id",1).maybeSingle();
   if(settingsError || settings?.enabled !== true)return;
-  const {data:queued,error:readError}=await db.from("gutenberg_import_jobs")
+  const getFirstQueued=()=>db.from("gutenberg_import_jobs")
     .select("id,gutenberg_id,original_publication_year,attempts,metadata")
     .eq("status","queued").order("id").limit(1).maybeSingle();
+  let {data:queued,error:readError}=await getFirstQueued();
   if(readError){console.error("[Gutenberg] queue read error",readError.message);return;}
-  if(!queued)return;
+  if(!queued){
+    // A scheduler tick may have no queue even while thousands of candidates
+    // remain. Prepare the next batch through the existing row-locked,
+    // idempotent database coordinator. Do not require a manual restart.
+    const {data:refill,error:refillError}=await db.rpc("gutenberg_autopilot_prepare_batch");
+    if(refillError){
+      console.error("[Gutenberg] empty-queue refill",refillError.message);
+      return;
+    }
+    if(refill?.status==="needs_catalog"||refill?.status==="complete"||
+       refill?.status==="paused")return;
+    const again=await getFirstQueued();
+    if(again.error){
+      console.error("[Gutenberg] refreshed queue read",again.error.message);
+      return;
+    }
+    queued=again.data;
+    if(!queued)return;
+  }
   const job=queued as Job;
   const {data:locked,error:lockError}=await db.from("gutenberg_import_jobs").update({
     status:"processing",attempts:job.attempts+1,updated_at:new Date().toISOString()
