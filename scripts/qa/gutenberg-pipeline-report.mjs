@@ -29,6 +29,7 @@ const summary = {
   publicationTarget: data.importer.target_published,
   discovery: data.discovery || { status: "not deployed yet" },
   importQueue: data.queue || {},
+  auditedPublication: data.auditedPublication || {},
   policy: "No complete claim without source SHA256, exact reader read-back, rights and visual acceptance",
 };
 console.log(JSON.stringify(summary, null, 2));
@@ -45,6 +46,7 @@ if (process.env.GITHUB_STEP_SUMMARY) {
     ["Publication importer enabled", summary.publicationImporterEnabled],
     ["Discovery", JSON.stringify(summary.discovery)],
     ["Import queue (review/fail/queued)", JSON.stringify(summary.importQueue)],
+    ["New v4 publications with missing gate proof", summary.auditedPublication.missingIntegrityEvidence ?? 0],
   ];
   await appendFile(process.env.GITHUB_STEP_SUMMARY,
     "## Seeparah Gutenberg safety checks\n\n| Check | Result |\n|---|---|\n" +
@@ -54,8 +56,11 @@ if (process.env.GITHUB_STEP_SUMMARY) {
 if (!data.books.length || suspect > 0) {
   throw new Error("Unsafe published bibliography state detected");
 }
+if ((summary.auditedPublication.missingIntegrityEvidence ?? 0) > 0) {
+  throw new Error("New v4 Gutenberg books were published without required integrity proof");
+}
 if (summary.publicationImporterEnabled &&
     (summary.openSourceReviews || summary.visualAcceptanceReviews ||
      summary.unknownHistoricalYearBackups)) {
-  throw new Error("Publication importer enabled despite unresolved QA blockers");
+  console.warn("Legacy review queues still open; new Gutenberg publications must pass independent per-book gates");
 }

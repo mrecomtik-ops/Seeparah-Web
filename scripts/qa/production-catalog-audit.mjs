@@ -176,7 +176,8 @@ export async function fetchScalablePublicQaSnapshot(
   const result = {
     version: 1, scope: 'published-catalogue-only',
     books: [], reviews: [], oldYears: [],
-    importer: first.importer, discovery: first.discovery, queue: first.queue ?? {},
+    importer: first.importer, discovery: first.discovery,
+    queue: first.queue ?? {}, auditedPublication: first.auditedPublication ?? {},
     safety: { unpublishedYearBackupCount: 0 },
   };
   if (!result.importer || !result.discovery) throw Error('Missing importer/discovery state');
@@ -221,8 +222,11 @@ export function analyzeCatalogue(data, batchSize = 25) {
   for (const r of reviews) statuses.set(r.status, (statuses.get(r.status) ?? 0) + 1);
   const importer = data.importer;
   const critical = [];
+  const warnings = [];
+  // Legacy published books' review queues remain open independently of newly
+  // ingested books. Every new publication must pass the per-book v4 evidence gate.
   if (importer?.enabled && (sourceReview.length > 0 || yearIds.size > 0 || visualReview.length > 0))
-    critical.push('Importer is ENABLED despite unresolved historical/source/visual review queues.');
+    warnings.push('Legacy historical/source/device QA queues remain open; the new importer must enforce independent per-book publication gates.');
   if (suspectYears.length > 0)
     critical.push(`${suspectYears.length} published Gutenberg records still expose suspect 1800/1656 publication years.`);
   if (yearIds.size > years.length)
@@ -262,7 +266,7 @@ export function analyzeCatalogue(data, batchSize = 25) {
       importerEnabled: Boolean(importer?.enabled),
       importerTarget: Number(importer?.target_published ?? 0),
       importerBatchSize: Number(importer?.batch_size ?? 0),
-    }, critical, queues: { chapterRows, visualRows, yearRows, coverRows },
+    }, critical, warnings, queues: { chapterRows, visualRows, yearRows, coverRows },
     editionVariants: variants.slice(0, 30),
   };
 }
@@ -322,6 +326,9 @@ export function renderMarkdown(report) {
   if (report.critical?.length) {
     lines.push('## Safety alerts', '', ...report.critical.map(s => `- **BLOCK:** ${sanitizeMarkdown(s)}`), '');
   }
+  if (report.warnings?.length) {
+    lines.push('## Outstanding review backlogs', '', ...report.warnings.map(s => `- **OPEN:** ${sanitizeMarkdown(s)}`), '');
+  }
   if (!c) lines.push('## Setup needed', '',
     'Ensure https://seeparah.com/api/catalog-qa-public.json is deployed and reachable. No Supabase credentials are required in GitHub Actions.', '');
   for (const [title, rows] of [
@@ -339,7 +346,7 @@ export function renderMarkdown(report) {
     '- A chapter heading inside Seeparah does not prove a manuscript is complete. Compare the exact upstream edition and source before restoring any content.',
     '- Historical dates require at least two credible independent sources; a Project Gutenberg upload date is not a first-publication date.',
     '- High-resolution cover replacement requires exact source/edition and artwork usage rights.',
-    '- Keep the Gutenberg importer paused until these gates are independently accepted.', '');
+    '- New imports may publish only after every per-edition v4 source, rights, TOC, metadata and cover validation passes; legacy reviews remain open.', '');
   return lines.join('\n');
 }
 

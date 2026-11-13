@@ -2,9 +2,10 @@
  * Lossless Gutenberg import QA. No content is generated or changed.
  *
  * The source bytes are archived separately (SHA-256 in books/job metadata).
- * Here we compare every Unicode letter/number/combining mark in the extracted
- * source against every stored chunk in its original order. We ignore only
- * punctuation and layout whitespace, which the reader intentionally reflows.
+ * Compare EVERY source character (including punctuation, case, ligatures
+ * and diacritics) against stored reader chunks in its original order.
+ * Ignore only layout whitespace intentionally reflowed by the reader.
+ * Lossy dehyphenation or silent punctuation changes must fail closed.
  * This test is a necessary, not sufficient, condition for a complete edition:
  * an upstream Gutenberg file could itself be incomplete.
  */
@@ -26,7 +27,7 @@ export type ParsedSourceForAudit = {
 };
 
 function canonical(value: string): string {
-  return value.normalize("NFKC").toLowerCase().replace(/[^\p{L}\p{N}\p{M}]/gu, "");
+  return value.normalize("NFC").replace(/\s+/gu, "");
 }
 
 function digest(text: string): string {

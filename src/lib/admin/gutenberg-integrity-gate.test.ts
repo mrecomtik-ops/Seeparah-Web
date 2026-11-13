@@ -64,5 +64,9 @@ describe("Gutenberg lossless source-to-reader integrity gate", () => {
     expect(auditGutenbergSource(reflowed, rep).ok).toBe(true);
     const altered = { ...rep, chunks: rep.chunks.map((chunk) => chunk.replace("opening", "closing")) };
     expect(auditGutenbergSource(reflowed, altered).ok).toBe(false);
+    const punctuationLoss = { ...rep, chunks: rep.chunks.map((chunk) => chunk.replace("CHAPTER I.", "CHAPTER I")) };
+    expect(auditGutenbergSource(reflowed, punctuationLoss).ok).toBe(false);
+    const caseChange = { ...rep, chunks: rep.chunks.map((chunk) => chunk.replace("opening", "Opening")) };
+    expect(auditGutenbergSource(reflowed, caseChange).ok).toBe(false);
   });
 });
