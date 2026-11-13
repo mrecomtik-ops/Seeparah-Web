@@ -11,6 +11,19 @@ import { FloatingFeedback } from "./FloatingFeedback";
 
 afterEach(()=>{cleanup();supportSubmit.mockClear();});
 describe("site-wide feedback widget",()=>{
+  it("uses a compact mobile help action ABOVE bottom navigation while retaining desktop label",()=>{
+    const { container } = render(<FloatingFeedback bare={false}/>);
+    const control = screen.getByRole("button",{name:"Open support tickets and suggestions"});
+    expect(control.className).toContain("bottom-[calc(4.5rem+env(safe-area-inset-bottom))]");
+    expect(control.className).toContain("lg:bottom-5");
+    expect(control.className).toContain("h-12 w-12");
+    const label=container.querySelector("button span");
+    expect(label?.className).toContain("hidden lg:inline");
+    expect(control.getAttribute("title")).toBe("Help & ideas");
+    fireEvent.click(control);
+    expect(screen.getByRole("dialog",{name:"Help improve Seeparah"})).toBeTruthy();
+  });
+
   it("allows a guest author to suggest an improvement and records it in the support queue",async()=>{
     render(<FloatingFeedback bare={false}/>);
     fireEvent.click(screen.getByRole("button",{name:"Open support tickets and suggestions"}));
