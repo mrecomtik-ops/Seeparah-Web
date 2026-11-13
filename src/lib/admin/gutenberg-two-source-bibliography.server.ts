@@ -27,13 +27,13 @@ function sameAuthor(name:string, label:string):boolean{
   return a.length>=2&&b.length>=2&&a.every(x=>b.includes(x));
 }
 function getStatementIds(entity:Entity):string[]{
-  return (entity.claims?.P50??[]).flatMap(x=>{
+  return (entity.claims?.['P50']??[]).flatMap(x=>{
     const value=x.mainsnak?.datavalue?.value;
     return value && typeof value.id==="string" && /^Q\d+$/u.test(value.id) ?[value.id]:[];
   });
 }
 function getPubYears(entity:Entity):number[]{
-  return (entity.claims?.P577??[]).flatMap(x=>{
+  return (entity.claims?.['P577']??[]).flatMap(x=>{
     const value=x.mainsnak?.datavalue?.value;
     const time=typeof value?.time==="string"?value.time:"";
     const match=/^\+(\d{4})-/u.exec(time);
@@ -71,7 +71,7 @@ export async function wikidataFirstPublicationYear(
   },fetchFn);
   const candidates=ids.flatMap(id=>{
     const e=all.entities?.[id];
-    if(!e||!sameWork(title,e.labels?.en?.value??""))return [];
+    if(!e||!sameWork(title,e.labels?.['en']?.value??""))return [];
     const years=getPubYears(e);
     const authors=getStatementIds(e);
     if(!years.length || !authors.length)return [];
@@ -84,7 +84,7 @@ export async function wikidataFirstPublicationYear(
     props:"labels",languages:"en",
   },fetchFn);
   const approved=candidates.flatMap(c=>
-    c.authors.some(id=>sameAuthor(author,people.entities?.[id]?.labels?.en?.value??""))
+    c.authors.some(id=>sameAuthor(author,people.entities?.[id]?.labels?.['en']?.value??""))
       ? c.years.map(year=>({year,url:"https://www.wikidata.org/wiki/"+c.id})) : []);
   const unique=[...new Set(approved.map(x=>x.year))];
   // Multiple differing dates might describe versions/serial instalments.
