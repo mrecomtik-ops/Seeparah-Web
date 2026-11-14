@@ -280,19 +280,25 @@ export async function processGutenbergImportQueueOnce():Promise<void>{
   if(lockError||!locked)return;
   try{
     const result=await importGutenbergSource(job);
-    const {error:updateError}=await db.from("gutenberg_import_jobs").update({
+    const {data:updated,error:updateError}=await db.from("gutenberg_import_jobs").update({
       status:result.status,book_id:result.bookId,
       source_sha256:result.sha256??null,
       metadata:mergeImportJobMetadata(job.metadata,result.metadata),
       last_error:result.message??null,updated_at:new Date().toISOString()
-    }).eq("id",job.id);
+    }).eq("id",job.id).eq("status","processing").select("id").maybeSingle();
     if(updateError)throw updateError;
+    // A recovery tick might already have quarantined a stale attempt.
+    // Never let an old worker overwrite that later state.
+    if(!updated){
+      console.warn("[Gutenberg] stale attempt result not written",job.gutenberg_id);
+      return;
+    }
     console.log("[Gutenberg] source",job.gutenberg_id,result.status);
   }catch(error){
     const msg=error instanceof Error?error.message:String(error);
     await db.from("gutenberg_import_jobs").update({
       status:"failed",last_error:msg.slice(0,900),updated_at:new Date().toISOString()
-    }).eq("id",job.id);
+    }).eq("id",job.id).eq("status","processing");
     console.error("[Gutenberg] import error",job.gutenberg_id,msg);
   }
 }
