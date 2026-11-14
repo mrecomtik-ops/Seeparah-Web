@@ -4,6 +4,9 @@ on:
     paths:
       - "scripts/qa/public-reader-android-chrome.mjs"
       - ".github/workflows/public-reader-android-chrome.yml"
+  # Weekly live-device acceptance after continuing Gutenberg publications.
+  schedule:
+    - cron: '0 4 * * 0' # Sunday, 08:00 Dubai
   workflow_dispatch:
 permissions:
   contents: read

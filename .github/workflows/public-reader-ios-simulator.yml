@@ -5,6 +5,9 @@ on:
       - "scripts/qa/public-reader-ios-simulator.mjs"
       - "scripts/qa/ios-screenshot-metrics.swift"
       - ".github/workflows/public-reader-ios-simulator.yml"
+  # Weekly live-device acceptance after continuing Gutenberg publications.
+  schedule:
+    - cron: '0 4 * * 0' # Sunday, 08:00 Dubai
   workflow_dispatch:
 permissions:
   contents: read

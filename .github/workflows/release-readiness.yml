@@ -1,0 +1,90 @@
+name: Seeparah final product production readiness
+
+# Live public production acceptance, never claims to validate unmerged PR code.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "30 4 * * *" # Daily 08:30 Dubai
+  pull_request:
+    paths:
+      - "scripts/qa/release-public-smoke.mjs"
+      - ".github/workflows/release-readiness.yml"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/qa/release-public-smoke.mjs"
+      - ".github/workflows/release-readiness.yml"
+permissions:
+  contents: read
+jobs:
+  public-reader:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npm install --no-save --package-lock=false playwright@1.56.1
+      - run: npx playwright install --with-deps chromium webkit
+      - name: Library, source chapters, and Quran Arabic/English/Urdu comparison
+        run: node scripts/qa/release-public-smoke.mjs
+      - name: Narrow mobile, Greek, and Chinese reading
+        if: success() || failure()
+        run: node scripts/qa/public-reader-chromium.mjs
+      - name: Multiscript Study-mode controls
+        if: success() || failure()
+        run: node scripts/qa/public-reader-language-parts.mjs
+      - name: WebKit mobile script rendering
+        if: success() || failure()
+        run: node scripts/qa/public-reader-webkit.mjs
+      - name: Ink, undo, redo, eraser, and fixed physical pagination
+        if: success() || failure()
+        run: node scripts/qa/reader-ink-paper-zoom.mjs
+      - name: Store test evidence on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: seeparah-reader-release-evidence
+          path: audit-out/release-readiness/
+          if-no-files-found: ignore
+          retention-days: 30
+
+  isolated-admin:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npm install --no-save --package-lock=false playwright@1.56.1
+      - run: npx playwright install --with-deps chromium webkit
+      - name: Admin role, book editing, and shelf actions against synthetic fixtures
+        run: node scripts/qa/admin-browser-acceptance.mjs
+
+  catalog:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - name: Full public catalogue and sitemap; strictly read-only
+        run: >
+          node scripts/qa/production-catalog-audit.mjs
+          --public-url https://seeparah.com/api/catalog-qa-public.json
+          --require-data --batch-size 100
+          --out audit-out/release-catalog
+      - name: Store all review queues and report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: seeparah-catalog-release-evidence
+          path: audit-out/release-catalog/
+          if-no-files-found: ignore
+          retention-days: 30
