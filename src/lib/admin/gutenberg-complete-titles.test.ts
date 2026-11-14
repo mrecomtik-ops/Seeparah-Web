@@ -24,11 +24,11 @@ describe("Gutenberg complete historical title candidate intake",()=>{
       expect(selected?.title).toBe(title);
     }
   });
-  it("never imports modern author, named translator, non-text or non-English editions without review",()=>{
+  it("keeps contributor and non-text safeguards while allowing other source languages",()=>{
     expect(candidateFromFullInventory({...inventory,author_raw:"Living, Author, 1901-1999"})).toBeNull();
     expect(candidateFromFullInventory({...inventory,author_raw:"Austen, Jane [Translator], 1775-1817"})).toBeNull();
     expect(candidateFromFullInventory({...inventory,source_type:"Audio"})).toBeNull();
-    expect(candidateFromFullInventory({...inventory,language_codes:["fr"]})).toBeNull();
+    expect(candidateFromFullInventory({...inventory,language_codes:["fr"]})?.priority).toBe(-1);
   });
   it("keeps exact-ID official fallback identity for a short Gutenberg title with UNKNOWN rights",()=>{
     const record=officialCatalogMetadata({

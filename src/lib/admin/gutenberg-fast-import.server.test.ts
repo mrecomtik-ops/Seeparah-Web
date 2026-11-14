@@ -50,8 +50,18 @@ describe("Gutenberg fast track must fail closed",()=>{
     expect(()=>verifyGutenbergCandidate({...sample,copyright:true},55,1900)).toThrow();
     expect(()=>verifyGutenbergCandidate({...sample,translators:[{name:"New Translator"}]},55,1900)).toThrow();
     expect(()=>verifyGutenbergCandidate({...sample,authors:[{name:"Modern",death_year:1970}]},55,1900)).toThrow();
-    expect(()=>verifyGutenbergCandidate({...sample,languages:["en","fr"]},55,1900)).toThrow();
+    expect(verifyGutenbergCandidate({...sample,languages:["en","fr"]},55,1900).author).toBe("Baum, L. Frank");
     expect(()=>verifyGutenbergCandidate(sample,56,1900)).toThrow();
+  });
+  it("accepts single-language original Chinese, French and Finnish Gutenberg metadata",()=>{
+    for(const language of ["zh","fr","fi"])
+      expect(verifyGutenbergCandidate({...sample,languages:[language]},55,1900).deathYear).toBe(1919);
+  });
+  it("accepts complete non-spaced Unicode source text without inventing words",()=>{
+    const chinese="天地玄黃宇宙洪荒日月盈昃辰宿列張".repeat(100);
+    const source="*** START OF THE PROJECT GUTENBERG EBOOK TEST ***\n"+
+      chinese+"\n*** END OF THE PROJECT GUTENBERG EBOOK TEST ***";
+    expect(extractGutenbergBody(source)).toBe(chinese);
   });
   it("uses only exact Gutenberg body boundaries and preserves source punctuation",()=>{
     const original="CHAPTER ONE\n\nIt's a long tale—said Alice. \u0628\u0650\u0633\u0652\u0645\u0650\n\n";

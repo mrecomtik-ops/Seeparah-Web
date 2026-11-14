@@ -54,8 +54,8 @@ export function auditGutenbergSource(
   const chunks = parsed.chunks;
   const joined = chunks.join("\n\n");
   const parsedCanonical = canonical(joined);
-  if (!rawCanonical || rawCanonical.length < 12000) {
-    errors.push("Source lacks enough intact content for unattended long-form publication");
+  if (!rawCanonical || rawCanonical.length < 180) {
+    errors.push("Source body is too short to verify meaningful content");
   }
   if (!chunks.length || chunks.some((x) => !x.trim())) {
     errors.push("Empty or missing reader chunk");
