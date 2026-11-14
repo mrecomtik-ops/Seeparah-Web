@@ -23,6 +23,7 @@ import {
 import { listLibraryIndex, getLibraryPageBooks, listProgress, matchesBookSearch } from "@/lib/library";
 import { useAuth } from "@/lib/use-auth";
 import { BookCard } from "@/components/BookCard";
+import { BookCoverFallback } from "@/components/BookCoverFallback";
 import { useShelves } from "@/components/ShelfButtons";
 import { coverFor, FEATURED_BOOK_ID, isLowResolutionGutenbergCover } from "@/lib/covers";
 import { isSharedSacredCollectionCover } from "@/lib/sacred-cover-artwork";
