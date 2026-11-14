@@ -58,7 +58,7 @@ describe("Gutenberg unattended catalogue intake",()=>{
 });
 
 describe("Complete private-inventory publication intake",()=>{
-  it("only selects conservative original-English historic works and never invents first-print dates",()=>{
+  it("selects historic originals regardless of language and never invents print dates",()=>{
     const base={
       gutenberg_id:500,title:"An Original English Classical Novel",
       source_type:"Text",author_raw:"Dickens, Charles, 1812-1870",
@@ -69,8 +69,9 @@ describe("Complete private-inventory publication intake",()=>{
       gutenberg_id:500,author:"Dickens, Charles",author_death_year:1870,
       original_publication_year:null,priority:0,
     });
-    expect(candidateFromFullInventory({...base,language_codes:["en","fr"]})).toBeNull();
-    expect(candidateFromFullInventory({...base,language_codes:["es"]})).toBeNull();
+    expect(candidateFromFullInventory({...base,language_codes:["en","fr"]})?.priority).toBe(-1);
+    expect(candidateFromFullInventory({...base,language_codes:["es"]})?.priority).toBe(-1);
+    expect(candidateFromFullInventory({...base,language_codes:[]})).toBeNull();
     expect(candidateFromFullInventory({...base,author_raw:"Recent, Person, 1900-1950"})).toBeNull();
     expect(candidateFromFullInventory({...base,author_raw:"Dickens, Charles, 1812-1870; Translator, X, 1920-1990"})).toBeNull();
     expect(candidateFromFullInventory({...base,source_type:"Sound"})).toBeNull();

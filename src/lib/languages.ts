@@ -1,3 +1,5 @@
+import { gutenbergLanguageTagForLabel } from "@/lib/gutenberg-language";
+
 /** Canonical BCP 47 script tags for reader accessibility and text-to-speech.
  * Unknown catalog edition labels must never be truncated to an unrelated
  * language (e.g. "Bilingual" -> Bislama "bi").
@@ -15,5 +17,5 @@ const LANGUAGE_TAGS: Record<string, string> = {
 };
 
 export function languageToBcp47(language: string): string {
-  return LANGUAGE_TAGS[language] ?? "und";
+  return LANGUAGE_TAGS[language] ?? gutenbergLanguageTagForLabel(language) ?? "und";
 }

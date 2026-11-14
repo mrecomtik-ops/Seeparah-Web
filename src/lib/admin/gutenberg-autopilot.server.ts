@@ -4,12 +4,13 @@
  * - Official Project Gutenberg weekly CSV feed (not crawling www.gutenberg.org).
  * - Stable identity and historical author death year for metadata candidates.
  * - Bounded batches, inventory-backed refill, and a PostgreSQL coordinator;
- *   only eligible original-English historic candidates enter publication QA.
+ *   only historic candidates from any official source language enter publication QA.
  * - The full 78k+ multilingual catalogue remains separate for rights review.
  * - Source rights/date verification remains in gutenberg-fast-import.server.
  * - Failures/review records are NOT counted as successful publication.
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { normalizeGutenbergLanguageCodes } from "@/lib/gutenberg-language";
 
 export type GutenbergCatalogCandidate = {
   gutenberg_id:number;
@@ -91,7 +92,7 @@ export function selectGutenbergCandidates(
   const seen=new Set<number>();
   for(const row of iter){
     const [idx,type,issued,titleRaw,lang,authorRaw,subjectsRaw]=positions.map(i=>row[i]??"");
-    if(type!=="Text"||lang!=="en")continue;
+    if(type!=="Text"||!normalizeGutenbergLanguageCodes(lang.split(/[;,]/gu)).length)continue;
     const id=Number(idx);
     if(!Number.isSafeInteger(id)||id<1||id>9_999_999||seen.has(id))continue;
     const author=parseAuthor(authorRaw!);
@@ -100,10 +101,11 @@ export function selectGutenbergCandidates(
     // A short name ("Emma") or a source volume is still a legitimate
     // Project Gutenberg eBook. Let source rights and integrity checks
     // decide publication, never arbitrary title wording.
-    if(title.length<2||title.length>300)continue;
+    if(title.length<1||title.length>300)continue;
     const subject=normalize(subjectsRaw??"").slice(0,1200);
     // Strongly prefer complete narrative works and established literary fiction.
-    const priority=/fiction|novel|adventure|stories/i.test(subject)?0:
+    const priority=normalizeGutenbergLanguageCodes(lang.split(/[;,]/gu)).some(code=>code!=="en")?-1:
+      /fiction|novel|adventure|stories/i.test(subject)?0:
       /history|biograph|essay|literature/i.test(subject)?1:2;
     const catalogIssued=/^\d{4}-\d{2}-\d{2}$/.test(issued!)
       ?issued!:null;
@@ -126,8 +128,8 @@ export function selectGutenbergCandidates(
 }
 
 /** Select from the already-synchronized official multilingual inventory.
- * Publishing candidates require one original English-language author who
- * died by 1900; other works stay discoverable but never auto-licensed.
+ * Candidates may use any verified original language; author death by 1900
+ * and exact source/edition rights remain mandatory for auto-publication.
  * No first-publication date is inferred from Gutenberg's upload date.
  */
 export function candidateFromFullInventory(row:{
@@ -135,13 +137,14 @@ export function candidateFromFullInventory(row:{
   language_codes:string[];catalog_issued:string|null;subjects:string|null;
 }):GutenbergCatalogCandidate|null{
   if(row.source_type!=="Text" ||
-     row.language_codes.length!==1 || row.language_codes[0]!=="en")return null;
+     !normalizeGutenbergLanguageCodes(row.language_codes).length)return null;
   const author=parseAuthor(row.author_raw);
   if(!author || author.death>1900)return null;
   const title=normalize(row.title);
-  if(title.length<2 || title.length>300)return null;
+  if(title.length<1 || title.length>300)return null;
   const subject=normalize(row.subjects??"").slice(0,1200);
-  const priority=/fiction|novel|adventure|stories/i.test(subject)?0:
+  const priority=normalizeGutenbergLanguageCodes(row.language_codes).some(code=>code!=="en")?-1:
+    /fiction|novel|adventure|stories/i.test(subject)?0:
     /history|biograph|essay|literature/i.test(subject)?1:2;
   return {
     gutenberg_id:row.gutenberg_id,title,author:author.author,
@@ -369,11 +372,11 @@ export async function runGutenbergAutopilotOnce():Promise<void>{
   if(planError){
     console.error("[gutenberg-autopilot] batch preparation failed",planError.message);return;
   }
-  if(plan?.status!=="needs_catalog"){
-    if(plan?.status==="batch_started"||plan?.status==="complete")
-      console.log("[gutenberg-autopilot] state",JSON.stringify(plan));
-    return;
-  }
+  if(plan?.status==="complete"||plan?.status==="paused")return;
+  if(plan?.status!=="needs_catalog"&&plan?.status!=="running"&&
+     plan?.status!=="batch_started")return;
+  // Scan the whole official multilingual inventory in bounded slices even
+  // when an English queue is running. Otherwise minority languages starve.
 
   // Full official CSV was synchronized separately into private Supabase
   // inventory (78k+). Refill the rights-eligible pool from that immutable
@@ -382,14 +385,14 @@ export async function runGutenbergAutopilotOnce():Promise<void>{
   const {data:inventory,error:inventoryError}=await client
     .from("gutenberg_catalog_inventory")
     .select("gutenberg_id,source_type,title,author_raw,language_codes,catalog_issued,subjects")
-    .order("gutenberg_id",{ascending:true}).range(offset,offset+999);
+    .order("gutenberg_id",{ascending:true}).range(offset,offset+499);
   if(inventoryError){
     console.error("[gutenberg-autopilot] private inventory unavailable",inventoryError.message);
     return;
   }
   if(!inventory?.length){
-    console.log("[gutenberg-autopilot] existing official inventory exhausted",offset,
-      "No automatic publication of unreviewed/translated works.");
+    if(plan?.status==="needs_catalog")
+      console.log("[gutenberg-autopilot] official inventory exhausted",offset);
     return;
   }
   const candidates=inventory.map((item:any)=>candidateFromFullInventory(item))
