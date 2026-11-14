@@ -1,0 +1,17 @@
+name: Audit missing Gutenberg archives against original text
+on:
+  push:
+    branches:
+      - qa/gutenberg-legacy-source-canonical-audit-20261114
+  workflow_dispatch:
+jobs:
+  source-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Fetch exact Gutenberg IDs and calculate full text fingerprints
+        run: node scripts/qa/audit-legacy-source-canonical.mjs
