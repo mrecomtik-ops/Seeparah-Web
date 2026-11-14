@@ -376,9 +376,10 @@ function LibraryPage() {
                     className={`absolute inset-0 m-auto h-full w-full ${isLowResolutionGutenbergCover(featuredFull?.cover_url) ? "max-h-[300px] max-w-[200px] bg-card object-contain" : featured.genre === "Sacred Text" || /gutenberg/i.test(featured.source_edition_id ?? "") ? "bg-card object-contain" : "object-cover"}`}
                   />
                 ) : (
-                  <div className="flex h-full items-center justify-center">
-                    <BookOpen className="h-12 w-12 opacity-40" />
-                  </div>
+                  <BookCoverFallback bookId={featured.id}
+                    title={displayTitleCase(featured.title)}
+                    author={formatAuthorName(featured.author)}
+                    language={featured.source_language} />
                 )}
               </div>
               <div className="p-6 sm:p-8">
