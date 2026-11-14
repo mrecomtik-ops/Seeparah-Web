@@ -82,3 +82,15 @@ describe("Gutenberg lossless source-to-reader integrity gate", () => {
     expect(auditGutenbergSource(reflowed, caseChange).ok).toBe(false);
   });
 });
+
+
+describe("Short and non-Latin complete Gutenberg originals",()=>{
+  it("does not require 12,000 English-style characters for a complete source",()=>{
+    const source="天地玄黃宇宙洪荒日月盈昃".repeat(100);
+    const parsed=parseManuscript(source,{preserveLineation:true});
+    const audit=auditGutenbergSource(source,parsed);
+    expect(audit.ok).toBe(true);
+    expect(auditGutenbergStoredChunks(source,parsed,
+      parsed.chunks.map((content,chunk_index)=>({content,chunk_index}))).ok).toBe(true);
+  });
+});
