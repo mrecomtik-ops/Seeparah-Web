@@ -1,0 +1,17 @@
+name: Gutenberg external URL probe
+on:
+  push:
+    branches:
+      - qa/gutenberg-asset-probe-20261114
+  workflow_dispatch:
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Probe public Gutenberg mirrors and official cache
+        run: node scripts/qa/gutenberg-asset-probe.mjs
