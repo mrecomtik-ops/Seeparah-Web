@@ -24,7 +24,7 @@ describe("legacy Gutenberg archival proof",()=>{
     expect(verifyCurrentSourceAgainstAudit(bytes,audit)?.bodySha).toBe(sha);
     expect(verifyCurrentSourceAgainstAudit(bytes,{...audit,current_official_body_sha256:"a".repeat(64)})).toBeNull();
     expect(verifyCurrentSourceAgainstAudit(bytes,{...audit,current_official_raw_sha256:"a".repeat(64)})).toBeNull();
-    expect(canonicalOriginal("A \\n B")).toBe("A\\B".replace("\\",""));
+    expect(canonicalOriginal("A" + String.fromCharCode(10) + " B")).toBe("AB");
   });
   it("rejects bytes whose Gutenberg START/END boundaries were removed",()=>{
     const corrupted=new TextEncoder().encode("Opening chapter... 你好. ".repeat(40));
