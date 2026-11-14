@@ -92,7 +92,7 @@ export function selectGutenbergCandidates(
   const seen=new Set<number>();
   for(const row of iter){
     const [idx,type,issued,titleRaw,lang,authorRaw,subjectsRaw]=positions.map(i=>row[i]??"");
-    if(type!=="Text"||!normalizeGutenbergLanguageCodes(lang.split(/[;,]/gu)).length)continue;
+    if(type!=="Text"||!normalizeGutenbergLanguageCodes((lang??"").split(/[;,]/gu)).length)continue;
     const id=Number(idx);
     if(!Number.isSafeInteger(id)||id<1||id>9_999_999||seen.has(id))continue;
     const author=parseAuthor(authorRaw!);
@@ -104,7 +104,7 @@ export function selectGutenbergCandidates(
     if(title.length<1||title.length>300)continue;
     const subject=normalize(subjectsRaw??"").slice(0,1200);
     // Strongly prefer complete narrative works and established literary fiction.
-    const priority=normalizeGutenbergLanguageCodes(lang.split(/[;,]/gu)).some(code=>code!=="en")?-1:
+    const priority=normalizeGutenbergLanguageCodes((lang??"").split(/[;,]/gu)).some(code=>code!=="en")?-1:
       /fiction|novel|adventure|stories/i.test(subject)?0:
       /history|biograph|essay|literature/i.test(subject)?1:2;
     const catalogIssued=/^\d{4}-\d{2}-\d{2}$/.test(issued!)
