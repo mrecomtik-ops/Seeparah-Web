@@ -49,18 +49,27 @@ async function runScheduledGutenbergWork(): Promise<void> {
     await runGutenbergAutopilotOnce();
     const { processGutenbergImportQueueOnce } = await import("./lib/admin/gutenberg-fast-import.server");
     await processGutenbergImportQueueOnce();
-    // One source-preserving legacy reconciliation per cron tick. Never
-    // backfill a source path unless the downloaded bytes match the book's
-    // original recorded SHA-256. Source failures cannot block book intake.
-    try {
-      const { reconcileOneLegacyGutenbergArchive } =
-        await import("./lib/admin/gutenberg-legacy-archive-reconcile.server");
-      await reconcileOneLegacyGutenbergArchive();
-    } catch (error) {
-      console.error("[gutenberg-archive] legacy source check failed", error);
-    }
   } catch (error) {
     console.error("[gutenberg] scheduled acquisition error", error);
+  }
+}
+
+/** Source-archive reconciliation runs independently of source importing.
+ * Gutenberg import can take multiple remote network retries, so a slow
+ * importer must never starve the bounded legacy SHA-matching repair.
+ * Disabling acquisition also disables this optional source-file fetcher.
+ */
+async function runScheduledLegacyArchiveRepair(): Promise<void> {
+  try {
+    const { supabaseAdmin } = await import("./integrations/supabase/client.server");
+    const {data,error}=await (supabaseAdmin as any)
+      .from("gutenberg_autopilot_settings").select("enabled").eq("id",1).maybeSingle();
+    if(error || data?.enabled!==true)return;
+    const { reconcileOneLegacyGutenbergArchive } =
+      await import("./lib/admin/gutenberg-legacy-archive-reconcile.server");
+    await reconcileOneLegacyGutenbergArchive();
+  } catch(error) {
+    console.error("[gutenberg-archive] independent scheduled repair failed",error);
   }
 }
 
@@ -214,6 +223,7 @@ export default {
     // Fetching one queued book is deliberately sequential to avoid overlapping
     // database writes or unbounded external mirror traffic.
     ctx.waitUntil(runScheduledGutenbergWork());
+    ctx.waitUntil(runScheduledLegacyArchiveRepair());
     ctx.waitUntil(runScheduledGutenbergDiscovery());
     const utcNow = new Date();
     // Execute data retention once per UTC day, never every minute.
