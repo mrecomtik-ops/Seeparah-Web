@@ -32,7 +32,8 @@ await check("Published reader",390,844,async(page)=>{
   await page.getByRole("button",{name:"Reader settings"}).waitFor({state:"visible",timeout:65000});
   await page.locator(".reader-v3-page").first().waitFor({state:"visible",timeout:65000});
   await page.getByRole("button",{name:"Reader settings"}).click();
-  await page.getByText("Line spacing",{exact:true}).first().waitFor({timeout:30000});
+  await page.getByRole("dialog",{name:"Reading settings"}).waitFor({timeout:30000});
+  await page.getByRole("combobox",{name:"Line spacing"}).waitFor({state:"visible",timeout:30000});
   const size=await page.evaluate(()=>({scroll:document.documentElement.scrollWidth,width:document.documentElement.clientWidth}));
   if(size.scroll>size.width+2)throw Error("Reader horizontal overflow "+JSON.stringify(size));
   return {settings:"operable",...size};

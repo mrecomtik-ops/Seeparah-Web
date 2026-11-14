@@ -31,12 +31,16 @@ jobs:
       - name: Library, source chapters, and Quran Arabic/English/Urdu comparison
         run: node scripts/qa/release-public-smoke.mjs
       - name: Narrow mobile, Greek, and Chinese reading
+        if: success() || failure()
         run: node scripts/qa/public-reader-chromium.mjs
       - name: Multiscript Study-mode controls
+        if: success() || failure()
         run: node scripts/qa/public-reader-language-parts.mjs
       - name: WebKit mobile script rendering
+        if: success() || failure()
         run: node scripts/qa/public-reader-webkit.mjs
       - name: Ink, undo, redo, eraser, and fixed physical pagination
+        if: success() || failure()
         run: node scripts/qa/reader-ink-paper-zoom.mjs
       - name: Store test evidence on failure
         if: always()
