@@ -49,6 +49,16 @@ async function runScheduledGutenbergWork(): Promise<void> {
     await runGutenbergAutopilotOnce();
     const { processGutenbergImportQueueOnce } = await import("./lib/admin/gutenberg-fast-import.server");
     await processGutenbergImportQueueOnce();
+    // One source-preserving legacy reconciliation per cron tick. Never
+    // backfill a source path unless the downloaded bytes match the book's
+    // original recorded SHA-256. Source failures cannot block book intake.
+    try {
+      const { reconcileOneLegacyGutenbergArchive } =
+        await import("./lib/admin/gutenberg-legacy-archive-reconcile.server");
+      await reconcileOneLegacyGutenbergArchive();
+    } catch (error) {
+      console.error("[gutenberg-archive] legacy source check failed", error);
+    }
   } catch (error) {
     console.error("[gutenberg] scheduled acquisition error", error);
   }
