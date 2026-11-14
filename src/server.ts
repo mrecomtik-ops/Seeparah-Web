@@ -73,6 +73,20 @@ async function runScheduledLegacyArchiveRepair(): Promise<void> {
   }
 }
 
+/** Opportunistically archive verified Gutenberg covers to Seeparah Storage.
+ * The public Gutenberg source link is only a temporary verified fallback;
+ * copy exact bytes from the authorized mirrors before relying on storage.
+ */
+async function runScheduledVerifiedCoverCache(): Promise<void> {
+  try {
+    const { archiveVerifiedGutenbergCoversOnce } =
+      await import("./lib/admin/gutenberg-cover-cache.server");
+    await archiveVerifiedGutenbergCoversOnce();
+  } catch (error) {
+    console.error("[gutenberg-covers] verified source cache failed", error);
+  }
+}
+
 /** Independent 75k+ Gutenberg metadata discovery. This NEVER changes a
  * book's publication, rights, edition, or reader source, and does not require
  * enabling the provenance-gated publication importer. */
@@ -224,6 +238,7 @@ export default {
     // database writes or unbounded external mirror traffic.
     ctx.waitUntil(runScheduledGutenbergWork());
     ctx.waitUntil(runScheduledLegacyArchiveRepair());
+    ctx.waitUntil(runScheduledVerifiedCoverCache());
     ctx.waitUntil(runScheduledGutenbergDiscovery());
     const utcNow = new Date();
     // Execute data retention once per UTC day, never every minute.
