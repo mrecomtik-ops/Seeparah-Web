@@ -2,7 +2,7 @@ import {createHash} from "node:crypto";
 import {describe,expect,it} from "vitest";
 import {verifyLegacySourceBytes,verifyCurrentSourceAgainstAudit,canonicalOriginal} from "./gutenberg-legacy-archive-reconcile.server";
 const original="*** START OF THE PROJECT GUTENBERG EBOOK TEST ***\n"+
-  "Opening chapter... 你好. "*40+
+  "Opening chapter... 你好. ".repeat(40)+
   "\n*** END OF THE PROJECT GUTENBERG EBOOK TEST ***";
 const bytes=new TextEncoder().encode(original);
 const rawSha=createHash("sha256").update(bytes).digest("hex");
