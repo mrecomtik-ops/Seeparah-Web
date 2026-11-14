@@ -1,24 +1,34 @@
 import {createHash} from "node:crypto";
-import {describe,it,expect} from "vitest";
-import {verifyLegacySourceBytes} from "./gutenberg-legacy-archive-reconcile.server";
-describe("legacy Gutenberg source proof must not be fabricated",()=>{
-  const manuscript="*** START OF THE PROJECT GUTENBERG EBOOK PROOF ***\n"+
-    "Chapitre I\n\nBonjour le monde. 你好世界.\n".repeat(25)+
-    "*** END OF THE PROJECT GUTENBERG EBOOK PROOF ***";
-  const bytes=new TextEncoder().encode(manuscript);
-  const hash=createHash("sha256").update(bytes).digest("hex");
-  it("accepts exactly the raw bytes with genuine Gutenberg boundaries",()=>{
-    expect(verifyLegacySourceBytes(19476,bytes,hash)).toEqual({
-      sha256:hash,key:"gutenberg/19476/pg19476-"+hash.slice(0,12)+".txt",
-    });
+import {describe,expect,it} from "vitest";
+import {verifyLegacySourceBytes,verifyCurrentSourceAgainstAudit,canonicalOriginal} from "./gutenberg-legacy-archive-reconcile.server";
+const original="*** START OF THE PROJECT GUTENBERG EBOOK TEST ***\n"+
+  "Opening chapter... 你好. "*40+
+  "\n*** END OF THE PROJECT GUTENBERG EBOOK TEST ***";
+const bytes=new TextEncoder().encode(original);
+const rawSha=createHash("sha256").update(bytes).digest("hex");
+const canonical=canonicalOriginal("Opening chapter... 你好. ".repeat(40));
+const sha=createHash("sha256").update(canonical).digest("hex");
+const audit={
+  book_id:"test",gutenberg_id:111,prior_recorded_source_sha256:null,
+  current_official_raw_sha256:rawSha,current_official_body_sha256:sha,
+  stored_reader_body_sha256:sha,current_official_chars:canonical.length,
+  stored_reader_chars:canonical.length,exact_reader_source_match:true,
+  archive_state:"pending"
+};
+describe("legacy Gutenberg archival proof",()=>{
+  it("only links exact historical SHA bytes under legacy rule",()=>{
+    expect(verifyLegacySourceBytes(111,bytes,rawSha)?.sha256).toBe(rawSha);
+    expect(verifyLegacySourceBytes(111,bytes,"f".repeat(64))).toBeNull();
   });
-  it("rejects changed source editions and missing digests",()=>{
-    expect(verifyLegacySourceBytes(19476,bytes,"f".repeat(64))).toBeNull();
-    expect(verifyLegacySourceBytes(19476,bytes,"")).toBeNull();
+  it("independently verifies contemporary official source text and Unicode",()=>{
+    expect(verifyCurrentSourceAgainstAudit(bytes,audit)?.bodySha).toBe(sha);
+    expect(verifyCurrentSourceAgainstAudit(bytes,{...audit,current_official_body_sha256:"a".repeat(64)})).toBeNull();
+    expect(verifyCurrentSourceAgainstAudit(bytes,{...audit,current_official_raw_sha256:"a".repeat(64)})).toBeNull();
+    expect(canonicalOriginal("A \\n B")).toBe("A\\B".replace("\\",""));
   });
-  it("rejects a matching hash for non-Gutenberg bytes",()=>{
-    const invalid=new TextEncoder().encode("This is not a source. ".repeat(20));
-    const digest=createHash("sha256").update(invalid).digest("hex");
-    expect(()=>verifyLegacySourceBytes(19476,invalid,digest)).toThrow();
+  it("rejects bytes whose Gutenberg START/END boundaries were removed",()=>{
+    const corrupted=new TextEncoder().encode("Opening chapter... 你好. ".repeat(40));
+    const match=createHash("sha256").update(corrupted).digest("hex");
+    expect(()=>verifyCurrentSourceAgainstAudit(corrupted,{...audit,current_official_raw_sha256:match})).toThrow();
   });
 });
