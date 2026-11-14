@@ -22,7 +22,7 @@ async function worker(){
  const type=response.headers.get("content-type")||"";if(!/image\/jpeg/i.test(type))throw Error("not-jpeg "+type);
  const bytes=new Uint8Array(await response.arrayBuffer());
  const dims=dimensions(bytes);
- if(!dims||dims.w<180||dims.h<260||dims.w>8000||dims.h>10000||bytes.length<2500||bytes.length>2000000)
+ if(!dims||dims.w<180||dims.h<200||dims.h<dims.w||dims.w>8000||dims.h>10000||bytes.length<2500||bytes.length>2000000)
    throw Error("invalid-jpeg-dimensions "+JSON.stringify(dims)+" bytes="+bytes.length);
  result={id,sha:createHash("sha256").update(bytes).digest("hex"),w:dims.w,h:dims.h,bytes:bytes.length};
  break;
