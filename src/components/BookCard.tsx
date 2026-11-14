@@ -1,13 +1,14 @@
 ﻿import { Link } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
-import { ArrowRight, BookOpen, Crown, FlaskConical } from "lucide-react";
+import { ArrowRight, Crown, FlaskConical } from "lucide-react";
 import type { Book } from "@/lib/data";
 import { SAMPLE_EXCERPT_BOOK_IDS, DEMO_MANUSCRIPT_BOOK_IDS } from "@/lib/data";
 import { coverFor, isLowResolutionGutenbergCover } from "@/lib/covers";
 import { getReaderBookPayload } from "@/lib/library";
 import { sacredCoverSrc, sacredCoverAlt, isSharedSacredCollectionCover } from "@/lib/sacred-cover-artwork";
 import { SacredWorkIdentity } from "@/components/SacredWorkIdentity";
+import { BookCoverFallback } from "@/components/BookCoverFallback";
 import { ShelfButtons } from "@/components/ShelfButtons";
 import { getPrefs } from "@/lib/prefs";
 import { formatAuthorName } from "@/lib/author-name";
@@ -129,13 +130,8 @@ export function BookCard({
               className={`absolute inset-0 m-auto h-full w-full ${lowResGutenbergCover ? "max-h-[300px] max-w-[200px] bg-card object-contain" : book.genre === "Sacred Text" || /gutenberg/i.test(book.source_edition_id ?? "") ? "bg-card object-contain" : "object-cover"} transition-transform duration-300 ${lowResGutenbergCover ? "" : "group-hover:scale-[1.03]"}`}
             />
           ) : (
-            <div className="flex h-full flex-col items-center justify-center gap-2 paper-texture p-4 text-center">
-              <BookOpen className="h-8 w-8 text-primary/50" />
-              <span className="font-display text-lg font-semibold text-foreground">
-                {displayTitle}
-              </span>
-              <span className="text-xs text-muted-foreground">{displayAuthor}</span>
-            </div>
+            <BookCoverFallback bookId={book.id} title={displayTitle}
+              author={displayAuthor} language={openLanguage} />
           )}
           {monetizationEnabled && book.access_type === "paid" && (
             <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-gold px-2.5 py-1 text-[11px] font-semibold text-gold-foreground">
