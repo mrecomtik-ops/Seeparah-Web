@@ -221,23 +221,23 @@ export function canRecheckLegacyHistoricalYearJob(job:{
     m?.["metadataSource"]==="Project Gutenberg official weekly CSV" &&
     m?.["catalogUrl"]==="https://www.gutenberg.org/cache/epub/feeds/pg_catalog.csv" &&
     typeof m?.["batchId"]==="string" && /^PG-AUTO-\d{4,}$/.test(m["batchId"] as string) &&
-    typeof m?.["title"]==="string" && (m["title"] as string).length>=8 &&
+    typeof m?.["title"]==="string" && (m["title"] as string).trim().length>=2 &&
     typeof m?.["author"]==="string" && (m["author"] as string).length>=3 &&
     Number.isInteger(m?.["authorDeathYear"]) &&
     (m?.["legacyYearRecheckVersion"]===undefined);
 }
 
-/** The regular refill keeps about ten jobs queued, so requiring <=1
- * would starve the legacy recovery forever. At most one additional older
- * job every five minutes is permitted alongside the standard ten. */
+/** The regular refill keeps ten jobs queued. Recover one legacy job on
+ * each minute tick at most, with a hard queue-depth cap of eleven; this
+ * clears the 447 safe-to-recheck legacy records without a manual restart.
+ * Their provenance and rights are re-evaluated from scratch. */
 export function legacyDateRecoveryDue(utcMinute:number,queued:number):boolean{
   return Number.isInteger(utcMinute)&&utcMinute>=0&&utcMinute<60&&
-    utcMinute%5===0&&Number.isInteger(queued)&&queued>=0&&queued<=10;
+    Number.isInteger(queued)&&queued>=0&&queued<=10;
 }
 async function requeueOneLegacyHistoricalYearJob(client:SupabaseAdminDb):Promise<void>{
-  // At most twelve old jobs per hour. Queue remains bounded (<=11).
+  // One dated metadata recheck per scheduled tick; queue remains <=11.
   const utcMinute=new Date().getUTCMinutes();
-  if(utcMinute%5!==0)return;
   const {count,error:countError}=await client.from("gutenberg_import_jobs")
     .select("id",{count:"exact",head:true}).eq("status","queued");
   if(countError || !legacyDateRecoveryDue(utcMinute,count??-1)){
@@ -267,6 +267,18 @@ async function requeueOneLegacyHistoricalYearJob(client:SupabaseAdminDb):Promise
   else console.log("[gutenberg-autopilot] requeued one old date-unverified job for full v4 checks",job.id);
 }
 
+/** An interrupted Worker is recoverable only if no edition was inserted.
+ * Never auto-retry a partial book or an unrelated/rights-held failure. */
+export function canRetryInterruptedGutenbergJob(job:{
+  status:string;gutenberg_id:number;attempts:number;book_id:string|null;
+  last_error:string|null;metadata:Record<string,unknown>|null;
+}):boolean{
+  return job.status==="failed" && Number.isSafeInteger(job.gutenberg_id) &&
+    job.gutenberg_id>0 && job.attempts>=1 && job.attempts<3 &&
+    job.book_id===null && job.metadata?.["autopilot"]===true &&
+    job.last_error==="Import interrupted after 30 minutes; no automatic partial-write retry";
+}
+
 async function recoverInterruptedImports(client:SupabaseAdminDb):Promise<void>{
   const staleBefore=new Date(Date.now()-30*60_000).toISOString();
   const {error:staleError}=await client.from("gutenberg_import_jobs").update({
@@ -276,6 +288,49 @@ async function recoverInterruptedImports(client:SupabaseAdminDb):Promise<void>{
     .contains("metadata",{autopilot:true})
     .lt("updated_at",staleBefore);
   if(staleError)console.error("[gutenberg-autopilot] stale job recovery",staleError.message);
+
+  // A failed tick can leave the job without a book_id even if the first
+  // createBook already wrote a draft. Resolve that state by import_key before
+  // any retry. An existing book is held for reconciliation, NEVER recreated
+  // or automatically approved by this recovery path.
+  const {data:interrupted,error:interruptedError}=await client.from("gutenberg_import_jobs")
+    .select("id,status,gutenberg_id,attempts,book_id,last_error,metadata")
+    .eq("status","failed")
+    .eq("last_error","Import interrupted after 30 minutes; no automatic partial-write retry")
+    .contains("metadata",{autopilot:true}).is("book_id",null)
+    .lt("attempts",3).order("updated_at",{ascending:true}).limit(3);
+  if(interruptedError){
+    console.error("[gutenberg-autopilot] interrupted retry lookup",interruptedError.message);
+  } else for(const job of interrupted??[]){
+    if(!canRetryInterruptedGutenbergJob(job))continue;
+    const {data:existing,error:existingError}=await client.from("books")
+      .select("id,status")
+      .eq("import_key","gutenberg-fast:"+job.gutenberg_id+":en")
+      .limit(1).maybeSingle();
+    if(existingError){
+      console.error("[gutenberg-autopilot] partial book lookup",existingError.message);
+      continue;
+    }
+    if(existing){
+      const {error:holdError}=await client.from("gutenberg_import_jobs").update({
+        status:"in_review",book_id:existing.id,
+        last_error:"Interrupted import has an existing "+existing.status+
+          " edition; reconcile source and approvals before continuing",
+        updated_at:new Date().toISOString(),
+      }).eq("id",job.id).eq("status","failed")
+        .eq("last_error",job.last_error);
+      if(holdError)console.error("[gutenberg-autopilot] partial edition hold",holdError.message);
+      continue;
+    }
+    const {error:requeueError}=await client.from("gutenberg_import_jobs").update({
+      status:"queued",last_error:null,
+      metadata:{...job.metadata,interruptionRetryVersion:"gutenberg-v5-checked-no-book"},
+      updated_at:new Date().toISOString(),
+    }).eq("id",job.id).eq("status","failed")
+      .eq("last_error",job.last_error).is("book_id",null);
+    if(requeueError)console.error("[gutenberg-autopilot] interrupted requeue",requeueError.message);
+    else console.log("[gutenberg-autopilot] requeued interrupted source",job.gutenberg_id);
+  }
 
   const retryBefore=new Date(Date.now()-20*60_000).toISOString();
   const {data:retryable,error:retryError}=await client.from("gutenberg_import_jobs")
