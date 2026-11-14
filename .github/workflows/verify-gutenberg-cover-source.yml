@@ -1,0 +1,17 @@
+name: Verify Gutenberg source-matched covers
+on:
+  push:
+    branches:
+      - qa/gutenberg-cover-source-verify-20261114
+  workflow_dispatch:
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify exact-ID official Gutenberg JPG covers and SHA-256
+        run: node scripts/qa/verify-gutenberg-cover-source.mjs
