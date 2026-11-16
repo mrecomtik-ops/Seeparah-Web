@@ -35,10 +35,10 @@ export function verifyInterruptedPublicationSource(input: {
 }): string[] {
   const { job, book, raw, body, chunks } = input;
   const errors: string[] = [];
-  const cp = job.metadata?.prePublicationCheckpoint;
-  const source = job.metadata?.sourceIntegrity;
-  const readBack = job.metadata?.storedChunkIntegrity;
-  const rights = job.metadata?.publicationReadiness;
+  const cp = job.metadata?.['prePublicationCheckpoint'];
+  const source = job.metadata?.['sourceIntegrity'];
+  const readBack = job.metadata?.['storedChunkIntegrity'];
+  const rights = job.metadata?.['publicationReadiness'];
   const id = job.gutenberg_id;
   if (cp?.kind !== RECOVERY_CHECKPOINT_KIND ||
       cp.bookId !== book.id || cp.sourceVersion !== book.source_version ||
@@ -162,7 +162,7 @@ export async function recoverOneInterruptedGutenbergPublication(): Promise<void>
       publicationMode:"source-as-is",
       interruptedPublicationRecovery:{
         kind:RECOVERY_CHECKPOINT_KIND,
-        sourceCanonicalSha256:job.metadata?.sourceIntegrity?.canonicalSha256,
+        sourceCanonicalSha256:job.metadata?.['sourceIntegrity']?.canonicalSha256,
         resumedAt:new Date().toISOString(),realTimeGateChecked:true,
         currentArchiveAndReaderReverified:true,
       }},
