@@ -77,11 +77,34 @@ function isBookBoundary(item: ReaderNavigationItem): item is ReaderNavigationIte
   );
 }
 
+type ChapterBoundary = { blockIndex: number; preserveBlock: boolean };
+
+function sourceLabel(value: string): string {
+  // Source structure may say "CHAPTER I" while typography prints
+  // "CHAPTER I." followed by an all-caps subtitle. Ignore punctuation
+  // at the very end of the label, but NEVER treat I as a prefix of II.
+  return normalizeTitle(value.split(/\s+[—–]\s+/u)[0] ?? value)
+    .replace(/[.,:;!?。]+$/u, "").trim();
+}
+
+/** A paragraph can contain a real source-backed chapter heading on its
+ * first line (e.g. "CHAPTER I\nTHE ONE THING NEEDFUL"). It must stay
+ * readable; dropping the whole paragraph would silently delete text.
+ * Limit this fallback to the exact independently verified source chunk.
+ */
+function isSourceLineBoundary(block: ReaderSourceBlock, item: ReaderNavigationItem): boolean {
+  if (block.kind !== "heading" && block.kind !== "paragraph") return false;
+  if (block.sourceChunkIndex !== item.index) return false;
+  const firstLine = block.text.split(/\r?\n/u).find(line => line.trim()) ?? "";
+  if (!firstLine || firstLine.length > 180) return false;
+  return sourceLabel(firstLine) === sourceLabel(item.title);
+}
+
 function locateBoundary(
   blocks: ReaderSourceBlock[],
   item: ReaderNavigationItem,
   after: number,
-): number {
+): ChapterBoundary | null {
   const title = normalizeTitle(item.title);
   const candidates: Array<{ blockIndex: number; distance: number }> = [];
 
@@ -89,11 +112,6 @@ function locateBoundary(
     const block = blocks[i]!;
     if (block.kind !== "heading") continue;
     const actualTitle = normalizeTitle(block.text);
-    // Gutenberg frequently prints a bare chapter label followed by an
-    // all-caps subtitle on its own line. parseReadableBlocks preserves both
-    // together as `CHAPTER I — SUBTITLE`, but the canonical structure row
-    // still says `CHAPTER I`. Match that exact prefix with the em dash
-    // separator; never accept arbitrary text prefixes (I vs II, etc).
     const titleMatches =
       actualTitle === title ||
       (["chapter", "part", "book", "act"].includes(item.kind) &&
@@ -105,12 +123,24 @@ function locateBoundary(
     });
   }
 
-  if (!candidates.length) return -1;
+  const nearby = candidates.filter(candidate => candidate.distance <= 1)
+    .sort((a, b) => a.distance - b.distance || a.blockIndex - b.blockIndex);
+  if (nearby.length) return { blockIndex: nearby[0]!.blockIndex, preserveBlock: false };
 
-  const nearby = candidates.filter((candidate) => candidate.distance <= 1);
-  const pool = nearby.length ? nearby : candidates;
-  pool.sort((a, b) => a.distance - b.distance || a.blockIndex - b.blockIndex);
-  return pool[0]!.blockIndex;
+  // A source-backed body paragraph or punctuated subtitle must beat a
+  // distant similarly named heading in a different work/TOC page.
+  for (let i = Math.max(0, after + 1); i < blocks.length; i++) {
+    const block = blocks[i]!;
+    if (isSourceLineBoundary(block, item)) {
+      return { blockIndex: i, preserveBlock: block.kind !== "heading" };
+    }
+  }
+
+  // Keep historical exact-heading behavior if the imported structure's
+  // chunk boundary differs from the source parser's chunk segmentation.
+  candidates.sort((a, b) => a.distance - b.distance || a.blockIndex - b.blockIndex);
+  if (candidates.length) return { blockIndex: candidates[0]!.blockIndex, preserveBlock: false };
+  return null;
 }
 
 function assignChapterOffsets(blocks: ReaderSourceBlock[]): {
@@ -157,21 +187,23 @@ export function buildReaderChapters(
   const boundaries: Array<{
     item: (typeof structural)[number];
     blockIndex: number;
+    preserveBlock: boolean;
     chapterNumber: number | null;
   }> = [];
   let previous = -1;
   let chapterCounter = 0;
 
   for (const item of structural) {
-    const blockIndex = locateBoundary(parsed, item, previous);
-    if (blockIndex < 0) continue;
+    const found = locateBoundary(parsed, item, previous);
+    if (!found) continue;
     if (item.kind === "chapter") chapterCounter += 1;
     boundaries.push({
       item,
-      blockIndex,
+      blockIndex: found.blockIndex,
+      preserveBlock: found.preserveBlock,
       chapterNumber: item.kind === "chapter" ? chapterCounter : null,
     });
-    previous = blockIndex;
+    previous = found.blockIndex;
   }
 
   if (!boundaries.length) {
@@ -192,7 +224,7 @@ export function buildReaderChapters(
   return boundaries.map((boundary, index) => {
     const nextBoundary = boundaries[index + 1];
     const body = parsed.slice(
-      boundary.blockIndex + 1,
+      boundary.blockIndex + (boundary.preserveBlock ? 0 : 1),
       nextBoundary ? nextBoundary.blockIndex : parsed.length,
     );
     const assigned = assignChapterOffsets(body);
