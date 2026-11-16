@@ -77,3 +77,17 @@ describe("Complete private-inventory publication intake",()=>{
     expect(candidateFromFullInventory({...base,source_type:"Sound"})).toBeNull();
   });
 });
+
+describe("Interrupted import early isolation respects catalogue continuity", () => {
+ it("accepts a once-interrupted official job only when no edition exists", async () => {
+   const {canRetryInterruptedGutenbergJob}=await import("./gutenberg-autopilot.server");
+   const job={
+     status:"failed",gutenberg_id:123,attempts:1,book_id:null,
+     last_error:"Import interrupted after 8 minutes before integrity checkpoint; no automatic partial-write retry",
+     metadata:{autopilot:true},
+   };
+   expect(canRetryInterruptedGutenbergJob(job)).toBe(true);
+   expect(canRetryInterruptedGutenbergJob({...job,book_id:"partial-edition"})).toBe(false);
+   expect(canRetryInterruptedGutenbergJob({...job,last_error:"Rights not approved"})).toBe(false);
+ });
+});
