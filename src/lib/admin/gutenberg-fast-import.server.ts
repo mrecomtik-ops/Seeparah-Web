@@ -852,6 +852,32 @@ export async function importGutenbergSource(job:Job):Promise<Result>{
         mayPublish.reasons.join("; ").slice(0,700)};
   }
 
+  // Persist verified source/reader/rights evidence BEFORE the final
+  // publication gate. Cloudflare may stop a long network import after the
+  // book is approved; a short independent tick can then resume safely.
+  // A partial book without this checkpoint is NEVER auto-published.
+  const verifiedCheckpoint = {
+    kind:"verified-source-roundtrip-v1",
+    bookId,sourceVersion:versionRow.source_version,
+    sha256,canonicalSha256:storedAudit.canonicalSha256,
+    chunkCount:storedChunks.length,sourceLanguage,
+    stagedAt:new Date().toISOString(),
+  };
+  const {data:checkpointed,error:checkpointError}=await db
+    .from("gutenberg_import_jobs").update({
+      book_id:bookId,source_sha256:sha256,
+      metadata:mergeImportJobMetadata(job.metadata,{
+        ...auditMeta,publicationReadiness:mayPublish,
+        prePublicationCheckpoint:verifiedCheckpoint,
+      }),
+      updated_at:new Date().toISOString(),
+    }).eq("id",job.id).eq("status","processing").select("id").maybeSingle();
+  if(checkpointError||!checkpointed){
+    return {status:"in_review",bookId,sha256,
+      metadata:{...auditMeta,publicationReadiness:mayPublish},
+      message:"Source-audit recovery checkpoint was not committed; automated approval held"};
+  }
+
   // This is an explicit, narrowly scoped automated pilot authorized by owner.
   // It never marks a human as reviewer. Existing Postgres trigger is final gate.
   const {error:reviewError}=await db.from("books").update({

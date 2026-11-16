@@ -279,10 +279,36 @@ export function canRetryInterruptedGutenbergJob(job:{
   return job.status==="failed" && Number.isSafeInteger(job.gutenberg_id) &&
     job.gutenberg_id>0 && job.attempts>=1 && job.attempts<3 &&
     job.book_id===null && job.metadata?.["autopilot"]===true &&
-    job.last_error==="Import interrupted after 30 minutes; no automatic partial-write retry";
+    [
+      "Import interrupted after 30 minutes; no automatic partial-write retry",
+      "Import interrupted after 8 minutes before integrity checkpoint; no automatic partial-write retry",
+    ].includes(job.last_error ?? "");
 }
 
 async function recoverInterruptedImports(client:SupabaseAdminDb):Promise<void>{
+  // Do not let one dead Worker with NO integrity checkpoint block the
+  // entire catalogue for 30 minutes. Quarantine stale incomplete attempts;
+  // the independently verified, checkpointed approvals are recovered by
+  // a separate short scheduled worker instead.
+  const earlyCutoff=new Date(Date.now()-8*60_000).toISOString();
+  const {data:staleWithoutProof,error:earlyReadError}=await client
+    .from("gutenberg_import_jobs")
+    .select("id,updated_at,metadata")
+    .eq("status","processing").contains("metadata",{autopilot:true})
+    .lt("updated_at",earlyCutoff).order("id").limit(20);
+  if(earlyReadError){
+    console.error("[gutenberg-autopilot] early stale scan",earlyReadError.message);
+  } else for(const stale of staleWithoutProof??[]){
+    if(stale.metadata?.prePublicationCheckpoint?.kind==="verified-source-roundtrip-v1")
+      continue;
+    const {error:staleError}=await client.from("gutenberg_import_jobs").update({
+      status:"failed",
+      last_error:"Import interrupted after 8 minutes before integrity checkpoint; no automatic partial-write retry",
+      updated_at:new Date().toISOString(),
+    }).eq("id",stale.id).eq("status","processing")
+      .eq("updated_at",stale.updated_at);
+    if(staleError)console.error("[gutenberg-autopilot] guarded early stale hold",stale.id,staleError.message);
+  }
   const staleBefore=new Date(Date.now()-30*60_000).toISOString();
   const {error:staleError}=await client.from("gutenberg_import_jobs").update({
     status:"failed",last_error:"Import interrupted after 30 minutes; no automatic partial-write retry",
@@ -299,7 +325,10 @@ async function recoverInterruptedImports(client:SupabaseAdminDb):Promise<void>{
   const {data:interrupted,error:interruptedError}=await client.from("gutenberg_import_jobs")
     .select("id,status,gutenberg_id,attempts,book_id,last_error,metadata")
     .eq("status","failed")
-    .eq("last_error","Import interrupted after 30 minutes; no automatic partial-write retry")
+    .in("last_error",[
+      "Import interrupted after 30 minutes; no automatic partial-write retry",
+      "Import interrupted after 8 minutes before integrity checkpoint; no automatic partial-write retry",
+    ])
     .contains("metadata",{autopilot:true}).is("book_id",null)
     .lt("attempts",3).order("updated_at",{ascending:true}).limit(3);
   if(interruptedError){

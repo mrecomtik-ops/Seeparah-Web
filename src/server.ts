@@ -54,6 +54,24 @@ async function runScheduledGutenbergWork(): Promise<void> {
   }
 }
 
+/** A short, source-exact recovery task keeps a long Gutenberg network import
+ * from stranding fully audited, approved editions in "processing".
+ * Never bypass source hashes, live DB readback or the publication gate.
+ */
+async function runScheduledInterruptedGutenbergRecovery():Promise<void>{
+  try {
+    const {supabaseAdmin}=await import("./integrations/supabase/client.server");
+    const {data,error}=await (supabaseAdmin as any)
+      .from("gutenberg_autopilot_settings").select("enabled").eq("id",1).maybeSingle();
+    if(error||data?.enabled!==true)return;
+    const {recoverOneInterruptedGutenbergPublication}=await import(
+      "./lib/admin/gutenberg-interrupted-publication.server");
+    await recoverOneInterruptedGutenbergPublication();
+  }catch(error){
+    console.error("[gutenberg-recovery] scheduled verified resume failed",error);
+  }
+}
+
 /** Source-archive reconciliation runs independently of source importing.
  * Gutenberg import can take multiple remote network retries, so a slow
  * importer must never starve the bounded legacy SHA-matching repair.
@@ -237,6 +255,7 @@ export default {
     // Fetching one queued book is deliberately sequential to avoid overlapping
     // database writes or unbounded external mirror traffic.
     ctx.waitUntil(runScheduledGutenbergWork());
+    ctx.waitUntil(runScheduledInterruptedGutenbergRecovery());
     ctx.waitUntil(runScheduledLegacyArchiveRepair());
     ctx.waitUntil(runScheduledVerifiedCoverCache());
     ctx.waitUntil(runScheduledGutenbergDiscovery());
