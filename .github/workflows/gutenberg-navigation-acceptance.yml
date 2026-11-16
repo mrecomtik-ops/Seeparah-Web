@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - scripts/qa/public-reader-repaired-navigation.mjs
+      - src/lib/reader-book-layout.ts
       - .github/workflows/gutenberg-navigation-acceptance.yml
   pull_request:
     paths:
