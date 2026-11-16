@@ -1,6 +1,11 @@
 name: Gutenberg repaired navigation live Chromium acceptance
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - scripts/qa/public-reader-repaired-navigation.mjs
+      - .github/workflows/gutenberg-navigation-acceptance.yml
   pull_request:
     paths:
       - scripts/qa/public-reader-repaired-navigation.mjs
