@@ -1,0 +1,39 @@
+name: Gutenberg repaired navigation live Chromium acceptance
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - scripts/qa/public-reader-repaired-navigation.mjs
+      - .github/workflows/gutenberg-navigation-acceptance.yml
+  pull_request:
+    paths:
+      - scripts/qa/public-reader-repaired-navigation.mjs
+      - .github/workflows/gutenberg-navigation-acceptance.yml
+permissions:
+  contents: read
+jobs:
+  chromium:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm ci
+      - run: npm install --no-save --package-lock=false playwright@1.56.1
+      - run: npx playwright install --with-deps chromium
+      - name: Validate all public repaired TOC links in the actual reader
+        env:
+          SEE_PARAH_QA_URL: https://seeparah.com
+          QA_CONCURRENCY: "2"
+        run: node scripts/qa/public-reader-repaired-navigation.mjs
+      - name: Preserve browser results and per-book exceptions
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: repaired-gutenberg-browser-acceptance
+          path: audit-out/navigation/acceptance.json
+          if-no-files-found: warn
+          retention-days: 30
