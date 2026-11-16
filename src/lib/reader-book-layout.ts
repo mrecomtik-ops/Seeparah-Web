@@ -83,19 +83,19 @@ function sourceLabel(value: string): string {
   // Source structure may say "CHAPTER I" while typography prints
   // "CHAPTER I." followed by an all-caps subtitle. Ignore punctuation
   // at the very end of the label, but NEVER treat I as a prefix of II.
-  return normalizeTitle(value.split(/\\s+[—–]\\s+/u)[0] ?? value)
+  return normalizeTitle(value.split(/\s+[—–]\s+/u)[0] ?? value)
     .replace(/[.,:;!?。]+$/u, "").trim();
 }
 
 /** A paragraph can contain a real source-backed chapter heading on its
- * first line (e.g. "CHAPTER I\\nTHE ONE THING NEEDFUL"). It must stay
+ * first line (e.g. "CHAPTER I\nTHE ONE THING NEEDFUL"). It must stay
  * readable; dropping the whole paragraph would silently delete text.
  * Limit this fallback to the exact independently verified source chunk.
  */
 function isSourceLineBoundary(block: ReaderSourceBlock, item: ReaderNavigationItem): boolean {
   if (block.kind !== "heading" && block.kind !== "paragraph") return false;
   if (block.sourceChunkIndex !== item.index) return false;
-  const firstLine = block.text.split(/\\r?\\n/u).find(line => line.trim()) ?? "";
+  const firstLine = block.text.split(/\r?\n/u).find(line => line.trim()) ?? "";
   if (!firstLine || firstLine.length > 180) return false;
   return sourceLabel(firstLine) === sourceLabel(item.title);
 }
