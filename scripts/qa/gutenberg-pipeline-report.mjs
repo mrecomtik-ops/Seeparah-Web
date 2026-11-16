@@ -46,7 +46,8 @@ if (process.env.GITHUB_STEP_SUMMARY) {
     ["Publication importer enabled", summary.publicationImporterEnabled],
     ["Discovery", JSON.stringify(summary.discovery)],
     ["Import queue (review/fail/queued)", JSON.stringify(summary.importQueue)],
-    ["New v4 publications with missing gate proof", summary.auditedPublication.missingIntegrityEvidence ?? 0],
+    ["Documented manual source-exact promotions (not auto-gate passes)", summary.auditedPublication.manuallyReconciled ?? 0],
+    ["New v4 publications with missing gate proof or documentary reconciliation", summary.auditedPublication.missingIntegrityEvidence ?? 0],
   ];
   await appendFile(process.env.GITHUB_STEP_SUMMARY,
     "## Seeparah Gutenberg safety checks\n\n| Check | Result |\n|---|---|\n" +
