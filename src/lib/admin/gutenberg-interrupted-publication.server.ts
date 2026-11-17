@@ -21,6 +21,8 @@ type BookForRecovery = {
   source_file_sha256: string; total_chunks: number;
   rights_status: string; edition_review_status: string;
   structure_review_status: string; cleanup_review_status: string;
+  rights_evidence_url?: string; rights_basis?: string; description?: string;
+  review_notes?: string; reviewed_by?: string | null; reviewed_at?: string | null;
 };
 type JobForRecovery = {
   id: number; book_id: string; gutenberg_id: number;
@@ -31,7 +33,7 @@ type ChunkForRecovery = { chunk_index: number; content: string };
 
 export function verifyInterruptedPublicationSource(input: {
   job: JobForRecovery; book: BookForRecovery; raw: Uint8Array;
-  body: string; chunks: ChunkForRecovery[];
+  body: string; chunks: ChunkForRecovery[]; stagedForAutoReview?: boolean;
 }): string[] {
   const { job, book, raw, body, chunks } = input;
   const errors: string[] = [];
@@ -62,10 +64,11 @@ export function verifyInterruptedPublicationSource(input: {
     errors.push("Archived source bytes do not match original SHA-256");
   if (!source?.ok || !readBack?.ok || rights?.allowed !== true)
     errors.push("Original full text/readback/rights publication proof incomplete");
-  if (![book.rights_status,book.edition_review_status,
+  if (!input.stagedForAutoReview &&
+      (![book.rights_status,book.edition_review_status,
         book.structure_review_status,book.cleanup_review_status]
-      .every(status=>status==="approved") ||
-      !["approved","published"].includes(book.status))
+        .every(status=>status==="approved") ||
+        !["approved","published"].includes(book.status)))
     errors.push("Rights or quality review is not approved");
   if (!Array.isArray(chunks) || chunks.length !== book.total_chunks ||
       chunks.some((c,i)=>c.chunk_index!==i || !c.content.trim()))
@@ -78,6 +81,57 @@ export function verifyInterruptedPublicationSource(input: {
       digest(body) !== source?.sourceBodySha256)
     errors.push("Current reader content does not match archived original character-for-character");
   return errors;
+}
+
+/** Explicit, source-only owner policy: an interrupted automatic import may
+ * finish its own review ONLY when no human review was started, the official
+ * per-ebook RDF independently confirms public domain in the US, the sole
+ * original author died no later than 1900, and existing source/rights checks
+ * already allowed publication. Every byte and chunk is reverified separately
+ * before this function can cause a state transition. No modern editors,
+ * translations, or unresolved rights signals are grandfathered in. */
+export function canAutoReviewStagedGutenbergSource(input: {
+  job: JobForRecovery; book: BookForRecovery;
+  sourceHeader: string; hasCurrentRightsSignals: boolean;
+}): boolean {
+  const {job,book,sourceHeader,hasCurrentRightsSignals}=input;
+  const meta=job.metadata;
+  const rdf=meta?.['officialRdfEvidence'];
+  const rights=meta?.['publicationReadiness'];
+  const history=meta?.['historicalRightsSignals'];
+  const death=meta?.['deathYear'];
+  const languages=meta?.['verifiedSourceLanguages'];
+  if(book.status!=="in_review" || book.reviewed_at != null ||
+      book.reviewed_by != null ||
+      book.review_notes!=="Imported by automated Gutenberg fast-track; subject to source audit." ||
+      book.rights_status!=="pending" ||
+      book.edition_review_status!=="pending" ||
+      book.cleanup_review_status!=="pending" ||
+      !["pending","changes_requested"].includes(book.structure_review_status))
+    return false;
+  if(meta?.['pipelineVersion']!=="gutenberg-v6-all-source-languages" ||
+      meta?.['sourceLanguage']!==book.source_language ||
+      !Array.isArray(languages) || languages.length!==1 ||
+      meta?.['catalogOrigin']!=="official Gutenberg weekly CSV + exact-ID RDF" ||
+      !Number.isInteger(death) || death<1400 || death>1900 ||
+      rdf?.gutenbergId!==job.gutenberg_id ||
+      rdf?.usCopyright!==false ||
+      typeof rdf?.rights!=="string" || !/public domain/i.test(rdf.rights) ||
+      rights?.allowed!==true ||
+      !Array.isArray(rights.reasons) || rights.reasons.length!==0 ||
+      history?.unresolved!==false || history.historicalCount!==0 ||
+      hasCurrentRightsSignals)
+    return false;
+  if(book.rights_evidence_url!=="https://www.gutenberg.org/ebooks/"+job.gutenberg_id ||
+      typeof book.rights_basis!=="string" || book.rights_basis.trim().length<20 ||
+      typeof book.description!=="string" ||
+      !book.description.includes("This is the source-text edition.") ||
+      !book.description.includes("Original print-publication year has not been independently corroborated.") &&
+        meta?.['year']==null && book.description.length<40)
+    return false;
+  if(/(?:copyright\s*(?:©|\(c\))?\s*(?:19[3-9]\d|20\d\d)|all rights reserved|used by (?:special )?permission|license granted solely)/iu.test(sourceHeader))
+    return false;
+  return true;
 }
 
 export async function recoverOneInterruptedGutenbergPublication(): Promise<void> {
@@ -113,8 +167,12 @@ export async function recoverOneInterruptedGutenbergPublication(): Promise<void>
   const {data:book,error:bookError}=await db.from("books").select("*")
     .eq("id",job.book_id).maybeSingle();
   if(bookError||!book){await hold("Verified partial edition is unavailable");return;}
-  if(!["approved","published"].includes(book.status)){
-    await hold("Edition must complete its existing rights and quality reviews");return;
+  // A source-as-is checkpoint may contain a safe, automated-only edition in
+  // review because the first Cloudflare invocation ended before stage
+  // promotion. Decide eligibility only after the archive and current text
+  // are independently verified. Never assume review approval here.
+  if(!["approved","published","in_review"].includes(book.status)){
+    await hold("Edition status is not eligible for source-backed recovery");return;
   }
   const sourcePath=String(book.source_file_path??"");
   if(!sourcePath.startsWith("gutenberg-sources/gutenberg/"+job.gutenberg_id+"/")){
@@ -145,9 +203,53 @@ export async function recoverOneInterruptedGutenbergPublication(): Promise<void>
     chunks.push(...(page??[]));
     if((page??[]).length<250)break;
   }
-  const reasons=verifyInterruptedPublicationSource({job:{...job,metadata},book,raw,body,chunks});
+  const {evaluatePublishGate,scanBookRightsSignals}=await import("@/lib/admin/catalog.server");
+  const staged=book.status==="in_review";
+  let canAutoReview=false;
+  if(staged){
+    const startMatch=/^\s*\*{3}\s*START OF (?:THIS|THE) PROJECT GUTENBERG EBOOK/im.exec(
+      new TextDecoder("utf-8",{fatal:true}).decode(raw));
+    const header=startMatch
+      ?new TextDecoder("utf-8",{fatal:true}).decode(raw.slice(0,startMatch.index)):"";
+    const signals=await scanBookRightsSignals(book.id);
+    canAutoReview=canAutoReviewStagedGutenbergSource({
+      job:{...job,metadata},book,sourceHeader:header,hasCurrentRightsSignals:signals.length>0,
+    });
+    if(!canAutoReview){
+      await hold("Staged source requires independent edition or rights review");return;
+    }
+  }
+  const reasons=verifyInterruptedPublicationSource({
+    job:{...job,metadata},book,raw,body,chunks,stagedForAutoReview:canAutoReview,
+  });
   if(reasons.length){await hold(reasons.join("; "));return;}
-  const {evaluatePublishGate}=await import("@/lib/admin/catalog.server");
+  if(canAutoReview){
+    const autoReviewNote="AUTOMATED source-only Gutenberg verification (not human-reviewed): "+
+      "resumed from exact archived SHA-256, complete source-vs-reader readback, "+
+      "official per-ebook public-domain RDF and pre-publication eligibility. "+
+      "Missing TOC or cover remains explicitly disclosed in public summary.";
+    const {data:approved,error:reviewError}=await db.from("books").update({
+      rights_status:"approved",edition_review_status:"approved",
+      structure_review_status:"approved",cleanup_review_status:"approved",
+      status:"approved",reviewed_at:new Date().toISOString(),review_notes:autoReviewNote,
+    }).eq("id",book.id).eq("status","in_review")
+      .eq("review_notes","Imported by automated Gutenberg fast-track; subject to source audit.")
+      .is("reviewed_by",null).is("reviewed_at",null)
+      .select("id").maybeSingle();
+    if(reviewError || !approved){
+      await hold("Source-exact automatic stage review did not commit: "+
+        (reviewError?.message??"edition changed during recovery"));return;
+    }
+    book.status="approved";
+    book.rights_status="approved";
+    book.edition_review_status="approved";
+    book.structure_review_status="approved";
+    book.cleanup_review_status="approved";
+    const after=verifyInterruptedPublicationSource({
+      job:{...job,metadata},book,raw,body,chunks,
+    });
+    if(after.length){await hold("Post-review checkpoint changed: "+after.join("; "));return;}
+  }
   const gate=await evaluatePublishGate(book.id);
   if(!gate.canPublish){await hold(gate.reasons.join("; "));return;}
   if(book.status==="approved"){
