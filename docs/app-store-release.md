@@ -41,7 +41,7 @@ must not claim full website feature parity.
    - `SEEPARAH_ANDROID_KEY_ALIAS`
    - `SEEPARAH_ANDROID_KEY_PASSWORD`
    - `SEEPARAH_PLAY_SERVICE_ACCOUNT_JSON`
-5. On the **main** branch, run
+5. For the first-ever release, create and upload the app package in Play Console\n   manually if needed to establish the package before Android Publisher API\n   uploads are accepted. Then on the **main** branch, run
    `.github/workflows/android-play-internal.yml` manually with increasing
    numeric `version_code` and release `version_name`. The workflow fails
    closed without signing, tests Flutter, builds a signed AAB, and uploads
