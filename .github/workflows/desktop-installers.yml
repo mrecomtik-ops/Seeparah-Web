@@ -53,6 +53,14 @@ jobs:
           $files = @(Get-ChildItem -Path 'dist/windows' -Filter '*Setup.exe' -File)
           if ($files.Count -ne 1) { throw "Expected exactly one EXE setup installer" }
           Get-FileHash -Algorithm SHA256 $files[0].FullName | Format-Table
+      - name: Smoke-test Windows silent installation and removal
+        shell: pwsh
+        working-directory: apps/seeparah_flutter
+        run: |
+          $installer = @(Get-ChildItem -Path 'dist/windows' -Filter '*Setup.exe' -File)
+          if ($installer.Count -ne 1) { throw "Expected one setup executable" }
+          & ./tool/smoke_windows.ps1 -Installer $installer[0].FullName
+          if (-not $?) { throw "Windows smoke test failed" }
       - uses: actions/upload-artifact@v4
         with:
           name: seeparah-windows-exe-installer-qa
@@ -72,7 +80,7 @@ jobs:
           channel: stable
           cache: true
       - name: Install Linux build dependencies
-        run: sudo apt-get update && sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev dpkg-dev
+        run: sudo apt-get update && sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev dpkg-dev xvfb xauth
       - name: Generate Flutter runner and package Linux bundles
         working-directory: apps/seeparah_flutter
         run: |
@@ -96,6 +104,10 @@ jobs:
             build/Seeparah.AppDir "dist/linux/Seeparah-$VERSION-Linux-x86_64.AppImage"
           test -s "dist/linux/Seeparah-$VERSION-Linux-x86_64.AppImage"
           sha256sum dist/linux/*
+      - name: Smoke-test Linux DEB and AppImage in virtual desktop
+        working-directory: apps/seeparah_flutter
+        run: |
+          bash tool/smoke_linux.sh
       - uses: actions/upload-artifact@v4
         with:
           name: seeparah-linux-deb-appimage-qa
