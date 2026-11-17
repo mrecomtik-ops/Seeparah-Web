@@ -12,9 +12,9 @@ import {
 const platforms = [
   { name: "Android", icon: Smartphone, channel: "Google Play", detail: "Google Play release is being prepared." },
   { name: "iPhone & iPad", icon: Apple, channel: "Apple App Store", detail: "App Store review and distribution are pending." },
-  { name: "Windows", icon: MonitorDown, channel: "Windows installer", detail: "A signed desktop installer will appear here when released." },
-  { name: "macOS", icon: Laptop, channel: "Mac installer", detail: "A signed and notarized Mac build is not yet published." },
-  { name: "Linux", icon: Download, channel: "Linux package", detail: "Verified Linux packages will be offered here when released." },
+  { name: "Windows", icon: MonitorDown, channel: "Microsoft Store + direct .exe", detail: "Install from Microsoft Store or download a verified, signed Windows .exe setup file directly from Seeparah once released." },
+  { name: "macOS", icon: Laptop, channel: "Mac App Store", detail: "The Mac edition will be distributed through the official Mac App Store once reviewed and approved." },
+  { name: "Linux", icon: Download, channel: "Flathub + direct .AppImage / .deb", detail: "Get Seeparah from the Linux app store Flathub or download a verified Linux-native .AppImage or .deb installer directly." },
 ] as const;
 
 export const Route = createFileRoute("/download")({
@@ -73,7 +73,7 @@ function DownloadPage() {
         <h2 id="platforms-heading" className="font-display text-2xl font-semibold text-foreground">Choose your device</h2>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
           App development is underway. There are currently no verified public store listings or
-          signed desktop downloads. Download links will only appear after a release is verified.
+          signed desktop downloads. Windows and Linux will offer both store listings and direct installers. Download links will only appear after a release is verified.
         </p>
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {platforms.map(({ name, icon: Icon, channel, detail }) => (
