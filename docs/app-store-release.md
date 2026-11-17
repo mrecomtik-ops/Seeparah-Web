@@ -124,6 +124,40 @@ must not claim full website feature parity.
    `seeparah.com/download`. The direct packages do not have to wait for
    Flathub's approval, but must pass the same release QA and rights checks.
 
+## Protected signed desktop release workflow
+
+The QA installer workflow does not publish binaries. After clean-machine and
+offline-rights QA, configure GitHub's environment
+`seeparah-desktop-production` with required human reviewers and these
+**environment secrets**:
+
+- `SEEPARAH_WINDOWS_PFX_B64`: Base64-encoded PFX file containing a trusted
+  publisher code-signing certificate and its private key, acquired and stored
+  by the Seeparah owner. The code-signing identity must be trusted for Microsoft
+  Store MSI/EXE submission; an unsigned or self-signed EXE is insufficient.
+- `SEEPARAH_WINDOWS_PFX_PASSWORD`: PFX decryption password.
+
+The owner must independently confirm copyright/offline redistribution rights,
+privacy disclosures, cross-platform offline reading behavior, and clean system
+installation/uninstallation before triggering any production release.
+
+On **main**, manually start `.github/workflows/desktop-production-release.yml`
+with the exact `pubspec.yaml` version and approval phrase
+`APPROVE_SEEPARAH_DESKTOP_RELEASE`. The workflow fails closed if signing
+material is absent. It builds the Flutter Windows desktop bundle, signs
+**every** PE component, creates and signs the Inno Setup EXE, verifies
+Authenticode, runs Windows installer checks, builds and runs Linux DEB and
+AppImage smoke tests, and creates a GitHub **draft release** containing all
+three files plus SHA256SUMS.
+
+**A draft is deliberately not a public release.** An authorized owner must
+review and publish it, then verify HTTPS download URLs before enabling the
+website's direct-install buttons and submitting the Windows EXE to Microsoft
+Partner Center. Do not let Github Actions auto-publish public binaries using
+unsigned QA artifacts. If the owner uses a non-exportable cloud signing key,
+adapt the signing step to the authorized signing provider instead of exporting
+private key material.
+
 ## Release acceptance checks (all platforms)
 
 - Verify guest flows, full-book **offline** download and restart in airplane
