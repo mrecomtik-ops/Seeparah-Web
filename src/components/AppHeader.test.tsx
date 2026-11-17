@@ -206,6 +206,7 @@ describe("AppHeader — role/auth resolution cannot shift the desktop nav", () =
       "/library",
       "/sacred-texts",
       "/insights",
+      "/download",
       "/author",
       "/profile",
     ]);

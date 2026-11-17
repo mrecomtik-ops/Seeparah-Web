@@ -20,6 +20,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm audit --audit-level=high
+      # Build first: TanStack Start generates src/routeTree.gen.ts for new routes.
+      # Typechecking before route generation reports false navigation errors.
+      - run: npm run build
       - run: npx tsc --noEmit
       - run: npm test
-      - run: npm run build

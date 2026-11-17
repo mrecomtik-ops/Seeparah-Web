@@ -33,6 +33,12 @@ Flutter 3.50.0 stable is supported. No private API keys are needed.
 GitHub workflow flutter-multiplatform.yml compiles and tests on all five
 platforms, and uploads an Android debug APK. Debug APKs are for testing only.
 
+For actual store submission, see [the app store release runbook](../../docs/app-store-release.md)
+and [listing copy](../../docs/app-store-listing-copy.md). A separate manually triggered
+`android-play-internal.yml` workflow can upload a **signed AAB** to the Google
+Play internal test track, once the app, owner-managed keystore and protected
+store credentials are configured. It does not publish directly to production.
+
 ## Store account and signing requirements
 
 Apple: owner Apple Developer Program membership, App Store Connect app
