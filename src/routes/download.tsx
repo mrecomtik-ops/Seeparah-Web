@@ -9,12 +9,28 @@ import {
  * a verified release exists. Do not guess App Store IDs, Play package URLs
  * or claim that CI debug artifacts are public production installers.
  */
+/**
+ * Only add official, manually verified listing URLs or tested, versioned HTTPS
+ * installer URLs. Null keeps the action visibly unavailable. Never point at
+ * debug artifacts or guess store application identifiers.
+ */
+const verifiedReleaseLinks: Record<string, string | null> = {
+  googlePlay: null,
+  appleIos: null,
+  microsoftStore: null,
+  windowsExe: null,
+  appleMac: null,
+  flathub: null,
+  linuxAppImage: null,
+  linuxDeb: null,
+};
+
 const platforms = [
-  { name: "Android", icon: Smartphone, channel: "Google Play", detail: "Google Play release is being prepared." },
-  { name: "iPhone & iPad", icon: Apple, channel: "Apple App Store", detail: "App Store review and distribution are pending." },
-  { name: "Windows", icon: MonitorDown, channel: "Microsoft Store + direct .exe", detail: "Install from Microsoft Store or download a verified, signed Windows .exe setup file directly from Seeparah once released." },
-  { name: "macOS", icon: Laptop, channel: "Mac App Store", detail: "The Mac edition will be distributed through the official Mac App Store once reviewed and approved." },
-  { name: "Linux", icon: Download, channel: "Flathub + direct .AppImage / .deb", detail: "Get Seeparah from the Linux app store Flathub or download a verified Linux-native .AppImage or .deb installer directly." },
+  { name: "Android", icon: Smartphone, channel: "Google Play", detail: "Available through Google Play after review.", actions: [{ id: "googlePlay", label: "Get it on Google Play" }] },
+  { name: "iPhone & iPad", icon: Apple, channel: "Apple App Store", detail: "Available through the Apple App Store after review.", actions: [{ id: "appleIos", label: "View on App Store" }] },
+  { name: "Windows", icon: MonitorDown, channel: "Microsoft Store + direct .exe", detail: "Choose Microsoft Store or download a verified signed setup file directly.", actions: [{ id: "microsoftStore", label: "Microsoft Store" }, { id: "windowsExe", label: "Download .exe" }] },
+  { name: "macOS", icon: Laptop, channel: "Mac App Store", detail: "The Mac edition will be distributed through the official Mac App Store once approved.", actions: [{ id: "appleMac", label: "Mac App Store" }] },
+  { name: "Linux", icon: Download, channel: "Flathub + direct .AppImage / .deb", detail: "Choose Flathub or a verified native Linux download.", actions: [{ id: "flathub", label: "Flathub" }, { id: "linuxAppImage", label: "Download .AppImage" }, { id: "linuxDeb", label: "Download .deb" }] },
 ] as const;
 
 export const Route = createFileRoute("/download")({
@@ -76,15 +92,31 @@ function DownloadPage() {
           signed desktop downloads. Windows and Linux will offer both store listings and direct installers. Download links will only appear after a release is verified.
         </p>
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {platforms.map(({ name, icon: Icon, channel, detail }) => (
+          {platforms.map(({ name, icon: Icon, channel, detail, actions }) => (
             <article key={name} className="rounded-2xl border border-border bg-card p-6">
               <Icon className="h-8 w-8 text-primary" aria-hidden="true" />
               <h3 className="mt-4 font-display text-xl font-semibold text-foreground">{name}</h3>
               <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{channel}</p>
               <p className="mt-4 min-h-12 text-sm leading-6 text-muted-foreground">{detail}</p>
-              <span className="mt-4 inline-flex min-h-11 items-center rounded-xl border border-border bg-secondary px-4 py-2 text-sm font-medium text-muted-foreground">
-                Not released yet
-              </span>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {actions.map((action) => {
+                  const href = verifiedReleaseLinks[action.id];
+                  return href ? (
+                    <a
+                      key={action.id}
+                      href={href}
+                      rel="noopener noreferrer"
+                      className="inline-flex min-h-11 items-center rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+                    >
+                      {action.label}
+                    </a>
+                  ) : (
+                    <span key={action.id} aria-disabled="true" className="inline-flex min-h-11 items-center rounded-xl border border-border bg-secondary px-4 py-2 text-sm font-medium text-muted-foreground">
+                      {action.label} — coming soon
+                    </span>
+                  );
+                })}
+              </div>
             </article>
           ))}
         </div>
