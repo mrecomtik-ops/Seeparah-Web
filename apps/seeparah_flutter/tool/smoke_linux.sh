@@ -8,8 +8,9 @@ deb="dist/linux/Seeparah-${version}-Linux-amd64.deb"
 appimage="dist/linux/Seeparah-${version}-Linux-x86_64.AppImage"
 test -s "$deb"
 test -s "$appimage"
-dpkg-deb --contents "$deb" | grep -Fq 'usr/lib/seeparah/seeparah_reader'
-dpkg-deb --contents "$deb" | grep -Fq 'usr/share/applications/com.seeparah.reader.desktop'
+dpkg-deb --contents "$deb" > "$RUNNER_TEMP/seeparah-deb-contents.txt"
+grep -Fq 'usr/lib/seeparah/seeparah_reader' "$RUNNER_TEMP/seeparah-deb-contents.txt"
+grep -Fq 'usr/share/applications/com.seeparah.reader.desktop' "$RUNNER_TEMP/seeparah-deb-contents.txt"
 chmod +x "$appimage"
 
 # Run the real Flutter app in a virtual desktop; if it exits/crashes before
