@@ -12,8 +12,8 @@ The website's /download page therefore correctly labels all native apps
 | Android / compatible ChromeOS | Google Play | Galaxy Store, signed APK on Seeparah (optional) | Play developer account, app, release signing, testing |
 | iPhone / iPad | Apple App Store | TestFlight for QA | Apple Developer Program, signing, review |
 | macOS | Mac App Store | signed/notarized DMG via Seeparah | separate macOS app identity, signing, sandbox + notarization |
-| Windows | Microsoft Store | signed standalone installer via Seeparah | Partner Center app reservation, MSIX or signed MSI/EXE |
-| Linux | Flathub | verified package on Seeparah/GitHub Releases | Flatpak manifest, runtime dependencies, Flathub review |
+| Windows | Microsoft Store **and** signed direct `.exe` | Same tested installer via Seeparah download page | Partner Center; per-user Inno Setup installer; publisher signing and review |
+| Linux | Flathub **and** direct `.AppImage` / `.deb` | Official Linux-native downloads on Seeparah | Flatpak manifest/review; verified and tested AppImage/deb packages |
 
 The browser/PWA continues to serve ChromeOS and other browsers; **PWA
 installation currently does not save full book editions offline**. Mobile
@@ -41,7 +41,9 @@ must not claim full website feature parity.
    - `SEEPARAH_ANDROID_KEY_ALIAS`
    - `SEEPARAH_ANDROID_KEY_PASSWORD`
    - `SEEPARAH_PLAY_SERVICE_ACCOUNT_JSON`
-5. For the first-ever release, create and upload the app package in Play Console\n   manually if needed to establish the package before Android Publisher API\n   uploads are accepted. Then on the **main** branch, run
+5. For the first-ever release, create and upload the app package in Play Console
+   manually if needed to establish the package before Android Publisher API
+   uploads are accepted. Then on the **main** branch, run
    `.github/workflows/android-play-internal.yml` manually with increasing
    numeric `version_code` and release `version_name`. The workflow fails
    closed without signing, tests Flutter, builds a signed AAB, and uploads
@@ -72,29 +74,55 @@ must not claim full website feature parity.
    access is available, automate uploads using an approved release workflow.
    Never store an Apple private key in Git or an unprotected CI variable.
 
-## 3. Microsoft Store and Windows download
+## 3. Microsoft Store **and** Windows direct EXE
 
 1. Owner verifies a Microsoft Partner Center developer account and reserves
-   the Seeparah name. Choose a matching package identity.
-2. Prefer a **store-compatible MSIX** built from the Windows Flutter release.
-   Microsoft Store handles signing and hosted distribution for MSIX. Alternatively
-   a self-hosted MSI/EXE must meet code-signing and offline-installer rules.
-3. Complete the listing, age rating, privacy disclosure, Windows testing,
-   and submit for certification.
-4. For Seeparah website direct downloads, publish only a tested **signed**
-   standalone installer with a stable, versioned HTTPS link and SHA-256.
-   A zipped CI build is not a certified Windows installer.
+   Seeparah. The Microsoft Store accepts both MSIX and compatible signed
+   MSI/EXE Win32 installers; Seeparah's chosen desktop path is a **signed
+   Inno Setup `.exe` installer** that can be offered directly and submitted
+   as an unpackaged Win32 app, once store-specific requirements are met.
+2. Repository `apps/seeparah_flutter/packaging/windows/Seeparah.iss` builds
+   the full Flutter Windows distribution into
+   `Seeparah-<version>-Windows-x64-Setup.exe`. Windows Flutter's original
+   `seeparah_reader.exe` is **not** a standalone installer: it needs bundled
+   data and DLLs, which the setup package includes.
+3. The `.github/workflows/desktop-installers.yml` workflow produces a
+   **QA-only, currently unsigned** EXE setup artifact. Sign the Windows
+   application/installer using an authorized publisher certificate, then
+   test installation, silent installation, launch, reading offline, update,
+   and uninstall on clean Windows machines. Do not distribute the unsigned
+   QA artifact as the production installer.
+4. Complete Microsoft Store listing, age/privacy disclosures and Win32
+   installer certification, including silent install behavior. Submit
+   through Partner Center and obtain approval.
+5. Publish the **same fully tested signed installer** directly on
+   `seeparah.com/download` using a versioned HTTPS URL, SHA-256 checksum
+   and publisher information. Do not expose any installation link until
+   the release is verified. A separate MSIX build can be considered later,
+   but is not a prerequisite for the direct EXE.
 
-## 4. Linux / Flathub and direct download
+## 4. Linux Flathub **and** direct download
 
-1. Prepare Flatpak runtime and dependencies, application metadata, an icon,
-   screenshots and a manifest; ensure an offline reproducible build.
-2. Submit the manifest to Flathub under its documented review procedure.
-3. A native Linux release distributed directly should carry a tested
-   AppImage/deb/Flatpak build with a release checksum, install instructions
-   and documented runtime requirements.
-4. After store approval, attach the verified Flathub listing or direct
-   package URL to the website /download page.
+1. Linux does not natively use Windows `.exe` installers. Use an
+   executable `.AppImage` for a one-file download (Linux equivalent), and
+   a native `.deb` for Ubuntu/Debian systems.
+2. Repository `apps/seeparah_flutter/tool/package_linux.py` assembles
+   a Debian package and an AppImage staging directory from the **complete**
+   Flutter Linux bundle. `.github/workflows/desktop-installers.yml`
+   builds the `.deb` and attempts to assemble the `.AppImage` using
+   appimagetool. These are QA artifacts, not verified public releases.
+3. Validate both on real clean supported Linux distributions, including
+   shared-library compatibility, GTK, offline start, fonts, storage and
+   installer/uninstaller behavior. Provide SHA-256 and minimum OS/runtime
+   requirements. Test AppImage from a downloaded location (with executable
+   permissions) rather than only inside the CI runner.
+4. Separately prepare a reproducible Flatpak manifest, metadata, icons,
+   screenshots and the required runtime dependencies. Submit for official
+   Flathub review and approval.
+5. Once each channel is verified, include Flathub listing and two direct
+   buttons, **Download AppImage** and **Download .deb**, on
+   `seeparah.com/download`. The direct packages do not have to wait for
+   Flathub's approval, but must pass the same release QA and rights checks.
 
 ## Release acceptance checks (all platforms)
 

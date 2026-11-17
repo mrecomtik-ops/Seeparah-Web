@@ -51,11 +51,15 @@ certificate or passwords into Git.
 Android applicationId / iOS bundleId: com.seeparah.reader. App version 1.0.0,
 build 1. For review, unauthenticated demo mode is the full reader experience.
 
-Other platforms: Windows release build requires MSIX packaging/Partner
-Center for Microsoft Store; macOS requires notarization and Mac App Store
-signing for store listing; Linux can distribute verified deb/AppImage; Android
-APK may be submitted separately to Galaxy Store or other compatible stores,
-after their own requirements are met. Existing website supports browsers and
+Other platforms: Windows will offer both a signed direct `.exe` setup
+installer and Microsoft Store listing (Microsoft accepts compliant signed
+Win32 EXE/MSI submissions). Linux will offer both Flathub and tested direct
+`.AppImage` / `.deb` downloads; a Windows `.exe` does not natively run
+on Linux. macOS is distributed through the Mac App Store. QA-only desktop
+installers can be built using `.github/workflows/desktop-installers.yml`,
+but must not be published before signing/compatibility/release review.
+Android APK may be submitted separately to Galaxy Store or other compatible
+stores after their requirements are met. Existing website supports browsers and
 ChromeOS; native Flutter web is not deployed to replace it.
 
 ## Store listing draft

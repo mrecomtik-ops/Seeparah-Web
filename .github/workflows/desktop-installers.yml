@@ -1,0 +1,106 @@
+name: Seeparah Windows and Linux installer builds
+# Builds installers for internal QA and release packaging. These artifacts are
+# NOT public: Windows installer needs publisher code-signing and both operating
+# systems need real-device testing and content-rights approval before release.
+on:
+  pull_request:
+    paths:
+      - "apps/seeparah_flutter/**"
+      - ".github/workflows/desktop-installers.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    name: Windows EXE installer (unverified QA artifact)
+    runs-on: windows-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.50.0"
+          channel: stable
+          cache: true
+      - name: Generate native Windows runner and build app
+        shell: pwsh
+        working-directory: apps/seeparah_flutter
+        run: |
+          python -m pip install --user pillow==11.3.0
+          python tool/generate_icons.py
+          flutter create --platforms=windows --org com.seeparah --project-name seeparah_reader .
+          python tool/configure_platforms.py
+          flutter pub get
+          dart run flutter_launcher_icons
+          flutter build windows --release --dart-define=SEEPARAH_API_ORIGIN=https://seeparah.com
+          if ($LASTEXITCODE -ne 0) { throw "Flutter Windows build failed" }
+          if (-not (Test-Path 'build/windows/x64/runner/Release/seeparah_reader.exe')) { throw "Missing Flutter app binary" }
+      - name: Build Windows installer with Inno Setup
+        shell: pwsh
+        working-directory: apps/seeparah_flutter
+        run: |
+          choco install innosetup --no-progress -y
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup installation failed" }
+          $iscc = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6/ISCC.exe'
+          if (-not (Test-Path $iscc)) { throw "ISCC.exe is missing" }
+          $match = Select-String -Path 'pubspec.yaml' -Pattern '^version:\s*([0-9]+\.[0-9]+\.[0-9]+)'
+          if (-not $match) { throw "Invalid Flutter app version" }
+          $version = $match.Matches[0].Groups[1].Value
+          & $iscc "/DMyAppVersion=$version" "packaging/windows/Seeparah.iss"
+          if ($LASTEXITCODE -ne 0) { throw "EXE installer build failed" }
+          $files = @(Get-ChildItem -Path 'dist/windows' -Filter '*Setup.exe' -File)
+          if ($files.Count -ne 1) { throw "Expected exactly one EXE setup installer" }
+          Get-FileHash -Algorithm SHA256 $files[0].FullName | Format-Table
+      - uses: actions/upload-artifact@v4
+        with:
+          name: seeparah-windows-exe-installer-qa
+          path: apps/seeparah_flutter/dist/windows/*Setup.exe
+          retention-days: 7
+          if-no-files-found: error
+
+  linux:
+    name: Linux DEB and AppImage (unverified QA artifacts)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.50.0"
+          channel: stable
+          cache: true
+      - name: Install Linux build dependencies
+        run: sudo apt-get update && sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev dpkg-dev
+      - name: Generate Flutter runner and package Linux bundles
+        working-directory: apps/seeparah_flutter
+        run: |
+          set -euo pipefail
+          python -m pip install --user pillow==11.3.0
+          python tool/generate_icons.py
+          flutter create --platforms=linux --org com.seeparah --project-name seeparah_reader .
+          python tool/configure_platforms.py
+          flutter pub get
+          flutter build linux --release --dart-define=SEEPARAH_API_ORIGIN=https://seeparah.com
+          VERSION="$(sed -nE 's/^version: ([0-9]+\.[0-9]+\.[0-9]+).*/\1/p' pubspec.yaml)"
+          test -n "$VERSION"
+          python tool/package_linux.py --version "$VERSION"
+          dpkg-deb --info "dist/linux/Seeparah-$VERSION-Linux-amd64.deb"
+          curl --fail --location --silent --show-error \
+            "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage" \
+            --output "$RUNNER_TEMP/appimagetool-x86_64.AppImage"
+          chmod +x "$RUNNER_TEMP/appimagetool-x86_64.AppImage"
+          ARCH=x86_64 APPIMAGE_EXTRACT_AND_RUN=1 \
+            "$RUNNER_TEMP/appimagetool-x86_64.AppImage" \
+            build/Seeparah.AppDir "dist/linux/Seeparah-$VERSION-Linux-x86_64.AppImage"
+          test -s "dist/linux/Seeparah-$VERSION-Linux-x86_64.AppImage"
+          sha256sum dist/linux/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: seeparah-linux-deb-appimage-qa
+          path: |
+            apps/seeparah_flutter/dist/linux/*.deb
+            apps/seeparah_flutter/dist/linux/*.AppImage
+          retention-days: 7
+          if-no-files-found: error
