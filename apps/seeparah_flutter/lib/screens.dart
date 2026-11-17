@@ -5,6 +5,7 @@ import 'api.dart';
 import 'local_library.dart';
 import 'models.dart' as sp;
 import 'reader.dart';
+import 'offline_download.dart';
 
 const brandGreen=Color(0xFF174F41);
 const brandGold=Color(0xFFB48A49);
@@ -406,31 +407,12 @@ class _BookDetailState extends State<BookDetail>{
     setState((){saving=true;progress=0;});
     try{
       final book=widget.initial;
-      final pages=<sp.Page>[];
-      final toc=<sp.TocItem>[];
-      var offset=0;
-      var expectedTotal=-1;
-      do{
-        final batch=await widget.api.pages(book.id,language,offset);
-        if(expectedTotal<0)expectedTotal=batch.total;
-        if(expectedTotal!=batch.total)throw const AppNetworkError(
-          'This edition changed during download. Retry from the beginning.');
-        if(expectedTotal<=0||expectedTotal>20000)throw const AppNetworkError(
-          'This edition is not eligible for offline storage.');
-        pages.addAll(batch.pages);
-        if(offset==0)toc.addAll(batch.toc);
-        offset=batch.nextOffset??expectedTotal;
-        if(!mounted)return;
-        setState(()=>progress=pages.length/expectedTotal);
-        if(pages.length>expectedTotal || pages.length>20000){
-          throw const AppNetworkError('Invalid edition length');
-        }
-      }while(pages.length<expectedTotal);
-      if(pages.length!=expectedTotal){
-        throw const AppNetworkError('The downloaded edition is incomplete');
-      }
-      await widget.library.storeOffline(sp.OfflineCopy(book,language,pages,toc,
-        DateTime.now().toUtc().toIso8601String()));
+      final copy=await fetchFullOfflineEdition(
+        widget.api,book,language,
+        onProgress:(value){if(mounted)setState(()=>progress=value);},
+      );
+      if(!mounted)return;
+      await widget.library.storeOffline(copy);
       if(mounted)setState(()=>saved=true);
     }on AppNetworkError catch(e){
       if(e.statusCode==404)await widget.library.withdraw(widget.initial.id);
