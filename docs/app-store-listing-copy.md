@@ -19,7 +19,7 @@ Do not use screenshots or promises not supported by tested native builds.
 
 ## Short store description (Google Play)
 
-Read free books and sacred texts. Save editions and annotations for offline reading.
+Read free books and sacred texts offline, with highlights, notes and drawings.
 
 ## Promotional text (Apple, optional)
 
