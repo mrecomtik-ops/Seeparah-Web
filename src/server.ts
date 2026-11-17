@@ -218,6 +218,10 @@ export default {
           status: 308, headers: { Location: "/favicon.png" },
         }));
       }
+      if (url.pathname.startsWith("/api/mobile/v1/")) {
+        const {serveMobileApi}=await import("./lib/mobile-api.server");
+        return withSecurityHeaders(await serveMobileApi(request));
+      }
       if (url.pathname === "/api/gutenberg-catalog.json") {
         const { serveGutenbergCatalog } = await import("./lib/gutenberg-catalog-public.server");
         return withSecurityHeaders(await serveGutenbergCatalog(request));
