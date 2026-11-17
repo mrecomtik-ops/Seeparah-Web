@@ -36,7 +36,7 @@ jobs:
           set -euo pipefail
           python -m pip install --user pillow==11.3.0
           python tool/generate_icons.py
-          flutter create --platforms=android --org com.seeparah --project-name seeparah_reader .
+          flutter create --platforms=android,ios --org com.seeparah --project-name seeparah_reader .
           python tool/configure_platforms.py
           flutter pub get
           dart run flutter_launcher_icons
@@ -74,7 +74,7 @@ jobs:
           python3 -m venv "$RUNNER_TEMP/seeparah-icons"
           "$RUNNER_TEMP/seeparah-icons/bin/python" -m pip install pillow==11.3.0
           "$RUNNER_TEMP/seeparah-icons/bin/python" tool/generate_icons.py
-          flutter create --platforms=ios --org com.seeparah --project-name seeparah_reader .
+          flutter create --platforms=android,ios --org com.seeparah --project-name seeparah_reader .
           python3 tool/configure_platforms.py
           flutter pub get
           dart run flutter_launcher_icons
