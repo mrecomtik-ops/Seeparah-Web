@@ -6,6 +6,8 @@
  * reuses the website's exact resolveReaderAccess / published-source gate.
  * Native clients need no database credentials to read public books.
  */
+import type { Book } from "@/lib/data";
+
 export const MOBILE_PAGE_LIMIT = 24;
 export const MOBILE_CONTENT_PAGE_LIMIT = 12;
 const BOOK_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
@@ -99,6 +101,7 @@ export async function serveMobileApi(request: Request): Promise<Response> {
         const term=filters.query;
         q=q.or('title.ilike.%'+term+'%,author.ilike.%'+term+'%');
       }
+      const {sanitizedPublicBook}=await import('@/lib/public-catalog.server');
       const offset=(filters.page-1)*MOBILE_PAGE_LIMIT;
       const {data,error,count}=await q
         .order('created_at',{ascending:false})
@@ -109,7 +112,11 @@ export async function serveMobileApi(request: Request): Promise<Response> {
         page:filters.page,
         total:count??0,
         hasMore:offset+(data?.length??0)<(count??0),
-        books:(data??[]).map((row:PublicRow)=>asMobileBook(row)),
+        // Apply the same historical-year/description sanitization that the
+        // website uses, so the native catalogue never restores unverified
+        // legacy bibliographic claims.
+        books:(data??[]).map((row:PublicRow)=>
+          asMobileBook(sanitizedPublicBook(row as unknown as Book) as unknown as PublicRow)),
       },200,'public, max-age=30');
     }
 
