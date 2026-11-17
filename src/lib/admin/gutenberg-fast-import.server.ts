@@ -244,6 +244,23 @@ function description(b:Catalog,author:string,_year:number|null,language:string){
     "The full manuscript is archived with its source checksum; readers can consult "+
     "the original's preserved chapters, contents and bibliographic attribution.";
 }
+/** Supabase/PostgREST may reject a database write with a structured object
+ * rather than a native Error. Never lose the actual reason to "[object Object]".
+ * Keep diagnostics bounded; do not log auth credentials or raw source text. */
+export function gutenbergImportErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message.slice(0,900);
+  if (error && typeof error==="object") {
+    const e=error as Record<string,unknown>;
+    const fields=["message","code","details","hint"];
+    const parts=fields.map((k)=>{
+      const value=e[k];
+      return typeof value==="string" && value.trim()?k+": "+value.slice(0,240):"";
+    }).filter(Boolean);
+    if(parts.length) return parts.join(" | ").slice(0,900);
+  }
+  return String(error).slice(0,900);
+}
+
 export async function processGutenbergImportQueueOnce():Promise<void>{
   const {supabaseAdmin}=await import("@/integrations/supabase/client.server");
   const db=supabaseAdmin as any;
@@ -289,7 +306,7 @@ export async function processGutenbergImportQueueOnce():Promise<void>{
       metadata:mergeImportJobMetadata(job.metadata,result.metadata),
       last_error:result.message??null,updated_at:new Date().toISOString()
     }).eq("id",job.id).eq("status","processing").select("id").maybeSingle();
-    if(updateError)throw updateError;
+    if(updateError)throw new Error('Import result could not be committed: '+gutenbergImportErrorMessage(updateError));
     // A recovery tick might already have quarantined a stale attempt.
     // Never let an old worker overwrite that later state.
     if(!updated){
@@ -298,10 +315,12 @@ export async function processGutenbergImportQueueOnce():Promise<void>{
     }
     console.log("[Gutenberg] source",job.gutenberg_id,result.status);
   }catch(error){
-    const msg=error instanceof Error?error.message:String(error);
-    await db.from("gutenberg_import_jobs").update({
+    const msg=gutenbergImportErrorMessage(error);
+    const {error:failError}=await db.from("gutenberg_import_jobs").update({
       status:"failed",last_error:msg.slice(0,900),updated_at:new Date().toISOString()
     }).eq("id",job.id).eq("status","processing");
+    if(failError)console.error("[Gutenberg] failed-job checkpoint rejected",
+      job.gutenberg_id,gutenbergImportErrorMessage(failError));
     console.error("[Gutenberg] import error",job.gutenberg_id,msg);
   }
 }
