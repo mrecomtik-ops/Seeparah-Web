@@ -1,0 +1,146 @@
+name: Seeparah Flutter app checks
+on:
+  pull_request:
+    paths:
+      - "apps/seeparah_flutter/**"
+      - "src/lib/mobile-api.server.ts"
+      - "src/server.ts"
+      - ".github/workflows/flutter-multiplatform.yml"
+  push:
+    branches: [main]
+    paths:
+      - "apps/seeparah_flutter/**"
+      - "src/lib/mobile-api.server.ts"
+      - "src/server.ts"
+      - ".github/workflows/flutter-multiplatform.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flutter-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Flutter static analysis and unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.50.0"
+          channel: stable
+          cache: true
+      - name: Flutter validation
+        working-directory: apps/seeparah_flutter
+        run: |
+          flutter pub get
+          flutter analyze --no-fatal-infos --no-fatal-warnings
+          flutter test
+
+  android:
+    name: Android debug APK
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.50.0"
+          channel: stable
+          cache: true
+      - name: Build installable Android app
+        working-directory: apps/seeparah_flutter
+        run: |
+          python -m pip install --user pillow==11.3.0
+          python tool/generate_icons.py
+          flutter create --platforms=android,ios,macos,windows,linux --org com.seeparah --project-name seeparah_reader .
+          python tool/configure_platforms.py
+          flutter pub get
+          dart run flutter_launcher_icons
+          flutter build apk --debug --dart-define=SEEPARAH_API_ORIGIN=https://seeparah.com
+      - uses: actions/upload-artifact@v4
+        with:
+          name: seeparah-android-debug-apk
+          path: apps/seeparah_flutter/build/app/outputs/flutter-apk/app-debug.apk
+          retention-days: 7
+          if-no-files-found: error
+
+  ios:
+    name: iOS compile check (unsigned)
+    needs: verify
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.50.0"
+          channel: stable
+          cache: true
+      - name: Compile iOS native app without signing
+        working-directory: apps/seeparah_flutter
+        run: |
+          python3 -m venv "$RUNNER_TEMP/seeparah-icon-env"
+          "$RUNNER_TEMP/seeparah-icon-env/bin/python" -m pip install pillow==11.3.0
+          "$RUNNER_TEMP/seeparah-icon-env/bin/python" tool/generate_icons.py
+          flutter create --platforms=android,ios,macos,windows,linux --org com.seeparah --project-name seeparah_reader .
+          python3 tool/configure_platforms.py
+          flutter pub get
+          dart run flutter_launcher_icons
+          flutter build ios --release --no-codesign --dart-define=SEEPARAH_API_ORIGIN=https://seeparah.com
+
+  desktop:
+    name: Desktop compile ${{ matrix.platform }}
+    needs: verify
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+          - os: macos-latest
+            platform: macos
+          - os: windows-latest
+            platform: windows
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.50.0"
+          channel: stable
+          cache: true
+      - name: Linux desktop build dependencies
+        if: matrix.platform == 'linux'
+        run: sudo apt-get update && sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev
+      - name: Build Seeparah desktop
+        shell: bash
+        working-directory: apps/seeparah_flutter
+        run: |
+          python -m pip install --user pillow==11.3.0
+          python tool/generate_icons.py
+          flutter create --platforms=android,ios,macos,windows,linux --org com.seeparah --project-name seeparah_reader .
+          python tool/configure_platforms.py
+          flutter pub get
+          dart run flutter_launcher_icons
+          flutter build ${{ matrix.platform }} --release --dart-define=SEEPARAH_API_ORIGIN=https://seeparah.com
+      - uses: actions/upload-artifact@v4
+        if: matrix.platform == 'linux'
+        with:
+          name: seeparah-linux-build
+          path: apps/seeparah_flutter/build/linux/x64/release/bundle
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        if: matrix.platform == 'windows'
+        with:
+          name: seeparah-windows-build
+          path: apps/seeparah_flutter/build/windows/x64/runner/Release
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        if: matrix.platform == 'macos'
+        with:
+          name: seeparah-macos-build
+          path: apps/seeparah_flutter/build/macos/Build/Products/Release
+          retention-days: 7
