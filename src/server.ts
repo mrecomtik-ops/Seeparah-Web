@@ -2,6 +2,7 @@ import "./lib/error-capture";
 
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
+import { seeparahScheduledTask } from "./lib/cron-job-routing";
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -45,10 +46,21 @@ async function runScheduledGutenbergWork(): Promise<void> {
       .select("enabled").eq("id", 1).maybeSingle();
     if (error) throw new Error(error.message);
     if (data?.enabled !== true) return;
-    const { runGutenbergAutopilotOnce } = await import("./lib/admin/gutenberg-autopilot.server");
-    await runGutenbergAutopilotOnce();
-    const { processGutenbergImportQueueOnce } = await import("./lib/admin/gutenberg-fast-import.server");
-    await processGutenbergImportQueueOnce();
+    // A free Worker invocation has a strict external subrequest budget.
+    // When there is a queued job, spend this invocation ONLY on importing
+    // that source. The queue is refilled on the next minute after it drains;
+    // recovery and other background services have independent cron events.
+    const {data:queued,error:queueError}=await (supabaseAdmin as any)
+      .from("gutenberg_import_jobs").select("id").eq("status","queued")
+      .order("id").limit(1).maybeSingle();
+    if(queueError)throw new Error("Gutenberg queue readiness: "+queueError.message);
+    if(queued){
+      const {processGutenbergImportQueueOnce}=await import("./lib/admin/gutenberg-fast-import.server");
+      await processGutenbergImportQueueOnce();
+    }else{
+      const {runGutenbergAutopilotOnce}=await import("./lib/admin/gutenberg-autopilot.server");
+      await runGutenbergAutopilotOnce();
+    }
   } catch (error) {
     console.error("[gutenberg] scheduled acquisition error", error);
   }
@@ -247,24 +259,38 @@ export default {
     }
   },
 
-  scheduled(_event: unknown, env: unknown, ctx: ScheduledContext) {
-    ctx.waitUntil(runScheduledTranslationWork());
-    // Durable autopilot: refill bounded Gutenberg batches toward the
-    // database-configured target, subject to strict rights and structure gates.
-    // Never count reviews/errors as published and never modify existing titles.
-    // Fetching one queued book is deliberately sequential to avoid overlapping
-    // database writes or unbounded external mirror traffic.
-    ctx.waitUntil(runScheduledGutenbergWork());
-    ctx.waitUntil(runScheduledInterruptedGutenbergRecovery());
-    ctx.waitUntil(runScheduledLegacyArchiveRepair());
-    ctx.waitUntil(runScheduledVerifiedCoverCache());
-    ctx.waitUntil(runScheduledGutenbergDiscovery());
-    const utcNow = new Date();
-    // Execute data retention once per UTC day, never every minute.
-    if (utcNow.getUTCHours() === 2 && utcNow.getUTCMinutes() === 30) {
-      ctx.waitUntil(import("./lib/platform-usage.server")
-        .then(({ prunePlatformUsage }) => prunePlatformUsage(env))
-        .catch((error) => console.error("[usage] retention error", error)));
+  scheduled(controller: {cron:string;scheduledTime:number}, env: unknown, ctx: ScheduledContext) {
+    // Each Cron Trigger is a *separate invocation* with its own 50-subrequest
+    // budget on Workers Free. Calling six waitUntil() jobs from a single
+    // once-per-minute event exhausted that shared budget mid-publication.
+    // Routes are explicit and fail-closed on unknown schedules.
+    const task=seeparahScheduledTask(controller.cron,controller.scheduledTime);
+    switch(task){
+      case "gutenberg-import":
+        ctx.waitUntil(runScheduledGutenbergWork());
+        break;
+      case "gutenberg-recovery":
+        ctx.waitUntil(runScheduledInterruptedGutenbergRecovery());
+        break;
+      case "translations":
+        ctx.waitUntil(runScheduledTranslationWork());
+        break;
+      case "legacy-archive":
+        ctx.waitUntil(runScheduledLegacyArchiveRepair());
+        break;
+      case "cover-cache":
+        ctx.waitUntil(runScheduledVerifiedCoverCache());
+        break;
+      case "catalogue-discovery":
+        ctx.waitUntil(runScheduledGutenbergDiscovery());
+        break;
+      case "retention":
+        ctx.waitUntil(import("./lib/platform-usage.server")
+          .then(({prunePlatformUsage})=>prunePlatformUsage(env))
+          .catch((error)=>console.error("[usage] retention error",error)));
+        break;
+      default:
+        console.warn("[cron] unsupported Seeparah trigger",controller.cron);
     }
   },
 };
