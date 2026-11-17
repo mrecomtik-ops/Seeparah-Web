@@ -62,6 +62,17 @@ Android APK may be submitted separately to Galaxy Store or other compatible
 stores after their requirements are met. Existing website supports browsers and
 ChromeOS; native Flutter web is not deployed to replace it.
 
+## Protected desktop production release
+
+QA assets are not public downloads. After the owner has obtained a trusted
+Windows code-signing certificate, configured the protected GitHub environment,
+approved rights and completed real-device QA, the manually triggered
+`desktop-production-release.yml` workflow signs all Windows executables,
+verifies the signed setup installer, tests native Windows/Linux packages,
+and creates a **draft** GitHub release with SHA-256 checksums. Only the owner
+may publish that draft and activate website download links.
+See [desktop release instructions](../../docs/app-store-release.md).
+
 ## Store listing draft
 
 Title: Seeparah — Free Books & Reading
