@@ -1,0 +1,36 @@
+name: seeparah_reader
+description: Seeparah native multilingual reader for iOS, Android, and desktop.
+publish_to: none
+version: 1.0.0+1
+environment:
+  sdk: '>=3.11.0 <4.0.0'
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^1.6.0
+  path_provider: ^2.1.6
+  shared_preferences: ^2.5.6
+  url_launcher: ^6.3.3
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/brand/favicon.png
+flutter_launcher_icons:
+  android: true
+  ios: true
+  remove_alpha_ios: true
+  image_path: assets/brand/app_icon_1024.png
+  adaptive_icon_background: '#124D40'
+  adaptive_icon_foreground: assets/brand/app_icon_1024.png
+  macos:
+    generate: true
+    image_path: assets/brand/app_icon_1024.png
+  windows:
+    generate: true
+    image_path: assets/brand/app_icon_1024.png
+    icon_size: 256
