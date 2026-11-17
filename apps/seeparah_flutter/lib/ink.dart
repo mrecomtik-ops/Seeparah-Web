@@ -32,7 +32,7 @@ class _InkBoardState extends State<InkBoard>{
   InkStroke? active;
   bool pen=false,eraser=false;
   Color color=const Color(0xAAAF8132);
-  String get keyName=>'ink:'+widget.bookId+':'+widget.language+':'+widget.index;
+  String get keyName=>'ink:'+widget.bookId+':'+widget.language+':'+widget.index.toString();
   @override void initState(){
     super.initState();
     final raw=widget.local.prefs.getString(keyName);

@@ -205,9 +205,9 @@ class _ReaderScreenState extends State<ReaderScreen>{
           if(loading)const LinearProgressIndicator(minHeight:2),
           Expanded(child:visible==null
             ?const Center(child:CircularProgressIndicator())
-            :SingleChildScrollView(key:ValueKey('scroll-'+index),
+            :SingleChildScrollView(key:ValueKey('scroll-'+index.toString()),
               padding:const EdgeInsets.fromLTRB(22,18,22,25),
-              child:InkBoard(key:ValueKey('ink-'+widget.book.id+'-'+widget.language+'-'+index),
+              child:InkBoard(key:ValueKey('ink-'+widget.book.id+'-'+widget.language+'-'+index.toString()),
                 local:widget.library,bookId:widget.book.id,
                 language:widget.language,index:index,
                 child:Directionality(

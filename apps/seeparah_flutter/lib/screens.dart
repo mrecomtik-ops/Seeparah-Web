@@ -190,7 +190,6 @@ class _CatalogueViewState extends State<CatalogueView>{
                     onPressed:(){search.clear();load(reset:true);}),
               ]),
             ]))),
-        ),
         if(books.isNotEmpty)
           SliverPadding(padding:const EdgeInsets.fromLTRB(16,8,16,12),
             sliver:SliverLayoutBuilder(builder:(ctx,constraints){
