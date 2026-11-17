@@ -46,12 +46,19 @@
   // explicit.
   "workers_dev": true,
 
-  // Translation production worker. Each scheduled invocation processes a
-  // small bounded batch only; jobs remain review-gated and never publish
-  // automatically. One-minute cadence keeps reader-requested editions moving
-  // without a long-running request or duplicate full-book translation.
+  // Workers Free permits 5 Cron Triggers and only 50 external subrequests
+  // per invocation. Each expression below generates a DISTINCT invocation;
+  // src/server.ts dispatches exactly one bounded job for each event.
+  // Never combine source import with cover/translation/legacy calls:
+  // those formerly exhausted its shared fetch quota mid-publication.
   "triggers": {
-    "crons": ["* * * * *"],
+    "crons": [
+      "* * * * *",    // source importer, one Gutenberg work item/minute
+      "*/2 * * * *",  // one SHA-verified checkpoint recovery
+      "*/3 * * * *",  // reader-requested translations
+      "*/5 * * * *",  // one legacy archive comparison
+      "*/7 * * * *",  // alternates verified cover cache & catalog discovery
+    ],
   },
   // Without this, `wrangler deploy` treats this file as the sole source of
   // truth for the Worker's environment and DELETES any plaintext `vars`
