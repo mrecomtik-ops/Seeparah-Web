@@ -1,6 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   BookOpen,
+  Download,
   Feather,
   FileText,
   LayoutDashboard,
@@ -23,6 +24,7 @@ const NAV = [
   { to: "/library", label: "Library", icon: BookOpen },
   { to: "/sacred-texts", label: "Sacred Texts", icon: BookOpen },
   { to: "/insights", label: "Insights", icon: FileText },
+  { to: "/download", label: "Apps", icon: Download },
   { to: "/author", label: "Author", icon: Feather },
   { to: "/profile", label: "Profile", icon: User },
 ] as const;

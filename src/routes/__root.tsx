@@ -193,6 +193,9 @@ function RootComponent() {
             <Link to="/insights" className="inline-flex min-h-11 items-center px-1 hover:text-foreground hover:underline">
               Insights
             </Link>
+            <Link to="/download" className="inline-flex min-h-11 items-center px-1 hover:text-foreground hover:underline">
+              Download apps
+            </Link>
             <Link to="/research" className="inline-flex min-h-11 items-center px-1 hover:text-foreground hover:underline">
               Research
             </Link>
