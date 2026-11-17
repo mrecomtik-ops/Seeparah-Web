@@ -1,0 +1,38 @@
+{
+  "name": "Seeparah — Free Books and Sacred Texts",
+  "short_name": "Seeparah",
+  "description": "Read verified classics and sacred texts in your language.",
+  "id": "/library",
+  "start_url": "/library",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#FAF8F1",
+  "theme_color": "#174F41",
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "64x64",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/seeparah.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Open library",
+      "url": "/library",
+      "description": "Find your next book"
+    },
+    {
+      "name": "Sacred texts",
+      "url": "/sacred-texts",
+      "description": "Read source-verified sacred texts"
+    }
+  ]
+}

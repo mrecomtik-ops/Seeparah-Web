@@ -98,6 +98,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { name: "theme-color", content: "#174F41" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-title", content: "Seeparah" },
       { title: "Seeparah — Read world classics in your language" },
       {
         name: "description",
@@ -116,6 +119,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     links: [
       { rel: "stylesheet", href: appCss },
       { rel: "icon", type: "image/png", href: "/favicon.png" },
+      { rel: "manifest", href: "/manifest.webmanifest" },
+      { rel: "apple-touch-icon", href: "/favicon.png" },
       // Keep the global shell independent of third-party font CDNs.
       // Script-specific reader fonts are still loaded only when a book needs them.
     ],
@@ -142,6 +147,14 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  useEffect(() => {
+    if (typeof navigator !== "undefined" && "serviceWorker" in navigator &&
+        window.isSecureContext) {
+      void navigator.serviceWorker.register("/sw.js").catch((error) => {
+        console.warn("[seeparah-pwa] offline shell not registered", error);
+      });
+    }
+  }, []);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const bare = pathname.startsWith("/read");
   const home = pathname === "/";
