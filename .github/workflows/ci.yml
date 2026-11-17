@@ -10,6 +10,7 @@ permissions:
 
 jobs:
   test:
+    name: Build, typecheck and test
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -19,9 +20,23 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm audit --audit-level=high
-      # Build first: TanStack Start generates src/routeTree.gen.ts for new routes.
-      # Typechecking before route generation reports false navigation errors.
+      # Build first: TanStack Start generates route-tree types for new routes.
       - run: npm run build
       - run: npx tsc --noEmit
       - run: npm test
+
+  dependency-security:
+    name: Dependency security (blocking)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # Keep the real security failure visible; do NOT suppress advisories.
+      # A new unpatched upstream advisory must not prevent functional tests
+      # from running, but must still fail the overall workflow.
+      - run: npm audit --audit-level=high
