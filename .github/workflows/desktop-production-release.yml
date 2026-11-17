@@ -1,0 +1,197 @@
+name: Seeparah desktop signed release draft
+# Owner-authorized, protected, MANUAL release workflow. Never publishes
+# unsigned Windows software or automatically makes a release public.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version matching pubspec.yaml (e.g. 1.0.0)"
+        required: true
+        type: string
+      approval:
+        description: "Type APPROVE_SEEPARAH_DESKTOP_RELEASE to confirm QA and redistribution review"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: seeparah-desktop-release
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.value }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate deliberate approval and version
+        id: version
+        env:
+          REQUESTED_VERSION: ${{ inputs.version }}
+          APPROVAL: ${{ inputs.approval }}
+        run: |
+          set -euo pipefail
+          [[ "$APPROVAL" == "APPROVE_SEEPARAH_DESKTOP_RELEASE" ]] || { echo "Owner release approval phrase missing"; exit 1; }
+          [[ "$REQUESTED_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Version must be x.y.z"; exit 1; }
+          CURRENT_VERSION="$(sed -nE 's/^version: ([0-9]+\.[0-9]+\.[0-9]+).*/\1/p' apps/seeparah_flutter/pubspec.yaml)"
+          [[ "$CURRENT_VERSION" == "$REQUESTED_VERSION" ]] || { echo "App version mismatch"; exit 1; }
+          echo "value=$CURRENT_VERSION" >> "$GITHUB_OUTPUT"
+
+  windows:
+    needs: preflight
+    runs-on: windows-latest
+    environment: seeparah-desktop-production
+    timeout-minutes: 70
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.50.0"
+          channel: stable
+          cache: true
+      - name: Build Flutter Windows release
+        shell: pwsh
+        working-directory: apps/seeparah_flutter
+        run: |
+          python -m pip install --user pillow==11.3.0
+          python tool/generate_icons.py
+          flutter create --platforms=windows --org com.seeparah --project-name seeparah_reader .
+          python tool/configure_platforms.py
+          flutter pub get
+          dart run flutter_launcher_icons
+          flutter analyze --no-fatal-infos --no-fatal-warnings
+          flutter test
+          flutter build windows --release --dart-define=SEEPARAH_API_ORIGIN=https://seeparah.com
+          if ($LASTEXITCODE -ne 0) { throw "Windows release build failed" }
+      - name: Sign every Windows PE, package and sign installer
+        working-directory: apps/seeparah_flutter
+        shell: pwsh
+        env:
+          SEEPARAH_WINDOWS_PFX_B64: ${{ secrets.SEEPARAH_WINDOWS_PFX_B64 }}
+          SEEPARAH_WINDOWS_PFX_PASSWORD: ${{ secrets.SEEPARAH_WINDOWS_PFX_PASSWORD }}
+          RELEASE_VERSION: ${{ needs.preflight.outputs.version }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if (-not $env:SEEPARAH_WINDOWS_PFX_B64 -or -not $env:SEEPARAH_WINDOWS_PFX_PASSWORD) {
+            throw 'Missing trusted publisher Windows code-signing certificate secrets'
+          }
+          $pfx = Join-Path $env:RUNNER_TEMP 'seeparah-publisher.pfx'
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:SEEPARAH_WINDOWS_PFX_B64))
+          $env:SEEPARAH_WINDOWS_PFX_B64 = ''
+          $bundle = 'build/windows/x64/runner/Release'
+          & ./tool/sign_windows_release.ps1 -Path $bundle -PfxFile $pfx -PfxPassword $env:SEEPARAH_WINDOWS_PFX_PASSWORD
+          if (-not $?) { throw 'Signing Windows bundle failed' }
+          choco install innosetup --no-progress -y
+          if ($LASTEXITCODE -ne 0) { throw 'Inno Setup installation failed' }
+          $iscc = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6/ISCC.exe'
+          if (-not (Test-Path $iscc)) { throw 'Inno Setup compiler missing' }
+          & $iscc "/DMyAppVersion=$env:RELEASE_VERSION" 'packaging/windows/Seeparah.iss'
+          if ($LASTEXITCODE -ne 0) { throw 'Windows setup compilation failed' }
+          $output = "dist/windows/Seeparah-$env:RELEASE_VERSION-Windows-x64-Setup.exe"
+          if (-not (Test-Path $output)) { throw "Installer missing: $output" }
+          & ./tool/sign_windows_release.ps1 -Path $output -PfxFile $pfx -PfxPassword $env:SEEPARAH_WINDOWS_PFX_PASSWORD
+          if (-not $?) { throw 'Signing Windows installer failed' }
+          Remove-Item $pfx -Force
+          & ./tool/smoke_windows.ps1 -Installer $output
+          if (-not $?) { throw 'Windows signed installer smoke test failed' }
+          Get-FileHash -Algorithm SHA256 $output | Format-Table
+      - name: Remove private signing material from runner
+        if: always()
+        shell: pwsh
+        run: Remove-Item (Join-Path $env:RUNNER_TEMP 'seeparah-publisher.pfx') -Force -ErrorAction SilentlyContinue
+      - uses: actions/upload-artifact@v4
+        with:
+          name: seeparah-production-windows-signed
+          path: apps/seeparah_flutter/dist/windows/*Setup.exe
+          retention-days: 5
+          if-no-files-found: error
+
+  linux:
+    needs: preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.50.0"
+          channel: stable
+          cache: true
+      - name: Build and validate Linux installers
+        working-directory: apps/seeparah_flutter
+        env:
+          RELEASE_VERSION: ${{ needs.preflight.outputs.version }}
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev dpkg-dev xvfb xauth
+          python -m pip install --user pillow==11.3.0
+          python tool/generate_icons.py
+          flutter create --platforms=linux --org com.seeparah --project-name seeparah_reader .
+          python tool/configure_platforms.py
+          flutter pub get
+          flutter analyze --no-fatal-infos --no-fatal-warnings
+          flutter test
+          flutter build linux --release --dart-define=SEEPARAH_API_ORIGIN=https://seeparah.com
+          python tool/package_linux.py --version "$RELEASE_VERSION"
+          curl --fail --location --silent --show-error \
+            "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage" \
+            --output "$RUNNER_TEMP/appimagetool-x86_64.AppImage"
+          chmod +x "$RUNNER_TEMP/appimagetool-x86_64.AppImage"
+          ARCH=x86_64 APPIMAGE_EXTRACT_AND_RUN=1 \
+            "$RUNNER_TEMP/appimagetool-x86_64.AppImage" \
+            build/Seeparah.AppDir "dist/linux/Seeparah-$RELEASE_VERSION-Linux-x86_64.AppImage"
+          bash tool/smoke_linux.sh
+          sha256sum dist/linux/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: seeparah-production-linux
+          path: |
+            apps/seeparah_flutter/dist/linux/*.deb
+            apps/seeparah_flutter/dist/linux/*.AppImage
+          retention-days: 5
+          if-no-files-found: error
+
+  create-reviewed-draft:
+    name: Create private draft release for owner review
+    needs: [preflight, windows, linux]
+    runs-on: ubuntu-latest
+    environment: seeparah-desktop-production
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: seeparah-production-*
+          merge-multiple: true
+          path: dist
+      - name: Check signed release asset set
+        env:
+          RELEASE_VERSION: ${{ needs.preflight.outputs.version }}
+        run: |
+          set -euo pipefail
+          test -s "dist/Seeparah-$RELEASE_VERSION-Windows-x64-Setup.exe"
+          test -s "dist/Seeparah-$RELEASE_VERSION-Linux-amd64.deb"
+          test -s "dist/Seeparah-$RELEASE_VERSION-Linux-x86_64.AppImage"
+          cd dist
+          sha256sum Seeparah-* > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+      - name: Create draft GitHub release (not publicly downloadable yet)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_VERSION: ${{ needs.preflight.outputs.version }}
+        run: |
+          set -euo pipefail
+          if gh release view "v$RELEASE_VERSION" >/dev/null 2>&1; then
+            echo "Release v$RELEASE_VERSION already exists; never overwrite signed assets"
+            exit 1
+          fi
+          gh release create "v$RELEASE_VERSION" dist/* \
+            --target "$GITHUB_SHA" --draft \
+            --title "Seeparah $RELEASE_VERSION" \
+            --notes "Owner review required before public desktop distribution. Signed Windows installer plus tested Linux packages. Verify release rights, offline reading, full SHA256SUMS and installer update procedures before publishing."
