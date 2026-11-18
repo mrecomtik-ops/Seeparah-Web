@@ -58,9 +58,10 @@ jobs:
             Export-Certificate -Cert $cert -FilePath $cer | Out-Null
             Import-Certificate -FilePath $cer -CertStoreLocation 'Cert:\CurrentUser\Root' | Out-Null
 
+            $env:SEEPARAH_CI_TEST_CERT = 'true'
             & ./tool/sign_windows_release.ps1 `
               -Path 'build/windows/x64/runner/Release' `
-              -PfxFile $pfx -PfxPassword $password
+              -PfxFile $pfx -PfxPassword $password -TestOnlyNoTimestamp
             if (-not $?) { throw 'Signing the Windows PE bundle failed' }
 
             choco install innosetup --no-progress -y
@@ -71,7 +72,7 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw 'EXE installer compilation failed' }
             $installer = 'dist/windows/Seeparah-1.0.0-Windows-x64-Setup.exe'
             & ./tool/sign_windows_release.ps1 -Path $installer `
-              -PfxFile $pfx -PfxPassword $password
+              -PfxFile $pfx -PfxPassword $password -TestOnlyNoTimestamp
             if (-not $?) { throw 'Signing the final setup executable failed' }
 
             & ./tool/smoke_windows.ps1 -Installer $installer
