@@ -40,6 +40,7 @@ jobs:
           flutter analyze --no-fatal-infos --no-fatal-warnings
           flutter test
           python3 -m unittest discover -s tool -p 'test_verify_ios_release_profile.py' -v
+          ruby -ryaml -e 'YAML.parse_file("../../.github/workflows/apple-testflight-internal.yml")'
 
   android:
     name: Android debug APK
