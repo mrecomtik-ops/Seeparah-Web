@@ -1,0 +1,88 @@
+name: Seeparah Windows signing QA with disposable test certificate
+
+# This test does NOT create a trusted publisher installer for users or stores.
+# The certificate is self-signed, unique to CI and deleted after testing.
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/windows-signature-smoke.yml"
+      - "apps/seeparah_flutter/tool/sign_windows_release.ps1"
+      - "apps/seeparah_flutter/packaging/windows/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  signing-contract:
+    name: Windows Authenticode and setup signing contract
+    runs-on: windows-2025
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.50.0"
+          channel: stable
+          cache: true
+      - name: Build a complete unsigned Windows Flutter bundle
+        working-directory: apps/seeparah_flutter
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python -m pip install --user pillow==11.3.0
+          python tool/generate_icons.py
+          flutter create --platforms=android,ios,macos,windows,linux --org com.seeparah --project-name seeparah_reader .
+          if ($LASTEXITCODE -ne 0) { throw 'Flutter runner generation failed' }
+          python tool/configure_platforms.py
+          flutter pub get
+          dart run flutter_launcher_icons
+          flutter build windows --release --dart-define=SEEPARAH_API_ORIGIN=https://seeparah.com
+          if ($LASTEXITCODE -ne 0) { throw 'Windows Flutter release build failed' }
+      - name: Verify signing script on disposable locally trusted CI cert
+        working-directory: apps/seeparah_flutter
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $cert = $null
+          $password = [guid]::NewGuid().ToString('N')
+          $pfx = Join-Path $env:RUNNER_TEMP 'seeparah-ci-only.pfx'
+          $cer = Join-Path $env:RUNNER_TEMP 'seeparah-ci-only.cer'
+          try {
+            $cert = New-SelfSignedCertificate -Type CodeSigningCert `
+              -Subject 'CN=Seeparah CI QA Test Certificate - NOT FOR DISTRIBUTION' `
+              -KeyExportPolicy Exportable -KeyLength 2048 `
+              -CertStoreLocation 'Cert:\CurrentUser\My'
+            $securePassword = ConvertTo-SecureString $password -AsPlainText -Force
+            Export-PfxCertificate -Cert $cert -FilePath $pfx -Password $securePassword | Out-Null
+            Export-Certificate -Cert $cert -FilePath $cer | Out-Null
+            Import-Certificate -FilePath $cer -CertStoreLocation 'Cert:\CurrentUser\Root' | Out-Null
+
+            & ./tool/sign_windows_release.ps1 `
+              -Path 'build/windows/x64/runner/Release' `
+              -PfxFile $pfx -PfxPassword $password
+            if (-not $?) { throw 'Signing the Windows PE bundle failed' }
+
+            choco install innosetup --no-progress -y
+            if ($LASTEXITCODE -ne 0) { throw 'Inno Setup install failed' }
+            $iscc = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6/ISCC.exe'
+            if (-not (Test-Path $iscc)) { throw 'Missing Inno Setup compiler' }
+            & $iscc '/DMyAppVersion=1.0.0' 'packaging/windows/Seeparah.iss'
+            if ($LASTEXITCODE -ne 0) { throw 'EXE installer compilation failed' }
+            $installer = 'dist/windows/Seeparah-1.0.0-Windows-x64-Setup.exe'
+            & ./tool/sign_windows_release.ps1 -Path $installer `
+              -PfxFile $pfx -PfxPassword $password
+            if (-not $?) { throw 'Signing the final setup executable failed' }
+
+            & ./tool/smoke_windows.ps1 -Installer $installer
+            if (-not $?) { throw 'Signed setup smoke test failed' }
+
+            Write-Host 'Ephemeral CI Authenticode signer and installer validation passed'
+          }
+          finally {
+            if ($cert) {
+              Remove-Item "Cert:\CurrentUser\My\$($cert.Thumbprint)" -Force -ErrorAction SilentlyContinue
+              Remove-Item "Cert:\CurrentUser\Root\$($cert.Thumbprint)" -Force -ErrorAction SilentlyContinue
+            }
+            Remove-Item $pfx,$cer -Force -ErrorAction SilentlyContinue
+          }
