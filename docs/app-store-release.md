@@ -74,6 +74,48 @@ must not claim full website feature parity.
    access is available, automate uploads using an approved release workflow.
    Never store an Apple private key in Git or an unprotected CI variable.
 
+### Protected iOS TestFlight release workflow
+
+The repository now includes a manual, fail-closed `.github/workflows/apple-testflight-internal.yml`.
+It is **not** a public App Store release. The workflow builds a distribution
+IPA and uploads it only to App Store Connect for TestFlight processing, when
+the Seeparah owner approves the protected
+`seeparah-apple-internal` GitHub environment.
+
+The owner must create the exact app record `com.seeparah.reader`, verify
+the Apple Developer Program team, and configure these encrypted
+**environment secrets** (never paste certificate/private-key content into
+issues, PRs, or this document):
+
+- `SEEPARAH_APPLE_TEAM_ID`: Apple's 10-character Team ID.
+- `SEEPARAH_APPLE_DISTRIBUTION_P12_B64` and
+  `SEEPARAH_APPLE_DISTRIBUTION_P12_PASSWORD`: an authorized Apple Distribution
+  certificate including its private key.
+- `SEEPARAH_IOS_APPSTORE_PROFILE_B64`: App Store *distribution* provisioning
+  profile for `com.seeparah.reader`. The built-in verifier refuses expired,
+  development, ad-hoc, wrong-team and wrong-bundle profiles.
+- `SEEPARAH_APPSTORE_API_KEY_ID`, `SEEPARAH_APPSTORE_ISSUER_ID`,
+  `SEEPARAH_APPSTORE_API_P8_B64`: minimally scoped App Store Connect
+  API key for **uploading TestFlight builds**, not public app release.
+
+On `main`, trigger this workflow manually using the matching Flutter
+version, a new increasing build number, and approval phrase
+`APPROVE_SEEPARAH_TESTFLIGHT_UPLOAD`. Protect the environment with
+required human reviewers. The job installs a temporary private keychain,
+validates the distribution profile and generated app identity, compiles,
+attempts signed Xcode archive/export, and uploads via Apple's
+`xcrun altool`. The run fails if signing material is unavailable; it does
+not make up certificates or upload unsigned builds. An actual successful
+signing/upload run **has not occurred** and must be tested once the owner
+provides valid signing and App Store Connect access. Apple may require
+workflow changes as Xcode and upload tools evolve.
+
+The macOS Flutter runner now explicitly enables sandboxed outgoing network
+access (`com.apple.security.network.client`) in Release entitlements.
+For Mac App Store, the owner must still obtain the separate macOS distribution
+and installer signing identities, profiles, app record and Apple review.
+The iOS TestFlight workflow does **not** submit a macOS package.
+
 ## 3. Microsoft Store **and** Windows direct EXE
 
 1. Owner verifies a Microsoft Partner Center developer account and reserves

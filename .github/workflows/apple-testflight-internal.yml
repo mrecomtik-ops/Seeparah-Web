@@ -1,0 +1,182 @@
+name: Seeparah iOS signed TestFlight internal upload
+
+# MANUAL only. Owner-controlled signing; uploads to TestFlight/App Store Connect,
+# not to the public App Store. Never signs using ad-hoc or development profiles.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: App version matching pubspec.yaml (e.g. 1.0.0)
+        required: true
+        type: string
+      build_number:
+        description: New increasing App Store Connect build number
+        required: true
+        type: string
+      approval:
+        description: Type APPROVE_SEEPARAH_TESTFLIGHT_UPLOAD
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: seeparah-apple-internal
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.validate.outputs.version }}
+      build_number: ${{ steps.validate.outputs.build_number }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate owner approval and version
+        id: validate
+        env:
+          VERSION: ${{ inputs.version }}
+          BUILD_NUMBER: ${{ inputs.build_number }}
+          APPROVAL: ${{ inputs.approval }}
+        run: |
+          set -euo pipefail
+          [[ "$APPROVAL" == "APPROVE_SEEPARAH_TESTFLIGHT_UPLOAD" ]] || { echo "Missing manual release approval"; exit 1; }
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Invalid app version"; exit 1; }
+          [[ "$BUILD_NUMBER" =~ ^[1-9][0-9]{0,8}$ ]] || { echo "Build number must be a positive integer"; exit 1; }
+          EXISTING="$(sed -nE 's/^version: ([0-9]+\.[0-9]+\.[0-9]+).*/\1/p' apps/seeparah_flutter/pubspec.yaml)"
+          [[ "$EXISTING" == "$VERSION" ]] || { echo "App version differs from source"; exit 1; }
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "build_number=$BUILD_NUMBER" >> "$GITHUB_OUTPUT"
+
+  ios:
+    needs: preflight
+    environment: seeparah-apple-internal
+    runs-on: macos-latest
+    timeout-minutes: 90
+    env:
+      SEEPARAH_APPLE_TEAM_ID: ${{ secrets.SEEPARAH_APPLE_TEAM_ID }}
+      SEEPARAH_APPLE_DISTRIBUTION_P12_B64: ${{ secrets.SEEPARAH_APPLE_DISTRIBUTION_P12_B64 }}
+      SEEPARAH_APPLE_DISTRIBUTION_P12_PASSWORD: ${{ secrets.SEEPARAH_APPLE_DISTRIBUTION_P12_PASSWORD }}
+      SEEPARAH_IOS_APPSTORE_PROFILE_B64: ${{ secrets.SEEPARAH_IOS_APPSTORE_PROFILE_B64 }}
+      SEEPARAH_APPSTORE_API_KEY_ID: ${{ secrets.SEEPARAH_APPSTORE_API_KEY_ID }}
+      SEEPARAH_APPSTORE_ISSUER_ID: ${{ secrets.SEEPARAH_APPSTORE_ISSUER_ID }}
+      SEEPARAH_APPSTORE_API_P8_B64: ${{ secrets.SEEPARAH_APPSTORE_API_P8_B64 }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.50.0'
+          channel: stable
+          cache: true
+      - name: Test profile validation script before using secret signing data
+        working-directory: apps/seeparah_flutter
+        run: python3 -m unittest discover -s tool -p 'test_verify_ios_release_profile.py' -v
+      - name: Require all Apple release secrets
+        run: |
+          set -euo pipefail
+          for key in SEEPARAH_APPLE_TEAM_ID SEEPARAH_APPLE_DISTRIBUTION_P12_B64 SEEPARAH_APPLE_DISTRIBUTION_P12_PASSWORD SEEPARAH_IOS_APPSTORE_PROFILE_B64 SEEPARAH_APPSTORE_API_KEY_ID SEEPARAH_APPSTORE_ISSUER_ID SEEPARAH_APPSTORE_API_P8_B64; do
+            if [[ -z "${!key:-}" ]]; then echo "Missing Apple signing/upload secret: $key" >&2; exit 1; fi
+          done
+          [[ "$SEEPARAH_APPLE_TEAM_ID" =~ ^[A-Z0-9]{10}$ ]] || { echo "Invalid Team ID"; exit 1; }
+          [[ "$SEEPARAH_APPSTORE_API_KEY_ID" =~ ^[A-Z0-9]{10}$ ]] || { echo "Invalid App Store key ID"; exit 1; }
+          [[ "$SEEPARAH_APPSTORE_ISSUER_ID" =~ ^[a-fA-F0-9-]{36}$ ]] || { echo "Invalid issuer UUID"; exit 1; }
+      - name: Install locked Apple certificate and distribution profile
+        id: profile
+        working-directory: apps/seeparah_flutter
+        run: |
+          set -euo pipefail
+          export TEMP_KEYCHAIN="$RUNNER_TEMP/seeparah-release.keychain-db"
+          export TEMP_KEYCHAIN_PASSWORD="$(openssl rand -hex 24)"
+          printf '%s' "$SEEPARAH_APPLE_DISTRIBUTION_P12_B64" | base64 -D > "$RUNNER_TEMP/seeparah-distribution.p12"
+          printf '%s' "$SEEPARAH_IOS_APPSTORE_PROFILE_B64" | base64 -D > "$RUNNER_TEMP/seeparah.mobileprovision"
+          security create-keychain -p "$TEMP_KEYCHAIN_PASSWORD" "$TEMP_KEYCHAIN"
+          security unlock-keychain -p "$TEMP_KEYCHAIN_PASSWORD" "$TEMP_KEYCHAIN"
+          security set-keychain-settings -lut 14400 "$TEMP_KEYCHAIN"
+          security list-keychains -d user -s "$TEMP_KEYCHAIN"
+          security default-keychain -s "$TEMP_KEYCHAIN"
+          security import "$RUNNER_TEMP/seeparah-distribution.p12" -k "$TEMP_KEYCHAIN" -P "$SEEPARAH_APPLE_DISTRIBUTION_P12_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$TEMP_KEYCHAIN_PASSWORD" "$TEMP_KEYCHAIN"
+          security cms -D -i "$RUNNER_TEMP/seeparah.mobileprovision" > "$RUNNER_TEMP/seeparah-profile.plist"
+          python3 tool/verify_ios_release_profile.py \
+            --plist "$RUNNER_TEMP/seeparah-profile.plist" \
+            --team "$SEEPARAH_APPLE_TEAM_ID" \
+            --bundle-id com.seeparah.reader \
+            --github-output "$GITHUB_OUTPUT"
+          PROFILE_UUID="$(python3 -c 'import plistlib,sys; print(plistlib.load(open(sys.argv[1],"rb"))["UUID"])' "$RUNNER_TEMP/seeparah-profile.plist")"
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          cp "$RUNNER_TEMP/seeparah.mobileprovision" "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
+          mkdir -p "$HOME/.appstoreconnect/private_keys"
+          printf '%s' "$SEEPARAH_APPSTORE_API_P8_B64" | base64 -D > "$HOME/.appstoreconnect/private_keys/AuthKey_$SEEPARAH_APPSTORE_API_KEY_ID.p8"
+          chmod 600 "$HOME/.appstoreconnect/private_keys/AuthKey_$SEEPARAH_APPSTORE_API_KEY_ID.p8"
+      - name: Build iOS Flutter release and generate signing options
+        working-directory: apps/seeparah_flutter
+        env:
+          RELEASE_VERSION: ${{ needs.preflight.outputs.version }}
+          RELEASE_BUILD: ${{ needs.preflight.outputs.build_number }}
+          PROFILE_UUID: ${{ steps.profile.outputs.profile_uuid }}
+          PROFILE_NAME: ${{ steps.profile.outputs.profile_name }}
+        run: |
+          set -euo pipefail
+          python3 -m venv "$RUNNER_TEMP/seeparah-icons"
+          "$RUNNER_TEMP/seeparah-icons/bin/python" -m pip install pillow==11.3.0
+          "$RUNNER_TEMP/seeparah-icons/bin/python" tool/generate_icons.py
+          flutter create --platforms=android,ios,macos,windows,linux --org com.seeparah --project-name seeparah_reader .
+          python3 tool/configure_platforms.py
+          flutter pub get
+          dart run flutter_launcher_icons
+          flutter analyze --no-fatal-infos --no-fatal-warnings
+          flutter test
+          python3 - "$RUNNER_TEMP/Seeparah-ExportOptions.plist" "$SEEPARAH_APPLE_TEAM_ID" "$PROFILE_UUID" <<'PY'
+          import plistlib,sys
+          path,team,uuid=sys.argv[1:]
+          config={
+             "method":"app-store-connect","destination":"export",
+             "signingStyle":"manual","teamID":team,
+             "provisioningProfiles":{"com.seeparah.reader":uuid},
+             "stripSwiftSymbols":True
+          }
+          with open(path,"wb") as f:plistlib.dump(config,f)
+          PY
+          flutter build ios --release --no-codesign --config-only \
+            --dart-define=SEEPARAH_API_ORIGIN=https://seeparah.com
+          cd ios
+          pod install
+          mkdir -p ../build/ios/archive
+          xcodebuild archive \
+            -workspace Runner.xcworkspace -scheme Runner \
+            -configuration Release -destination 'generic/platform=iOS' \
+            -archivePath ../build/ios/archive/Runner.xcarchive \
+            DEVELOPMENT_TEAM="$SEEPARAH_APPLE_TEAM_ID" \
+            CODE_SIGN_STYLE=Manual \
+            PROVISIONING_PROFILE_SPECIFIER="$PROFILE_NAME" \
+            CODE_SIGN_IDENTITY='Apple Distribution' \
+            FLUTTER_BUILD_NAME="$RELEASE_VERSION" FLUTTER_BUILD_NUMBER="$RELEASE_BUILD"
+          mkdir -p ../build/ios/ipa
+          xcodebuild -exportArchive \
+            -archivePath ../build/ios/archive/Runner.xcarchive \
+            -exportPath ../build/ios/ipa \
+            -exportOptionsPlist "$RUNNER_TEMP/Seeparah-ExportOptions.plist"
+          test "$(find ../build/ios/ipa -name '*.ipa' -type f | wc -l | tr -d ' ')" -eq 1
+          codesign --verify --deep --strict ../build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app
+      - name: Upload to App Store Connect internal TestFlight processing
+        working-directory: apps/seeparah_flutter
+        run: |
+          set -euo pipefail
+          IPA="$(find build/ios/ipa -name '*.ipa' -type f | head -n 1)"
+          test -s "$IPA"
+          xcrun altool --upload-app -f "$IPA" -t ios \
+            --apiKey "$SEEPARAH_APPSTORE_API_KEY_ID" \
+            --apiIssuer "$SEEPARAH_APPSTORE_ISSUER_ID"
+      - name: Clean sensitive signing materials
+        if: always()
+        run: |
+          rm -f "$RUNNER_TEMP/seeparah-distribution.p12" \
+            "$RUNNER_TEMP/seeparah.mobileprovision" \
+            "$RUNNER_TEMP/seeparah-profile.plist" \
+            "$RUNNER_TEMP/Seeparah-ExportOptions.plist"
+          if [[ -n "${SEEPARAH_APPSTORE_API_KEY_ID:-}" ]]; then
+            rm -f "$HOME/.appstoreconnect/private_keys/AuthKey_$SEEPARAH_APPSTORE_API_KEY_ID.p8"
+          fi
+          security delete-keychain "$RUNNER_TEMP/seeparah-release.keychain-db" || true

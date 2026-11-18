@@ -39,6 +39,8 @@ jobs:
           flutter pub get
           flutter analyze --no-fatal-infos --no-fatal-warnings
           flutter test
+          python3 -m unittest discover -s tool -p 'test_verify_ios_release_profile.py' -v
+          ruby -ryaml -e 'YAML.parse_file("../../.github/workflows/apple-testflight-internal.yml")'
 
   android:
     name: Android debug APK
@@ -123,6 +125,16 @@ jobs:
           python tool/generate_icons.py
           flutter create --platforms=android,ios,macos,windows,linux --org com.seeparah --project-name seeparah_reader .
           python tool/configure_platforms.py
+          if [ "${{ matrix.platform }}" = "macos" ]; then
+            python3 - <<'PY'
+          import plistlib
+          with open("macos/Runner/Release.entitlements","rb") as f:
+              e=plistlib.load(f)
+          assert e.get("com.apple.security.app-sandbox") is True
+          assert e.get("com.apple.security.network.client") is True
+          print("Mac release sandbox and network client entitlements verified")
+          PY
+          fi
           flutter pub get
           dart run flutter_launcher_icons
           flutter build ${{ matrix.platform }} --release --dart-define=SEEPARAH_API_ORIGIN=https://seeparah.com
