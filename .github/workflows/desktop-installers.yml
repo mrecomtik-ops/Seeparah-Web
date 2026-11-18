@@ -14,9 +14,13 @@ permissions:
 
 jobs:
   windows:
-    name: Windows EXE installer (unverified QA artifact)
-    runs-on: windows-latest
-    timeout-minutes: 50
+    name: Windows setup smoke / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, windows-2025]
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
@@ -63,15 +67,19 @@ jobs:
           if (-not $?) { throw "Windows smoke test failed" }
       - uses: actions/upload-artifact@v4
         with:
-          name: seeparah-windows-exe-installer-qa
+          name: seeparah-windows-exe-installer-qa-${{ matrix.os }}
           path: apps/seeparah_flutter/dist/windows/*Setup.exe
           retention-days: 7
           if-no-files-found: error
 
   linux:
-    name: Linux DEB and AppImage (unverified QA artifacts)
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
+    name: Linux installer smoke / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 55
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
@@ -110,7 +118,7 @@ jobs:
           bash tool/smoke_linux.sh
       - uses: actions/upload-artifact@v4
         with:
-          name: seeparah-linux-deb-appimage-qa
+          name: seeparah-linux-deb-appimage-qa-${{ matrix.os }}
           path: |
             apps/seeparah_flutter/dist/linux/*.deb
             apps/seeparah_flutter/dist/linux/*.AppImage
