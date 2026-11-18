@@ -31,4 +31,18 @@ patch("macos/Runner/Configs/AppInfo.xcconfig","com.seeparah.seeparahReader",
       "com.seeparah.reader.macos")
 patch("macos/Runner/Configs/AppInfo.xcconfig","seeparah_reader","Seeparah")
 patch("windows/runner/Runner.rc","seeparah_reader","Seeparah")
+
+# Mac App Store apps are sandboxed. Without this entitlement the Flutter HTTP
+# client cannot download books/catalogue data on a signed Mac Store build.
+import plistlib
+mac_entitlements=ROOT/"macos/Runner/Release.entitlements"
+if mac_entitlements.exists():
+    with mac_entitlements.open("rb") as h:
+        entitlements=plistlib.load(h)
+    if entitlements.get("com.apple.security.app-sandbox") is not True:
+        raise RuntimeError("Mac App Store release requires the App Sandbox entitlement")
+    entitlements["com.apple.security.network.client"]=True
+    with mac_entitlements.open("wb") as h:
+        plistlib.dump(entitlements,h)
+
 print("Seeparah platform identifiers configured")
