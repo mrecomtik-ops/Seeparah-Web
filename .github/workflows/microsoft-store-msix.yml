@@ -3,9 +3,9 @@ name: Seeparah Microsoft Store MSIX package
 # so this path needs no paid code-signing certificate. The package is uploaded
 # to Partner Center by the owner; this workflow never submits or publishes.
 #
-# Pull requests build with placeholder identity values purely to prove that
-# packaging works. For a real upload, run it manually with the three values
-# shown in Partner Center > Seeparah > Product management > Product identity.
+# Identity values are public and come from Partner Center > Seeparah (Store ID
+# 9NWM8PBXLZ46) > Product identity. PR builds are QA only; upload only an
+# artifact from a manual run on main after device QA.
 on:
   pull_request:
     paths:
@@ -14,11 +14,13 @@ on:
   workflow_dispatch:
     inputs:
       identity_name:
-        description: "Package/Identity/Name from Partner Center (e.g. 12345Seeparah.Seeparah)"
+        description: "Package/Identity/Name from Partner Center"
         required: true
+        default: "Seeparah.Seeparah"
       publisher:
-        description: "Package/Identity/Publisher from Partner Center (CN=XXXXXXXX-XXXX-...)"
+        description: "Package/Identity/Publisher from Partner Center"
         required: true
+        default: "CN=D42BED1A-28F5-49EA-A73D-85C8F53BA774"
       publisher_display_name:
         description: "Package/Properties/PublisherDisplayName from Partner Center"
         required: true
@@ -59,8 +61,8 @@ jobs:
         shell: pwsh
         working-directory: apps/seeparah_flutter
         env:
-          IDENTITY_NAME: ${{ inputs.identity_name || 'SeeparahCI.Placeholder' }}
-          PUBLISHER: ${{ inputs.publisher || 'CN=00000000-0000-0000-0000-000000000000' }}
+          IDENTITY_NAME: ${{ inputs.identity_name || 'Seeparah.Seeparah' }}
+          PUBLISHER: ${{ inputs.publisher || 'CN=D42BED1A-28F5-49EA-A73D-85C8F53BA774' }}
           PUBLISHER_DISPLAY_NAME: ${{ inputs.publisher_display_name || 'Seeparah' }}
           STORE_VERSION: ${{ inputs.store_version || '1.0.0.0' }}
         run: |
@@ -82,6 +84,6 @@ jobs:
           (Get-FileHash "out/Seeparah_$($env:STORE_VERSION)_x64.msix" -Algorithm SHA256).Hash | Out-File out/SHA256.txt
       - uses: actions/upload-artifact@v4
         with:
-          name: seeparah-store-msix${{ github.event_name == 'pull_request' && '-placeholder-identity-DO-NOT-UPLOAD' || '' }}
+          name: seeparah-store-msix${{ github.event_name == 'pull_request' && '-pr-qa' || '' }}
           path: apps/seeparah_flutter/out/
           retention-days: 30
