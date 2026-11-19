@@ -1,0 +1,62 @@
+name: Seeparah Linux store packages (Snap + Flathub tarball)
+# Builds a strict-confinement Snap and the Linux bundle tarball that the
+# Flathub manifest consumes. Artifacts only: nothing is uploaded to the Snap
+# Store or Flathub from here. Publishing needs the owner's store login.
+on:
+  pull_request:
+    paths:
+      - "apps/seeparah_flutter/**"
+      - ".github/workflows/linux-store-packages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  snap:
+    runs-on: ubuntu-24.04   # matches the snap's core24 base
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.50.0"
+          channel: stable
+          cache: true
+      - name: Install Linux build dependencies
+        run: sudo apt-get update && sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev
+      - name: Build Linux release bundle
+        working-directory: apps/seeparah_flutter
+        run: |
+          set -euo pipefail
+          python -m pip install --user pillow==11.3.0
+          python tool/generate_icons.py
+          flutter create --platforms=linux --org com.seeparah --project-name seeparah_reader .
+          python tool/configure_platforms.py
+          flutter pub get
+          flutter build linux --release --dart-define=SEEPARAH_API_ORIGIN=https://seeparah.com
+          test -x build/linux/x64/release/bundle/seeparah_reader
+          VERSION="$(sed -nE 's/^version: ([0-9]+\.[0-9]+\.[0-9]+).*/\1/p' pubspec.yaml)"
+          mkdir -p dist
+          tar -C build/linux/x64/release -czf "dist/seeparah-linux-x64-$VERSION.tar.gz" bundle --transform 's,^bundle,.,'
+          # Stage snap metadata next to the built bundle
+          mkdir -p snap/gui
+          cp packaging/snap/snapcraft.yaml snap/
+          cp packaging/snap/gui/seeparah.desktop snap/gui/
+          python -c "from PIL import Image; Image.open('assets/brand/app_icon_1024.png').resize((512,512)).save('snap/gui/seeparah.png')"
+      - uses: snapcore/action-build@v1
+        id: snap
+        with:
+          path: apps/seeparah_flutter
+      - name: Install and smoke-test snap
+        run: |
+          sudo snap install --dangerous "${{ steps.snap.outputs.snap }}"
+          snap info --verbose "${{ steps.snap.outputs.snap }}" | head -20
+          sha256sum "${{ steps.snap.outputs.snap }}" apps/seeparah_flutter/dist/*.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: seeparah-linux-store-packages
+          path: |
+            ${{ steps.snap.outputs.snap }}
+            apps/seeparah_flutter/dist/*.tar.gz
+          retention-days: 30

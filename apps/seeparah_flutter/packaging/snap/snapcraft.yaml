@@ -1,0 +1,39 @@
+# Snap Store package for the Seeparah native reader.
+# CI copies this file to apps/seeparah_flutter/snap/ AFTER `flutter build linux --release`
+# has produced build/linux/x64/release/bundle; the snap repackages that tested bundle.
+# The snap name must first be registered by the owner: `snapcraft register seeparah`.
+name: seeparah
+title: Seeparah
+base: core24
+version: "1.0.0"
+summary: Free classics and sacred texts, with offline reading
+description: |
+  Seeparah is a free multilingual reading app. Search the published Seeparah
+  catalogue of public-domain literature and source-verified sacred texts, read
+  in their available original languages, and save editions for offline reading.
+
+  Highlights, notes, bookmarks, reading progress and page-local ink are stored
+  on your device. No account, subscription or purchase is needed to read.
+license: LicenseRef-proprietary
+website: https://seeparah.com
+contact: seeparah.app@gmail.com
+icon: snap/gui/seeparah.png
+grade: stable
+confinement: strict
+platforms:
+  amd64:
+
+apps:
+  seeparah:
+    command: usr/lib/seeparah/seeparah_reader
+    desktop: snap/gui/seeparah.desktop
+    extensions: [gnome]
+    plugs:
+      - network
+
+parts:
+  seeparah:
+    plugin: dump
+    source: build/linux/x64/release/bundle
+    organize:
+      "*": usr/lib/seeparah/
