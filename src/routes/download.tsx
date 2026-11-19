@@ -130,6 +130,11 @@ function DownloadPage() {
           The website's installation is not the same as downloading complete offline books;
           full offline reading is a feature of the native app.
         </p>
+        <ul className="mt-4 space-y-2 text-sm leading-6 text-muted-foreground">
+          <li><strong className="text-foreground">iPhone &amp; iPad:</strong> open seeparah.com in Safari, tap <strong>Share</strong>, then <strong>Add to Home Screen</strong>.</li>
+          <li><strong className="text-foreground">Android:</strong> open seeparah.com in Chrome, tap the <strong>⋮</strong> menu, then <strong>Install app</strong> or <strong>Add to Home screen</strong>.</li>
+          <li><strong className="text-foreground">Windows, macOS &amp; Linux:</strong> in Chrome or Edge, click the <strong>Install</strong> icon in the address bar. On a Mac with Safari, choose <strong>File → Add to Dock</strong>.</li>
+        </ul>
         <p className="mt-3 text-xs leading-5 text-muted-foreground">
           Offline copies belong to the device where they were saved. Account-based synchronization
           between devices is not yet available. Previously downloaded content may require an
