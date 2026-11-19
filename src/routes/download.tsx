@@ -26,11 +26,11 @@ const verifiedReleaseLinks: Record<string, string | null> = {
 };
 
 const platforms = [
-  { name: "Android", icon: Smartphone, channel: "Google Play", detail: "Available through Google Play after review.", actions: [{ id: "googlePlay", label: "Get it on Google Play" }] },
-  { name: "iPhone & iPad", icon: Apple, channel: "Apple App Store", detail: "Available through the Apple App Store after review.", actions: [{ id: "appleIos", label: "View on App Store" }] },
-  { name: "Windows", icon: MonitorDown, channel: "Microsoft Store + direct .exe", detail: "Choose Microsoft Store or download a verified signed setup file directly.", actions: [{ id: "microsoftStore", label: "Microsoft Store" }, { id: "windowsExe", label: "Download .exe" }] },
-  { name: "macOS", icon: Laptop, channel: "Mac App Store", detail: "The Mac edition will be distributed through the official Mac App Store once approved.", actions: [{ id: "appleMac", label: "Mac App Store" }] },
-  { name: "Linux", icon: Download, channel: "Flathub + direct .AppImage / .deb", detail: "Choose Flathub or a verified native Linux download.", actions: [{ id: "flathub", label: "Flathub" }, { id: "linuxAppImage", label: "Download .AppImage" }, { id: "linuxDeb", label: "Download .deb" }] },
+  { name: "Android", icon: Smartphone, channel: "Planned: Google Play + other Android stores", detail: "Not yet released. Until then, install the web app from Chrome (see below).", actions: [{ id: "googlePlay", label: "Get it on Google Play" }] },
+  { name: "iPhone & iPad", icon: Apple, channel: "Planned: Apple App Store", detail: "Not yet released and not yet submitted to Apple. Until then, add the web app to your Home Screen from Safari (see below).", actions: [{ id: "appleIos", label: "View on App Store" }] },
+  { name: "Windows", icon: MonitorDown, channel: "Planned: Microsoft Store", detail: "Not yet released; the Microsoft Store listing is in preparation. A direct setup file will only be offered once it is signed and verified.", actions: [{ id: "microsoftStore", label: "Microsoft Store" }, { id: "windowsExe", label: "Download .exe" }] },
+  { name: "macOS", icon: Laptop, channel: "Planned: Mac App Store", detail: "Not yet released. Until then, add the web app to the Dock from Safari or install it from Chrome (see below).", actions: [{ id: "appleMac", label: "Mac App Store" }] },
+  { name: "Linux", icon: Download, channel: "Planned: Flathub, Snap Store + direct downloads", detail: "Not yet released. Downloads will only appear here after a verified release.", actions: [{ id: "flathub", label: "Flathub" }, { id: "linuxAppImage", label: "Download .AppImage" }, { id: "linuxDeb", label: "Download .deb" }] },
 ] as const;
 
 export const Route = createFileRoute("/download")({
