@@ -68,3 +68,34 @@ Seeparah is free to use. Available languages and titles vary by book. Source and
 supported languages or availability.** All submitted assets must depict the
 actual application. User-owned accounts must review the required legal,
 content, privacy and financial declarations.
+
+## Free distribution channels — store-specific answers (verified from source, 2026-11-19)
+
+Verified in `apps/seeparah_flutter/lib`: the native app only calls the public
+read-only catalogue API on `https://seeparah.com` and opens seeparah.com/legal
+links. No sign-in, analytics, crash reporting, ads, push, payments or Google
+Mobile Services dependencies (`http`, `path_provider`, `shared_preferences`,
+`url_launcher` only). Annotations, progress and offline editions stay on device.
+
+- **Data collection / data safety:** the app itself collects no personal data
+  and shares none. Network requests to seeparah.com carry standard IP/user-agent
+  connection data handled under https://seeparah.com/legal#privacy.
+- **Age rating questionnaire (IARC):** no violence, sexual content, gambling,
+  user-to-user communication, location sharing or purchases. Religious texts are
+  reference content, not user-generated. Expect an "Everyone / 3+" rating; answer the
+  questionnaire honestly rather than targeting a rating.
+- **Permissions:** Internet only (MSIX capability `internetClient`; Snap plug `network`).
+- **Microsoft Store:** product "Seeparah", Store ID `9NWM8PBXLZ46`
+  (https://apps.microsoft.com/detail/9NWM8PBXLZ46 — live only after certification).
+  Identity `Seeparah.Seeparah`, publisher `CN=D42BED1A-28F5-49EA-A73D-85C8F53BA774`,
+  publisher display name `Seeparah`. Package from `microsoft-store-msix.yml`
+  (unsigned; Microsoft signs Store packages for free). Category: Books & reference.
+  Name reservation lapses if not submitted within 3 months (by ~2027-02-19).
+- **Huawei AppGallery:** no GMS code paths, so no HMS replacement work is needed;
+  still requires a real-device test on a Huawei phone before claiming compatibility.
+- **Samsung Galaxy Store:** requires commercial seller status with a D-U-N-S number
+  even for free apps; not available to an individual publisher.
+- **F-Droid:** not eligible — the repository has no free/open-source licence.
+- **Flathub / Snap:** AppStream metadata in `packaging/linux/`; Snap in
+  `packaging/snap/`; Flathub manifest template in `packaging/flathub/` (needs a
+  public release tarball URL + SHA-256 before submission).

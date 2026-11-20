@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Seeparah
+Comment=Free books and offline reading
+Exec=seeparah
+Icon=${SNAP}/meta/gui/seeparah.png
+Terminal=false
+Categories=Education;Literature;
+StartupNotify=true

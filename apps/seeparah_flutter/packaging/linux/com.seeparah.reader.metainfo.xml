@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.seeparah.reader</id>
+  <name>Seeparah</name>
+  <summary>Free classics and sacred texts, with offline reading</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>LicenseRef-proprietary</project_license>
+  <developer id="com.seeparah">
+    <name>Seeparah</name>
+  </developer>
+  <description>
+    <p>Seeparah is a free multilingual reading app. Search the published Seeparah catalogue of public-domain literature and source-verified sacred texts, read them in their available original languages, and save editions for offline reading.</p>
+    <p>Highlights, notes, bookmarks, reading progress and page-local ink are stored on your device. No account, subscription or purchase is needed to read.</p>
+  </description>
+  <launchable type="desktop-id">com.seeparah.reader.desktop</launchable>
+  <url type="homepage">https://seeparah.com</url>
+  <url type="help">https://seeparah.com/support</url>
+  <url type="contact">https://seeparah.com/legal</url>
+  <categories>
+    <category>Education</category>
+    <category>Literature</category>
+  </categories>
+  <content_rating type="oars-1.1"/>
+  <!-- Flathub requires real screenshots of the app; add after a release build is captured. -->
+  <releases>
+    <release version="1.0.0" date="2026-11-19"/>
+  </releases>
+</component>

@@ -18,6 +18,9 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^6.0.0
   flutter_launcher_icons: ^0.14.4
+  # Microsoft Store packaging. Store MSIX uploads are re-signed by Microsoft for free,
+  # so no paid code-signing certificate is needed for the Store channel.
+  msix: ^3.18.0
   path_provider_platform_interface: ^2.1.2
 flutter:
   uses-material-design: true
