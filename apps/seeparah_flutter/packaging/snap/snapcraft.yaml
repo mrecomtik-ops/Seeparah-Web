@@ -1,4 +1,5 @@
 # Snap Store package for the Seeparah native reader.
+# snap/gui/seeparah.desktop and snap/gui/seeparah.png are picked up automatically.
 # CI copies this file to apps/seeparah_flutter/snap/ AFTER `flutter build linux --release`
 # has produced build/linux/x64/release/bundle; the snap repackages that tested bundle.
 # The snap name must first be registered by the owner: `snapcraft register seeparah`.
@@ -17,7 +18,6 @@ description: |
 license: LicenseRef-proprietary
 website: https://seeparah.com
 contact: seeparah.app@gmail.com
-icon: snap/gui/seeparah.png
 grade: stable
 confinement: strict
 platforms:
@@ -26,7 +26,6 @@ platforms:
 apps:
   seeparah:
     command: usr/lib/seeparah/seeparah_reader
-    desktop: snap/gui/seeparah.desktop
     extensions: [gnome]
     plugs:
       - network
