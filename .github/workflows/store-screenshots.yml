@@ -59,7 +59,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout --orphan store-screenshots-output
-          git rm -rq --cached . ; git clean -fdxq -e .git
+          git rm -rqf --cached . ; git clean -fdxq -e .git
           mkdir -p microsoft-store && cp "$TMP"/*.png microsoft-store/
           printf 'Real Seeparah Windows app frames from run %s (commit %s).\n' "$GITHUB_RUN_ID" "$GITHUB_SHA" > microsoft-store/SOURCE.txt
           git add microsoft-store
