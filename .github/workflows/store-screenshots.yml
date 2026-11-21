@@ -34,7 +34,6 @@ jobs:
           Remove-Item -Force -ErrorAction SilentlyContinue test/widget_test.dart
           python tool/configure_platforms.py
           flutter pub get
-          dart run flutter_launcher_icons
       - name: Capture screenshots from the live app
         shell: pwsh
         working-directory: apps/seeparah_flutter
