@@ -12,6 +12,21 @@ on:
         description: "Type APPROVE_SEEPARAH_DESKTOP_RELEASE to confirm QA and redistribution review"
         required: true
         type: string
+      include_windows_installer:
+        description: "Include the direct Windows Setup.exe (requires a trusted code-signing certificate; the Microsoft Store MSIX does not)"
+        required: true
+        type: boolean
+        default: false
+      include_android_apk:
+        description: "Include the release-signed Android APK (requires Android keystore secrets)"
+        required: true
+        type: boolean
+        default: false
+      android_version_code:
+        description: "Android versionCode when including the APK (integer, must increase every release)"
+        required: false
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -43,6 +58,7 @@ jobs:
 
   windows:
     needs: preflight
+    if: inputs.include_windows_installer
     runs-on: windows-latest
     environment: seeparah-desktop-production
     timeout-minutes: 70
@@ -164,9 +180,26 @@ jobs:
           retention-days: 5
           if-no-files-found: error
 
+  android:
+    needs: preflight
+    if: inputs.include_android_apk
+    uses: ./.github/workflows/android-signed-apk.yml
+    with:
+      version_code: ${{ inputs.android_version_code }}
+      version_name: ${{ needs.preflight.outputs.version }}
+    secrets: inherit
+
   create-reviewed-draft:
     name: Create private draft release for owner review
-    needs: [preflight, windows, linux]
+    needs: [preflight, windows, linux, android]
+    # Each platform has its own gate: Linux is always required; Windows and
+    # Android are included only when requested, and then must have succeeded.
+    if: >-
+      always() &&
+      needs.preflight.result == 'success' &&
+      needs.linux.result == 'success' &&
+      (needs.windows.result == 'success' || (needs.windows.result == 'skipped' && !inputs.include_windows_installer)) &&
+      (needs.android.result == 'success' || (needs.android.result == 'skipped' && !inputs.include_android_apk))
     runs-on: ubuntu-latest
     environment: seeparah-desktop-production
     permissions:
@@ -177,12 +210,25 @@ jobs:
           pattern: seeparah-production-*
           merge-multiple: true
           path: dist
-      - name: Check signed release asset set
+      - uses: actions/download-artifact@v4
+        if: inputs.include_android_apk
+        with:
+          name: seeparah-android-signed-apk-${{ needs.preflight.outputs.version }}
+          path: dist-android
+      - name: Check release asset set
         env:
           RELEASE_VERSION: ${{ needs.preflight.outputs.version }}
+          INCLUDE_WINDOWS: ${{ inputs.include_windows_installer }}
+          INCLUDE_ANDROID: ${{ inputs.include_android_apk }}
         run: |
           set -euo pipefail
-          test -s "dist/Seeparah-$RELEASE_VERSION-Windows-x64-Setup.exe"
+          if [[ "$INCLUDE_WINDOWS" == "true" ]]; then test -s "dist/Seeparah-$RELEASE_VERSION-Windows-x64-Setup.exe"; fi
+          if [[ "$INCLUDE_ANDROID" == "true" ]]; then
+            test -s "dist-android/Seeparah-$RELEASE_VERSION-android.apk"
+            mv "dist-android/Seeparah-$RELEASE_VERSION-android.apk" dist/
+          fi
+          # Never ship an unsigned direct Windows installer.
+          if ls dist/*Setup.exe >/dev/null 2>&1 && [[ "$INCLUDE_WINDOWS" != "true" ]]; then echo "Unexpected Windows installer"; exit 1; fi
           test -s "dist/Seeparah-$RELEASE_VERSION-Linux-amd64.deb"
           test -s "dist/Seeparah-$RELEASE_VERSION-Linux-x86_64.AppImage"
           cd dist
@@ -202,4 +248,4 @@ jobs:
           gh release create "v$RELEASE_VERSION" dist/* \
             --target "$GITHUB_SHA" --draft \
             --title "Seeparah $RELEASE_VERSION" \
-            --notes "Owner review required before public desktop distribution. Signed Windows installer plus tested Linux packages. Verify release rights, offline reading, full SHA256SUMS and installer update procedures before publishing."
+            --notes "Owner review required before public distribution. Contains tested Linux packages, plus the signed Windows installer and/or release-signed Android APK only when those were requested and passed their gates. Windows users without a direct installer should use the Microsoft Store listing. Verify release rights, offline reading, SHA256SUMS and update procedures before publishing."

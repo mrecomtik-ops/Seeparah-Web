@@ -4,6 +4,14 @@ name: Seeparah signed Android APK (Huawei / Uptodown / GitHub Releases)
 # workflow but needs NO Google Play service account. Artifact only: nothing
 # is uploaded to any store or published from here.
 on:
+  workflow_call:
+    inputs:
+      version_code:
+        required: true
+        type: string
+      version_name:
+        required: true
+        type: string
   workflow_dispatch:
     inputs:
       version_code:
