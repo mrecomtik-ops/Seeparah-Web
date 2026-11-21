@@ -1,6 +1,7 @@
-# Flathub manifest — BLOCKED until a public GitHub Release contains the
-# Linux x64 bundle tarball. Replace RELEASE_URL and SHA256 with real values
-# from that release, then open the submission PR against flathub/flathub.
+# Flathub manifest for Seeparah 1.0.0.
+# Repackages the tested Linux .deb from the v1.0.0 GitHub release (built by
+# desktop-production-release.yml run 44893468827). The URL only resolves after
+# the owner publishes the draft release; the SHA-256 is from that run's log.
 app-id: com.seeparah.reader
 runtime: org.gnome.Platform
 runtime-version: "48"
@@ -16,20 +17,21 @@ modules:
   - name: seeparah
     buildsystem: simple
     build-commands:
-      - mkdir -p /app/lib/seeparah /app/bin
-      - cp -r bundle/* /app/lib/seeparah/
+      - ar x Seeparah-1.0.0-Linux-amd64.deb
+      - mkdir -p deb && tar -xf data.tar.* -C deb
+      - test -x deb/usr/lib/seeparah/seeparah_reader
+      - mkdir -p /app/lib /app/bin
+      - cp -a deb/usr/lib/seeparah /app/lib/seeparah
       - ln -s /app/lib/seeparah/seeparah_reader /app/bin/seeparah
       - install -Dm644 com.seeparah.reader.desktop /app/share/applications/com.seeparah.reader.desktop
       - install -Dm644 com.seeparah.reader.metainfo.xml /app/share/metainfo/com.seeparah.reader.metainfo.xml
-      - install -Dm644 seeparah.png /app/share/icons/hicolor/512x512/apps/com.seeparah.reader.png
+      - install -Dm644 deb/usr/share/icons/hicolor/256x256/apps/seeparah.png /app/share/icons/hicolor/256x256/apps/com.seeparah.reader.png
     sources:
-      - type: archive
-        url: RELEASE_URL/seeparah-linux-x64-1.0.0.tar.gz
-        sha256: SHA256
-        dest: bundle
+      - type: file
+        url: https://github.com/mrecomtik-ops/Seeparah-Web/releases/download/v1.0.0/Seeparah-1.0.0-Linux-amd64.deb
+        sha256: 5f92ed7abec6709ea2a37652d5776dd745680bc745b10be54c23ca22a64e735b
+        only-arches: [x86_64]
       - type: file
         path: ../linux/com.seeparah.reader.metainfo.xml
       - type: file
         path: ../linux/com.seeparah.reader.desktop
-      - type: file
-        path: seeparah.png
