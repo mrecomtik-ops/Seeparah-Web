@@ -21,8 +21,25 @@
     <category>Literature</category>
   </categories>
   <content_rating type="oars-1.1"/>
-  <!-- Flathub requires real screenshots of the app; add after a release build is captured. -->
+  <screenshots>
+    <screenshot type="default">
+      <caption>Discover the free catalogue</caption>
+      <image>https://raw.githubusercontent.com/mrecomtik-ops/Seeparah-Web/store-screenshots-output/microsoft-store/01-discover.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Sacred texts library</caption>
+      <image>https://raw.githubusercontent.com/mrecomtik-ops/Seeparah-Web/store-screenshots-output/microsoft-store/02-sacred-texts.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Reading view with adjustable text size</caption>
+      <image>https://raw.githubusercontent.com/mrecomtik-ops/Seeparah-Web/store-screenshots-output/microsoft-store/04-reader.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Offline editions in My library</caption>
+      <image>https://raw.githubusercontent.com/mrecomtik-ops/Seeparah-Web/store-screenshots-output/microsoft-store/06-my-library-offline.png</image>
+    </screenshot>
+  </screenshots>
   <releases>
-    <release version="1.0.0" date="2026-11-19"/>
+    <release version="1.0.0" date="2026-11-21"/>
   </releases>
 </component>
