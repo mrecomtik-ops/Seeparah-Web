@@ -1,0 +1,67 @@
+name: Seeparah Microsoft Store screenshots (real app)
+# Runs the real Windows app against the live seeparah.com catalogue and saves
+# its own rendered frames (1920x1080 PNG) for the Microsoft Store listing.
+# Output is committed to the `store-screenshots-output` branch for review;
+# nothing is uploaded to the Store from here.
+on:
+  pull_request:
+    paths:
+      - "apps/seeparah_flutter/integration_test/store_screenshots_test.dart"
+      - ".github/workflows/store-screenshots.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows-screenshots:
+    runs-on: windows-2022
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.50.0"
+          channel: stable
+          cache: true
+      - name: Prepare Windows runner
+        shell: pwsh
+        working-directory: apps/seeparah_flutter
+        run: |
+          python -m pip install --user pillow==11.3.0
+          python tool/generate_icons.py
+          flutter create --platforms=windows --org com.seeparah --project-name seeparah_reader .
+          Remove-Item -Force -ErrorAction SilentlyContinue test/widget_test.dart
+          python tool/configure_platforms.py
+          flutter pub get
+      - name: Capture screenshots from the live app
+        shell: pwsh
+        working-directory: apps/seeparah_flutter
+        run: |
+          $out = Join-Path $PWD 'store-screenshots'
+          flutter test integration_test/store_screenshots_test.dart -d windows `
+            --dart-define=SEEPARAH_API_ORIGIN=https://seeparah.com `
+            --dart-define=SCREENSHOT_DIR=$out
+          if ($LASTEXITCODE -ne 0) { throw "Screenshot run failed" }
+          Get-ChildItem $out | Format-Table Name, Length
+      - uses: actions/upload-artifact@v4
+        with:
+          name: seeparah-store-screenshots
+          path: apps/seeparah_flutter/store-screenshots/*.png
+          retention-days: 30
+          if-no-files-found: error
+      - name: Publish screenshots to review branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          SRC="$GITHUB_WORKSPACE/apps/seeparah_flutter/store-screenshots"
+          TMP="$RUNNER_TEMP/shots"; mkdir -p "$TMP"; cp "$SRC"/*.png "$TMP/"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout --orphan store-screenshots-output
+          git rm -rqf --cached . ; git clean -fdxq -e .git
+          mkdir -p microsoft-store && cp "$TMP"/*.png microsoft-store/
+          printf 'Real Seeparah Windows app frames from run %s (commit %s).\n' "$GITHUB_RUN_ID" "$GITHUB_SHA" > microsoft-store/SOURCE.txt
+          git add microsoft-store
+          git commit -qm "Store screenshots from run $GITHUB_RUN_ID"
+          git push -f origin HEAD:store-screenshots-output
