@@ -76,6 +76,8 @@ jobs:
           python -m pip install --user pillow==11.3.0
           python tool/generate_icons.py
           flutter create --platforms=windows --org com.seeparah --project-name seeparah_reader .
+          # flutter create adds a template test referencing MyApp; Seeparah's tests live in test/*.dart
+          Remove-Item -Force -ErrorAction SilentlyContinue test/widget_test.dart
           python tool/configure_platforms.py
           flutter pub get
           dart run flutter_launcher_icons
@@ -148,6 +150,8 @@ jobs:
           python -m pip install --user pillow==11.3.0
           python tool/generate_icons.py
           flutter create --platforms=linux --org com.seeparah --project-name seeparah_reader .
+          # flutter create adds a template test referencing MyApp; Seeparah's tests live in test/*.dart
+          rm -f test/widget_test.dart
           python tool/configure_platforms.py
           flutter pub get
           flutter analyze --no-fatal-infos --no-fatal-warnings
