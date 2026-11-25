@@ -385,6 +385,70 @@ async function recoverInterruptedImports(client:SupabaseAdminDb):Promise<void>{
     }).eq("id",job.id).eq("status","failed");
   }
 }
+/** Retry only quota-blocked first attempts after the coordinator has proven
+ * that PostgreSQL is writable. Keep the recovery one-at-a-time and fail closed.
+ */
+export const READ_ONLY_SOURCE_ARCHIVE_ERROR =
+  "Source archive upload failed: The database is currently in read-only mode. Please try again later.";
+
+export function canRetryReadOnlyArchiveJob(job:{
+  status:string; gutenberg_id:number; attempts:number;
+  book_id:string|null; last_error:string|null;
+  metadata:Record<string,unknown>|null;
+}):boolean{
+  return job.status==="failed" && Number.isSafeInteger(job.gutenberg_id) &&
+    job.gutenberg_id>0 && job.attempts===1 && job.book_id===null &&
+    job.last_error===READ_ONLY_SOURCE_ARCHIVE_ERROR &&
+    job.metadata?.["autopilot"]===true;
+}
+
+async function retryOneReadOnlyArchiveJob(client:SupabaseAdminDb):Promise<void>{
+  const {count,error:depthError}=await client.from("gutenberg_import_jobs")
+    .select("id",{count:"exact",head:true}).in("status",["queued","processing"]);
+  if(depthError || count!==0){
+    if(depthError)console.error("[gutenberg-autopilot] archive recovery queue depth",depthError.message);
+    return;
+  }
+  const {data:job,error:jobError}=await client.from("gutenberg_import_jobs")
+    .select("id,gutenberg_id,status,attempts,book_id,last_error,metadata")
+    .eq("status","failed").eq("last_error",READ_ONLY_SOURCE_ARCHIVE_ERROR)
+    .eq("attempts",1).is("book_id",null)
+    .contains("metadata",{autopilot:true})
+    .order("id",{ascending:true}).limit(1).maybeSingle();
+  if(jobError){
+    console.error("[gutenberg-autopilot] archive recovery lookup",jobError.message);
+    return;
+  }
+  if(!job || !canRetryReadOnlyArchiveJob(job))return;
+  // The previous source upload failed before book creation; still check
+  // for orphaned editions before safely retrying the original source.
+  const {data:existing,error:lookupError}=await client.from("books")
+    .select("id,status").eq("import_key","gutenberg-fast:"+job.gutenberg_id+":en")
+    .limit(1).maybeSingle();
+  if(lookupError){
+    console.error("[gutenberg-autopilot] archive recovery duplicate check",lookupError.message);
+    return;
+  }
+  const now=new Date().toISOString();
+  if(existing){
+    const {error:holdError}=await client.from("gutenberg_import_jobs").update({
+      status:"in_review",book_id:existing.id,
+      last_error:"Existing "+existing.status+" edition found; manual source reconciliation required",
+      updated_at:now,
+    }).eq("id",job.id).eq("status","failed").eq("attempts",1)
+      .eq("last_error",READ_ONLY_SOURCE_ARCHIVE_ERROR).is("book_id",null);
+    if(holdError)console.error("[gutenberg-autopilot] existing edition hold",holdError.message);
+    return;
+  }
+  const {error:retryError}=await client.from("gutenberg_import_jobs").update({
+    status:"queued",last_error:null,updated_at:now,
+    metadata:{...job.metadata,readOnlyArchiveRecovery:"verified-writable-coordinator-v1"},
+  }).eq("id",job.id).eq("status","failed").eq("attempts",1)
+    .eq("last_error",READ_ONLY_SOURCE_ARCHIVE_ERROR).is("book_id",null);
+  if(retryError)console.error("[gutenberg-autopilot] archive recovery requeue",retryError.message);
+  else console.log("[gutenberg-autopilot] requeued one quota-blocked source",job.gutenberg_id);
+}
+
 export async function runGutenbergAutopilotOnce():Promise<void>{
   const client=db();
   const {data:settings,error:settingsError}=await client.from("gutenberg_autopilot_settings")
@@ -402,6 +466,9 @@ export async function runGutenbergAutopilotOnce():Promise<void>{
     console.error("[gutenberg-autopilot] batch preparation failed",planError.message);return;
   }
   if(plan?.status==="complete"||plan?.status==="paused")return;
+  // The coordinator performs SELECT FOR UPDATE; success proves write access.
+  // A read-only database must never trigger 8,202 quota-failure retries.
+  await retryOneReadOnlyArchiveJob(client);
   if(plan?.status!=="needs_catalog"&&plan?.status!=="running"&&
      plan?.status!=="batch_started")return;
   // Scan the whole official multilingual inventory in bounded slices even

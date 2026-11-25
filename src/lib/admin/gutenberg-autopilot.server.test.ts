@@ -91,3 +91,22 @@ describe("Interrupted import early isolation respects catalogue continuity", () 
    expect(canRetryInterruptedGutenbergJob({...job,last_error:"Rights not approved"})).toBe(false);
  });
 });
+
+describe("Read-only quota import recovery", () => {
+  it("retries only the exact first-attempt source-archive failure with no linked book", async () => {
+    const {canRetryReadOnlyArchiveJob,READ_ONLY_SOURCE_ARCHIVE_ERROR} =
+      await import("./gutenberg-autopilot.server");
+    const job={
+      status:"failed",gutenberg_id:79907,attempts:1,book_id:null,
+      last_error:READ_ONLY_SOURCE_ARCHIVE_ERROR,
+      metadata:{autopilot:true},
+    };
+    expect(canRetryReadOnlyArchiveJob(job)).toBe(true);
+    expect(canRetryReadOnlyArchiveJob({...job,attempts:2})).toBe(false);
+    expect(canRetryReadOnlyArchiveJob({...job,book_id:"existing-book"})).toBe(false);
+    expect(canRetryReadOnlyArchiveJob({...job,status:"published"})).toBe(false);
+    expect(canRetryReadOnlyArchiveJob({...job,metadata:{autopilot:false}})).toBe(false);
+    expect(canRetryReadOnlyArchiveJob({...job,last_error:"Rights not verified"})).toBe(false);
+    expect(canRetryReadOnlyArchiveJob({...job,last_error:"Source archive upload failed: <none>"})).toBe(false);
+  });
+});

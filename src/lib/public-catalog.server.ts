@@ -62,28 +62,58 @@ const LIBRARY_INDEX_COLUMNS = [
 async function pagedPublishedBooks(
   columns: string,
   options: { authorId?: string; authorSearch?: string; titleSearch?: string; descending?: boolean } = {},
+  concurrency = 1,
 ): Promise<Book[]> {
   const db = await admin();
   const books: Book[] = [];
   const pageSize = 500;
-  for (let start = 0; start < 100_000; start += pageSize) {
-    let query = db.from("books").select(columns).eq("status", "published");
-    if (options.authorId) query = query.eq("author_id", options.authorId);
-    if (options.authorSearch) query = query.ilike("author", options.authorSearch);
-    if (options.titleSearch) query = query.ilike("title", options.titleSearch);
-    const { data, error } = await query
-      .order("created_at", { ascending: !options.descending })
-      .order("id", { ascending: true })
-      .range(start, start + pageSize - 1);
-    if (error) throw new Error(error.message);
-    books.push(...(data ?? []).map(asPublicBook));
-    if ((data ?? []).length < pageSize) return books;
+  // Only the public metadata index opts into bounded concurrent reads.
+  // Other callers (search and full-edition views) remain sequential.
+  const windowSize = Math.max(1, Math.min(3, Math.floor(concurrency)));
+  for (let start = 0; start < 100_000; start += pageSize * windowSize) {
+    const pages = await Promise.all(Array.from({ length: windowSize }, async (_, index) => {
+      const offset = start + index * pageSize;
+      let query = db.from("books").select(columns).eq("status", "published");
+      if (options.authorId) query = query.eq("author_id", options.authorId);
+      if (options.authorSearch) query = query.ilike("author", options.authorSearch);
+      if (options.titleSearch) query = query.ilike("title", options.titleSearch);
+      const { data, error } = await query
+        .order("created_at", { ascending: !options.descending })
+        .order("id", { ascending: true })
+        .range(offset, offset + pageSize - 1);
+      if (error) throw new Error(error.message);
+      return (data ?? []).map(asPublicBook);
+    }));
+    // Promise.all retains the original range order, so sorting and facets
+    // remain deterministic even when database requests finish out of order.
+    for (const page of pages) {
+      books.push(...page);
+      if (page.length < pageSize) return books;
+    }
   }
   throw new Error("Published catalogue exceeds the configured pagination safety limit.");
 }
 
+// Public-only metadata, never editorial/private fields. Coalesce simultaneous
+// library requests and reuse successful results within the same Worker isolate.
+// A failed refresh never gets cached, so retries recover normally.
+const LIBRARY_INDEX_CACHE_MS = 90_000;
+let libraryIndexCache: { books: Book[]; expiresAt: number } | null = null;
+let libraryIndexInFlight: Promise<Book[]> | null = null;
 export async function listPublicLibraryIndex(): Promise<Book[]> {
-  return pagedPublishedBooks(LIBRARY_INDEX_COLUMNS);
+  if (libraryIndexCache && Date.now() < libraryIndexCache.expiresAt) {
+    return libraryIndexCache.books;
+  }
+  if (!libraryIndexInFlight) {
+    libraryIndexInFlight = pagedPublishedBooks(LIBRARY_INDEX_COLUMNS, {}, 3)
+      .then((books) => {
+        libraryIndexCache = { books, expiresAt: Date.now() + LIBRARY_INDEX_CACHE_MS };
+        return books;
+      }).finally(() => {
+        libraryIndexInFlight = null;
+      });
+  }
+  return libraryIndexInFlight;
 }
 
 /** Exact bounded materialization of one 24-card Library page.
