@@ -101,7 +101,13 @@ function LibraryPage() {
     navigate({ search: (prev) => ({ ...prev, ...patch, p: patch.p ?? 1 }), replace: true });
   }
 
-  const booksQuery = useQuery({ queryKey: ["library-index"], queryFn: listLibraryIndex });
+  const booksQuery = useQuery({
+    queryKey: ["library-index"],
+    queryFn: listLibraryIndex,
+    staleTime: 2 * 60 * 1000,
+    // A window focus should not force a repeat scan of the full catalogue.
+    refetchOnWindowFocus: false,
+  });
   const progressQuery = useQuery({
     queryKey: ["progress", userId],
     queryFn: () => listProgress(userId),
