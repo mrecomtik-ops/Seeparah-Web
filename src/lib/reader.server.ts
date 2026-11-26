@@ -359,6 +359,23 @@ export async function getReaderNavigation(params: {
     }
   }
 
+  // Books with no semantic TOC need the same safe fallback navigation
+  // after a verified R2 cutover, even when PostgreSQL chunks are removed.
+  const { getActiveBookChunks } = await import("@/lib/r2-book-archive.server");
+  let archived: Awaited<ReturnType<typeof getActiveBookChunks>>;
+  try {
+    archived = await getActiveBookChunks(
+      params.bookId, params.language, book.source_version ?? 1,
+    );
+  } catch {
+    return [];
+  }
+  if (archived) {
+    const { buildFallbackNavigation } = await import("@/lib/reader-structure");
+    return buildFallbackNavigation(fullAccess
+      ? archived : archived.filter((row) => row.chunk_index === 0));
+  }
+
   let query = db
     .from("book_chunks")
     .select("chunk_index, content")
