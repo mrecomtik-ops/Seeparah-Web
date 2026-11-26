@@ -1,0 +1,26 @@
+// Separate migration Worker; intentionally NOT the live seeparah-web Worker.
+// DO NOT deploy until the owner enables R2, creates this private bucket, and
+// adds the 3 private secrets. No scheduled job, no deletion endpoint.
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "seeparah-r2-migrator",
+  "main": "./worker.ts",
+  "compatibility_date": "2026-11-26",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "keep_vars": true,
+  "observability": { "enabled": true },
+  "r2_buckets": [
+    {
+      "binding": "SEEPARAH_BOOK_ARCHIVE",
+      "bucket_name": "seeparah-book-archive"
+    }
+  ],
+  "secrets": {
+    "required": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY",
+      "MIGRATION_ADMIN_TOKEN"
+    ]
+  }
+}
