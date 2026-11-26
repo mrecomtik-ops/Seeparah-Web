@@ -34,9 +34,10 @@ function reply(data: unknown, status = 200): Response {
 }
 
 function isConfigured(env: Env): boolean {
+  const bucket = env.SEEPARAH_BOOK_ARCHIVE as Partial<PrivateArchiveBucket> | undefined;
   return Boolean(env.SUPABASE_URL && env.SUPABASE_SERVICE_ROLE_KEY &&
-    env.MIGRATION_ADMIN_TOKEN && env.SEEPARAH_BOOK_ARCHIVE?.get &&
-    env.SEEPARAH_BOOK_ARCHIVE?.put);
+    env.MIGRATION_ADMIN_TOKEN && bucket &&
+    typeof bucket.get === "function" && typeof bucket.put === "function");
 }
 
 async function authorized(request: Request, env: Env): Promise<boolean> {
