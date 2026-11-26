@@ -27,6 +27,11 @@ async function getAllPublishedChunkRows(
   language: string,
   sourceVersion: number,
 ): Promise<PublishedChunkRow[]> {
+  // Activated archives must be hash-verified and match the approved edition
+  // before returning any text. Absent activation retains the old DB reader.
+  const { getActiveBookChunks } = await import("@/lib/r2-book-archive.server");
+  const archived = await getActiveBookChunks(bookId, language, sourceVersion);
+  if (archived) return archived;
   const db = await admin();
 
   // A single JSON aggregate avoids PostgREST's configured per-query row cap.
@@ -446,26 +451,45 @@ export async function searchReaderBook(params: {
     editionAccessType,
   }).locked;
 
-  // Push the match filter into Postgres instead of loading an entire
-  // novel into the server process for every search. Escape SQL LIKE
-  // wildcards so reader input is treated as literal text.
-  const literalPattern = params.query.trim().replace(/[\\%_]/g, (char) => `\\${char}`);
-  const pattern = `%${literalPattern}%`;
-
-  let query = db
-    .from("book_chunks")
-    .select("chunk_index, content")
-    .eq("book_id", params.bookId)
-    .eq("language", params.language)
-    .eq("status", "published")
-    .eq("source_version", book.source_version ?? 1)
-    .ilike("content", pattern)
-    .order("chunk_index", { ascending: true })
-    .limit(50);
-  if (!fullAccess) query = query.eq("chunk_index", 0);
-
-  const { data: rows, error } = await query;
-  if (error || !rows) return [];
+  const { getActiveBookChunks } = await import("@/lib/r2-book-archive.server");
+  let archived: Awaited<ReturnType<typeof getActiveBookChunks>>;
+  try {
+    archived = await getActiveBookChunks(
+      params.bookId, params.language, book.source_version ?? 1,
+    );
+  } catch {
+    // Never fall through to an older database edition if activated R2
+    // content fails its integrity check.
+    return [];
+  }
+  let rows: Array<{ chunk_index: number; content: string }>;
+  if (archived) {
+    // Search exactly the same readable subset as the legacy SQL path.
+    // Preserve the 50-result cap and avoid leaking a locked translation.
+    rows = archived.filter((row) => (fullAccess || row.chunk_index === 0) &&
+      row.content.toLocaleLowerCase().includes(needle)).slice(0, 50);
+  } else {
+    // Push the match filter into PostgreSQL for unmigrated books.
+    const literalPattern = params.query.trim().replace(/[\\%_]/g, (char) => `\\${char}`);
+    const pattern = `%${literalPattern}%`;
+    let query = db
+      .from("book_chunks")
+      .select("chunk_index, content")
+      .eq("book_id", params.bookId)
+      .eq("language", params.language)
+      .eq("status", "published")
+      .eq("source_version", book.source_version ?? 1)
+      .ilike("content", pattern)
+      .order("chunk_index", { ascending: true })
+      .limit(50);
+    if (!fullAccess) query = query.eq("chunk_index", 0);
+    const { data, error } = await query;
+    if (error || !data) return [];
+    rows = data.map((row) => ({
+      chunk_index: Number(row.chunk_index),
+      content: String(row.content ?? ""),
+    }));
+  }
 
   const results: ReaderSearchResult[] = [];
   for (const row of rows) {
@@ -556,19 +580,27 @@ export async function getReaderBookContent(params: {
   let rows: PublishedChunkRow[] = [];
   try {
     if (fullAccess.locked) {
-      const { data, error } = await db
-        .from("book_chunks")
-        .select("chunk_index, content")
-        .eq("book_id", params.bookId)
-        .eq("language", params.language)
-        .eq("status", "published")
-        .eq("source_version", book.source_version ?? 1)
-        .eq("chunk_index", 0);
-      if (error) throw error;
-      rows = (data ?? []).map((row) => ({
-        chunk_index: Number(row.chunk_index),
-        content: String(row.content ?? ""),
-      }));
+      const { getActiveBookChunks } = await import("@/lib/r2-book-archive.server");
+      const archived = await getActiveBookChunks(
+        params.bookId, params.language, book.source_version ?? 1,
+      );
+      if (archived) {
+        rows = archived.filter((row) => row.chunk_index === 0);
+      } else {
+        const { data, error } = await db
+          .from("book_chunks")
+          .select("chunk_index, content")
+          .eq("book_id", params.bookId)
+          .eq("language", params.language)
+          .eq("status", "published")
+          .eq("source_version", book.source_version ?? 1)
+          .eq("chunk_index", 0);
+        if (error) throw error;
+        rows = (data ?? []).map((row) => ({
+          chunk_index: Number(row.chunk_index),
+          content: String(row.content ?? ""),
+        }));
+      }
     } else {
       rows = await getAllPublishedChunkRows(
         params.bookId,
@@ -848,6 +880,25 @@ export async function getReaderChunk(params: {
     editionAccessType,
   });
   if (access.locked) return { content: null, locked: true, reason: access.reason };
+
+  const { getActiveBookChunks } = await import("@/lib/r2-book-archive.server");
+  let archived: Awaited<ReturnType<typeof getActiveBookChunks>>;
+  try {
+    archived = await getActiveBookChunks(
+      params.bookId, params.language, book.source_version ?? 1,
+    );
+  } catch {
+    return { content: null, locked: true, reason: "not_available" };
+  }
+  if (archived) {
+    return {
+      content: archived.find((row) => row.chunk_index === params.chunkIndex)?.content ?? null,
+      locked: false,
+      typographyProfile: isSourceLanguage
+        ? (book.typography_profile ?? "standard")
+        : (editionTypographyProfile ?? "standard"),
+    };
+  }
 
   const { data: chunk, error: chunkError } = await db
     .from("book_chunks")
