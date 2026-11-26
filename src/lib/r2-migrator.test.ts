@@ -86,7 +86,7 @@ describe("Safe R2 mirror Worker", () => {
     expect(objects.has(bookActivationKey(identity))).toBe(true);
     // The migrator never deletes a database row or exposes a public object.
     expect((fetch as ReturnType<typeof vi.fn>).mock.calls.every(
-      ([url]: [URL]) => String(url).includes("supabase.co"))).toBe(true);
+      (args) => String(args[0]).includes("supabase.co"))).toBe(true);
   });
 
   it("refuses migration of unpublished books", async () => {
